@@ -1,0 +1,58 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_paths": null,
+    "max_paths_per_result": null,
+    "max_results": 1000,
+    "max_traversal_depth": 0,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "All retained project roadmap Subjects; watch membership so newly added work cannot silently disappear from repo views.",
+  "entry": {
+    "binding": "item",
+    "subject_id": null,
+    "subject_kinds": [
+      "dev.roadmap_item"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "project.roadmap-membership"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": null,
+    "max_paths_per_result": null,
+    "max_results": 1000,
+    "max_traversal_depth": 0,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [],
+  "pins": [],
+  "projection": null,
+  "result_binding": "item",
+  "result_cardinality": "many",
+  "result_shape": "subject",
+  "traversal": [],
+  "where": null
+}

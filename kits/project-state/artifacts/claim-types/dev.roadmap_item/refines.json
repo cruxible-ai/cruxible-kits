@@ -1,0 +1,64 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [
+    "dev.roadmap_item"
+  ],
+  "allowed_subject_kinds": [
+    "dev.roadmap_item"
+  ],
+  "artifact_format": "playbill-claim-type-v1",
+  "cardinality": "many",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "allowed_reducer_digests": [],
+        "attestation_requirement": "none",
+        "capture_contract_digests": [
+          "sha256:ab6e6a1d57c92944d5262423ea907d0e54837229a84dc677e3a3cac10d2bc8c4"
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted"
+        ],
+        "rule_id": "attributed-author-account",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v1"
+      }
+    ],
+    "tag": "playbill-claim-evidence-admission-policy-v1"
+  },
+  "identity": {
+    "kind": "ClaimType",
+    "name": "dev.roadmap_item.refines"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": null,
+  "object_kind": "subject",
+  "permitted_roles": [
+    "normative"
+  ],
+  "pins": [],
+  "predicate": "dev.roadmap_item.refines",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "many",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "all",
+    "tag": "playbill-claim-resolution-policy-v1"
+  }
+}

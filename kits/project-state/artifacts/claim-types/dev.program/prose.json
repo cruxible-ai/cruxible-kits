@@ -1,0 +1,147 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [],
+  "allowed_subject_kinds": [
+    "dev.track"
+  ],
+  "artifact_format": "playbill-claim-type-v1",
+  "cardinality": "many",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "allowed_reducer_digests": [],
+        "attestation_requirement": "none",
+        "capture_contract_digests": [
+          "sha256:76d5b5af462e2da7cbc787a19eebe3e4ef94f9aedc6e2bc6cdda73720ed03ae4"
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted"
+        ],
+        "rule_id": "source-program-cards",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v1"
+      },
+      {
+        "admission": "direct",
+        "allowed_reducer_digests": [],
+        "attestation_requirement": "none",
+        "capture_contract_digests": [
+          "sha256:ed6c39a1b016aea25feafeb98a3b25c5fcf557c93070210cabff5b6f96f68b1b"
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted"
+        ],
+        "rule_id": "source-program-decisions",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v1"
+      },
+      {
+        "admission": "direct",
+        "allowed_reducer_digests": [],
+        "attestation_requirement": "none",
+        "capture_contract_digests": [
+          "sha256:14206743ee4a104d4e8d4af9f4fc5b231d42a45746beca6795b02b4fc66ce9b3"
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted"
+        ],
+        "rule_id": "source-program-in-flight",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v1"
+      },
+      {
+        "admission": "direct",
+        "allowed_reducer_digests": [],
+        "attestation_requirement": "none",
+        "capture_contract_digests": [
+          "sha256:d016d48df86588ada1a8385e1fc5a6c77556a59deef5ddf60849caebec8d454d"
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted"
+        ],
+        "rule_id": "source-program-landings",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v1"
+      },
+      {
+        "admission": "direct",
+        "allowed_reducer_digests": [],
+        "attestation_requirement": "none",
+        "capture_contract_digests": [
+          "sha256:b144324a6ba940392f3423708fb3d0e00affac0052b295ddcdc41a8550f06401"
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted"
+        ],
+        "rule_id": "source-program-laws",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v1"
+      },
+      {
+        "admission": "direct",
+        "allowed_reducer_digests": [],
+        "attestation_requirement": "none",
+        "capture_contract_digests": [
+          "sha256:0a3ff33424ebc80dc525c92841d765761680d716a97a6be7527613816bf63158"
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted"
+        ],
+        "rule_id": "source-program-readme",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v1"
+      }
+    ],
+    "tag": "playbill-claim-evidence-admission-policy-v1"
+  },
+  "identity": {
+    "kind": "ClaimType",
+    "name": "dev.program.prose"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": null,
+  "object_kind": "exact_content",
+  "permitted_roles": [
+    "normative"
+  ],
+  "pins": [],
+  "predicate": "dev.program.prose",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "many",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "all",
+    "tag": "playbill-claim-resolution-policy-v1"
+  }
+}

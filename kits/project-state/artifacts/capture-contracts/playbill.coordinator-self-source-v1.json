@@ -1,0 +1,77 @@
+{
+  "allowed_materialization_modes": [
+    "cas"
+  ],
+  "allowed_source_kinds": [
+    "cas"
+  ],
+  "artifact_format": "playbill-capture-contract-v1",
+  "commitment_canonicalizer": {
+    "artifact_digest": "sha256:7724766c5090519156b5fcd163ebfa4d11ff4348d735a06a2e54fc34c514c62e",
+    "role": "commitment-canonicalizer",
+    "target": {
+      "kind": "Contract",
+      "name": "sha256-bytes-v1"
+    }
+  },
+  "coordinate_schema_pins": [],
+  "epistemic_grade": "observed",
+  "evidence_kinds": [
+    "self_asserted"
+  ],
+  "identity": {
+    "kind": "CaptureContract",
+    "name": "playbill.coordinator-self-source-v1"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "logical_source_identities": [
+    "playbill.coordinator-authoring"
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:8043b1a893e7332fd869868f37b4c21d59ae2448367f068809a1d4f5b57bdd53",
+      "role": "provenance-rule",
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.coordinator-proposer-observed-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:90ec5877200bbcc682c75af28b988899ac2ea9388914c48370ea91c9a0391593",
+      "role": "replay-policy",
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.coordinator-retained-cas-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:8cae85d45871ddeb4cac43655707daa363755bfc82b0ada92085cc8647019ece",
+      "role": "source-subject-mapping",
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.coordinator-claim-self-source-v1"
+      }
+    }
+  ],
+  "provenance_rule_digest": "sha256:8043b1a893e7332fd869868f37b4c21d59ae2448367f068809a1d4f5b57bdd53",
+  "replay_policy_digest": "sha256:90ec5877200bbcc682c75af28b988899ac2ea9388914c48370ea91c9a0391593",
+  "retention_erasure_policy": {
+    "body_retention": "optional",
+    "erasure": "prohibited",
+    "erasure_rule_digest": null,
+    "minimum_retention": null,
+    "selector_privacy": "direct_allowed",
+    "tag": "playbill-capture-retention-erasure-policy-v1"
+  },
+  "selection_budget": {
+    "max_bytes": 1048576,
+    "max_items": 1,
+    "max_rows": 1,
+    "tag": "playbill-capture-selection-budget-v1"
+  },
+  "selector_schema_pins": [],
+  "source_subject_mapping_digest": "sha256:8cae85d45871ddeb4cac43655707daa363755bfc82b0ada92085cc8647019ece"
+}

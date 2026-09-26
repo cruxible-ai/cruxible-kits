@@ -1,0 +1,227 @@
+{
+  "artifacts": [
+    {
+      "artifact_digest": "sha256:ab6e6a1d57c92944d5262423ea907d0e54837229a84dc677e3a3cac10d2bc8c4",
+      "path": "capture-contracts/playbill.coordinator-self-source-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:3abcb59d15a7124f57e237ec1bb9ad1412401a2c60df6a58f06c4e9c0c0c9a75",
+      "path": "capture-contracts/playbill.foreign-source.agent-reports.json"
+    },
+    {
+      "artifact_digest": "sha256:13934b9fa6a06c0c274c6213daee400d8a9b8eda1f9c5edab73b995767eb257f",
+      "path": "capture-contracts/playbill.foreign-source.dispatch-contracts.json"
+    },
+    {
+      "artifact_digest": "sha256:c089b54bfab9c79de8773e77c5921e7f76e412360dab303b61533ea2d789376f",
+      "path": "capture-contracts/playbill.foreign-source.feedback-coordinator.json"
+    },
+    {
+      "artifact_digest": "sha256:2a6de22ab4b0a80e85227078604e5857b7e7b3a5ac2c23df40f16f95cd0a6944",
+      "path": "capture-contracts/playbill.foreign-source.feedback-credentials.json"
+    },
+    {
+      "artifact_digest": "sha256:cf08870f53e872227fdeebfe819557565c70cf5aceaac83aa8a9f904f45c6402",
+      "path": "capture-contracts/playbill.foreign-source.feedback-lowering.json"
+    },
+    {
+      "artifact_digest": "sha256:8f9c5c94ed8bfc4cbc22cc9d17e707ec938f99af963bb05cfe0ca04055d6274c",
+      "path": "capture-contracts/playbill.foreign-source.feedback-members.json"
+    },
+    {
+      "artifact_digest": "sha256:efcd2a901ece6f83b3f3efae4db1f866ccd0ed28727ec04a2160d7b13f8b3bc9",
+      "path": "capture-contracts/playbill.foreign-source.feedback-permissions.json"
+    },
+    {
+      "artifact_digest": "sha256:64fb2a7a5c05d2cd3c438606c030b4650bba8ad7e1f2814c6421700de7df78f3",
+      "path": "capture-contracts/playbill.foreign-source.feedback-profile.json"
+    },
+    {
+      "artifact_digest": "sha256:f31a53e548b24838bc8fdc0fccaec4e1ad9d19d40f77c9cb6dc03d9324132e96",
+      "path": "capture-contracts/playbill.foreign-source.feedback-sdk.json"
+    },
+    {
+      "artifact_digest": "sha256:81a67a88b39b1d0577a4630091c4e24eda9b3a45d56e09b4d3ac5d4f09e25ac5",
+      "path": "capture-contracts/playbill.foreign-source.feedback-store.json"
+    },
+    {
+      "artifact_digest": "sha256:a26a8263e2565442a3eee5814c3bbf329fa9becc95aa2a1ddcdf51c4b03145ca",
+      "path": "capture-contracts/playbill.foreign-source.feedback-world.json"
+    },
+    {
+      "artifact_digest": "sha256:9e4f455c47ce5c62a83ac673abe4c90e274e96d35bb0d1b8b71264b342038ee0",
+      "path": "capture-contracts/playbill.foreign-source.friction-log-backfill.json"
+    },
+    {
+      "artifact_digest": "sha256:57df610ee9ba4a78fb06cc527bab00c1df31590ff1b7eb66ab5bfc45ceef4557",
+      "path": "capture-contracts/playbill.foreign-source.friction-log.json"
+    },
+    {
+      "artifact_digest": "sha256:76d5b5af462e2da7cbc787a19eebe3e4ef94f9aedc6e2bc6cdda73720ed03ae4",
+      "path": "capture-contracts/playbill.foreign-source.program-cards.json"
+    },
+    {
+      "artifact_digest": "sha256:ed6c39a1b016aea25feafeb98a3b25c5fcf557c93070210cabff5b6f96f68b1b",
+      "path": "capture-contracts/playbill.foreign-source.program-decisions.json"
+    },
+    {
+      "artifact_digest": "sha256:14206743ee4a104d4e8d4af9f4fc5b231d42a45746beca6795b02b4fc66ce9b3",
+      "path": "capture-contracts/playbill.foreign-source.program-in-flight.json"
+    },
+    {
+      "artifact_digest": "sha256:d016d48df86588ada1a8385e1fc5a6c77556a59deef5ddf60849caebec8d454d",
+      "path": "capture-contracts/playbill.foreign-source.program-landings.json"
+    },
+    {
+      "artifact_digest": "sha256:b144324a6ba940392f3423708fb3d0e00affac0052b295ddcdc41a8550f06401",
+      "path": "capture-contracts/playbill.foreign-source.program-laws.json"
+    },
+    {
+      "artifact_digest": "sha256:0a3ff33424ebc80dc525c92841d765761680d716a97a6be7527613816bf63158",
+      "path": "capture-contracts/playbill.foreign-source.program-readme.json"
+    },
+    {
+      "artifact_digest": "sha256:ffaac85a705f22a8a0a0dc0ad6b00dc3697ddbb5fc50ab4b3226bdd1ffdeefb5",
+      "path": "capture-contracts/playbill.foreign-source.program-register.json"
+    },
+    {
+      "artifact_digest": "sha256:361cb248f089cdc1c1f97a0dc5f51c084e1033eadd3704233b236d04d6942377",
+      "path": "claim-types/dev.batch/belongs_to_track.json"
+    },
+    {
+      "artifact_digest": "sha256:3751422da62c8113f3ae35ac1c5944934c7af70a0ef0b809106830aaf155a5b5",
+      "path": "claim-types/dev.batch/blocked_by.json"
+    },
+    {
+      "artifact_digest": "sha256:e07d2455bac2f5189faf404bb23c887a20250d1384dfc22e671baf1c2c683fe3",
+      "path": "claim-types/dev.batch/landed_at.json"
+    },
+    {
+      "artifact_digest": "sha256:c56f43163487521552fb74518302c5c550f2c981488f9c758e8d1780f94912cc",
+      "path": "claim-types/dev.batch/state.json"
+    },
+    {
+      "artifact_digest": "sha256:914e71926375c0e248b7eee45ece5f5b03f870aae9e4b61dcd34f1aec75e26c5",
+      "path": "claim-types/dev.batch/tip.json"
+    },
+    {
+      "artifact_digest": "sha256:ac61cfef1afcf6cfa0e85376ae99e87cf6f83ece89b44946612ddd7af2787b58",
+      "path": "claim-types/dev.batch/verdict.json"
+    },
+    {
+      "artifact_digest": "sha256:489b2bf2a2e9cd85840de3cdb5888ecdba41f9d8c9b1810eb762f5ecc897d7b6",
+      "path": "claim-types/dev.card/closed_by.json"
+    },
+    {
+      "artifact_digest": "sha256:d9b9f7ab90d4264a4119201520154c84418c379d64523142340241e39dd2964e",
+      "path": "claim-types/dev.card/disposition.json"
+    },
+    {
+      "artifact_digest": "sha256:8aad4b412496b8d93a184f9d6095846f5a3657041dd29d75893fa64707622608",
+      "path": "claim-types/dev.card/lane.json"
+    },
+    {
+      "artifact_digest": "sha256:141591511a6910416b88376b4b1e476e055c17f65876d33f8d80e19a82e63e6a",
+      "path": "claim-types/dev.decision/decided_in.json"
+    },
+    {
+      "artifact_digest": "sha256:1342a497340c861716d1ee37f24fc6cd69b9fed675ee07814c1dd776ac1d89b1",
+      "path": "claim-types/dev.decision/ruling.json"
+    },
+    {
+      "artifact_digest": "sha256:e7d8a654e625d54b4de065640b5842897f0e6b320470717cc477b6c45e6677a0",
+      "path": "claim-types/dev.decision/standing.json"
+    },
+    {
+      "artifact_digest": "sha256:16bf2da97d72e2ca0630bfedc3b4dad09f9ccf415979c5b290d96bf1cb3dede5",
+      "path": "claim-types/dev.law/origin.json"
+    },
+    {
+      "artifact_digest": "sha256:5caf1f90a0a43614424f196c19cc7acccd64dd56790b43be63d910a395835e40",
+      "path": "claim-types/dev.law/text.json"
+    },
+    {
+      "artifact_digest": "sha256:25a4bbe322ba269c7c146c26c85ae09ceb0f4d84b373b9ab98080b32887ae375",
+      "path": "claim-types/dev.product_feedback/finding_text.json"
+    },
+    {
+      "artifact_digest": "sha256:9b43bb66308599761c50cb0e879cec49bf4e603fba4338c5002fec5ac84b92bf",
+      "path": "claim-types/dev.product_feedback/follow_up.json"
+    },
+    {
+      "artifact_digest": "sha256:9d1056aaf364c89c999ce9b893d75d63f7e09acfed309a493c4f57a872eb8864",
+      "path": "claim-types/dev.program/prose.json"
+    },
+    {
+      "artifact_digest": "sha256:287cb16c72093a3ab3a8d8a5a5323511324f1bd7334bfd6ece5054f795606bd1",
+      "path": "claim-types/dev.recommendation/rationale.json"
+    },
+    {
+      "artifact_digest": "sha256:28b05dabc31329096a4e659777acf8fa46aab1868c194118ab198289ea48b9b9",
+      "path": "claim-types/dev.recommendation/rule.json"
+    },
+    {
+      "artifact_digest": "sha256:bd44e3eddffd8243b055dd4a363a458eadefeccb49f5600f73e1a5920a29f989",
+      "path": "claim-types/dev.roadmap_item/adoption_state.json"
+    },
+    {
+      "artifact_digest": "sha256:36dcf406372d387524b49763a397b626253c0cfeac75bb4a3550f4dd5e907470",
+      "path": "claim-types/dev.roadmap_item/audit_baseline.json"
+    },
+    {
+      "artifact_digest": "sha256:76f1b888425aedc85f1505a314fe3c0a2f1d8e137211884ffeb577b4cf7ce89d",
+      "path": "claim-types/dev.roadmap_item/completion_criterion.json"
+    },
+    {
+      "artifact_digest": "sha256:56ff58087e816b3de5d0b9ff8cd8ef3332a66fd9a3d5679c9e085c339cf503b3",
+      "path": "claim-types/dev.roadmap_item/historical_audit_class.json"
+    },
+    {
+      "artifact_digest": "sha256:c9db975e56dbdb89224489da968a87b082255281aecf0240902e42350bfd1a7e",
+      "path": "claim-types/dev.roadmap_item/implementation_state.json"
+    },
+    {
+      "artifact_digest": "sha256:8267f1e5550986eaf428e241cd325eb93992a931db8031fa9d21952efefe38e5",
+      "path": "claim-types/dev.roadmap_item/justification.json"
+    },
+    {
+      "artifact_digest": "sha256:d30196428259f179b0b3d0c288283368a77fb923ba3a91ada29839928bbff56e",
+      "path": "claim-types/dev.roadmap_item/original_recommendation.json"
+    },
+    {
+      "artifact_digest": "sha256:74a34985bafd253818d3a55f81e1a33def01addb4bfabb34907ce127fe1bf2fc",
+      "path": "claim-types/dev.roadmap_item/proposed_release.json"
+    },
+    {
+      "artifact_digest": "sha256:3834d82dae590504c95a169d0bbfa76fea83489611b386e69b9b59b14ff409aa",
+      "path": "claim-types/dev.roadmap_item/reconciliation_note.json"
+    },
+    {
+      "artifact_digest": "sha256:1775c26390075e79bfd34599aa3945244f259f5a2bb1f921e610e815f6fb7cb6",
+      "path": "claim-types/dev.roadmap_item/refines.json"
+    },
+    {
+      "artifact_digest": "sha256:119f880ee6e50d7e87f43fad001cc4cd7dbbc41a84affea5500a4aa1b2ac6190",
+      "path": "claim-types/dev.roadmap_item/strategic_bucket.json"
+    },
+    {
+      "artifact_digest": "sha256:7f4cbc9bc9a828b77a362f8563ef34cf0ceb930782bcfb89a75c9736e9eb9b62",
+      "path": "claim-types/dev.roadmap_item/task_title.json"
+    },
+    {
+      "artifact_digest": "sha256:5a7d5c8568e79f9c122b0840117c057eb46a23c36311748b0d01fa03d10ef48a",
+      "path": "claim-types/dev.track/status.json"
+    },
+    {
+      "artifact_digest": "sha256:5f8d7d32cefcab7595564adb0dcf9d24b4b5da38500c892ae953ff2a8dd681b2",
+      "path": "query-definitions/project.roadmap-membership.json"
+    }
+  ],
+  "kit_id": "project-state",
+  "owns": [
+    "dev.",
+    "project."
+  ],
+  "tag": "playbill-kit-manifest-v1",
+  "version": "1.0.0"
+}
