@@ -8,16 +8,22 @@
   "allowed_subject_kinds": [
     "dev.law"
   ],
-  "artifact_format": "playbill-claim-type-v1",
+  "artifact_format": "playbill-claim-type-v6",
+  "attestation_consequence_policy": null,
   "cardinality": "one",
   "evidence_admission_policy": {
     "rules": [
       {
         "admission": "direct",
-        "allowed_reducer_digests": [],
         "attestation_requirement": "none",
-        "capture_contract_digests": [
-          "sha256:3abcb59d15a7124f57e237ec1bb9ad1412401a2c60df6a58f06c4e9c0c0c9a75"
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.foreign-source.agent-reports"
+            }
+          }
         ],
         "claim_roles": [
           "normative"
@@ -27,14 +33,19 @@
         ],
         "rule_id": "source-agent-reports",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v1"
+        "tag": "playbill-claim-evidence-admission-rule-v3"
       },
       {
         "admission": "direct",
-        "allowed_reducer_digests": [],
         "attestation_requirement": "none",
-        "capture_contract_digests": [
-          "sha256:13934b9fa6a06c0c274c6213daee400d8a9b8eda1f9c5edab73b995767eb257f"
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.foreign-source.dispatch-contracts"
+            }
+          }
         ],
         "claim_roles": [
           "normative"
@@ -44,14 +55,19 @@
         ],
         "rule_id": "source-dispatch-contracts",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v1"
+        "tag": "playbill-claim-evidence-admission-rule-v3"
       },
       {
         "admission": "direct",
-        "allowed_reducer_digests": [],
         "attestation_requirement": "none",
-        "capture_contract_digests": [
-          "sha256:57df610ee9ba4a78fb06cc527bab00c1df31590ff1b7eb66ab5bfc45ceef4557"
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.foreign-source.friction-log"
+            }
+          }
         ],
         "claim_roles": [
           "normative"
@@ -61,14 +77,19 @@
         ],
         "rule_id": "source-friction-log",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v1"
+        "tag": "playbill-claim-evidence-admission-rule-v3"
       },
       {
         "admission": "direct",
-        "allowed_reducer_digests": [],
         "attestation_requirement": "none",
-        "capture_contract_digests": [
-          "sha256:9e4f455c47ce5c62a83ac673abe4c90e274e96d35bb0d1b8b71264b342038ee0"
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.foreign-source.friction-log-backfill"
+            }
+          }
         ],
         "claim_roles": [
           "normative"
@@ -78,14 +99,19 @@
         ],
         "rule_id": "source-friction-log-backfill",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v1"
+        "tag": "playbill-claim-evidence-admission-rule-v3"
       },
       {
         "admission": "direct",
-        "allowed_reducer_digests": [],
         "attestation_requirement": "none",
-        "capture_contract_digests": [
-          "sha256:ffaac85a705f22a8a0a0dc0ad6b00dc3697ddbb5fc50ab4b3226bdd1ffdeefb5"
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.foreign-source.program-register"
+            }
+          }
         ],
         "claim_roles": [
           "normative"
@@ -95,11 +121,12 @@
         ],
         "rule_id": "source-program-register",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v1"
+        "tag": "playbill-claim-evidence-admission-rule-v3"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v1"
+    "tag": "playbill-claim-evidence-admission-policy-v3"
   },
+  "evidence_freshness": null,
   "identity": {
     "kind": "ClaimType",
     "name": "dev.law.text"
@@ -126,5 +153,7 @@
     "required_basis_kinds": [],
     "selector": "only_contender",
     "tag": "playbill-claim-resolution-policy-v1"
-  }
+  },
+  "slot_policy": null,
+  "subject_scope": null
 }

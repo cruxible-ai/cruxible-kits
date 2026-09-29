@@ -8,16 +8,22 @@
   "allowed_subject_kinds": [
     "dev.roadmap_item"
   ],
-  "artifact_format": "playbill-claim-type-v1",
+  "artifact_format": "playbill-claim-type-v6",
+  "attestation_consequence_policy": null,
   "cardinality": "one",
   "evidence_admission_policy": {
     "rules": [
       {
         "admission": "direct",
-        "allowed_reducer_digests": [],
         "attestation_requirement": "none",
-        "capture_contract_digests": [
-          "sha256:ab6e6a1d57c92944d5262423ea907d0e54837229a84dc677e3a3cac10d2bc8c4"
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          }
         ],
         "claim_roles": [
           "normative"
@@ -27,11 +33,12 @@
         ],
         "rule_id": "author-recommendation",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v1"
+        "tag": "playbill-claim-evidence-admission-rule-v3"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v1"
+    "tag": "playbill-claim-evidence-admission-policy-v3"
   },
+  "evidence_freshness": null,
   "identity": {
     "kind": "ClaimType",
     "name": "dev.roadmap_item.adoption_state"
@@ -67,5 +74,7 @@
     "required_basis_kinds": [],
     "selector": "only_contender",
     "tag": "playbill-claim-resolution-policy-v1"
-  }
+  },
+  "slot_policy": null,
+  "subject_scope": null
 }
