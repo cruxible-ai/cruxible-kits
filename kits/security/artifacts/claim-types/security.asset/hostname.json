@@ -1,0 +1,55 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [],
+  "allowed_subject_kinds": [
+    "security.asset"
+  ],
+  "artifact_format": "playbill-claim-type-v7",
+  "attestation_consequence_policy": null,
+  "cardinality": "one",
+  "default_role": "normative",
+  "description": "The asset's hostname.",
+  "evidence_admission_policy": {
+    "rules": [],
+    "tag": "playbill-claim-evidence-admission-policy-v3"
+  },
+  "evidence_freshness": null,
+  "evidence_requirement": "none",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "security.asset.hostname"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": {
+    "type": "string"
+  },
+  "member_descriptions": [],
+  "object_kind": "literal",
+  "permitted_roles": [
+    "normative"
+  ],
+  "pins": [],
+  "predicate": "security.asset.hostname",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "slot_policy": null,
+  "subject_scope": null
+}

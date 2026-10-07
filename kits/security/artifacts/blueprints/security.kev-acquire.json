@@ -1,0 +1,242 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-blueprint-v1",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 16777216,
+      "max_provider_calls": 1,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 60000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      }
+    },
+    "description": "Fetch the CISA KEV catalog (static JSON, no rendering) and retain it under security.kev-http-v1. Interpretation is security.kev-triage's job.",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 16777216,
+      "max_items": 1,
+      "max_provider_calls": 1,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 120000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [],
+    "name": "security.kev-acquire",
+    "nodes": [
+      {
+        "as": "catalog",
+        "capture_contract": {
+          "artifact_digest": "sha256:3515cb2a04e6e17a3343968e325cc7eec97a9617b8eb419a879a9df845de8bfc",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.kev-http-v1"
+          }
+        },
+        "implementation_digest": null,
+        "interface": {
+          "artifact_digest": "sha256:ed8c6754a7e0bf4bed4090cce994950a408bf0d506ddf90de3eed95e8da2c267",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch"
+          }
+        },
+        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
+        "kind": "source",
+        "next": "summary",
+        "node_id": "catalog",
+        "provider": {
+          "slot_name": "fetch",
+          "tag": "playbill-procedure-pin-slot-ref-v1"
+        },
+        "request": {
+          "expected_format": "json",
+          "extract": false,
+          "logical_source": "cisa.kev.catalog",
+          "max_bytes": 4194304,
+          "render": false,
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-http-evidence"
+          }
+        },
+        "fields": {
+          "body_digest": "$steps.catalog.retrieved.body_sha256",
+          "status": "$steps.catalog.retrieved.status_code",
+          "url": "$steps.catalog.retrieved.final_url"
+        },
+        "kind": "project",
+        "next": "emit",
+        "node_id": "summary"
+      },
+      {
+        "capture_contract": {
+          "artifact_digest": "sha256:204609ce92af2744651e9dd40ac2073b74b0129cba3e44511266e6bbc0ea0c3f",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.observation-output-v1"
+          }
+        },
+        "input": "$steps.catalog",
+        "kind": "emit_capture",
+        "node_id": "emit",
+        "result": "$steps.summary"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [
+      {
+        "artifact_kind": "Provider",
+        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
+        "pin_role": "provider",
+        "slot_name": "fetch",
+        "tag": "playbill-procedure-pin-slot-v1"
+      }
+    ],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:85eea5c4544846366e7ccadc1ca862fb12d300a5f53247c1f2f5a8873d79b28a",
+  "identity": {
+    "kind": "Blueprint",
+    "name": "security.kev-acquire"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {}
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "body_digest": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "status": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "int"
+          },
+          "url": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:3515cb2a04e6e17a3343968e325cc7eec97a9617b8eb419a879a9df845de8bfc",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.kev-http-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:204609ce92af2744651e9dd40ac2073b74b0129cba3e44511266e6bbc0ea0c3f",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.observation-output-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ed8c6754a7e0bf4bed4090cce994950a408bf0d506ddf90de3eed95e8da2c267",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "web.fetch"
+      }
+    }
+  ]
+}

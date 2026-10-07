@@ -1,0 +1,266 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 2000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "Remediation actions and verification. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "entry": {
+    "binding": "action",
+    "subject_id": null,
+    "subject_kinds": [
+      "security.remediation"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.remediation_work"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [],
+  "pins": [
+    {
+      "artifact_digest": "sha256:9cb2427365484276a2bf737a36f4e16914b351191a7c9c3d8788967306c45ceb",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.remediation.due_at"
+      }
+    },
+    {
+      "artifact_digest": "sha256:3197966c3c42ca642482c4b2c63e162b09f6df4a8e6650b7c198893e5289a3f1",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.remediation.progress"
+      }
+    },
+    {
+      "artifact_digest": "sha256:4854f55c94ce3e4fb6f01937964e74eb1d397655046a56fb7dec7621b32003ea",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.remediation.target_release"
+      }
+    },
+    {
+      "artifact_digest": "sha256:12ebf4183d5b89f83d06f69c7c0cb9b67bf1d2eb55da7242feb3a160a3cb6185",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.assessment"
+      }
+    },
+    {
+      "artifact_digest": "sha256:b1211537bf7ce95b6e3b0b83a3980cc382bad4c3d798790185869a602fb7b4e9",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.asset"
+      }
+    },
+    {
+      "artifact_digest": "sha256:25c4f0e198ba6975dc32d4062802895b7a485407a74f0db3f55fc9804feb8d9c",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.owner"
+      }
+    },
+    {
+      "artifact_digest": "sha256:9efdc5aec62df13c3064f55c75d9183c52d83ab90ebcd40f56e18d4a269d6792",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.rationale"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f258e9be89a9834599cde2ef9e6bed92a50250b65f6fd4e8225718254e489be8",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.verification"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "action",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "action",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "assessment",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "asset",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "asset",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "due_at",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "action",
+          "kind": "claim_value",
+          "predicate": "security.remediation.due_at",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "owner",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "owner",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "rationale",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "action",
+          "kind": "claim_value",
+          "predicate": "security.work.rationale",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "status",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "action",
+          "kind": "claim_value",
+          "predicate": "security.remediation.progress",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "target_release",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "target",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "verification",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "action",
+          "kind": "claim_value",
+          "predicate": "security.work.verification",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "action",
+  "result_cardinality": "many",
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "asset",
+      "direction": "forward",
+      "from_binding": "action",
+      "predicate": "security.work.asset",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.asset"
+      ],
+      "where": null
+    },
+    {
+      "binding": "assessment",
+      "direction": "forward",
+      "from_binding": "action",
+      "predicate": "security.work.assessment",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.assessment"
+      ],
+      "where": null
+    },
+    {
+      "binding": "owner",
+      "direction": "forward",
+      "from_binding": "action",
+      "predicate": "security.work.owner",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.team"
+      ],
+      "where": null
+    },
+    {
+      "binding": "target",
+      "direction": "forward",
+      "from_binding": "action",
+      "predicate": "security.remediation.target_release",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.release"
+      ],
+      "where": null
+    }
+  ],
+  "where": null
+}

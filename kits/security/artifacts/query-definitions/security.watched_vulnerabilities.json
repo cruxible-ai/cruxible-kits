@@ -1,0 +1,145 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_paths": null,
+    "max_paths_per_result": null,
+    "max_results": 1000,
+    "max_traversal_depth": 1,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "Every watched vulnerability with its current KEV Claims. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "entry": {
+    "binding": "vulnerability",
+    "subject_id": null,
+    "subject_kinds": [
+      "security.vulnerability"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.watched_vulnerabilities"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": null,
+    "max_paths_per_result": null,
+    "max_results": 2000,
+    "max_traversal_depth": 1,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [],
+  "pins": [
+    {
+      "artifact_digest": "sha256:31abc333d95f66bc76b4335c11e37435a3c45a434c0eab94e3168fb4086ff8d3",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.kev_date_added"
+      }
+    },
+    {
+      "artifact_digest": "sha256:3ba024a0f76ed5a6a992806d67048fbaf128773ca6d6cd425bb8087274169b2c",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.kev_due_date"
+      }
+    },
+    {
+      "artifact_digest": "sha256:9a8166173968a4a2570da2ec8f4301c22ed2c2b4d490cbe4b7f8e7de58112880",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.kev_listed"
+      }
+    },
+    {
+      "artifact_digest": "sha256:be742e7d4dddac9c495668cd4a525b12c670e24e12a690c06a6c030cba003191",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.kev_ransomware_use"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "kev_date_added",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.kev_date_added",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "kev_due_date",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.kev_due_date",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "kev_listed",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.kev_listed",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "kev_ransomware_use",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.kev_ransomware_use",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "vulnerability",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "vulnerability",
+  "result_cardinality": "many",
+  "result_shape": "subject",
+  "traversal": [],
+  "where": null
+}
