@@ -1,0 +1,31 @@
+# The security kit's domain provider: it reads a CISA KEV catalog Capture and
+# the watched vulnerabilities, and returns one Claim proposal item per changed
+# KEV field. It is not published: it ships inside the security kit as its built
+# wheel plus this lock, and `cruxible kit add` installs it before the kit's
+# definitions.
+[project]
+name = "security-kev-provider"
+version = "1.0.0"
+description = "Security kit provider: KEV catalog Capture to per-field Claim proposal items."
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = [
+  "cruxible-provider-runtime>=0.2.0",
+]
+
+[project.entry-points."cruxible.providers"]
+"security.kev-catalog" = "security_kev_provider.provider:KevCatalog"
+
+[dependency-groups]
+dev = ["pytest>=8.2"]
+
+[build-system]
+requires = ["hatchling==1.32.1"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/security_kev_provider"]
+
+# The lock travels inside the wheel, as the provider template does.
+[tool.hatch.build.targets.wheel.extra-metadata]
+"uv.lock" = "uv.lock"
