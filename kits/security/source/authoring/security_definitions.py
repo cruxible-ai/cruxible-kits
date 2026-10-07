@@ -34,6 +34,7 @@ from cruxible_client.authoring.procedures import (
     Project,
     ProposeChangeSet,
     Sequence,
+    SettleChangeSet,
     Source,
     StateTap,
 )
@@ -499,6 +500,33 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
             _field(name, "vulnerability", "security.vulnerability." + name)
             for name in ("kev_listed", "kev_date_added", "kev_due_date", "kev_ransomware_use")],
         shape="subject", max_results=1000))
+    # The settle mandate's condition: one watched vulnerability, by id, with the
+    # agent's stated KEV expectation. A vulnerability nobody stated a belief about
+    # lacks kev_listing_expected, so its changes fall back to review.
+    q.append(QueryDefinitionSpec(
+        identity=ArtifactIdentity(kind="QueryDefinition", name="security.kev_settle_condition"),
+        description=(
+            "One vulnerability by id with its stated KEV expectation; the condition a KEV "
+            "triage settle mandate evaluates per changed Claim."
+        ),
+        entry=QueryEntry(binding="vulnerability", subject_kinds=("security.vulnerability",),
+                         subject_id=QueryParameterRef(parameter="vulnerability_id")),
+        result_binding="vulnerability",
+        result_shape="subject",
+        result_cardinality="many",
+        dedupe="subject",
+        projection=QueryProjection(fields=(
+            _field("kev_listing_expected", "vulnerability",
+                   "security.vulnerability.kev_listing_expected"),
+            _field("vulnerability", "vulnerability"),
+        )),
+        parameters=(QueryParameterDeclaration(name="vulnerability_id", value_type="string"),),
+        evaluation_policy=QueryEvaluationPolicy(
+            visible_verdicts=("supported",), visible_currency=("current",),
+            conflict_behavior="surface_conflicts"),
+        default_budgets=QueryBudgets(max_results=1, max_traversal_depth=1),
+        maximum_budgets=QueryBudgets(max_results=10, max_traversal_depth=1),
+    ))
     # The triage measurement target: open assessments of KEV-listed vulnerabilities.
     q.append(_query(
         "security.kev_triage_backlog", "Assessments of KEV-listed vulnerabilities still "
@@ -696,7 +724,10 @@ def cve_record_acquire(cx: Cruxible) -> BlueprintInput:
     return _blueprint(sequence, _interface(cx, "web.fetch"))
 
 
-def kev_triage(cx: Cruxible) -> Any:
+def kev_triage(cx: Cruxible, *, settle: bool = False) -> Any:
+    """The KEV triage Procedure; ``settle=True`` is security.kev-triage-settle, the same
+    graph ending in settle_change_set (a Line graduates to it under a settle mandate)."""
+
     web = cx.provider_interface("web.fetch", provider=WEB_PROVIDER)
     kev = cx.provider_interface("security.kev-catalog", provider=KEV_PROVIDER)
     changed = GuardPredicate(
@@ -719,13 +750,15 @@ def kev_triage(cx: Cruxible) -> Any:
                             "catalog_version": "$steps.parse.catalog_version"}),
             Guard("changed", predicate=changed, on_true="propose", on_false="nochange",
                   refusal_code="no_change", message="The catalog changes no watched Claim."),
-            ProposeChangeSet("propose", candidate_templates={"items": "$steps.parse.items"},
-                             result=Output("summary")),
+            (SettleChangeSet if settle else ProposeChangeSet)(
+                "propose", candidate_templates={"items": "$steps.parse.items"},
+                result=Output("summary")),
             Halt("nochange", reason="no_change"),
         ],
-        name="security.kev-triage",
+        name="security.kev-triage-settle" if settle else "security.kev-triage",
         description=(
-            "Read the KEV catalog Capture that triggered the Line (security.kev-http-v1) and "
+            ("Settle variant: " if settle else "")
+            + "Read the KEV catalog Capture that triggered the Line (security.kev-http-v1) and "
             "the watched vulnerabilities, and propose one observation Claim per KEV field that "
             "changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use). Halts "
             "no_change when nothing changed. Runs as a Line with trigger_input catalog."
@@ -860,6 +893,7 @@ def procedures(cx: Cruxible, release: str) -> None:
     draft.procedure(definition=kev_acquire(cx, release))
     draft.procedure(definition=cve_record_acquire(cx))
     draft.procedure(definition=kev_triage(cx))
+    draft.procedure(definition=kev_triage(cx, settle=True))
     submit(cx, draft, "procedures")
 
 

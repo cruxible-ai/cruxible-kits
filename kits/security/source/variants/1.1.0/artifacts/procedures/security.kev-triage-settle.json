@@ -1,0 +1,569 @@
+{
+  "activation_policy": "drain",
+  "artifact_format": "playbill-procedure-v2",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 16777216,
+      "max_provider_calls": 2,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 120000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:10399e2c919e1c4163dbaa6cad1fd2c46e815d61dc5b053bbeea8bdfa0b3f81b",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-kev-triage-summary"
+      }
+    },
+    "description": "Settle variant: Read the KEV catalog Capture that triggered the Line (security.kev-http-v1) and the watched vulnerabilities, and propose one observation Claim per KEV field that changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use). Halts no_change when nothing changed. Runs as a Line with trigger_input catalog.",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 16777216,
+      "max_items": 1000,
+      "max_provider_calls": 2,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [
+      {
+        "arm_label": null,
+        "check_after": {
+          "microseconds": 259200000000,
+          "tag": "playbill-duration-v1"
+        },
+        "expires_after": {
+          "microseconds": 864000000000,
+          "tag": "playbill-duration-v1"
+        },
+        "from_node_id": null,
+        "measurement": {
+          "execution_options": {},
+          "expect": {
+            "condition": null,
+            "condition_scope": "all",
+            "max_count": 0,
+            "min_count": null,
+            "tag": "playbill-procedure-measurement-expectation-v1"
+          },
+          "kind": "accepted_query",
+          "parameters": {},
+          "query": {
+            "artifact_digest": "sha256:9257a5eb33eb2a8cafae508648021483c3476f30140e5212a1737b81f80712ad",
+            "role": "query",
+            "target": {
+              "kind": "QueryDefinition",
+              "name": "security.kev_triage_backlog"
+            }
+          },
+          "tag": "playbill-procedure-accepted-query-measurement-v1"
+        },
+        "name": "kev-backlog-cleared",
+        "node_id": null,
+        "review_when": [
+          {
+            "metric": "satisfied_rate",
+            "min_readings": 5,
+            "name": "satisfied-rate-low",
+            "operator": "lt",
+            "tag": "playbill-procedure-measurement-review-trigger-v1",
+            "threshold": {
+              "$decimal": "0.8"
+            },
+            "window": null
+          }
+        ],
+        "situation_shape": null,
+        "subject_grain": "procedure_unit",
+        "tag": "playbill-procedure-measurement-declaration-v1"
+      }
+    ],
+    "name": "security.kev-triage-settle",
+    "nodes": [
+      {
+        "as": "catalog",
+        "capture_contract": {
+          "artifact_digest": "sha256:3515cb2a04e6e17a3343968e325cc7eec97a9617b8eb419a879a9df845de8bfc",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.kev-http-v1"
+          }
+        },
+        "implementation_digest": "sha256:82d10cee9c58c739f2064832e93a72e03fc2a3be4d70eb304c0aab4766162ed9",
+        "interface": {
+          "artifact_digest": "sha256:ed8c6754a7e0bf4bed4090cce994950a408bf0d506ddf90de3eed95e8da2c267",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch"
+          }
+        },
+        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
+        "kind": "source",
+        "next": "watched",
+        "node_id": "catalog",
+        "provider": {
+          "artifact_digest": "sha256:85e54a0f7ddecf7d03a3876c75d06e8cf4323c78c57cf8fcce16c443ff5b4150",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "cruxible-provider-web"
+          }
+        },
+        "request": {
+          "expected_format": "json",
+          "extract": false,
+          "logical_source": "cisa.kev.catalog",
+          "max_bytes": 4194304,
+          "render": false,
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      },
+      {
+        "as": "watched",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "parse",
+        "node_id": "watched",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:4bad214770f175c983a1a01b51c9d5cba46f8bb29257093e53be179ffcd75d5e",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.watched_vulnerabilities"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "parse",
+        "contract_in": {
+          "artifact_digest": "sha256:736eff159c134fe6d7a096f3e34e6f924c6b3011be59f38ebff521aeaceb03c8",
+          "role": "contract-in",
+          "target": {
+            "kind": "Contract",
+            "name": "security-kev-catalog-request"
+          }
+        },
+        "contract_out": {
+          "artifact_digest": "sha256:13c637a6c5fd43193addf1de361656f974ce5bdec5229f1fcb1e47cef5debd47",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-kev-catalog-result"
+          }
+        },
+        "effect_policy": null,
+        "implementation_digest": "sha256:ff3d3e0debc12beff47799a4a7475fedc9a64644ab793ce314c20152e9e1be94",
+        "input": {
+          "catalog_base64": "$steps.catalog.retrieved.body_base64",
+          "watched": "$steps.watched.result.rows"
+        },
+        "interface": {
+          "artifact_digest": "sha256:605725d3a5c6f9b7e9b3962492a82d3321cb33a0e3f2dae8056f915901a3f71b",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.kev-catalog"
+          }
+        },
+        "interface_digest": "sha256:102036c6548173cc88668c1265af902c9ac3dc7c347da6ac080c548d6beab5c4",
+        "kind": "call",
+        "next": "summary",
+        "node_id": "parse",
+        "provider": {
+          "artifact_digest": "sha256:7ad6aabcbaa0192dd2d69fba322dc623c895dc240056bff0e7955ce98a21f8b1",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "security-kev-provider"
+          }
+        }
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:10399e2c919e1c4163dbaa6cad1fd2c46e815d61dc5b053bbeea8bdfa0b3f81b",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-kev-triage-summary"
+          }
+        },
+        "fields": {
+          "catalog_version": "$steps.parse.catalog_version",
+          "changed": "$steps.parse.changed",
+          "listed": "$steps.parse.listed",
+          "watched": "$steps.parse.watched"
+        },
+        "kind": "project",
+        "next": "changed",
+        "node_id": "summary"
+      },
+      {
+        "kind": "guard",
+        "message": "The catalog changes no watched Claim.",
+        "node_id": "changed",
+        "on_false": "nochange",
+        "on_true": "propose",
+        "predicate": {
+          "all_of": null,
+          "any_of": null,
+          "left": {
+            "alias": "parse",
+            "input_name": null,
+            "kind": "step",
+            "parameter_name": null,
+            "path": [
+              "changed"
+            ],
+            "tag": "playbill-predicate-operand-v1",
+            "value": null
+          },
+          "not_of": null,
+          "operator": "gt",
+          "right": {
+            "alias": null,
+            "input_name": null,
+            "kind": "literal",
+            "parameter_name": null,
+            "path": [],
+            "tag": "playbill-predicate-operand-v1",
+            "value": 0
+          },
+          "tag": "playbill-guard-predicate-v1"
+        },
+        "refusal_code": "no_change"
+      },
+      {
+        "candidate_templates": {
+          "items": "$steps.parse.items"
+        },
+        "claim_types": [],
+        "kind": "settle_change_set",
+        "node_id": "propose",
+        "result": "$steps.summary"
+      },
+      {
+        "kind": "halt",
+        "node_id": "nochange",
+        "reason": "no_change"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 3
+  },
+  "definition_digest": "sha256:c2126eadf46f507f590f2864542dde5893e72fbde064e04f01815e8c72bb33b6",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.kev-triage-settle"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {}
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-kev-catalog-request"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "catalog_base64": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "watched": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-kev-catalog-result"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "catalog_count": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "catalog_version": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "items": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "listed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "watched": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-kev-triage-summary"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "catalog_version": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "listed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "watched": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:9ec3b4ba1d18b18782c8b0a99da2b4ada3f2444b8b1d3ac753f3d86dc193a761",
+      "role": "acquisition-policy",
+      "target": {
+        "kind": "SourceAcquisitionPolicy",
+        "name": "security.kev-acquisition"
+      }
+    },
+    {
+      "artifact_digest": "sha256:3515cb2a04e6e17a3343968e325cc7eec97a9617b8eb419a879a9df845de8bfc",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.kev-http-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:736eff159c134fe6d7a096f3e34e6f924c6b3011be59f38ebff521aeaceb03c8",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-kev-catalog-request"
+      }
+    },
+    {
+      "artifact_digest": "sha256:13c637a6c5fd43193addf1de361656f974ce5bdec5229f1fcb1e47cef5debd47",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-kev-catalog-result"
+      }
+    },
+    {
+      "artifact_digest": "sha256:10399e2c919e1c4163dbaa6cad1fd2c46e815d61dc5b053bbeea8bdfa0b3f81b",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-kev-triage-summary"
+      }
+    },
+    {
+      "artifact_digest": "sha256:85e54a0f7ddecf7d03a3876c75d06e8cf4323c78c57cf8fcce16c443ff5b4150",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "cruxible-provider-web"
+      }
+    },
+    {
+      "artifact_digest": "sha256:7ad6aabcbaa0192dd2d69fba322dc623c895dc240056bff0e7955ce98a21f8b1",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "security-kev-provider"
+      }
+    },
+    {
+      "artifact_digest": "sha256:605725d3a5c6f9b7e9b3962492a82d3321cb33a0e3f2dae8056f915901a3f71b",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.kev-catalog"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ed8c6754a7e0bf4bed4090cce994950a408bf0d506ddf90de3eed95e8da2c267",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "web.fetch"
+      }
+    },
+    {
+      "artifact_digest": "sha256:9257a5eb33eb2a8cafae508648021483c3476f30140e5212a1737b81f80712ad",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.kev_triage_backlog"
+      }
+    },
+    {
+      "artifact_digest": "sha256:4bad214770f175c983a1a01b51c9d5cba46f8bb29257093e53be179ffcd75d5e",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.watched_vulnerabilities"
+      }
+    }
+  ]
+}

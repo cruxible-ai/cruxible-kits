@@ -157,6 +157,10 @@
       "path": "claim-types/security.work/verification.json"
     },
     {
+      "artifact_digest": "sha256:afdc820946147434ae69ec42c4aab6936bb48dd6da58a280be230779327c7480",
+      "path": "procedures/security.kev-triage-settle.json"
+    },
+    {
       "artifact_digest": "sha256:07902d7d40d7cbc5dbf7e13e0b060344aaec973ad03a41c6a458e4bd37b72950",
       "path": "procedures/security.kev-triage.json"
     },
@@ -205,6 +209,10 @@
       "path": "query-definitions/security.kev_exposure.json"
     },
     {
+      "artifact_digest": "sha256:ba4024d2ee4a6d6dfb7d55fd440a1a8fa1209cf9e9617f1d55a256296ff46f82",
+      "path": "query-definitions/security.kev_settle_condition.json"
+    },
+    {
       "artifact_digest": "sha256:9257a5eb33eb2a8cafae508648021483c3476f30140e5212a1737b81f80712ad",
       "path": "query-definitions/security.kev_triage_backlog.json"
     },
@@ -244,12 +252,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:8bacc463a71bc42019d973362174e6eae9b3d3c5e97fd86429a889f18e36f9e7",
-      "generation_root": "sha256:651387e3e8c5815fb04b27e058e45a102f864aca8b4e9c1379fc7ae9c7048bd1",
-      "git_oid": "d9952b0be819d3dbd606c5110ac9ad6a0fc3ef40",
-      "semantic_root": "sha256:a73ec31b76147009e273f03f3c48650a9127d4d585100d8fc05202f7751ecd93",
+      "generation_root": "sha256:87b53d9b22c6b22bb2052d3e07f5aa71dc9a49eb61b88943e580db09f18aa151",
+      "git_oid": "a5f53a0148d9b4834caa353c3d1eca7834826723",
+      "semantic_root": "sha256:aa0372f8cab751bada92d8020cec4a3d12dd5af213744f8b57fdc9b31e945660",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_7df0b498a1ea4855",
+    "instance_id": "inst_b35e673447014baf",
     "principal_id": "kit-author"
   },
   "providers": [
