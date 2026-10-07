@@ -38,7 +38,7 @@ from cruxible_client.authoring.procedures import (
     StateTap,
 )
 from cruxible_client.contracts.acquisition_policies import SourceAcquisitionPolicy
-from cruxible_client.contracts.artifacts import ArtifactIdentity, ArtifactRef
+from cruxible_client.contracts.artifacts import ArtifactIdentity, ArtifactLifecycle, ArtifactRef
 from cruxible_client.contracts.authoring.inputs import BlueprintInput, QueryDefinitionInput
 from cruxible_client.contracts.canonical import canonical_bytes
 from cruxible_client.contracts.captures import CanonicalDuration, CaptureContract
@@ -817,11 +817,41 @@ def definitions(cx: Cruxible, release: str) -> None:
     draft = cx.changes(rationale=f"security kit {release}: named queries.")
     world = cx.world()
     for spec in query_definitions(release):
+        held = _held_query(cx, spec.identity.name)
+        if held is not None:
+            envelope, digest = held
+            current = QueryDefinitionSpec.model_validate(envelope)
+            ignore = {"pins", "lifecycle"}
+            if current.model_dump(mode="json", exclude=ignore) == spec.model_dump(
+                mode="json", exclude=ignore
+            ):
+                continue  # unchanged
+            spec = spec.model_copy(
+                update={"lifecycle": ArtifactLifecycle(predecessor_digest=digest)}
+            )
         draft.query_definition(
             QueryDefinitionInput(kind="query_definition", query_definition=spec),
             vocabulary=tuple(world.claim_type(p) for p in sorted(spec.referenced_predicates)),
         )
     submit(cx, draft, "queries")
+
+
+def _held_query(cx: Cruxible, name: str) -> tuple[dict[str, Any], str] | None:
+    """The live QueryDefinition's envelope and digest, or None when there is none."""
+
+    from cruxible_client.contracts.get_reads import GetRequest
+    from cruxible_client.errors import CoreError
+
+    try:
+        read = cx._client.get(
+            cx._instance_id, request=GetRequest(ref=f"QueryDefinition:{name}", detail="proof")
+        )
+    except CoreError:
+        return None
+    proof = read.proof
+    if proof is None:
+        return None
+    return dict(proof["envelope"]), str(proof["artifact_digest"])
 
 
 def procedures(cx: Cruxible, release: str) -> None:

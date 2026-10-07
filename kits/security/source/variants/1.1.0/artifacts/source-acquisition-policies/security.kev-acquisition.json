@@ -1,0 +1,56 @@
+{
+  "artifact_format": "playbill-source-acquisition-policy-v1",
+  "coherence": {
+    "kind": "independent",
+    "tag": "playbill-independent-coherence-v1"
+  },
+  "identity": {
+    "kind": "SourceAcquisitionPolicy",
+    "name": "security.kev-acquisition"
+  },
+  "inputs": [
+    {
+      "conservative_default": null,
+      "correlation_keys": [],
+      "input_name": "catalog",
+      "join_semantics_digest": null,
+      "max_age": {
+        "microseconds": 86400000000,
+        "tag": "playbill-duration-v1"
+      },
+      "on_conflict": "preserve",
+      "on_oversized": "refuse",
+      "on_stale": "refuse",
+      "on_unavailable": "refuse",
+      "permitted_replayability": [
+        "attested_only"
+      ],
+      "requirement": "required",
+      "tag": "playbill-input-acquisition-rule-v1"
+    },
+    {
+      "conservative_default": null,
+      "correlation_keys": [],
+      "input_name": "record",
+      "join_semantics_digest": null,
+      "max_age": {
+        "microseconds": 86400000000,
+        "tag": "playbill-duration-v1"
+      },
+      "on_conflict": "preserve",
+      "on_oversized": "refuse",
+      "on_stale": "refuse",
+      "on_unavailable": "refuse",
+      "permitted_replayability": [
+        "attested_only"
+      ],
+      "requirement": "required",
+      "tag": "playbill-input-acquisition-rule-v1"
+    }
+  ],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "pins": []
+}

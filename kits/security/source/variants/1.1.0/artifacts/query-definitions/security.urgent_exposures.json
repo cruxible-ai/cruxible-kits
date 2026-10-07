@@ -1,0 +1,354 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 2000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "Assets affected by one vulnerability that are internet-facing and serve a critical service. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "entry": {
+    "binding": "asset",
+    "subject_id": null,
+    "subject_kinds": [
+      "security.asset"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.urgent_exposures"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [
+    {
+      "default": null,
+      "name": "vulnerability",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "subject_reference"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:ba5cedc831c9b1638d3cfd66e99424f9e5a4afdbc1f3235be46fe72f1124c870",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.release"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a13a9df996f1db0f09af4c19d42e8f22e29edd6d03382751a4dbc6dfa7b1c8d7",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.status"
+      }
+    },
+    {
+      "artifact_digest": "sha256:25cb55a427037308770a91f754229147276e35168f17a46bfa7e635f274a4041",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.vulnerability"
+      }
+    },
+    {
+      "artifact_digest": "sha256:88595e13bcdbd2d3da8d5334ba8a86a47f3f1ad617a7abaabb5b73679c102cbc",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.installs"
+      }
+    },
+    {
+      "artifact_digest": "sha256:fa856713caa41f9c178e61125fb1d3139c073c4c5e7f925bcbf4dc322f7edf4d",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.internet_exposed"
+      }
+    },
+    {
+      "artifact_digest": "sha256:7c97d3df044fa28b8894261026affbf553874abf85ffadd377d5f0c9fb152db3",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.serves"
+      }
+    },
+    {
+      "artifact_digest": "sha256:54c5022ac8f1fd4267505acb7f08859719002a755633532536ebd3d12b7b57fd",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.release.version"
+      }
+    },
+    {
+      "artifact_digest": "sha256:dd8c4f85626741e9774171f17c20d69ca4b2404d6a5da08240d5ae333479abfd",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.service.criticality"
+      }
+    },
+    {
+      "artifact_digest": "sha256:c398c6d6cfa7e99dfb67d9efaa37f87cf4b79389a9e4c257e7b8fdb1dc9779cf",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.service.owned_by"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "assessment",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "asset",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "asset",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "criticality",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "service",
+          "kind": "claim_value",
+          "predicate": "security.service.criticality",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "internet_exposed",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "security.asset.internet_exposed",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "release",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "service",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "service",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "status",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "kind": "claim_value",
+          "predicate": "security.assessment.status",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "team",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "team",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "version",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "kind": "claim_value",
+          "predicate": "security.release.version",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "asset",
+  "result_cardinality": "many",
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "release",
+      "direction": "forward",
+      "from_binding": "asset",
+      "predicate": "security.asset.installs",
+      "required": true,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.release"
+      ],
+      "where": null
+    },
+    {
+      "binding": "assessment",
+      "direction": "reverse",
+      "from_binding": "release",
+      "predicate": "security.assessment.release",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.assessment"
+      ],
+      "where": {
+        "kind": "comparison",
+        "left": {
+          "binding": "assessment",
+          "kind": "claim_value",
+          "predicate": "security.assessment.vulnerability",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "vulnerability",
+          "tag": "playbill-query-parameter-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "subject_reference"
+      }
+    },
+    {
+      "binding": "service",
+      "direction": "forward",
+      "from_binding": "asset",
+      "predicate": "security.asset.serves",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.service"
+      ],
+      "where": null
+    },
+    {
+      "binding": "team",
+      "direction": "forward",
+      "from_binding": "service",
+      "predicate": "security.service.owned_by",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.team"
+      ],
+      "where": null
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "assessment",
+          "kind": "claim_value",
+          "predicate": "security.assessment.status",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "literal",
+          "tag": "playbill-query-literal-ref-v1",
+          "value": "affected"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "security.asset.internet_exposed",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "literal",
+          "tag": "playbill-query-literal-ref-v1",
+          "value": true
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "boolean"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "service",
+          "kind": "claim_value",
+          "predicate": "security.service.criticality",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "literal",
+          "tag": "playbill-query-literal-ref-v1",
+          "value": "critical"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of",
+    "tag": "playbill-query-conjunction-filter-v1"
+  }
+}
