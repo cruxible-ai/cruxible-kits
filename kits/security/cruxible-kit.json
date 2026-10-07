@@ -153,11 +153,11 @@
       "path": "claim-types/security.work/verification.json"
     },
     {
-      "artifact_digest": "sha256:afdc820946147434ae69ec42c4aab6936bb48dd6da58a280be230779327c7480",
+      "artifact_digest": "sha256:7c8b717323b7eff04945c7aef2e007394c131123ce5e34f585d16f2f1b6bfd72",
       "path": "procedures/security.kev-triage-settle.json"
     },
     {
-      "artifact_digest": "sha256:07902d7d40d7cbc5dbf7e13e0b060344aaec973ad03a41c6a458e4bd37b72950",
+      "artifact_digest": "sha256:6bf9442d59e1b72f2217dba47d5fb824dc9c13f7f7e0062d0e6dd0863e6dad69",
       "path": "procedures/security.kev-triage.json"
     },
     {
@@ -237,7 +237,11 @@
       "path": "query-definitions/security.watched_vulnerabilities.json"
     },
     {
-      "artifact_digest": "sha256:9ec3b4ba1d18b18782c8b0a99da2b4ada3f2444b8b1d3ac753f3d86dc193a761",
+      "artifact_digest": "sha256:07e2eabd5dc9ae54a1b70e75a8bfd875f0da131556a1c22c7c0a8453ae2c1861",
+      "path": "source-acquisition-policies/security.cve-record-acquisition.json"
+    },
+    {
+      "artifact_digest": "sha256:084b7f8b9d78bb146187371429fbdd82f96c13c6fb387539f03f8b54506876e4",
       "path": "source-acquisition-policies/security.kev-acquisition.json"
     }
   ],
@@ -248,12 +252,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:8bacc463a71bc42019d973362174e6eae9b3d3c5e97fd86429a889f18e36f9e7",
-      "generation_root": "sha256:cdd42dcb0a0e216dec23e7cd7826041929f433471b7827a2e2908c63f65777ed",
-      "git_oid": "eeae67b23a41b73813fc514d877c80af5c3df63c",
-      "semantic_root": "sha256:cc30bae81b1efb552ad8efeb71f02484296cdaae3b71510250fb6ea4d7ac2707",
+      "generation_root": "sha256:781db62814412bcce188861008fb6feacec4ed4bf48c78fa64f45ad767535021",
+      "git_oid": "73efd5628682162e3c502577d5d06c21581cc151",
+      "semantic_root": "sha256:083e48db9cc57fdf4ffd4eb06e91aafcd03f8d248d58e2fd0bf685e384906308",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_b35e673447014baf",
+    "instance_id": "inst_a73d7ad0cee44a79",
     "principal_id": "kit-author"
   },
   "providers": [

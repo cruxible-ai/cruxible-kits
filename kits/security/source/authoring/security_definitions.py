@@ -83,6 +83,7 @@ KEV_CONTRACT = "security.kev-http-v1"
 CVE_CONTRACT = "security.cve-record-http-v1"
 OUTPUT_CONTRACT = "security.observation-output-v1"
 POLICY = "security.kev-acquisition"
+CVE_POLICY = "security.cve-record-acquisition"
 WEB_PROVIDER = "cruxible-provider-web"
 KEV_PROVIDER = "security-kev-provider"
 KEV_MAX_BYTES = 4_194_304  # the catalog is ~1.7 MB; web.fetch defaults to 256 KiB
@@ -551,32 +552,39 @@ def capture_contracts() -> list[CaptureContract]:
             for raw in json.loads((DATA / "capture_contracts.json").read_text())]
 
 
-def acquisition_policy() -> SourceAcquisitionPolicy:
-    """One rule per Source alias: `catalog` (kev-acquire and the triage Line's
-    trigger-fed input) and `record` (cve-record-acquire)."""
-
-    def rule(name: str, max_age_hours: int) -> dict[str, Any]:
-        return {
-            "conservative_default": None,
-            "correlation_keys": [],
-            "input_name": name,
-            "join_semantics_digest": None,
-            "max_age": {"microseconds": max_age_hours * 3_600_000_000},
-            "on_conflict": "preserve",
-            "on_oversized": "refuse",
-            "on_stale": "refuse",
-            "on_unavailable": "refuse",
-            "permitted_replayability": ["attested_only"],
-            "requirement": "required",
-        }
+def _policy(name: str, alias: str) -> SourceAcquisitionPolicy:
+    """One required, attested, 24 h fresh input. A direct Source run needs its pinned
+    policy to declare exactly its Source aliases, so each alias set gets its own policy."""
 
     return SourceAcquisitionPolicy.model_validate(
         {
             "coherence": {"kind": "independent"},
-            "identity": {"kind": "SourceAcquisitionPolicy", "name": POLICY},
-            "inputs": [rule("catalog", 24), rule("record", 24)],
+            "identity": {"kind": "SourceAcquisitionPolicy", "name": name},
+            "inputs": [
+                {
+                    "conservative_default": None,
+                    "correlation_keys": [],
+                    "input_name": alias,
+                    "join_semantics_digest": None,
+                    "max_age": {"microseconds": 24 * 3_600_000_000},
+                    "on_conflict": "preserve",
+                    "on_oversized": "refuse",
+                    "on_stale": "refuse",
+                    "on_unavailable": "refuse",
+                    "permitted_replayability": ["attested_only"],
+                    "requirement": "required",
+                }
+            ],
         }
     )
+
+
+def acquisition_policies() -> list[SourceAcquisitionPolicy]:
+    """`security.kev-acquisition` governs the `catalog` alias (kev-acquire and the
+    triage Line's trigger-fed input); `security.cve-record-acquisition` the `record`
+    alias (cve-record-acquire)."""
+
+    return [_policy(POLICY, "catalog"), _policy(CVE_POLICY, "record")]
 
 
 # --- Blueprints and the triage Procedure -------------------------------------
@@ -714,7 +722,7 @@ def cve_record_acquire(cx: Cruxible) -> BlueprintInput:
         contract_in=URL_INPUT,
         contract_out=HTTP_SUMMARY,
         returns="summary",
-        acquisition_policy=POLICY,
+        acquisition_policy=CVE_POLICY,
         budget=ProcedureBudget(wall_clock=_seconds(60), max_provider_calls=1,
                                max_capture_bytes=4_194_304),
         hard_caps=ProcedureHardCaps(max_wall_clock=_seconds(120), max_provider_calls=1,
@@ -842,7 +850,8 @@ def definitions(cx: Cruxible, release: str) -> None:
                        "queries and the acquisition policy. No Claims, Lines or authority.")
     for contract in capture_contracts():
         draft.capture_contract(contract)
-    draft.acquisition_policy(acquisition_policy())
+    for policy in acquisition_policies():
+        draft.acquisition_policy(policy)
     for claim_type in claim_types(release):
         draft.claim_type(claim_type)
     submit(cx, draft, "claim types, contracts, policy")
