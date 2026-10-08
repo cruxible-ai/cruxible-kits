@@ -1,46 +1,22 @@
 {
-  "artifact_format": "playbill-provider-interface-v2",
-  "classifier_code": {
-    "entrypoint": "cruxible_provider_web.interfaces:classify_web_fetch",
-    "source_digest": "sha256:c10a55759078c4e385e5a03900944ae53c2259f9767a8427faa616722f936abc"
-  },
-  "classifier_digest": "sha256:b8eb1c27c92cfde3cd5fd0588d5df72b8c17859700427ebd377ad82bfddf28be",
-  "classifier_identity": "web.fetch.input",
+  "artifact_format": "playbill-provider-interface-v1",
+  "classifier_digest": "sha256:2a01c1138aaf3ab4659c59a3f088cb02fa8265c5be56f8931825e10261ec64fb",
+  "classifier_identity": "cruxible.core.web.fetch",
   "classifier_version": 1,
-  "conformance_fixture_set_digest": "sha256:0b6fd9444db4ae8766b0b948f303be28018dc5f8d5b37add08ae9d432b0497f0",
-  "conformance_fixtures": [
-    {
-      "canonical_input": {
-        "url": "https://fixture.invalid/api/v1/measurements.json"
-      },
-      "fixture_id": "web-fetch-api-json",
-      "measured_bucket_id": "source_kind=api_json;access=public;page_weight=light",
-      "tag": "playbill-provider-bucket-conformance-fixture-v1"
-    },
-    {
-      "canonical_input": {
-        "url": "https://fixture.invalid/articles/tide-gauge-recalibration"
-      },
-      "fixture_id": "web-fetch-static-light",
-      "measured_bucket_id": "source_kind=static_html;access=public;page_weight=light",
-      "tag": "playbill-provider-bucket-conformance-fixture-v1"
-    },
-    {
-      "canonical_input": {
-        "max_bytes": 1048576,
-        "url": "https://fixture.invalid/reports/water-quality"
-      },
-      "fixture_id": "web-fetch-static-medium",
-      "measured_bucket_id": "source_kind=static_html;access=public;page_weight=medium",
-      "tag": "playbill-provider-bucket-conformance-fixture-v1"
-    }
-  ],
+  "conformance_fixture_set_digest": "sha256:be7e8ca442044cb61f2ab50af79d5a744a5acb22f0d5add94fb2bd2e3e7fd6da",
   "conformance_proofs": [
     {
       "fixture_digest": "sha256:703a910c23158ee5b16c955ec449c3b8473b7f80b5a2fc7fc0cea612df7e8edf",
       "fixture_id": "web-fetch-api-json",
       "measured_bucket_id": "source_kind=api_json;access=public;page_weight=light",
       "selector": "source_kind=api_json;access=*;page_weight=*",
+      "tag": "playbill-provider-bucket-conformance-fixture-proof-v1"
+    },
+    {
+      "fixture_digest": "sha256:cf27a1d182fdcb4a4f85af2f2822699e8b63ef232c8d1ffe125cbaa33a0942f8",
+      "fixture_id": "web-fetch-rendered",
+      "measured_bucket_id": "source_kind=js_rendered;access=public;page_weight=light",
+      "selector": "source_kind=js_rendered;access=public;page_weight=*",
       "tag": "playbill-provider-bucket-conformance-fixture-proof-v1"
     },
     {

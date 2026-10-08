@@ -56,7 +56,7 @@
         },
         "implementation_digest": null,
         "interface": {
-          "artifact_digest": "sha256:ed8c6754a7e0bf4bed4090cce994950a408bf0d506ddf90de3eed95e8da2c267",
+          "artifact_digest": "sha256:f6302734bbe87d342144d0444e136ca71e9cd899e12a5d6ea121ba4d97d9681c",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
@@ -128,7 +128,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:0ed5fa06c4281f1618709907ae89f5a21aacacc074413d14ab2961b0a95da5d9",
+  "definition_digest": "sha256:5a99b5716618e654fa98e2931133fa966dbf3882dc5c8c2673acc19bef48ba59",
   "identity": {
     "kind": "Blueprint",
     "name": "security.kev-acquire"
@@ -231,7 +231,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:ed8c6754a7e0bf4bed4090cce994950a408bf0d506ddf90de3eed95e8da2c267",
+      "artifact_digest": "sha256:f6302734bbe87d342144d0444e136ca71e9cd899e12a5d6ea121ba4d97d9681c",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",

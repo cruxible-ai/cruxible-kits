@@ -32,7 +32,6 @@ from cruxible_client.authoring.procedures import (
     Halt,
     Output,
     Project,
-    ProposeChangeSet,
     Sequence,
     SettleChangeSet,
     Source,
@@ -83,7 +82,6 @@ KEV_CONTRACT = "security.kev-http-v1"
 CVE_CONTRACT = "security.cve-record-http-v1"
 OUTPUT_CONTRACT = "security.observation-output-v1"
 POLICY = "security.kev-acquisition"
-CVE_POLICY = "security.cve-record-acquisition"
 WEB_PROVIDER = "cruxible-provider-web"
 KEV_PROVIDER = "security-kev-provider"
 KEV_MAX_BYTES = 4_194_304  # the catalog is ~1.7 MB; web.fetch defaults to 256 KiB
@@ -552,39 +550,33 @@ def capture_contracts() -> list[CaptureContract]:
             for raw in json.loads((DATA / "capture_contracts.json").read_text())]
 
 
-def _policy(name: str, alias: str) -> SourceAcquisitionPolicy:
-    """One required, attested, 24 h fresh input. A direct Source run needs its pinned
-    policy to declare exactly its Source aliases, so each alias set gets its own policy."""
+def acquisition_policy() -> SourceAcquisitionPolicy:
+    """`security.kev-acquisition` covers both Source aliases the kit uses: `catalog`
+    (kev-acquire and the triage Line's trigger-fed input) and `record`
+    (cve-record-acquire). Each is required, attested, and at most 24 h old."""
+
+    def rule(alias: str) -> dict[str, Any]:
+        return {
+            "conservative_default": None,
+            "correlation_keys": [],
+            "input_name": alias,
+            "join_semantics_digest": None,
+            "max_age": {"microseconds": 24 * 3_600_000_000},
+            "on_conflict": "preserve",
+            "on_oversized": "refuse",
+            "on_stale": "refuse",
+            "on_unavailable": "refuse",
+            "permitted_replayability": ["attested_only"],
+            "requirement": "required",
+        }
 
     return SourceAcquisitionPolicy.model_validate(
         {
             "coherence": {"kind": "independent"},
-            "identity": {"kind": "SourceAcquisitionPolicy", "name": name},
-            "inputs": [
-                {
-                    "conservative_default": None,
-                    "correlation_keys": [],
-                    "input_name": alias,
-                    "join_semantics_digest": None,
-                    "max_age": {"microseconds": 24 * 3_600_000_000},
-                    "on_conflict": "preserve",
-                    "on_oversized": "refuse",
-                    "on_stale": "refuse",
-                    "on_unavailable": "refuse",
-                    "permitted_replayability": ["attested_only"],
-                    "requirement": "required",
-                }
-            ],
+            "identity": {"kind": "SourceAcquisitionPolicy", "name": POLICY},
+            "inputs": [rule("catalog"), rule("record")],
         }
     )
-
-
-def acquisition_policies() -> list[SourceAcquisitionPolicy]:
-    """`security.kev-acquisition` governs the `catalog` alias (kev-acquire and the
-    triage Line's trigger-fed input); `security.cve-record-acquisition` the `record`
-    alias (cve-record-acquire)."""
-
-    return [_policy(POLICY, "catalog"), _policy(CVE_POLICY, "record")]
 
 
 # --- Blueprints and the triage Procedure -------------------------------------
@@ -722,7 +714,7 @@ def cve_record_acquire(cx: Cruxible) -> BlueprintInput:
         contract_in=URL_INPUT,
         contract_out=HTTP_SUMMARY,
         returns="summary",
-        acquisition_policy=CVE_POLICY,
+        acquisition_policy=POLICY,
         budget=ProcedureBudget(wall_clock=_seconds(60), max_provider_calls=1,
                                max_capture_bytes=4_194_304),
         hard_caps=ProcedureHardCaps(max_wall_clock=_seconds(120), max_provider_calls=1,
@@ -732,9 +724,11 @@ def cve_record_acquire(cx: Cruxible) -> BlueprintInput:
     return _blueprint(sequence, _interface(cx, "web.fetch"))
 
 
-def kev_triage(cx: Cruxible, *, settle: bool = False) -> Any:
-    """The KEV triage Procedure; ``settle=True`` is security.kev-triage-settle, the same
-    graph ending in settle_change_set (a Line graduates to it under a settle mandate)."""
+def kev_triage(cx: Cruxible) -> Any:
+    """The KEV triage Procedure. Its terminal is settle_change_set: under a Line capped
+    at propose (or with only a propose mandate) it proposes, and a Line graduates to
+    settling by raising max_authority and adding a settle mandate, with the same
+    Procedure digest and so the same track record."""
 
     web = cx.provider_interface("web.fetch", provider=WEB_PROVIDER)
     kev = cx.provider_interface("security.kev-catalog", provider=KEV_PROVIDER)
@@ -758,18 +752,18 @@ def kev_triage(cx: Cruxible, *, settle: bool = False) -> Any:
                             "catalog_version": "$steps.parse.catalog_version"}),
             Guard("changed", predicate=changed, on_true="propose", on_false="nochange",
                   refusal_code="no_change", message="The catalog changes no watched Claim."),
-            (SettleChangeSet if settle else ProposeChangeSet)(
+            SettleChangeSet(
                 "propose", candidate_templates={"items": "$steps.parse.items"},
                 result=Output("summary")),
             Halt("nochange", reason="no_change"),
         ],
-        name="security.kev-triage-settle" if settle else "security.kev-triage",
+        name="security.kev-triage",
         description=(
-            ("Settle variant: " if settle else "")
-            + "Read the KEV catalog Capture that triggered the Line (security.kev-http-v1) and "
-            "the watched vulnerabilities, and propose one observation Claim per KEV field that "
-            "changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use). Halts "
-            "no_change when nothing changed. Runs as a Line with trigger_input catalog."
+            "Read the KEV catalog Capture that triggered the Line (security.kev-http-v1) and "
+            "the watched vulnerabilities, and settle one observation Claim per KEV field that "
+            "changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use) under a "
+            "settle mandate, or propose it under a propose cap. Halts no_change when nothing "
+            "changed. Runs as a Line with trigger_input catalog."
         ),
         contract_in=EMPTY,
         contract_out=TRIAGE_SUMMARY,
@@ -850,8 +844,7 @@ def definitions(cx: Cruxible, release: str) -> None:
                        "queries and the acquisition policy. No Claims, Lines or authority.")
     for contract in capture_contracts():
         draft.capture_contract(contract)
-    for policy in acquisition_policies():
-        draft.acquisition_policy(policy)
+    draft.acquisition_policy(acquisition_policy())
     for claim_type in claim_types(release):
         draft.claim_type(claim_type)
     submit(cx, draft, "claim types, contracts, policy")
@@ -902,7 +895,6 @@ def procedures(cx: Cruxible, release: str) -> None:
     draft.procedure(definition=kev_acquire(cx, release))
     draft.procedure(definition=cve_record_acquire(cx))
     draft.procedure(definition=kev_triage(cx))
-    draft.procedure(definition=kev_triage(cx, settle=True))
     submit(cx, draft, "procedures")
 
 

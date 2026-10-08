@@ -1,11 +1,11 @@
 {
   "artifacts": [
     {
-      "artifact_digest": "sha256:90049aafbc7a3b6db861e7d24e39fa9de63f681816d2a5468bd15726cc848685",
+      "artifact_digest": "sha256:a0b7b776f2f0c02ab3ec63527c76b2b1bbc4d9891623080362da022a1712f9c6",
       "path": "blueprints/security.cve-record-acquire.json"
     },
     {
-      "artifact_digest": "sha256:1b758b18a1f6482b60b3f063ce1705fd0d9129dede22e5cb1c0c13031e710048",
+      "artifact_digest": "sha256:19854b0302ca108135cc3ff5781907bdbaa4e5b079793ac00f6a068f57f3f3a7",
       "path": "blueprints/security.kev-acquire.json"
     },
     {
@@ -157,11 +157,7 @@
       "path": "claim-types/security.work/verification.json"
     },
     {
-      "artifact_digest": "sha256:7c8b717323b7eff04945c7aef2e007394c131123ce5e34f585d16f2f1b6bfd72",
-      "path": "procedures/security.kev-triage-settle.json"
-    },
-    {
-      "artifact_digest": "sha256:6bf9442d59e1b72f2217dba47d5fb824dc9c13f7f7e0062d0e6dd0863e6dad69",
+      "artifact_digest": "sha256:decd0b08baf92c288e3991bc93c483e6374a6837b6813be5175d27ed99e17bb4",
       "path": "procedures/security.kev-triage.json"
     },
     {
@@ -169,7 +165,7 @@
       "path": "provider-interfaces/security.kev-catalog.json"
     },
     {
-      "artifact_digest": "sha256:ed8c6754a7e0bf4bed4090cce994950a408bf0d506ddf90de3eed95e8da2c267",
+      "artifact_digest": "sha256:f6302734bbe87d342144d0444e136ca71e9cd899e12a5d6ea121ba4d97d9681c",
       "path": "provider-interfaces/web.fetch.json"
     },
     {
@@ -241,11 +237,7 @@
       "path": "query-definitions/security.watched_vulnerabilities.json"
     },
     {
-      "artifact_digest": "sha256:07e2eabd5dc9ae54a1b70e75a8bfd875f0da131556a1c22c7c0a8453ae2c1861",
-      "path": "source-acquisition-policies/security.cve-record-acquisition.json"
-    },
-    {
-      "artifact_digest": "sha256:084b7f8b9d78bb146187371429fbdd82f96c13c6fb387539f03f8b54506876e4",
+      "artifact_digest": "sha256:9ec3b4ba1d18b18782c8b0a99da2b4ada3f2444b8b1d3ac753f3d86dc193a761",
       "path": "source-acquisition-policies/security.kev-acquisition.json"
     }
   ],
@@ -256,22 +248,18 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:8bacc463a71bc42019d973362174e6eae9b3d3c5e97fd86429a889f18e36f9e7",
-      "generation_root": "sha256:ceabedf91cb9d9c5e3254c1d2c5ffa3a357159d72c8535eb4f880af633b4ebe9",
-      "git_oid": "4bb9d5f18184a89b1d22bf1f18ba1152e7efe632",
-      "semantic_root": "sha256:503cc4e0e8214eb721a7c6a508b42fa9b765dbe079d4ed8bdd67cbd2f80c102f",
+      "generation_root": "sha256:a49de1220b077650eee61dfa6541021c75905b59f2510dfd77c7bd3ed15e7206",
+      "git_oid": "97345ae4ab9b307fc1f1c5071d5ebc882b5b3dac",
+      "semantic_root": "sha256:b9f1db2070607885a86f49f326d74b8a81db2a8795dd13115f1ff694c4e9a889",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_a73d7ad0cee44a79",
+    "instance_id": "inst_7b00b6d3ee874ba0",
     "principal_id": "kit-author"
   },
   "providers": [
     {
-      "dependencies": [
-        {
-          "filename": "cruxible_provider_runtime-0.2.0-py3-none-any.whl",
-          "sha256": "sha256:2e68393da079aa747c39085cc7ebb33b5b6105e44c57e6fc9854da47541b93a3"
-        }
-      ],
+      "delivery": "index",
+      "dependencies": [],
       "interfaces": [
         "search.web",
         "web.fetch"

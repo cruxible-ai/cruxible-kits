@@ -18,11 +18,11 @@ consumer authors.
 | ClaimType | 33 | `security.` inventory, assessment, vulnerability and work vocabulary. Observations (`assessment.status`, `vulnerability.kev_*`, `title`, `vendor_product`, `work.verification`) require a Capture under a security CaptureContract; normative statements are supported by their own origin. `vulnerability.kev_listing_expected` is the belief predictions test. |
 | CaptureContract | 3 | `security.kev-http-v1` (source `cisa.kev.catalog`), `security.cve-record-http-v1` (source `cve.record`), `security.observation-output-v1` (the acquisition terminal). |
 | QueryDefinition | 17 | Inventory, applicability and worklist queries; the CVE-scoped ones (`applicability_coverage`, `triage`, `urgent_exposures`, `coverage_gaps`, `change_impact`) take a `vulnerability` parameter (`Subject:security.vulnerability/<id>`). `watched_vulnerabilities` is triage's state tap, `kev_triage_backlog` its measurement target, `kev_settle_condition` the condition a settle mandate evaluates. |
-| SourceAcquisitionPolicy | 2 | `security.kev-acquisition` (the `catalog` Source alias: kev-acquire and the triage Line's trigger-fed input) and `security.cve-record-acquisition` (the `record` alias). Each: required, 24 h max age, attested replay, refuse on stale/unavailable/oversized. A direct run needs its pinned policy to declare exactly its Source aliases, hence one policy per alias set. |
+| SourceAcquisitionPolicy | 1 | `security.kev-acquisition` covers both Source aliases: `catalog` (kev-acquire and the triage Line's trigger-fed input) and `record` (cve-record-acquire). Each is required, at most 24 h old, attested replay, refuse on stale/unavailable/oversized. |
 | Blueprint | 2 | `security.kev-acquire` and `security.cve-record-acquire`, each with slot `fetch` typed by `web.fetch`. |
-| Procedure | 2 | `security.kev-triage` (propose) and `security.kev-triage-settle` (the same graph ending in `settle_change_set`). Both pin the bundled `security-kev-provider` and `cruxible-provider-web`. |
-| ProviderInterface | 2 | `web.fetch`, `security.kev-catalog` (carried, never owned). |
-| Bundled providers | 2 | `security-kev-provider` 1.0.0 (the KEV catalog parser, ours) and `cruxible-provider-web` 0.2.1 (bundled because the kit carries its `web.fetch` interface). |
+| Procedure | 1 | `security.kev-triage`, ending in `settle_change_set`: under a Line capped at `propose` it proposes (fallback `cruxible.settle.authority_capped_by_line_max_authority`), under a settle mandate it settles. It pins the bundled `security-kev-provider` and the default `cruxible-provider-web`. |
+| ProviderInterface | 2 | `web.fetch` (core's registration), `security.kev-catalog` (carried, never owned). |
+| Providers | 2 | Bundled: `security-kev-provider` 1.0.0, the KEV catalog parser (domain code, shipped as wheel plus lock). Default by name: `cruxible-provider-web` 0.2.1 from PyPI, pinned to its published wheel and lock hashes; the kit carries none of its files. |
 
 ## Install
 
@@ -32,9 +32,14 @@ cruxible kit add security:1.0.0 --commit --at <OID>
 cruxible kit status
 ```
 
-`kit add` installs the two bundled providers first (registry dependencies such as
-httpx resolve from PyPI unless the daemon's `provider_index_urls` says otherwise),
-then lands the definitions when the approval policy needs no approval.
+`kit add` installs the bundled KEV provider and the default `cruxible-provider-web`
+first: web by name and exact version from the daemon's provider index (PyPI unless
+`provider_index_urls` says otherwise), verified against the recorded wheel and lock
+hashes before anything runs. Registry dependencies resolve from the same index. The
+definitions land once the providers are installed, at once when the approval policy
+needs no approval. `kit status` lists each provider with its delivery (`bundle` or
+`index`) and state (`installed`, or `satisfied` when another live Provider stands in
+for the default).
 
 ## Consumer recipe
 
@@ -45,11 +50,12 @@ then lands the definitions when the approval policy needs no approval.
     {"kind": "blueprint_instance", "name": "security.kev-acquire", "blueprint": "security.kev-acquire",
      "bindings": {"fetch": "cruxible-provider-web"}, "acquisition_policy": "security.kev-acquisition"},
     {"kind": "blueprint_instance", "name": "security.cve-record-acquire", "blueprint": "security.cve-record-acquire",
-     "bindings": {"fetch": "cruxible-provider-web"}, "acquisition_policy": "security.cve-record-acquisition"}]}
+     "bindings": {"fetch": "cruxible-provider-web"}, "acquisition_policy": "security.kev-acquisition"}]}
    ```
 
    `cruxible authoring submit FILE --and-activate`. `cruxible get Blueprint:security.kev-acquire`
-   lists the Providers that fit the slot.
+   lists the Providers that fit the slot: any implementation bound to core's `web.fetch`
+   registration does.
 
 2. **Author the automation** (Lines, Triggers, the propose mandate) in one change set.
    `CAPTURE_DIGEST` is `cruxible get CaptureContract:security.kev-http-v1 --detail proof`'s
@@ -116,11 +122,12 @@ then lands the definitions when the approval policy needs no approval.
    `cruxible procedure readings security.kev-triage --subject-grain procedure_unit`.
 
 8. **Graduate to settle.** When the readings justify it, author a settle mandate for
-   `security.kev-triage-settle` and point the triage Line at it:
+   `security.kev-triage` and raise the triage Line's `max_authority` to `settle`. The
+   Procedure does not change, so its digest and track record carry through:
 
    ```json
    {"kind": "change_set", "rationale": "Graduate KEV triage to settle under a mandate.", "members": [
-    {"kind": "procedure_mandate", "name": "security.kev-triage-settle", "procedure_name": "security.kev-triage-settle",
+    {"kind": "procedure_mandate", "name": "security.kev-triage-settle", "procedure_name": "security.kev-triage",
      "grants": "settle", "namespace": ["claims"], "valid_from": "NOW", "expires_at": "NOW+90d",
      "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2,
        "max_capture_bytes": 16777216, "max_items": 1000, "max_repeat_attempts": 1},
@@ -130,7 +137,7 @@ then lands the definitions when the approval policy needs no approval.
                {"claim_type": "security.vulnerability.kev_ransomware_use", "change_kinds": ["create", "revise"]}],
      "condition": {"query_name": "security.kev_settle_condition", "binding_parameter": "vulnerability_id",
        "required_fields": ["kev_listing_expected"], "fallback": "propose"}},
-    {"kind": "line", "name": "security.kev-triage", "procedure_name": "security.kev-triage-settle",
+    {"kind": "line", "name": "security.kev-triage", "procedure_name": "security.kev-triage",
      "acquisition_policy_name": "security.kev-acquisition", "max_authority": "settle", "trigger_input": "catalog"}]}
    ```
 
@@ -158,20 +165,21 @@ then lands the definitions when the approval policy needs no approval.
 From a fresh authoring instance:
 
 ```sh
-cruxible provider install source/providers/cruxible-provider-web/dist/cruxible_provider_web-0.2.1-py3-none-any.whl \
-  --lock source/providers/cruxible-provider-web/uv.lock \
-  --dependency source/providers/cruxible-provider-web/dist/cruxible_provider_runtime-0.2.0-py3-none-any.whl
+cruxible provider install cruxible-provider-web==0.2.1
 cruxible provider install source/providers/security-kev-provider/dist/security_kev_provider-1.0.0-py3-none-any.whl \
   --lock source/providers/security-kev-provider/uv.lock
 python source/authoring/security_definitions.py definitions --release 1.0.0
 python source/authoring/security_definitions.py procedures --release 1.0.0
 cruxible kit build --id security --version 1.0.0 --owns security. \
-  --provider source/providers/security-kev-provider --provider source/providers/cruxible-provider-web --out OUT
+  --provider source/providers/security-kev-provider \
+  --default-provider source/providers/cruxible-provider-web --out OUT
 ```
 
 then replace `cruxible-kit.json`, `artifacts/` and `providers/` here with OUT's.
-A transfer install needs the daemon's `provider_index_urls` (PyPI) configured for
-registry dependencies. After changing the provider, run its
+`source/providers/cruxible-provider-web` holds the published 0.2.1 wheel, the lock it
+embeds and the runtime wheel that lock names by path, so `kit build` can record the
+default's hashes; none of those files ship in the kit. After changing the KEV
+provider, run its
 `build_registration.py`, `uv lock`, its tests and `uv build --wheel --out-dir dist`,
 and bump its version. `source/variants/1.1.0` is a release-gate fixture (changes
 `kev_exposure`, adds `vulnerability.kev_cwes`, changes the kev-acquire Blueprint),
