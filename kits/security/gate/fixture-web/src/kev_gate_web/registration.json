@@ -1,0 +1,36 @@
+{
+  "interfaces": [
+    {
+      "classifier": {
+        "entrypoint": "kev_gate_web.classifier:classify_web_fetch",
+        "identity": "web.fetch.input",
+        "source": {
+          "digest": "sha256:2f134050d318ef94c19d4ed6d09848c2a68c29f795720ce0b62ecab5290602c2",
+          "path": "classifier.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:149854808b63a69f2dd5687e3a59de3a64cb5e137d9f5409eee3ba4e21aeb124",
+        "path": "contracts/web.fetch.json"
+      },
+      "fixtures": {
+        "digest": "sha256:5401b565fb96be6789f4e1535f642b34b184968d007fc8a37da3ed7077fb2f5f",
+        "path": "registration-fixtures/web.fetch.json"
+      },
+      "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
+      "interface_id": "web.fetch",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:111eb609750ec1fe4a2256338859b22a3ac3a2cd317b0366839cdbcc0fa2c226",
+        "path": "vocab/web.fetch.yaml"
+      }
+    }
+  ],
+  "manifest": {
+    "digest": "sha256:7130fc4b9bed739d182f1d1387c21d86af9ba1e3ff16c0091c7d5f256d4a7975",
+    "path": "manifest.json"
+  },
+  "runtime_requirements": [],
+  "schema_version": 1
+}

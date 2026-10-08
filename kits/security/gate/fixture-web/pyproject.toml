@@ -1,0 +1,26 @@
+# The security kit gate's offline web.fetch: cruxible-provider-web's own WebFetch
+# adapter, with the socket replaced by a transport that serves the vendored KEV
+# catalog and CVE record from this package. Gate fixture only, never published.
+[project]
+name = "kev-gate-web"
+version = "0.1.0"
+description = "Offline web.fetch for the security kit release gate: serves vendored KEV and CVE responses."
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = [
+  "cruxible-provider-runtime>=0.2.0",
+  "cruxible-provider-web==0.2.1",
+]
+
+[project.entry-points."cruxible.providers"]
+"web.fetch" = "kev_gate_web.provider:GateWebFetch"
+
+[build-system]
+requires = ["hatchling==1.32.1"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kev_gate_web"]
+
+[tool.hatch.build.targets.wheel.extra-metadata]
+"uv.lock" = "uv.lock"

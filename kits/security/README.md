@@ -37,7 +37,7 @@ first: web by name and exact version from the daemon's provider index (PyPI unle
 `provider_index_urls` says otherwise), verified against the recorded wheel and lock
 hashes before anything runs. Registry dependencies resolve from the same index. The
 definitions land once the providers are installed, at once when the approval policy
-needs no approval. `kit status` lists each provider with its delivery (`bundle` or
+needs no approval. `kit status` lists each provider with its delivery (`bundled` or
 `index`) and state (`installed`, or `satisfied` when another live Provider stands in
 for the default).
 
@@ -184,3 +184,25 @@ provider, run its
 and bump its version. `source/variants/1.1.0` is a release-gate fixture (changes
 `kev_exposure`, adds `vulnerability.kev_cwes`, changes the kev-acquire Blueprint),
 not a published version.
+
+## Release gate
+
+`gate/test_security_kit_gate.py` runs the v1 release gate end to end on a fresh
+daemon with a scratch state root and HOME: the kit is published to a throwaway
+HTTPS OCI registry on 127.0.0.1, installed, instantiated, automated (Lines,
+Triggers, mandates), run on a cadence, restarted, graduated to settle and
+upgraded to `source/variants/1.1.0`, asserting each step's observable. It is
+offline from cisa.gov and cveawg.mitre.org: `gate/fixture-web` (package
+`kev-gate-web`) is cruxible-provider-web's own `WebFetch` adapter serving the
+vendored KEV catalog and CVE record from its `responses/`, bound to the
+Blueprints' `fetch` slot. Provider installs still need PyPI. With the `cruxible`
+package under test installed in the interpreter:
+
+```sh
+CRUXIBLE_BIN=$(command -v cruxible) python -m pytest kits/security/gate -x -q
+```
+
+It needs `git` and `openssl`, takes about ten minutes, and writes
+`gate-results.md` and the command log to its scratch root
+(`SECURITY_KIT_GATE_ROOT` to choose one). After changing the fixture, run its
+`build_registration.py`, `uv lock` and `uv build --wheel --out-dir dist`.

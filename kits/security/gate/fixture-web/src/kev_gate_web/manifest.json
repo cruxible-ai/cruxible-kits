@@ -1,0 +1,37 @@
+{
+  "distribution": {
+    "name": "kev-gate-web",
+    "version": "0.1.0"
+  },
+  "entrypoint_group": "cruxible.providers",
+  "implementations": [
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "source_kind=api_json;access=*;page_weight=*": "web-fetch-api-json"
+      },
+      "capture_contract_families": [
+        "web.fetch.retrieval.v1"
+      ],
+      "declared_endpoints": [
+        "dynamic:target-from-run-input"
+      ],
+      "declared_input_buckets": [
+        "source_kind=api_json;access=*;page_weight=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "kev_gate_web.provider:GateWebFetch",
+      "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
+      "interface_id": "web.fetch",
+      "requires_extras": [],
+      "side_effects": false
+    }
+  ],
+  "provider_id": "kev-gate-web",
+  "schema_version": 1,
+  "supported_protocol_majors": [
+    1
+  ]
+}
