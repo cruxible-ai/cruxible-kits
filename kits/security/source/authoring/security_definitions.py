@@ -31,6 +31,7 @@ from cruxible_client.authoring.procedures import (
     Guard,
     Halt,
     Output,
+    PostInbox,
     Project,
     ProposeChangeSet,
     Sequence,
@@ -1298,7 +1299,7 @@ def kev_attention(cx: Cruxible) -> Any:
             Guard("posted", predicate=_changed("match", "posted"), on_true="post",
                   on_false="quiet", refusal_code="nothing_to_post",
                   message="No newly listed CVE matches unwatched or unassessed inventory."),
-            Halt("post"),  # replaced by the post_inbox terminal below
+            PostInbox("post", input={"items": Output("match", "items")}, max_items=1000),
             Halt("quiet", reason="nothing_to_post"),
         ],
         name="security.kev-attention",
@@ -1317,16 +1318,7 @@ def kev_attention(cx: Cruxible) -> Any:
         budget=_budget(120, 2, 16_777_216),
         hard_caps=_caps(300, 2, 16_777_216, 1000),
     ).bind(catalog=web, match=attention)
-    built = sequence.build()
-    definition = dict(built.definition)
-    nodes = []
-    for node in definition["nodes"]:
-        if node["kind"] == "halt" and node["node_id"] == "post":
-            node = {"kind": "post_inbox", "node_id": "post",
-                    "input": {"items": "$steps.match.items"}, "max_items": 1000}
-        nodes.append(node)
-    definition["nodes"] = nodes
-    return built.model_copy(update={"definition": definition})
+    return sequence.build()
 
 
 def epss_triage(cx: Cruxible) -> Any:
