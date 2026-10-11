@@ -170,7 +170,7 @@ assessment of a CVE is `not_affected` and nobody stated a reason, it drops out.
 Track one by hand with a single write, which also creates it by key:
 
 ```sh
-cruxible set security.vulnerability/cve-2021-44228 watch_reason "Log4j in vendor appliances" \
+cruxible set security.vulnerability/CVE-2021-44228 watch_reason "Log4j in vendor appliances" \
   --because "Security review 2026-10-11."
 ```
 

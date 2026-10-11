@@ -621,7 +621,7 @@ def test_07_inventory_and_watches(gate: Gate) -> None:
                          "members": [recipe.subject("security.vulnerability", BARE,
                                                     "Mentioned in a ticket; not tracked.")]})
     # `set` creates a one-key kind by key and states the decision in one write.
-    out = gate.out("set", "security.vulnerability/cve-2023-32681", "watch_reason",
+    out = gate.out("set", f"security.vulnerability/{REQUESTS_FIXED}", "watch_reason",
                    "requests in the storefront", "--because", "We ship requests.")
     assert "accepted" in out, out
     subjects = gate.claims("security.vulnerability", "security.vulnerability.cve_id")
@@ -747,7 +747,7 @@ def _bet(gate: Gate, release: str, expected: str) -> str:
          "role": "normative", "rationale": "The assessed release.",
          "source": {"kind": "self_source", "body": f"release {release}\n"}},
         {"kind": "claim", "subject": assessment, "predicate": "security.assessment.vulnerability",
-         "object": {"kind": "subject", "subject": "security.vulnerability/cve-2021-44228"},
+         "object": {"kind": "subject", "subject": f"security.vulnerability/{LOG4SHELL}"},
          "role": "normative", "rationale": "The assessed CVE.",
          "source": {"kind": "self_source", "body": f"cve {LOG4SHELL}\n"}},
         {"kind": "claim", "subject": assessment, "predicate": "security.assessment.expected_status",
