@@ -117,8 +117,9 @@ remains is listed at the end of this section.
    activate ID`.
 
 7. **Ask OSV**: `cruxible line run security.osv-applicability`, then review and
-   activate its proposal. Every CVE OSV finds in a component is watched, and each
-   (release, CVE) gets an assessment.
+   activate its proposal. Each (release, CVE) OSV relates gets an assessment; a
+   CVE found in a component is created by key and is watched through its
+   `affected` assessment.
 
 8. **KEV and EPSS**: `cruxible line run security.kev-daily` and `cruxible line
    run security.epss-daily`; activate the two triage proposals. (From here the
@@ -156,14 +157,30 @@ the id core gave the release. Creating by a key a live Subject holds names that
 Subject and creates nothing, so re-running an import or an analysis reuses what
 exists.
 
-**Watching a CVE is creating its vulnerability by key**: a `subject` member
-`{"kind": "subject", "subject_kind": "security.vulnerability", "key": "CVE-2021-44228", "rationale": "..."}`,
-or `cruxible set security.vulnerability/cve-2021-44228 watch_reason "..." --because "..."`
-(the write creates it by key; the CLI requires the lowercase spelling). A JSON
-change set names a Subject it creates in the same set by the id core will render
-(lowercase, every run outside `[a-z0-9.]` becomes `-`, composite parts joined
-with `--`); the SDK's `cx.new_subject(kind, key=...)` names it without
-predicting.
+**Watched is derived, never implied by existence.** A vulnerability is watched
+(KEV and EPSS triage read it, applicability decides it for every related
+release, KEV attention counts it as looked at) when **either**:
+
+- an assessment links it to a release in inventory with status `affected` or
+  `inconclusive` (the applicability Procedures create these), **or**
+- it carries a `security.vulnerability.watch_reason`: an agent's or a person's
+  normative decision to track it, and why.
+
+A bare vulnerability Subject (created by key, nothing else) is tracked by
+nothing. `security.watched_vulnerabilities` is that derivation; once every
+assessment of a CVE is `not_affected` and nobody stated a reason, it drops out.
+Track one by hand with a single write, which also creates it by key:
+
+```sh
+cruxible set security.vulnerability/cve-2021-44228 watch_reason "Log4j in vendor appliances" \
+  --because "Security review 2026-10-11."
+```
+
+(The CLI wants the lowercase spelling.) In a JSON change set, a `subject` member
+plus a `watch_reason` claim member. A JSON change set names a Subject it creates
+in the same set by the id core will render (lowercase, every run outside
+`[a-z0-9.]` becomes `-`, composite parts joined with `--`); the SDK's
+`cx.new_subject(kind, key=...)` names it without predicting.
 
 Inventory by hand, for what no SBOM describes (vendor products, hosts):
 
@@ -206,7 +223,8 @@ query --name security.assessment_index` shows any assessment without one.
 - **`security.osv-applicability`** (open source, by SBOM component). OSV is
   asked about every component `purl@version` of every release and for the
   record of every watched CVE and its aliases. A component OSV lists as affected
-  -> `affected` (and the CVE is watched). A watched CVE OSV has package data for
+  -> `affected` (the CVE is created by key when new, and watched through that
+  assessment). A watched CVE OSV has package data for
   but does not list -> `not_affected` with `vulnerable_code_not_present` when one
   of its packages is a component at another version. A failed OSV query for a
   relevant component -> `inconclusive`. A release none of whose components is a
@@ -291,7 +309,8 @@ move a little most days, so expect a daily revision per watched CVE).
 
 `security.kev-attention` reads the same catalog and posts one inbox item per CVE
 added in the catalog's last 7 days whose vendor/product matches a release in
-inventory that nobody watches the CVE for, or nobody has assessed: possibly
+inventory that nobody watches the CVE for (no `watch_reason`, no affected or
+inconclusive assessment), or nobody has assessed: possibly
 exposed, nobody has looked. It never changes accepted state (`cruxible inbox
 list --line security.kev-attention --status unread`). Matching leans to
 matching (the product name equal to KEV's product or vendor + product, or the
@@ -299,7 +318,7 @@ supplier equal to KEV's vendor with one product name containing the other): a
 false match costs an inbox item. The payload stays the same while the situation
 does, so a daily re-sighting counts on the same item; an item you acknowledged
 is unread again at the next sighting while the gap stays open. Close the gap
-(watch the CVE, assess the release) to stop it.
+(assess the release, or state a `watch_reason`) to stop it.
 
 ## Predictions: the applicability bet
 
@@ -361,8 +380,12 @@ settle mandates and raise the triage Lines to `settle` (`gate/recipe.py`'s
 
 Re-enable both Lines. The KEV and EPSS fields are verbatim copies of CISA's and
 FIRST's data, so every change for a watched vulnerability settles. Core requires
-a condition on every settle grant; `security.settle_condition` holds for any
-watched (keyed) vulnerability, so the grant's scope decides. The Procedures do
+a condition on every settle grant and that it return exactly one row per
+target; `security.settle_condition` holds for any keyed vulnerability. It cannot
+re-derive "watched" (that needs an optional hop, which core admits only in
+path-shaped queries, whose rows are per path), and need not: the triage
+Procedures only change watched vulnerabilities, so the grant's scope decides.
+The Procedures do
 not change, so their digests and track records carry through.
 
 ## What 1.0.0 contains

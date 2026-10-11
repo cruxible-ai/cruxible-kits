@@ -19,7 +19,15 @@ from typing import Any
 from cruxible_provider_runtime.errors import RefusalCode
 from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunContext
 
-from .common import InputError, claim_item, cve_token, decode_base64, parse_rows, sorted_items
+from .common import (
+    InputError,
+    claim_item,
+    cve_token,
+    decode_base64,
+    once_per,
+    parse_rows,
+    sorted_items,
+)
 
 WATCH_LIMIT = 1000
 FIELDS = {
@@ -75,7 +83,7 @@ class EpssTriage:
             scores, model, score_date = read_daily(
                 decode_base64(context.input.get("daily_base64"), "daily_base64")
             )
-            rows = parse_rows(context.input.get("watched"))
+            rows = once_per(parse_rows(context.input.get("watched")), "vulnerability")
         except InputError as error:
             return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, str(error))
         items: list[dict[str, Any]] = []

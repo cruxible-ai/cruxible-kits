@@ -1,4 +1,4 @@
-"""CISA KEV catalog: triage of watched vulnerabilities, and attention for inventory nobody watches.
+"""CISA KEV catalog: triage of watched vulnerabilities, and attention for inventory nobody tracks.
 
 ``KevTriage`` (``security.kev-catalog``) compares the retained catalog with the
 watched vulnerabilities (rows of ``security.watched_vulnerabilities``) and
@@ -11,7 +11,8 @@ held Claims conflict is skipped and reported, never overwritten.
 ``KevAttention`` (``security.kev-attention``) finds catalog entries added in the
 last ``NEW_WINDOW_DAYS`` days (counted back from the catalog's own
 ``dateReleased``) whose vendor/product matches a release in inventory that has
-no watched vulnerability for the CVE, or no assessment of that release for it.
+no watched vulnerability for the CVE (no watch_reason, no affected or
+inconclusive assessment), or no assessment of that release for it.
 Each such (CVE, release) pair is one inbox payload: the automation cannot state
 a belief about exposure, so it asks. The payload holds only facts that stay the
 same while the situation does, so core's inbox dedupe counts a repeat sighting
@@ -36,6 +37,7 @@ from .common import (
     decode_base64,
     decode_json,
     match_token,
+    once_per,
     parse_rows,
     sorted_items,
 )
@@ -113,7 +115,7 @@ class KevTriage:
     def __call__(self, context: ProviderRunContext) -> ProviderResult:
         try:
             index, version, _ = _catalog(context.input)
-            rows = parse_rows(context.input.get("watched"))
+            rows = once_per(parse_rows(context.input.get("watched")), "vulnerability")
         except InputError as error:
             return _declined(error)
         items: list[dict[str, Any]] = []

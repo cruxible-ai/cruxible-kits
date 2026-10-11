@@ -186,9 +186,22 @@ def subject_ref_of(value: str) -> str:
     return value
 
 
-def watch(*cves: str) -> dict[str, Any]:
-    """Watching a CVE is creating its vulnerability by key (a held key creates nothing)."""
+def watch(*cves: str, reason: str = "Tracked by the security team.") -> dict[str, Any]:
+    """Watch CVEs: create each vulnerability by key (a held key creates nothing) and state
+    the decision to track it (``watch_reason``). Existence alone watches nothing."""
 
-    return {"kind": "change_set", "rationale": "Watch vulnerabilities.",
-            "members": [subject("security.vulnerability", cve, f"Watch {cve.strip().upper()}.")
-                        for cve in cves]}
+    members: list[dict[str, Any]] = []
+    for cve in cves:
+        canonical = cve.strip().upper()
+        members.append(subject("security.vulnerability", cve, f"Track {canonical}."))
+        members.append({
+            "kind": "claim",
+            # A claim member names the Subject its sibling creates by the id core renders.
+            "subject": f"security.vulnerability/{canonical.lower()}",
+            "predicate": "security.vulnerability.watch_reason",
+            "object": {"kind": "literal", "value": reason},
+            "role": "normative",
+            "rationale": f"Track {canonical}: {reason}",
+            "source": {"kind": "self_source", "body": f"track {canonical}: {reason}\n"},
+        })
+    return {"kind": "change_set", "rationale": "Watch vulnerabilities.", "members": members}

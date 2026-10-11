@@ -16,8 +16,9 @@ revised: the run counts it under ``judged``.
 of every release with an SBOM, plus the OSV records of every hit and of every
 watched CVE (and their aliases). For a release with components:
 
-- a component OSV lists as affected by a CVE -> ``affected`` (the CVE is watched
-  by the same proposal when it is not yet);
+- a component OSV lists as affected by a CVE -> ``affected`` (the proposal creates
+  the CVE's vulnerability by key when it does not exist; the affected assessment
+  is what makes it watched);
 - a watched CVE OSV knows package data for, not listed for any component:
   a component of one of its packages is present at a version OSV does not list
   -> ``not_affected`` / ``vulnerable_code_not_present``;
@@ -169,8 +170,8 @@ def decisions_to_items(
                     subject_item(
                         VULNERABILITY,
                         {"cve_id": decision.cve},
-                        f"{decision.cve} applies to inventory ({decision.release.subject_id}): "
-                        "watch it.",
+                        f"{decision.cve} applies to inventory ({decision.release.subject_id}); "
+                        "its assessment tracks it.",
                     )
                 )
             subjects.append(

@@ -101,6 +101,24 @@ def parse_rows(rows: object) -> list[Row]:
     return parsed
 
 
+def once_per(rows: list[Row], binding: str) -> list[Row]:
+    """The first row per Subject bound at ``binding``.
+
+    ``security.watched_vulnerabilities`` is path-shaped (one row per qualifying
+    assessment path); a vulnerability is read once.
+    """
+
+    seen: set[str] = set()
+    unique: list[Row] = []
+    for row in rows:
+        bound = row.subject(binding)
+        if bound is None or bound.path in seen:
+            continue
+        seen.add(bound.path)
+        unique.append(row)
+    return unique
+
+
 def decode_base64(value: object, label: str) -> bytes:
     if not isinstance(value, str) or not value:
         raise InputError(f"{label} must be a nonempty base64 string")

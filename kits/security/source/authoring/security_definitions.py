@@ -238,7 +238,9 @@ CLAIM_TYPES: list[ClaimRow] = [
      "The affected vendor and product as a retained source states it."),
     ("security.vulnerability.watch_reason", ("security.vulnerability",), "literal", TEXT,
      "one", "normative", (), (),
-     "Why the vulnerability is watched (optional; creating it by its CVE id watches it)."),
+     "The decision to track the vulnerability, and why. A vulnerability is tracked when it has "
+     "one, or when an affected or inconclusive assessment links it to a release in inventory; "
+     "a bare vulnerability Subject is tracked by nothing."),
     # Remediation work.
     ("security.control.activation", ("security.control",), "literal",
      {"enum": ["declared_active", "planned", "retired"], "type": "string"}, "one", "normative",
@@ -295,7 +297,8 @@ SUBJECT_KINDS: dict[str, tuple[tuple[str, ...], str] | None] = {
     "security.control": None,
 }
 SUBJECT_KIND_DESCRIPTIONS = {
-    "security.vulnerability": "A CVE, named by its id. Creating one watches it.",
+    "security.vulnerability": "A CVE, named by its id. Tracked when it has a watch_reason or an "
+    "affected/inconclusive assessment; existing alone tracks nothing.",
     "security.release": "One version of a product, named by product name and version.",
     "security.assessment": "Whether one release is affected by one CVE: one per pair.",
     "security.asset": "A host, named by its hostname.",
@@ -453,6 +456,7 @@ def _query(
     name: str, description: str, entry: str, kind: str, hops: list[Any], fields: list[Any],
     where: Any = None, *, parameters: tuple[QueryParameterDeclaration, ...] = (),
     shape: str = "path", max_results: int = 200, orderings: tuple[QueryOrdering, ...] = (),
+    dedupe: str | None = None,
 ) -> QueryDefinitionSpec:
     return QueryDefinitionSpec(
         identity=ArtifactIdentity(kind="QueryDefinition", name=name),
@@ -464,7 +468,7 @@ def _query(
         result_binding=entry,
         result_shape=shape,  # type: ignore[arg-type]
         result_cardinality="many",
-        dedupe="path" if shape == "path" else "subject",
+        dedupe=dedupe or ("path" if shape == "path" else "subject"),  # type: ignore[arg-type]
         projection=QueryProjection(fields=tuple(sorted(fields, key=lambda x: x.name))),
         parameters=parameters,
         orderings=orderings,
@@ -714,25 +718,46 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
                                 _field("action_status", "action",
                                        "security.remediation.progress")],
         parameters=(VULNERABILITY_PARAMETER,)))
-    # The triage Procedures' state tap: every watched vulnerability with its KEV and EPSS Claims.
+    # Watched is derived, never implied by existence: a vulnerability is watched when
+    # an agent decided to track it (a watch_reason Claim) or when an affected or
+    # inconclusive assessment links it to a release in inventory.
+    tracked_hop = _hop("assessment", "vulnerability", "security.assessment.vulnerability",
+                       "assessment", reverse=True)
+    tracked = _any(
+        QueryClaimPresenceFilter(binding="vulnerability",
+                                 predicate="security.vulnerability.watch_reason"),
+        _all(QueryClaimPresenceFilter(binding="assessment",
+                                      predicate="security.assessment.release"),
+             _any(_cmp("assessment", "security.assessment.status", "affected"),
+                  _cmp("assessment", "security.assessment.status", "inconclusive"))),
+    )
+    # The triage and applicability Procedures' state tap.
     q.append(_query(
-        "security.watched_vulnerabilities", "Every watched vulnerability with its current KEV "
-        "and EPSS Claims", "vulnerability", "vulnerability", [],
+        "security.watched_vulnerabilities", "Every watched vulnerability (a watch_reason, or an "
+        "affected or inconclusive assessment of a release in inventory) with its current KEV "
+        "and EPSS Claims", "vulnerability", "vulnerability", [tracked_hop],
         [_field("vulnerability", "vulnerability"),
-         _field("cve_id", "vulnerability", "security.vulnerability.cve_id")] + [
+         _field("cve_id", "vulnerability", "security.vulnerability.cve_id"),
+         _field("watch_reason", "vulnerability", "security.vulnerability.watch_reason")] + [
             _field(name, "vulnerability", "security.vulnerability." + name)
             for name in ("kev_listed", "kev_date_added", "kev_due_date", "kev_ransomware_use",
                          "epss_score", "epss_percentile")],
-        shape="subject", max_results=1000))
-    # The settle mandates' condition: the changed Claim's Subject is a watched
-    # (keyed) vulnerability. Core requires a condition on every settle grant; this
-    # one holds for every vulnerability triage reads, so the grant's scope (the
+        # Path-shaped (core admits an optional hop only there), so a vulnerability with
+        # several qualifying assessments is several rows: the Procedures read it once.
+        tracked, max_results=2000))
+    # The settle mandates' condition: the changed Claim's Subject is a keyed
+    # vulnerability. Core requires a condition on every settle grant, and that it
+    # return exactly one row per target. "Watched" (a watch_reason OR an affected or
+    # inconclusive assessment) needs an optional hop, which core admits only in a
+    # path-shaped query, whose rows are per path, not per Subject; so the condition
+    # cannot re-derive it. The triage Procedures only ever change watched
+    # vulnerabilities (their state tap is the derivation), so the grant's scope (the
     # verbatim KEV and EPSS fields) is what decides what settles.
     q.append(QueryDefinitionSpec(
         identity=ArtifactIdentity(kind="QueryDefinition", name="security.settle_condition"),
         description=(
-            "One watched vulnerability by id, with its CVE key; the condition the KEV and EPSS "
-            "triage settle mandates evaluate per changed Claim."
+            "One vulnerability by id with its CVE key; the condition the KEV and EPSS triage "
+            "settle mandates evaluate per changed Claim (triage only changes watched ones)."
         ),
         entry=QueryEntry(binding="vulnerability", subject_kinds=("security.vulnerability",),
                          subject_id=QueryParameterRef(parameter="vulnerability_id")),

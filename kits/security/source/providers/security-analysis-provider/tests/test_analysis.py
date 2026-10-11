@@ -515,3 +515,9 @@ def test_cve_record_decides_matching_products_by_range_and_flags_ambiguity() -> 
 
 def test_the_registration_verifies() -> None:
     load_registration(Path(security_analysis_provider.__file__).parent)
+
+
+def test_a_vulnerability_on_several_watched_paths_is_triaged_once() -> None:
+    row = _vuln("CVE-2021-44228")
+    output = _run(KevTriage(), {"catalog_base64": _catalog_b64(), "watched": [row, row]})
+    assert output["watched"] == 1 and output["changed"] == 4

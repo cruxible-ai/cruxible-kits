@@ -56,6 +56,7 @@ REQUESTS_FIXED = "CVE-2023-32681"  # requests < 2.31.0: the gate SBOM's 2.32.3 i
 STRUTS = "CVE-2017-5638"  # struts2-core: not a gate SBOM component
 JINJA = "CVE-2024-34064"  # found by OSV in the gate SBOM's jinja2 3.1.3
 SETTLES = "CVE-2026-102490"  # listed (Zammad); first watched after graduation
+BARE = "CVE-2024-3400"  # KEV-listed; a vulnerability Subject with no watch_reason or assessment
 NEW_KEV = "CVE-2026-102490"  # Zammad, added 2026-10-02 (the catalog's last week)
 RESULTS: dict[str, tuple[str, str]] = {}
 STEPS = {
@@ -613,24 +614,31 @@ def test_07_inventory_and_watches(gate: Gate) -> None:
                  f"security.release/{release}", "--because", f"web-1 runs {release}.")
     releases = sorted(gate.claims("security.release", "security.release.version"))
     assert releases == sorted([*LOG4J_RELEASES, "gate-app--1.0.0", "zammad--6.0.0"]), releases
+    # Watching is a decision (a watch_reason), made with the Subject created by key.
     gate.submit("watch", recipe.watch(" cve-2021-44228 ", ABSENT, STRUTS))
-    watched = gate.claims("security.vulnerability", "security.vulnerability.cve_id")
-    assert {k: v[0] for k, v in watched.items()} == {
-        "cve-2021-44228": LOG4SHELL, "cve-2021-44832": ABSENT, "cve-2017-5638": STRUTS}, watched
-    # Creating by a held key reuses it: the same watch again creates nothing.
+    # A bare vulnerability Subject is tracked by nothing.
+    gate.submit("bare", {"kind": "change_set", "rationale": "A CVE we only mention.",
+                         "members": [recipe.subject("security.vulnerability", BARE,
+                                                    "Mentioned in a ticket; not tracked.")]})
+    # `set` creates a one-key kind by key and states the decision in one write.
+    out = gate.out("set", "security.vulnerability/cve-2023-32681", "watch_reason",
+                   "requests in the storefront", "--because", "We ship requests.")
+    assert "accepted" in out, out
+    subjects = gate.claims("security.vulnerability", "security.vulnerability.cve_id")
+    assert {k: v[0] for k, v in subjects.items()} == {
+        "cve-2021-44228": LOG4SHELL, "cve-2021-44832": ABSENT, "cve-2017-5638": STRUTS,
+        "cve-2023-32681": REQUESTS_FIXED, "cve-2024-3400": BARE}, subjects
+    watched = sorted(_field(r, "cve_id") for r in gate.rows("security.watched_vulnerabilities"))
+    assert watched == sorted([LOG4SHELL, ABSENT, STRUTS, REQUESTS_FIXED]), watched
+    # Creating by a held key reuses it: the same watch again changes nothing.
     head = gate.json("orient")["coordinate"]["git_oid"]
     again = gate.cx("authoring", "submit", gate.payload("watch-again", recipe.watch(LOG4SHELL)),
                     "--and-activate", check=False)
     assert gate.json("orient")["coordinate"]["git_oid"] == head, again.stdout[-400:]
-    # A one-key kind is created by key by a write naming it.
-    out = gate.out("set", "security.vulnerability/cve-2023-32681", "watch_reason",
-                   "requests in the storefront", "--because", "We ship requests.")
-    assert "accepted" in out, out
-    assert "cve-2023-32681" in gate.claims("security.vulnerability",
-                                           "security.vulnerability.cve_id")
     record("07", f"inventory created by key ({len(INVENTORY)} Subjects, ids rendered from "
-           f"keys); watched {sorted(watched)} by key; re-watch moved no generation "
-           f"(exit {again.returncode}); `set` created cve-2023-32681 by key")
+           f"keys); watched (derived) {watched}; bare {BARE} Subject not watched; re-watch "
+           f"moved no generation (exit {again.returncode}); `set` created cve-2023-32681 by "
+           "key with its watch_reason")
 
 
 def test_08_osv_applicability(gate: Gate) -> None:
@@ -841,6 +849,7 @@ def test_13_accept_and_dedupe(gate: Gate) -> None:
     gate.activate(gate.values["proposal"])
     listed = gate.claims("security.vulnerability", "security.vulnerability.kev_listed")
     assert listed["cve-2021-44228"][0] is True and listed["cve-2021-44832"][0] is False, listed
+    assert "cve-2024-3400" not in listed, listed  # listed by KEV, but not watched
     added = gate.claims("security.vulnerability", "security.vulnerability.kev_date_added")
     assert added["cve-2021-44228"][0] == "2021-12-10", added
     evidence = gate.out("get", listed["cve-2021-44832"][1], "--detail", "evidence")
