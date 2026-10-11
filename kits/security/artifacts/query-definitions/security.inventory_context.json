@@ -82,7 +82,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:aa18f04875c7ff538a2d91a0b57e983ae0fc45b533c0c5b66bc78304f468ded1",
+      "artifact_digest": "sha256:bdf132d406f6cb60826db49c6dc7c7df67a155b7e680da0fe09aaef555f64dee",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -90,7 +90,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:858d8cefc934511ccdc1b8a38017637d3fa275f0ad610f174817bc944ade7547",
+      "artifact_digest": "sha256:be90dfcb4fc01f54a01f86f95ac00141c3cd769c5c833a4d9a68a9189ac60e11",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",

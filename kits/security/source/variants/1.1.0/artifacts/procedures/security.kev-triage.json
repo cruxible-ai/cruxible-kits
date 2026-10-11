@@ -65,7 +65,7 @@
           "kind": "accepted_query",
           "parameters": {},
           "query": {
-            "artifact_digest": "sha256:3497286b333a1ea4545b53d15749b2e6e333f5246a88755b3a31f9f7b15612ae",
+            "artifact_digest": "sha256:4617ac9e762935c7825243604f27f48b0723a7ac5d7f0c3ec0f3c3914f0e28af",
             "role": "query",
             "target": {
               "kind": "QueryDefinition",
@@ -144,7 +144,7 @@
         "node_id": "watched",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:f850c278c3cb92cbbd93e0e45106bdb81d0a1a4d1bb550def225eb507ad7b3a4",
+          "artifact_digest": "sha256:224a21add9cc237499eb07f692422087446c7da2c36dd35c4da9d143fb9d28c8",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -172,7 +172,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:e0b8273b7006f5049c23965cd582e844df3abe69baf7bb4856216e9d4566d63b",
+        "implementation_digest": "sha256:0c110c418f0356fd01e010d9a724a1362e31746f6a0d590f8d50689a5ca5599e",
         "input": {
           "catalog_base64": "$steps.catalog.retrieved.body_base64",
           "watched": "$steps.watched.result.rows"
@@ -190,7 +190,7 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
+          "artifact_digest": "sha256:82e9aae469fb94166d835f2e9fb32e61d7b16f6abf1edd5cc2653f5c0047bb53",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -274,7 +274,7 @@
     "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:b8bb0141e6b02ce5f359eba7803eea71fb8bcc08e7efa435be42891f3e7279bb",
+  "definition_digest": "sha256:f461f19fa08f702d643ee47f3c1df917f6f0781e9668bb380ab22f4fd3c1e599",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-triage"
@@ -526,7 +526,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
+      "artifact_digest": "sha256:82e9aae469fb94166d835f2e9fb32e61d7b16f6abf1edd5cc2653f5c0047bb53",
       "role": "provider",
       "target": {
         "kind": "Provider",
@@ -550,7 +550,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:3497286b333a1ea4545b53d15749b2e6e333f5246a88755b3a31f9f7b15612ae",
+      "artifact_digest": "sha256:4617ac9e762935c7825243604f27f48b0723a7ac5d7f0c3ec0f3c3914f0e28af",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -558,7 +558,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:f850c278c3cb92cbbd93e0e45106bdb81d0a1a4d1bb550def225eb507ad7b3a4",
+      "artifact_digest": "sha256:224a21add9cc237499eb07f692422087446c7da2c36dd35c4da9d143fb9d28c8",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

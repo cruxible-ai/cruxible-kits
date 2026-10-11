@@ -17,11 +17,56 @@
   "default_role": "normative",
   "description": "The product this release is a version of.",
   "evidence_admission_policy": {
-    "rules": [],
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted"
+        ],
+        "rule_id": "own-words",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      },
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.cyclonedx-sbom-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "sbom_document"
+        ],
+        "rule_id": "stated-by-source",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      }
+    ],
     "tag": "playbill-claim-evidence-admission-policy-v3"
   },
   "evidence_freshness": null,
-  "evidence_requirement": "none",
+  "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
     "name": "security.release.product"

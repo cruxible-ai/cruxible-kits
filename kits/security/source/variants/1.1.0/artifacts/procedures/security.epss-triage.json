@@ -85,7 +85,7 @@
         "node_id": "watched",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:f850c278c3cb92cbbd93e0e45106bdb81d0a1a4d1bb550def225eb507ad7b3a4",
+          "artifact_digest": "sha256:224a21add9cc237499eb07f692422087446c7da2c36dd35c4da9d143fb9d28c8",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -113,7 +113,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:dd7c8c120bafe235ee5348b07b7e72c02466e94e8dacb4b293983ba20829dfec",
+        "implementation_digest": "sha256:ba3d53d786d04fb88b866cf2b2242072371dba7d24fc750bd16f7b22ed9d010d",
         "input": {
           "daily_base64": "$steps.epss.retrieved.body_base64",
           "watched": "$steps.watched.result.rows"
@@ -131,7 +131,7 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
+          "artifact_digest": "sha256:82e9aae469fb94166d835f2e9fb32e61d7b16f6abf1edd5cc2653f5c0047bb53",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -216,7 +216,7 @@
     "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:59d6f98204ea9d6fb2620b2ebedf29bb031f258fd3a32c294ad17bbf9521c8a4",
+  "definition_digest": "sha256:8b92c02e9a630d54a5843409bc5acdc88ec10c83ef608187dd90f33a276e0232",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
@@ -471,7 +471,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
+      "artifact_digest": "sha256:82e9aae469fb94166d835f2e9fb32e61d7b16f6abf1edd5cc2653f5c0047bb53",
       "role": "provider",
       "target": {
         "kind": "Provider",
@@ -503,7 +503,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:f850c278c3cb92cbbd93e0e45106bdb81d0a1a4d1bb550def225eb507ad7b3a4",
+      "artifact_digest": "sha256:224a21add9cc237499eb07f692422087446c7da2c36dd35c4da9d143fb9d28c8",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

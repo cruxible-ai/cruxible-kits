@@ -98,7 +98,7 @@
         "node_id": "releases",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:baa49156777e3c8def00797ebda3bd1ac5f0b65b0983ff977b4b59c2f87bb02c",
+          "artifact_digest": "sha256:3085282fb5583edb323f4f651770a31ab3dcb197d31ae0838b3bf3c8fa7ae7a7",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -126,7 +126,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:02016226aceee2d8faa9cb6d79c95e057aef11b53b86f01188978620adc70cca",
+        "implementation_digest": "sha256:073a94962b378bcffa45d55f6ec8fc422a8854ead2991163355bd1ec7a987c7d",
         "input": {
           "releases": "$steps.releases.result.rows",
           "sbom_text": "$steps.sbom.content.text"
@@ -144,7 +144,7 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
+          "artifact_digest": "sha256:82e9aae469fb94166d835f2e9fb32e61d7b16f6abf1edd5cc2653f5c0047bb53",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -230,7 +230,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:89f7133b5630b338c7ee93f5ff120d25102603989d0de256cabf002a2303e2f4",
+  "definition_digest": "sha256:bb35c0b87b5963dac945978140a2d446a2ffd1effa5fce036fac817c9c8ed120",
   "identity": {
     "kind": "Procedure",
     "name": "security.sbom-import"
@@ -515,7 +515,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
+      "artifact_digest": "sha256:82e9aae469fb94166d835f2e9fb32e61d7b16f6abf1edd5cc2653f5c0047bb53",
       "role": "provider",
       "target": {
         "kind": "Provider",
@@ -539,7 +539,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:baa49156777e3c8def00797ebda3bd1ac5f0b65b0983ff977b4b59c2f87bb02c",
+      "artifact_digest": "sha256:3085282fb5583edb323f4f651770a31ab3dcb197d31ae0838b3bf3c8fa7ae7a7",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
