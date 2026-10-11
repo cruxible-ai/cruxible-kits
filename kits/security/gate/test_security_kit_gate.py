@@ -31,7 +31,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import unicodedata
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -371,20 +370,6 @@ def _inbox(gate: Gate, *args: str) -> list[dict[str, Any]]:
     return [entry["item"] for entry in gate.json("inbox", "list", *args)["entries"]]
 
 
-def _render(*parts: str) -> str:
-    """The id core renders from a canonical key (cli-reference "Subject kinds and creation").
-
-    A JSON change set names a Subject it creates in the same set by that id.
-    """
-
-    rendered = []
-    for part in parts:
-        text = re.sub(r"[^a-z0-9.]+", "-", unicodedata.normalize("NFKC", part).lower()).strip("-")
-        rendered.append(text)
-    joined = "--".join(rendered)
-    return joined if joined[:1].isalpha() else "x" + joined
-
-
 @pytest.fixture(scope="module")
 def gate() -> Iterator[Gate]:
     explicit = os.environ.get("SECURITY_KIT_GATE_ROOT")
@@ -566,50 +551,68 @@ LOG4J_RELEASES = ("apache-log4j2--2.14.1", "apache-log4j2--2.17.1", "apache-log4
                   "apache-log4j--1.2.17")
 
 
+def _key(kind: str, key: Any) -> dict[str, Any]:
+    """A Subject named by its kind and key (subject-key-v1): never a predicted id."""
+
+    return {"subject_kind": kind, "key": key}
+
+
+def _release(product: str, version: str) -> dict[str, Any]:
+    return _key("security.release", {"product_name": product, "version": version})
+
+
 def _inventory() -> dict[str, Any]:
     members: list[dict[str, Any]] = [recipe.subject(kind, key, f"Inventory: {key}.")
                                      for kind, key in INVENTORY]
 
-    def rel(subject: str, predicate: str, target: str) -> dict[str, Any]:
+    def _text(ref: Any) -> str:
+        return json.dumps(ref["key"], sort_keys=True)
+
+    def rel(subject: Any, predicate: str, target: Any) -> dict[str, Any]:
+        said = f"{_text(subject)} {predicate.rsplit('.', 1)[-1]} {_text(target)}"
         return {"kind": "claim", "subject": subject, "predicate": predicate,
                 "object": {"kind": "subject", "subject": target}, "role": "normative",
-                "rationale": f"Inventory: {subject} {predicate.rsplit('.', 1)[-1]} {target}.",
-                "source": {"kind": "self_source", "body": f"{subject} -> {target}\n"}}
+                "rationale": f"Inventory: {said}.",
+                "source": {"kind": "self_source", "body": said + "\n"}}
 
-    def lit(subject: str, predicate: str, value: Any) -> dict[str, Any]:
+    def lit(subject: Any, predicate: str, value: Any) -> dict[str, Any]:
+        said = f"{_text(subject)} {predicate.rsplit('.', 1)[-1]} {value}"
         return {"kind": "claim", "subject": subject, "predicate": predicate,
                 "object": {"kind": "literal", "value": value}, "role": "normative",
-                "rationale": f"Inventory: {subject} {predicate.rsplit('.', 1)[-1]}.",
-                "source": {"kind": "self_source", "body": f"{subject}: {value}\n"}}
+                "rationale": f"Inventory: {said}.",
+                "source": {"kind": "self_source", "body": said + "\n"}}
 
-    asset = "security.asset/web-1.example.com"
+    # Subjects this set creates are named by kind and key (a `kind/<text>` reference
+    # resolves against accepted state only).
+    asset = _key("security.asset", {"hostname": "web-1.example.com"})
+    service = _key("security.service", {"name": "Storefront"})
     members += [
-        lit("security.service/storefront", "security.service.criticality", "critical"),
-        rel("security.service/storefront", "security.service.owned_by", "security.team/platform"),
+        lit(service, "security.service.criticality", "critical"),
+        rel(service, "security.service.owned_by", _key("security.team", {"name": "Platform"})),
         lit(asset, "security.asset.internet_exposed", True),
         lit(asset, "security.asset.environment", "production"),
-        rel(asset, "security.asset.serves", "security.service/storefront"),
-        rel("security.product/apache-log4j2", "security.product.supplied_by",
-            "security.supplier/apache-software-foundation"),
-        rel("security.product/zammad", "security.product.supplied_by",
-            "security.supplier/zammad-gmbh"),
-        rel("security.release/zammad--6.0.0", "security.release.product",
-            "security.product/zammad"),
+        rel(asset, "security.asset.serves", service),
+        rel(_key("security.product", {"name": "Apache Log4j2"}), "security.product.supplied_by",
+            _key("security.supplier", {"name": "Apache Software Foundation"})),
+        rel(_key("security.product", {"name": "Zammad"}), "security.product.supplied_by",
+            _key("security.supplier", {"name": "Zammad GmbH"})),
+        rel(_release("Zammad", "6.0.0"), "security.release.product",
+            _key("security.product", {"name": "Zammad"})),
         # A second value of a many-valued slot in the same change set needs an explicit
         # disposition of the first (by a Claim ID the set mints): the gate adds the other
         # installs with `cruxible add` after the set lands.
-        rel(asset, "security.asset.installs", "security.release/apache-log4j2--2.14.1"),
+        rel(asset, "security.asset.installs", _release("Apache Log4j2", "2.14.1")),
     ]
-    for release in LOG4J_RELEASES:
-        product = "apache-log4j" if release.startswith("apache-log4j--") else "apache-log4j2"
-        members.append(rel(f"security.release/{release}", "security.release.product",
-                           f"security.product/{product}"))
+    for kind, key in INVENTORY:
+        if kind == "security.release" and key["product_name"].startswith("Apache"):
+            members.append(rel(_key(kind, key), "security.release.product",
+                               _key("security.product", {"name": key["product_name"]})))
     return {"kind": "change_set", "rationale": "The gate's inventory.", "members": members}
 
 
 def test_07_inventory_and_watches(gate: Gate) -> None:
     gate.submit("inventory", _inventory())
-    for release in ("zammad--6.0.0", "gate-app--1.0.0"):
+    for release in ("zammad--6.0.0", "gate-app--1.0.0"):  # ids core rendered from the keys
         gate.out("add", "security.asset/web-1.example.com", "installs",
                  f"security.release/{release}", "--because", f"web-1 runs {release}.")
     releases = sorted(gate.claims("security.release", "security.release.version"))
@@ -657,7 +660,6 @@ def test_08_osv_applicability(gate: Gate) -> None:
     watched = gate.claims("security.vulnerability", "security.vulnerability.cve_id")
     assert "cve-2024-34064" in watched, watched
     assessment = gate.values["assessment_ids"][(app, LOG4SHELL)]
-    assert assessment == _render(app, LOG4SHELL), assessment
     statuses = gate.claims("security.assessment", "security.assessment.status")
     evidence = gate.out("get", statuses[assessment][1], "--detail", "evidence")
     assert "CaptureContract:security.osv-query-v1" in evidence, evidence
@@ -737,8 +739,8 @@ def test_09_analyst_judgment(gate: Gate) -> None:
 
 
 def _bet(gate: Gate, release: str, expected: str) -> str:
-    # A claim member names the Subject a sibling member creates by the id core renders.
-    assessment = f"security.assessment/{_render(release, LOG4SHELL)}"
+    # A claim member names the Subject a sibling member creates by its kind and key.
+    assessment = _key("security.assessment", {"release_id": release, "cve_id": LOG4SHELL})
     gate.submit(f"bet-{release}", {"kind": "change_set", "rationale": "State a bet.", "members": [
         recipe.subject("security.assessment", {"release_id": release, "cve_id": LOG4SHELL},
                        f"Assess {release} for {LOG4SHELL}."),
@@ -755,15 +757,18 @@ def _bet(gate: Gate, release: str, expected: str) -> str:
          "rationale": f"The gate bets {release} is {expected} by {LOG4SHELL}.",
          "source": {"kind": "self_source", "body": f"bet: {expected}\n"}},
     ]})
+    _assessments(gate)  # the id core gave the assessment, for the observation selector
+    subject_id = gate.values["assessment_ids"][(release, LOG4SHELL)]
     claim = gate.claims("security.assessment", "security.assessment.expected_status")[
-        _render(release, LOG4SHELL)][1]
+        subject_id][1]
     name = f"security.applicability-{release}"
     start = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     path = gate.payload(name, {"contract": {
         "identity": {"kind": "ResolutionContract", "name": name},
         "hypothesis": claim,
         "observation": {"subject": {"tag": "playbill-semantic-address-v1",
-                                    "artifact_path": f"subjects/{assessment}.json",
+                                    "artifact_path":
+                                        f"subjects/security.assessment/{subject_id}.json",
                                     "selector": {"scheme": "artifact-v1", "value": ""}},
                         "predicate": "security.assessment.status"},
         "rule": {"tag": "playbill-prediction-equality-rule-v1", "operator": "equality"},
@@ -802,8 +807,9 @@ def test_11_cve_applicability(gate: Gate) -> None:
         "apache-log4j--1.2.17": ("inconclusive", None),
     }, decided
     statuses = gate.claims("security.assessment", "security.assessment.status")
-    right = statuses[_render("apache-log4j2--2.17.1", LOG4SHELL)][1]
-    wrong = statuses[_render("apache-log4j2--2.12.2", LOG4SHELL)][1]
+    ids = gate.values["assessment_ids"]
+    right = statuses[ids[("apache-log4j2--2.17.1", LOG4SHELL)]][1]
+    wrong = statuses[ids[("apache-log4j2--2.12.2", LOG4SHELL)]][1]
     assert "Outcome: True" in gate.out("prediction", "settle", gate.values["bet_right"],
                                        "--observation", right)
     assert "Outcome: False" in gate.out("prediction", "settle", gate.values["bet_wrong"],

@@ -174,11 +174,16 @@ cruxible set security.vulnerability/CVE-2021-44228 watch_reason "Log4j in vendor
   --because "Security review 2026-10-11."
 ```
 
-(The CLI wants the lowercase spelling.) In a JSON change set, a `subject` member
-plus a `watch_reason` claim member. A JSON change set names a Subject it creates
-in the same set by the id core will render (lowercase, every run outside
-`[a-z0-9.]` becomes `-`, composite parts joined with `--`); the SDK's
-`cx.new_subject(kind, key=...)` names it without predicting.
+In a JSON change set, a `subject` member plus a `watch_reason` claim member.
+
+**Naming Subjects.** A reference takes key text as written, on every route
+(`set`, `get`, `inbox link`, authoring): `security.vulnerability/CVE-2021-44228`,
+`security.product/Apache Log4j2` (these resolve against accepted state). A
+composite key, and any Subject the same change set creates, is named by kind and
+key (a mapping of key parts, even for a one-key kind), never by a predicted id:
+`{"subject_kind": "security.release", "key": {"product_name": "Apache Log4j2", "version": "2.14.1"}}`
+(the SDK's `SubjectKeyReference`). Core resolves it to the Subject a `subject`
+member of the same set lands on, else to the live holder of the key.
 
 Inventory by hand, for what no SBOM describes (vendor products, hosts):
 
@@ -188,16 +193,18 @@ Inventory by hand, for what no SBOM describes (vendor products, hosts):
  {"kind": "subject", "subject_kind": "security.product", "key": "Apache Log4j2", "rationale": "We run it."},
  {"kind": "subject", "subject_kind": "security.release", "key": {"product_name": "Apache Log4j2", "version": "2.14.1"}, "rationale": "Installed on web-1."},
  {"kind": "subject", "subject_kind": "security.asset", "key": "web-1.example.com", "rationale": "The storefront host."},
- {"kind": "claim", "subject": "security.release/apache-log4j2--2.14.1", "predicate": "security.release.product",
-  "object": {"kind": "subject", "subject": "security.product/apache-log4j2"}, "role": "normative", "rationale": "Its product.",
+ {"kind": "claim", "subject": {"subject_kind": "security.release", "key": {"product_name": "Apache Log4j2", "version": "2.14.1"}},
+  "predicate": "security.release.product",
+  "object": {"kind": "subject", "subject": {"subject_kind": "security.product", "key": {"name": "Apache Log4j2"}}}, "role": "normative", "rationale": "Its product.",
   "source": {"kind": "self_source", "body": "product: Apache Log4j2\n"}},
- {"kind": "claim", "subject": "security.product/apache-log4j2", "predicate": "security.product.supplied_by",
-  "object": {"kind": "subject", "subject": "security.supplier/apache-software-foundation"}, "role": "normative", "rationale": "Its vendor.",
+ {"kind": "claim", "subject": {"subject_kind": "security.product", "key": {"name": "Apache Log4j2"}}, "predicate": "security.product.supplied_by",
+  "object": {"kind": "subject", "subject": {"subject_kind": "security.supplier", "key": {"name": "Apache Software Foundation"}}}, "role": "normative", "rationale": "Its vendor.",
   "source": {"kind": "self_source", "body": "supplier: Apache Software Foundation\n"}},
- {"kind": "claim", "subject": "security.asset/web-1.example.com", "predicate": "security.asset.installs",
-  "object": {"kind": "subject", "subject": "security.release/apache-log4j2--2.14.1"}, "role": "normative", "rationale": "Installed.",
+ {"kind": "claim", "subject": {"subject_kind": "security.asset", "key": {"hostname": "web-1.example.com"}}, "predicate": "security.asset.installs",
+  "object": {"kind": "subject", "subject": {"subject_kind": "security.release", "key": {"product_name": "Apache Log4j2", "version": "2.14.1"}}},
+  "role": "normative", "rationale": "Installed.",
   "source": {"kind": "self_source", "body": "installs Apache Log4j2 2.14.1\n"}},
- {"kind": "claim", "subject": "security.asset/web-1.example.com", "predicate": "security.asset.internet_exposed",
+ {"kind": "claim", "subject": {"subject_kind": "security.asset", "key": {"hostname": "web-1.example.com"}}, "predicate": "security.asset.internet_exposed",
   "object": {"kind": "literal", "value": true}, "role": "normative", "rationale": "Public.",
   "source": {"kind": "self_source", "body": "internet exposed\n"}}]}
 ```
@@ -323,8 +330,11 @@ is unread again at the next sighting while the gap stays open. Close the gap
 State what you expect before a source observes it, and let the observation
 settle it. Create the assessment by key with `security.assessment.expected_status`
 (`affected` or `not_affected`, normative; plus its `release` and
-`vulnerability`), then propose a contract whose hypothesis is that Claim and
-whose observation is the assessment's `security.assessment.status`:
+`vulnerability`, naming the assessment by its key), then propose a contract
+whose hypothesis is that Claim and whose observation is the assessment's
+`security.assessment.status`. The observation selector is the assessment's
+artifact path, the id core gave it (`cruxible query --name
+security.assessment_index` lists it):
 
 ```json
 {"contract": {"identity": {"kind": "ResolutionContract", "name": "bet-log4j-2.17.1"},

@@ -192,8 +192,8 @@ def watch(*cves: str, reason: str = "Tracked by the security team.") -> dict[str
         members.append(subject("security.vulnerability", cve, f"Track {canonical}."))
         members.append({
             "kind": "claim",
-            # A claim member names the Subject its sibling creates by the id core renders.
-            "subject": f"security.vulnerability/{canonical.lower()}",
+            # A claim member names the Subject its sibling creates by its kind and key.
+            "subject": {"subject_kind": "security.vulnerability", "key": {"cve_id": canonical}},
             "predicate": "security.vulnerability.watch_reason",
             "object": {"kind": "literal", "value": reason},
             "role": "normative",
