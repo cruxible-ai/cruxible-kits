@@ -24,7 +24,7 @@ jobs:
         run: >-
           uv venv &&
           uv pip install
-          "cruxible-client @ git+https://github.com/cruxible-ai/cruxible@a79f6e125452bce5fd4b9d85eb874e602a72e80a#subdirectory=packages/cruxible-client"
+          "cruxible-client @ git+https://github.com/cruxible-ai/cruxible@e6a1fa81cc2c91eeb2e94840286c0366a7fea8a0#subdirectory=packages/cruxible-client"
       - name: Check every kit
         run: uv run --no-project python scripts/kits.py check
       - name: Publish new kit versions
