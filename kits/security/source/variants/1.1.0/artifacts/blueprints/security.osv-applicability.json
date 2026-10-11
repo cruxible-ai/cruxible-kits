@@ -21,7 +21,7 @@
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:ea6928231e515ff19ee2a93d1d6c714172574630c74579355ce324763a99ece5",
+      "artifact_digest": "sha256:2801d0b88c09035bccc8b969e0a0ff5e762ad2f962587416deec6f43cd1705dc",
       "role": "contract-out",
       "target": {
         "kind": "Contract",
@@ -69,7 +69,7 @@
         "node_id": "watched",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:5453c2efa68193e9dbffcc808e13469ff7dbfeecb3329fbb6a6de979ddf8e476",
+          "artifact_digest": "sha256:f850c278c3cb92cbbd93e0e45106bdb81d0a1a4d1bb550def225eb507ad7b3a4",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -86,7 +86,7 @@
         "node_id": "assessments",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:7008f60ac901c0eea835d7e031a0465de148745736884c01fd12fa0e45ee5802",
+          "artifact_digest": "sha256:65c6525c4892c642bff402b35d6c6aeb8c4f87373508a0e63a585e99eb90de48",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -138,7 +138,7 @@
           }
         },
         "contract_out": {
-          "artifact_digest": "sha256:40c9bb2700437465fc87f3c54ee8305df1847b474788fd289ff608ece6c33b8a",
+          "artifact_digest": "sha256:34d1f070c5e1188f10b434cb009b53593d8e4ddf424f75d911e5e25fe9e5e173",
           "role": "contract-out",
           "target": {
             "kind": "Contract",
@@ -146,7 +146,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:8a8f57eb20df7d67d8a6e4e81bd2720a4d3bf709bdb9a8b27b990ad777e310ed",
+        "implementation_digest": "sha256:64d398e3f88909e0bba64aa4fe96e7a3940679d819a4858185bb74f9329bc483",
         "input": {
           "assessments": "$steps.assessments.result.rows",
           "osv": "$steps.osv",
@@ -154,19 +154,19 @@
           "watched": "$steps.watched.result.rows"
         },
         "interface": {
-          "artifact_digest": "sha256:89579eb66d95c561e0902c329405a5e10378817249d02eca9857c19725b6fd6b",
+          "artifact_digest": "sha256:03027bb159994716f20e33199be187115d9f632d5d2f25870f05f80cd91fda89",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
             "name": "security.osv-applicability"
           }
         },
-        "interface_digest": "sha256:3b525fb33992f904f53b5e8bb06db912cf60e0f2b49b081c4d09f9925ce7e6dd",
+        "interface_digest": "sha256:56110db3c06067e17b79c517a0c178a3f742ee0519ab4290530efe12a06c5620",
         "kind": "call",
         "next": "summary",
         "node_id": "decide",
         "provider": {
-          "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
+          "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -177,7 +177,7 @@
       {
         "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:ea6928231e515ff19ee2a93d1d6c714172574630c74579355ce324763a99ece5",
+          "artifact_digest": "sha256:2801d0b88c09035bccc8b969e0a0ff5e762ad2f962587416deec6f43cd1705dc",
           "role": "contract-out",
           "target": {
             "kind": "Contract",
@@ -188,6 +188,7 @@
           "affected": "$steps.decide.affected",
           "changed": "$steps.decide.changed",
           "inconclusive": "$steps.decide.inconclusive",
+          "judged": "$steps.decide.judged",
           "not_affected": "$steps.decide.not_affected",
           "unchanged": "$steps.decide.unchanged",
           "unkeyed": "$steps.decide.unkeyed"
@@ -260,7 +261,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:36c3e84117ff20f71a3496325212a21b902ac2f31aabf1596be0927280185faa",
+  "definition_digest": "sha256:8dc26be35f5419d5e2ee2cf3b1663737b20a5f58f86d9830d98b8087d02ae703",
   "identity": {
     "kind": "Blueprint",
     "name": "security.osv-applicability"
@@ -392,6 +393,17 @@
             "primary_key": false,
             "type": "json"
           },
+          "judged": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
           "not_affected": {
             "default": null,
             "description": null,
@@ -471,6 +483,17 @@
             "primary_key": false,
             "type": "integer"
           },
+          "judged": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
           "not_affected": {
             "default": null,
             "description": null,
@@ -535,7 +558,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:40c9bb2700437465fc87f3c54ee8305df1847b474788fd289ff608ece6c33b8a",
+      "artifact_digest": "sha256:34d1f070c5e1188f10b434cb009b53593d8e4ddf424f75d911e5e25fe9e5e173",
       "role": "contract-out",
       "target": {
         "kind": "Contract",
@@ -543,7 +566,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:ea6928231e515ff19ee2a93d1d6c714172574630c74579355ce324763a99ece5",
+      "artifact_digest": "sha256:2801d0b88c09035bccc8b969e0a0ff5e762ad2f962587416deec6f43cd1705dc",
       "role": "contract-out",
       "target": {
         "kind": "Contract",
@@ -551,7 +574,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
+      "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
       "role": "provider",
       "target": {
         "kind": "Provider",
@@ -559,7 +582,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:89579eb66d95c561e0902c329405a5e10378817249d02eca9857c19725b6fd6b",
+      "artifact_digest": "sha256:03027bb159994716f20e33199be187115d9f632d5d2f25870f05f80cd91fda89",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
@@ -575,7 +598,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:7008f60ac901c0eea835d7e031a0465de148745736884c01fd12fa0e45ee5802",
+      "artifact_digest": "sha256:65c6525c4892c642bff402b35d6c6aeb8c4f87373508a0e63a585e99eb90de48",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -591,7 +614,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:5453c2efa68193e9dbffcc808e13469ff7dbfeecb3329fbb6a6de979ddf8e476",
+      "artifact_digest": "sha256:f850c278c3cb92cbbd93e0e45106bdb81d0a1a4d1bb550def225eb507ad7b3a4",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

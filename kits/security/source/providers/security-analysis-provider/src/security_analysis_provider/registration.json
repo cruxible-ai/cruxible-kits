@@ -5,7 +5,7 @@
         "entrypoint": "security_analysis_provider.kev:classify_triage",
         "identity": "security.kev-catalog.input",
         "source": {
-          "digest": "sha256:a6c77758625fd063a19b886780d94ed637717964f59fb8853404cb5bb77d12c0",
+          "digest": "sha256:b27e00e224c7bc93fb53c83a8faac39681ecde9023f1f5b96c180b05a7b1c33c",
           "path": "kev.py"
         },
         "version": 1
@@ -31,7 +31,7 @@
         "entrypoint": "security_analysis_provider.kev:classify_attention",
         "identity": "security.kev-attention.input",
         "source": {
-          "digest": "sha256:a6c77758625fd063a19b886780d94ed637717964f59fb8853404cb5bb77d12c0",
+          "digest": "sha256:b27e00e224c7bc93fb53c83a8faac39681ecde9023f1f5b96c180b05a7b1c33c",
           "path": "kev.py"
         },
         "version": 1
@@ -57,7 +57,7 @@
         "entrypoint": "security_analysis_provider.epss:classify",
         "identity": "security.epss-scores.input",
         "source": {
-          "digest": "sha256:f75d9c7f2b67827850c81aa9abeb97e99bae367d12f64d5eb34120e095127ddb",
+          "digest": "sha256:90ba2ec68b3bde46576b0333af761a4ab20400b662376fdc78346bdede2ad5d0",
           "path": "epss.py"
         },
         "version": 1
@@ -109,20 +109,20 @@
         "entrypoint": "security_analysis_provider.applicability:classify_osv",
         "identity": "security.osv-applicability.input",
         "source": {
-          "digest": "sha256:6c74b30175e29d93ae961e0ea3596f8632fece37f2a6621245e76a24664ed520",
+          "digest": "sha256:beef5c292e5a00800fe104aa0a32acbc6b958da289203128af621b41505f612f",
           "path": "applicability.py"
         },
         "version": 1
       },
       "definition": {
-        "digest": "sha256:56825fd4a7af2e7b566c82409c0444b75cf9147d1c9ed680d124f1f21751bdd5",
+        "digest": "sha256:ca3f8509aa1e147a1bb363e8bc3f07d9070bbe72037d457b71cc273e1e39ab57",
         "path": "contracts/security.osv-applicability.json"
       },
       "fixtures": {
         "digest": "sha256:68f152f5e1888efc48fdd1cb1cb3b5a1539aa4cf55c9a351de0ca1750a783b31",
         "path": "registration-fixtures/security.osv-applicability.json"
       },
-      "interface_digest": "sha256:3b525fb33992f904f53b5e8bb06db912cf60e0f2b49b081c4d09f9925ce7e6dd",
+      "interface_digest": "sha256:56110db3c06067e17b79c517a0c178a3f742ee0519ab4290530efe12a06c5620",
       "interface_id": "security.osv-applicability",
       "predecessors": [],
       "vocabulary": {
@@ -135,20 +135,20 @@
         "entrypoint": "security_analysis_provider.applicability:classify_cve",
         "identity": "security.cve-applicability.input",
         "source": {
-          "digest": "sha256:6c74b30175e29d93ae961e0ea3596f8632fece37f2a6621245e76a24664ed520",
+          "digest": "sha256:beef5c292e5a00800fe104aa0a32acbc6b958da289203128af621b41505f612f",
           "path": "applicability.py"
         },
         "version": 1
       },
       "definition": {
-        "digest": "sha256:0d87b56fa74bc111285e247a79fd699605dbe5ec13d2fc50f7502023a761152a",
+        "digest": "sha256:a711bda2a455f0e195860649467245cf694b3a498ebc704a905516ad86fe200a",
         "path": "contracts/security.cve-applicability.json"
       },
       "fixtures": {
         "digest": "sha256:735892b596906f0d8e2fe24336d7eb5a38197f300b47e6e8bfcaa751b3718915",
         "path": "registration-fixtures/security.cve-applicability.json"
       },
-      "interface_digest": "sha256:d5deeb11e5d44e03177199cfa573c32066f24db8b740983915f41694e2d49f1e",
+      "interface_digest": "sha256:7553d895e064ebf17d1d80cbbce4d92f039aa36bfc80289f135ac1ded4ea3b28",
       "interface_id": "security.cve-applicability",
       "predecessors": [],
       "vocabulary": {
@@ -158,7 +158,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:9c751ab9c9315a3bff22cedb94568199854220c9e0d590e5af44b180b403b21a",
+    "digest": "sha256:cf4a706d7e0b799e73950c69d5537ee1437577df81c29e06a19fee82f4d93afb",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

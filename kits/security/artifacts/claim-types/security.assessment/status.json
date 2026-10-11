@@ -12,10 +12,40 @@
   "attestation_consequence_policy": null,
   "canonical_form": [],
   "cardinality": "one",
-  "default_role": "observation",
-  "description": "Whether the release is affected by the vulnerability, as observed from retained evidence.",
+  "default_role": "normative",
+  "description": "Whether the release is affected by the vulnerability. An observation is a source's verdict (OSV, a CVE record) citing its Capture; a normative Claim is an analyst's judgment citing their own words or a workspace file, and comes with security.assessment.judgment.",
   "evidence_admission_policy": {
     "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.workspace-evidence-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted",
+          "workspace_file"
+        ],
+        "rule_id": "analyst-judgment",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      },
       {
         "admission": "direct",
         "attestation_requirement": "none",
@@ -48,7 +78,7 @@
         "evidence_kinds": [
           "http_response"
         ],
-        "rule_id": "retained-security-evidence",
+        "rule_id": "source-verdict",
         "subject_binding": "exact_claim_subject",
         "tag": "playbill-claim-evidence-admission-rule-v3"
       }
@@ -56,7 +86,7 @@
     "tag": "playbill-claim-evidence-admission-policy-v3"
   },
   "evidence_freshness": null,
-  "evidence_requirement": "captured",
+  "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
     "name": "security.assessment.status"
@@ -76,6 +106,7 @@
   "member_descriptions": [],
   "object_kind": "literal",
   "permitted_roles": [
+    "normative",
     "observation"
   ],
   "pins": [],

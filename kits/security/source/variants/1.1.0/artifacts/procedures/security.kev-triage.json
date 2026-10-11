@@ -65,7 +65,7 @@
           "kind": "accepted_query",
           "parameters": {},
           "query": {
-            "artifact_digest": "sha256:a598e828e129118c63ef21d2006b7150d38a6ff5f46ad0e2cfa9112e9ac9bc7e",
+            "artifact_digest": "sha256:3497286b333a1ea4545b53d15749b2e6e333f5246a88755b3a31f9f7b15612ae",
             "role": "query",
             "target": {
               "kind": "QueryDefinition",
@@ -144,7 +144,7 @@
         "node_id": "watched",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:5453c2efa68193e9dbffcc808e13469ff7dbfeecb3329fbb6a6de979ddf8e476",
+          "artifact_digest": "sha256:f850c278c3cb92cbbd93e0e45106bdb81d0a1a4d1bb550def225eb507ad7b3a4",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -172,13 +172,13 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:136ab294ccc3808f2c00c93342d01b22c183c038feb60de799501bea679b1cf0",
+        "implementation_digest": "sha256:e0b8273b7006f5049c23965cd582e844df3abe69baf7bb4856216e9d4566d63b",
         "input": {
           "catalog_base64": "$steps.catalog.retrieved.body_base64",
           "watched": "$steps.watched.result.rows"
         },
         "interface": {
-          "artifact_digest": "sha256:0c00af99b490f41d84a0039f11bf493800f4e87694d29f70b6d0138dfb6f4df7",
+          "artifact_digest": "sha256:89a764ad9dc8f1cd3aa01c73ceac3b1e332560d10d69f81cb52493e3306c2c7b",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
@@ -190,7 +190,7 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
+          "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -274,7 +274,7 @@
     "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:d7717c6f3b774d0b49c30fd2ee7944a02aa6c2c7bffbc102037e080372d4d6e7",
+  "definition_digest": "sha256:b8bb0141e6b02ce5f359eba7803eea71fb8bcc08e7efa435be42891f3e7279bb",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-triage"
@@ -470,7 +470,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:41aab5edac4d2a47a05dd0c6337108008c87275f1bd476d38f0b200b6d62eea5",
+      "artifact_digest": "sha256:12296e6e40831381574137e1fffc7c63639fd5234e98ead411d3a842409763d3",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",
@@ -526,7 +526,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
+      "artifact_digest": "sha256:59138a6c5d30351c061d4e5ef9f4121eebd6c6ee25ac9d82309eceeef54cacf1",
       "role": "provider",
       "target": {
         "kind": "Provider",
@@ -534,7 +534,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:0c00af99b490f41d84a0039f11bf493800f4e87694d29f70b6d0138dfb6f4df7",
+      "artifact_digest": "sha256:89a764ad9dc8f1cd3aa01c73ceac3b1e332560d10d69f81cb52493e3306c2c7b",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
@@ -550,7 +550,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:a598e828e129118c63ef21d2006b7150d38a6ff5f46ad0e2cfa9112e9ac9bc7e",
+      "artifact_digest": "sha256:3497286b333a1ea4545b53d15749b2e6e333f5246a88755b3a31f9f7b15612ae",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -558,7 +558,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:5453c2efa68193e9dbffcc808e13469ff7dbfeecb3329fbb6a6de979ddf8e476",
+      "artifact_digest": "sha256:f850c278c3cb92cbbd93e0e45106bdb81d0a1a4d1bb550def225eb507ad7b3a4",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

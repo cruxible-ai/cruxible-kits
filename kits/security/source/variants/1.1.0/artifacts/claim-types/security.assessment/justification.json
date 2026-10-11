@@ -12,10 +12,40 @@
   "attestation_consequence_policy": null,
   "canonical_form": [],
   "cardinality": "one",
-  "default_role": "observation",
-  "description": "Why a not_affected release is not affected (the VEX/CSAF justification). The kit's Procedures state it with every not_affected status; core cannot require it.",
+  "default_role": "normative",
+  "description": "Why a not_affected release is not affected (the VEX/CSAF justification): an observation from a source, or (normative) an analyst's judgment. Required in practice with every not_affected status; core cannot require it.",
   "evidence_admission_policy": {
     "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.workspace-evidence-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted",
+          "workspace_file"
+        ],
+        "rule_id": "analyst-judgment",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      },
       {
         "admission": "direct",
         "attestation_requirement": "none",
@@ -48,7 +78,7 @@
         "evidence_kinds": [
           "http_response"
         ],
-        "rule_id": "retained-security-evidence",
+        "rule_id": "source-verdict",
         "subject_binding": "exact_claim_subject",
         "tag": "playbill-claim-evidence-admission-rule-v3"
       }
@@ -56,7 +86,7 @@
     "tag": "playbill-claim-evidence-admission-policy-v3"
   },
   "evidence_freshness": null,
-  "evidence_requirement": "captured",
+  "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
     "name": "security.assessment.justification"
@@ -99,6 +129,7 @@
   ],
   "object_kind": "literal",
   "permitted_roles": [
+    "normative",
     "observation"
   ],
   "pins": [],

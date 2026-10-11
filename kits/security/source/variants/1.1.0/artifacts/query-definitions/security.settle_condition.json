@@ -8,7 +8,7 @@
     "max_traversal_depth": 1,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "One watched vulnerability by id, with its CVE key; the condition the KEV and EPSS triage settle mandates evaluate per changed Claim.",
+  "description": "One vulnerability by id with its CVE key; the condition the KEV and EPSS triage settle mandates evaluate per changed Claim (triage only changes watched ones).",
   "entry": {
     "binding": "vulnerability",
     "subject_id": {

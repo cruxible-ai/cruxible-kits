@@ -95,7 +95,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.applicability:OsvApplicability",
-      "interface_digest": "sha256:3b525fb33992f904f53b5e8bb06db912cf60e0f2b49b081c4d09f9925ce7e6dd",
+      "interface_digest": "sha256:56110db3c06067e17b79c517a0c178a3f742ee0519ab4290530efe12a06c5620",
       "interface_id": "security.osv-applicability",
       "requires_extras": [],
       "side_effects": false
@@ -114,7 +114,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.applicability:CveApplicability",
-      "interface_digest": "sha256:d5deeb11e5d44e03177199cfa573c32066f24db8b740983915f41694e2d49f1e",
+      "interface_digest": "sha256:7553d895e064ebf17d1d80cbbce4d92f039aa36bfc80289f135ac1ded4ea3b28",
       "interface_id": "security.cve-applicability",
       "requires_extras": [],
       "side_effects": false

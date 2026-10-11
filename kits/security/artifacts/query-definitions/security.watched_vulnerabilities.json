@@ -1,14 +1,14 @@
 {
   "artifact_format": "playbill-query-definition-v1",
-  "dedupe": "subject",
+  "dedupe": "path",
   "default_budgets": {
-    "max_paths": null,
-    "max_paths_per_result": null,
-    "max_results": 1000,
-    "max_traversal_depth": 1,
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "Every watched vulnerability with its current KEV and EPSS Claims. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Every watched vulnerability (a watch_reason, or an affected or inconclusive assessment of a release in inventory) with its current KEV and EPSS Claims. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "vulnerability",
     "subject_id": null,
@@ -40,15 +40,39 @@
     "state": "live"
   },
   "maximum_budgets": {
-    "max_paths": null,
-    "max_paths_per_result": null,
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
     "max_results": 2000,
-    "max_traversal_depth": 1,
+    "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
   "orderings": [],
   "parameters": [],
   "pins": [
+    {
+      "artifact_digest": "sha256:eb31ece87b15489dfc7800062b6ea1a054f1bbde6da12bce670956ee48b544fb",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.release"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a0fa1344dfdf5bd34d0ac7636a883b3c9e15e3b421e96b21f96d465a99f73998",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.status"
+      }
+    },
+    {
+      "artifact_digest": "sha256:47c9aa21d2d98ad19c9b0204cfc41857caa5ac03c5a46019cdd5c74a3ee8c29c",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.vulnerability"
+      }
+    },
     {
       "artifact_digest": "sha256:71d273d960c85450760acab13b526712916c7a62125ff08d0837999a4c358ea9",
       "role": "claim-type",
@@ -103,6 +127,14 @@
       "target": {
         "kind": "ClaimType",
         "name": "security.vulnerability.kev_ransomware_use"
+      }
+    },
+    {
+      "artifact_digest": "sha256:dc74690486e48f688416ee120a2a8e0107ee0d8f27f02a2274efbf7fe4f96e32",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.watch_reason"
       }
     }
   ],
@@ -187,13 +219,101 @@
           "kind": "subject_field",
           "tag": "playbill-query-subject-field-ref-v1"
         }
+      },
+      {
+        "name": "watch_reason",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.watch_reason",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
       }
     ],
     "tag": "playbill-query-projection-v1"
   },
   "result_binding": "vulnerability",
   "result_cardinality": "many",
-  "result_shape": "subject",
-  "traversal": [],
-  "where": null
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "assessment",
+      "direction": "reverse",
+      "from_binding": "vulnerability",
+      "predicate": "security.assessment.vulnerability",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.assessment"
+      ],
+      "where": null
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "binding": "vulnerability",
+        "kind": "claim_presence",
+        "negated": false,
+        "predicate": "security.vulnerability.watch_reason",
+        "tag": "playbill-query-claim-presence-filter-v1"
+      },
+      {
+        "filters": [
+          {
+            "binding": "assessment",
+            "kind": "claim_presence",
+            "negated": false,
+            "predicate": "security.assessment.release",
+            "tag": "playbill-query-claim-presence-filter-v1"
+          },
+          {
+            "filters": [
+              {
+                "kind": "comparison",
+                "left": {
+                  "binding": "assessment",
+                  "kind": "claim_value",
+                  "predicate": "security.assessment.status",
+                  "tag": "playbill-query-claim-value-ref-v1"
+                },
+                "operator": "eq",
+                "right": {
+                  "kind": "literal",
+                  "tag": "playbill-query-literal-ref-v1",
+                  "value": "affected"
+                },
+                "tag": "playbill-query-comparison-filter-v1",
+                "value_type": "string"
+              },
+              {
+                "kind": "comparison",
+                "left": {
+                  "binding": "assessment",
+                  "kind": "claim_value",
+                  "predicate": "security.assessment.status",
+                  "tag": "playbill-query-claim-value-ref-v1"
+                },
+                "operator": "eq",
+                "right": {
+                  "kind": "literal",
+                  "tag": "playbill-query-literal-ref-v1",
+                  "value": "inconclusive"
+                },
+                "tag": "playbill-query-comparison-filter-v1",
+                "value_type": "string"
+              }
+            ],
+            "kind": "any_of",
+            "tag": "playbill-query-disjunction-filter-v1"
+          }
+        ],
+        "kind": "all_of",
+        "tag": "playbill-query-conjunction-filter-v1"
+      }
+    ],
+    "kind": "any_of",
+    "tag": "playbill-query-disjunction-filter-v1"
+  }
 }

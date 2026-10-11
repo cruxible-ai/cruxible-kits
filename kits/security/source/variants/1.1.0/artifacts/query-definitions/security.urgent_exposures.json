@@ -73,6 +73,14 @@
   "parameters": [],
   "pins": [
     {
+      "artifact_digest": "sha256:c4d6ec1874c918419e9e25289ded972280079711cd8f216ea05a196a0cebb1b4",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.judgment"
+      }
+    },
+    {
       "artifact_digest": "sha256:eb31ece87b15489dfc7800062b6ea1a054f1bbde6da12bce670956ee48b544fb",
       "role": "claim-type",
       "target": {
@@ -81,7 +89,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:52fb2248fc6f11e1d99e6222ab94be8d676c0a4b39c09f9f921d29c4938ad2c3",
+      "artifact_digest": "sha256:a0fa1344dfdf5bd34d0ac7636a883b3c9e15e3b421e96b21f96d465a99f73998",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -262,6 +270,16 @@
           "binding": "asset",
           "kind": "claim_value",
           "predicate": "security.asset.internet_exposed",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "judgment",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "kind": "claim_value",
+          "predicate": "security.assessment.judgment",
           "tag": "playbill-query-claim-value-ref-v1"
         }
       },

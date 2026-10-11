@@ -2,9 +2,9 @@
   "artifact_format": "playbill-provider-interface-v2",
   "classifier_code": {
     "entrypoint": "security_analysis_provider.kev:classify_attention",
-    "source_digest": "sha256:a6c77758625fd063a19b886780d94ed637717964f59fb8853404cb5bb77d12c0"
+    "source_digest": "sha256:b27e00e224c7bc93fb53c83a8faac39681ecde9023f1f5b96c180b05a7b1c33c"
   },
-  "classifier_digest": "sha256:451d9d025ba5101424eab8d225b6e9fa86bbb09e595fca2b313017ee9a088a70",
+  "classifier_digest": "sha256:68a7723bfe01fde1f9c4645a2540bb5795aa9cf1a53317c93ebe83c165b15caa",
   "classifier_identity": "security.kev-attention.input",
   "classifier_version": 1,
   "conformance_fixture_set_digest": "sha256:cf49451316d6727e59f2a7418af337b1da9212d4a0f65906a387c2809cbb0079",

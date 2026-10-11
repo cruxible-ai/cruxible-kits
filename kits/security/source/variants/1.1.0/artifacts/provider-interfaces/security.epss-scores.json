@@ -2,9 +2,9 @@
   "artifact_format": "playbill-provider-interface-v2",
   "classifier_code": {
     "entrypoint": "security_analysis_provider.epss:classify",
-    "source_digest": "sha256:f75d9c7f2b67827850c81aa9abeb97e99bae367d12f64d5eb34120e095127ddb"
+    "source_digest": "sha256:90ba2ec68b3bde46576b0333af761a4ab20400b662376fdc78346bdede2ad5d0"
   },
-  "classifier_digest": "sha256:18d89563d33e871518554c5c14a12bbae0d8fece865875cb6ccf8736ad6c0061",
+  "classifier_digest": "sha256:7ec98f989afe5e2e0d151b48aa66b0a045ab215fe5342302407b14d81cfa798c",
   "classifier_identity": "security.epss-scores.input",
   "classifier_version": 1,
   "conformance_fixture_set_digest": "sha256:3bfaafd9624a2dd9ae789d4a93eb69aa02693ddd12ef8053952d2f8adbcddbed",
