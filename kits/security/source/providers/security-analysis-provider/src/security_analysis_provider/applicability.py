@@ -7,7 +7,9 @@ state its ``status``, its ``justification`` (``not_affected`` only) and a
 per-item rationale. They never settle: a person or agent reviews the proposal.
 A pair whose held assessment already says the same is left alone, so a re-run
 proposes nothing; a pair whose answer changed revises the held Claims (and
-retires a justification an ``affected`` answer no longer has).
+retires a justification an ``affected`` answer no longer has). A pair an analyst
+judged (its assessment carries ``security.assessment.judgment``) is never
+revised: the run counts it under ``judged``.
 
 ``OsvApplicability`` (``security.osv-applicability``) reads the
 ``security.osv-query`` Capture: OSV's answer for every component purl@version
@@ -111,6 +113,7 @@ class Held:
     justification: str | None
     status_claim: str | None
     justification_claim: str | None
+    judged: bool = False
 
 
 def _held(rows: Iterable[Row]) -> dict[tuple[str, str], Held]:
@@ -127,6 +130,7 @@ def _held(rows: Iterable[Row]) -> dict[tuple[str, str], Held]:
             justification=row.value("justification"),
             status_claim=row.claim_id(assessment, STATUS),
             justification_claim=row.claim_id(assessment, JUSTIFICATION),
+            judged=row.value("judgment") is not None,
         )
     return held
 
@@ -138,10 +142,14 @@ def decisions_to_items(
 
     subjects: list[dict[str, Any]] = []
     claims: list[dict[str, Any]] = []
-    counts = {"affected": 0, "not_affected": 0, "inconclusive": 0, "unchanged": 0}
+    counts = {"affected": 0, "not_affected": 0, "inconclusive": 0, "unchanged": 0, "judged": 0}
     new_vulnerabilities: set[str] = set()
     for decision in decisions:
         prior = held.get((decision.release.subject_id, decision.cve))
+        if prior is not None and prior.judged:
+            # An analyst's judgment (security.assessment.judgment) is never revised by a source.
+            counts["judged"] += 1
+            continue
         if (
             prior is not None
             and prior.status == decision.status
@@ -450,6 +458,7 @@ class OsvApplicability:
                 "not_affected": counts["not_affected"],
                 "inconclusive": counts["inconclusive"],
                 "unchanged": counts["unchanged"],
+                "judged": counts["judged"],
                 "unkeyed": sorted(unkeyed),
             },
             metrics={"items": float(len(items))},
@@ -653,6 +662,7 @@ class CveApplicability:
                 "not_affected": counts["not_affected"],
                 "inconclusive": counts["inconclusive"],
                 "unchanged": counts["unchanged"],
+                "judged": counts["judged"],
             },
             metrics={"items": float(len(items))},
         )

@@ -65,18 +65,19 @@ STEPS = {
     "04": "instantiate Blueprints; unbound and mismatched refused",
     "05": "author Lines, Triggers, propose mandates; enable",
     "06": "SBOM import first: workspace Source v2 -> landing -> proposal; re-import no_change",
-    "07": "inventory and watches by key; re-creation reuses; set creates by key",
+    "07": "inventory by key; watched is derived (watch_reason), a bare Subject is not watched",
     "08": "OSV applicability: affected / not_affected + justification; re-run no_change",
-    "09": "applicability bets stated before the record lands",
-    "10": "CVE record -> applicability by version range; bets settle True/False",
-    "11": "KEV cadence -> triage proposes (capped) and attention posts an inbox item",
-    "12": "accept; Claims cite the Capture; floor; no_change; inbox dedupes a sighting",
-    "13": "EPSS -> triage; urgent_exposures orders KEV first, then EPSS",
-    "14": "restart: gap rows, lapsed ticks listed, dispatched, none at restart",
-    "15": "measure pending; readings pending/open/expired",
-    "16": "graduate KEV and EPSS triage to settle by max_authority",
-    "17": "upgrade to 1.1.0 keeping a local edit; re-add; downgrade blocked",
-    "18": "exit: next empty, run history",
+    "09": "analyst judgment: normative not_affected + VEX justification citing a workspace file",
+    "10": "applicability bets stated before the record lands",
+    "11": "CVE record -> applicability by version range; bets settle True/False",
+    "12": "KEV cadence -> triage proposes (capped) and attention posts an inbox item",
+    "13": "accept; Claims cite the Capture; floor; no_change; inbox dedupes a sighting",
+    "14": "EPSS -> triage; urgent_exposures orders KEV first, then EPSS",
+    "15": "restart: gap rows, lapsed ticks listed, dispatched, none at restart",
+    "16": "measure pending; readings pending/open/expired",
+    "17": "graduate KEV and EPSS triage to settle by max_authority",
+    "18": "upgrade to 1.1.0 keeping a local edit; re-add; downgrade blocked",
+    "19": "exit: next empty, run history",
 }
 
 
@@ -425,7 +426,7 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 4, "CaptureContract": 6, "ClaimType": 46, "Procedure": 6,
+KIT_COUNTS = {"Blueprint": 4, "CaptureContract": 7, "ClaimType": 47, "Procedure": 7,
               "ProviderInterface": 9, "QueryDefinition": 19, "SourceAcquisitionPolicy": 1,
               "SubjectKind": 11}
 
@@ -661,6 +662,72 @@ def test_08_osv_applicability(gate: Gate) -> None:
            "no_change")
 
 
+JUDGED = "CVE-2024-56201"  # jinja2 < 3.1.5 (OSV: affected); the analyst judges it unreachable
+ANALYSIS_NOTE = """# CVE-2024-56201 in gate-app 1.0.0
+
+The vulnerability needs an attacker to control both a template's content and its
+file name. gate-app renders only the templates it ships, from package data, and
+never compiles a template from request input (templates/loader.py:12 uses
+PackageLoader only).
+"""
+
+
+def test_09_analyst_judgment(gate: Gate) -> None:
+    app = "gate-app--1.0.0"
+    assessment = gate.values["assessment_ids"][(app, JUDGED)]
+    assert _assessments(gate)[(app, JUDGED)] == ("affected", None)
+    (gate.ws / "analysis").mkdir(exist_ok=True)
+    (gate.ws / "analysis" / "jinja2-cve-2024-56201.md").write_text(ANALYSIS_NOTE)
+    out = gate.out("procedure", "run", "security.evidence-acquire", gate.payload(
+        "evidence-input", {"relative_path": "analysis/jinja2-cve-2024-56201.md"}))
+    capture = re.search(r"Capture evidence: (sha256:[0-9a-f]{64})", out)
+    assert ": succeeded" in out and capture, out
+    cites = {"kind": "capture", "capture": capture.group(1)}
+    gate.out("write", gate.payload("judgment", {
+        "because": "Analyst review of the OSV verdict: the vulnerable path is unreachable.",
+        "subject": f"security.assessment/{assessment}",
+        "changes": [
+            {"op": "set", "field": "status", "value": "not_affected", "role": "normative",
+             "evidence": cites},
+            {"op": "set", "field": "justification",
+             "value": "vulnerable_code_not_in_execute_path", "role": "normative",
+             "evidence": cites},
+            {"op": "set", "field": "judgment",
+             "value": "gate-app compiles only its packaged templates; the filename and "
+                      "content an attacker needs are never theirs (analysis note)."},
+        ]}))
+    assert _assessments(gate)[(app, JUDGED)] == (
+        "not_affected", "vulnerable_code_not_in_execute_path")
+    # A judgment is visibly a judgment: its role, its reasoning, its evidence.
+    rows = gate.json("query", "security.assessment", "--where", f"cve_id={JUDGED}",
+                     "--select", "status,justification,judgment", "--claims")["rows"]
+    cells = rows[0]["claims"]
+    assert cells["status"][0]["role"] == "normative", cells
+    assert cells["justification"][0]["role"] == "normative", cells
+    assert cells["judgment"][0]["value"].startswith("gate-app compiles"), cells
+    index = [r for r in gate.rows("security.assessment_index") if r["subject_id"] == assessment]
+    assert _field(index[0], "judgment"), index
+    evidence = gate.out("get", cells["status"][0]["claim"], "--detail", "evidence")
+    assert "security.workspace-evidence-v1" in evidence, evidence
+    # An observation in someone's own words has no admitted evidence: its verdict is
+    # uncovered, so no worklist (supported Claims only) would ever show it.
+    own = gate.cx("set", f"security.assessment/{assessment}", "status", "affected", "--role",
+                  "observation", "--because", "I think so.", "--dry-run", check=False)
+    assert "verdict uncovered" in own.stdout + own.stderr, own.stdout[-600:]
+    # The Procedures never revise a judgment; it is no longer watched (not affected).
+    _, rerun = gate.run_line("security.osv-applicability")
+    assert ": halted" in rerun or "no_change" in rerun, rerun
+    assert _assessments(gate)[(app, JUDGED)] == (
+        "not_affected", "vulnerable_code_not_in_execute_path")
+    watched = {_field(r, "cve_id") for r in gate.rows("security.watched_vulnerabilities")}
+    assert JUDGED not in watched, watched
+    record("09", "OSV said affected; the analyst cited a workspace note (evidence-acquire) and "
+           "wrote normative not_affected + vulnerable_code_not_in_execute_path + judgment; "
+           "query --claims shows role normative, assessment_index shows the judgment; an "
+           "own-words observation is uncovered (no admitted evidence); OSV re-run halted "
+           "no_change, the judgment stands; no longer watched")
+
+
 def _bet(gate: Gate, release: str, expected: str) -> str:
     # A claim member names the Subject a sibling member creates by the id core renders.
     assessment = f"security.assessment/{_render(release, LOG4SHELL)}"
@@ -700,16 +767,16 @@ def _bet(gate: Gate, release: str, expected: str) -> str:
     return name
 
 
-def test_09_applicability_bets(gate: Gate) -> None:
+def test_10_applicability_bets(gate: Gate) -> None:
     gate.values["bet_right"] = _bet(gate, "apache-log4j2--2.17.1", "not_affected")
     gate.values["bet_wrong"] = _bet(gate, "apache-log4j2--2.12.2", "affected")
     for name in (gate.values["bet_right"], gate.values["bet_wrong"]):
         assert " open" in gate.out("get", f"ResolutionContract:{name}")
-    record("09", "two assessments created by key with expected_status bets; their prediction "
+    record("10", "two assessments created by key with expected_status bets; their prediction "
            "contracts live with open windows before any source observed a status")
 
 
-def test_10_cve_applicability(gate: Gate) -> None:
+def test_11_cve_applicability(gate: Gate) -> None:
     before = {r["run"] for r in gate.runs("security.cve-applicability")}
     cve = gate.payload("cve-input", {"url": f"https://cveawg.mitre.org/api/cve/{LOG4SHELL}"})
     run = gate.out("procedure", "run", "security.cve-record-acquire", cve)
@@ -733,11 +800,11 @@ def test_10_cve_applicability(gate: Gate) -> None:
                                        "--observation", right)
     assert "Outcome: False" in gate.out("prediction", "settle", gate.values["bet_wrong"],
                                         "--observation", wrong)
-    record("10", f"CVE record landed -> proposal: {decided}; bet not_affected@2.17.1 settled "
+    record("11", f"CVE record landed -> proposal: {decided}; bet not_affected@2.17.1 settled "
            "True, bet affected@2.12.2 settled False")
 
 
-def test_11_kev_cadence(gate: Gate) -> None:
+def test_12_kev_cadence(gate: Gate) -> None:
     gate.submit("cadence", {"kind": "trigger", "name": "security.kev-gate-cadence",
                             "line_name": "security.kev-daily",
                             "schedule": {"kind": "cadence", "interval_seconds": CADENCE}})
@@ -765,12 +832,12 @@ def test_11_kev_cadence(gate: Gate) -> None:
     payload = json.dumps(item)
     assert NEW_KEV in payload and "zammad--6.0.0" in payload and "not_watched" in payload, item
     gate.values["inbox_item"] = items[0]["item_id"]
-    record("11", f"cadence tick -> capture_landing: triage proposed {len(egress['target_paths'])} "
+    record("12", f"cadence tick -> capture_landing: triage proposed {len(egress['target_paths'])} "
            "Claims (settle capped by line_max_authority); attention posted 1 inbox item "
            f"({NEW_KEV} matches Zammad 6.0.0, not watched)")
 
 
-def test_12_accept_and_dedupe(gate: Gate) -> None:
+def test_13_accept_and_dedupe(gate: Gate) -> None:
     gate.activate(gate.values["proposal"])
     listed = gate.claims("security.vulnerability", "security.vulnerability.kev_listed")
     assert listed["cve-2021-44228"][0] is True and listed["cve-2021-44832"][0] is False, listed
@@ -798,12 +865,12 @@ def test_12_accept_and_dedupe(gate: Gate) -> None:
     assert len(items) == 1 and items[0]["occurrences"] >= 2, items
     item = items[0]
     gate.out("inbox", "ack", gate.values["inbox_item"])
-    record("12", "accepted; kev_listed true/false cite the kev-http-v1 Capture; floor at head; "
+    record("13", "accepted; kev_listed true/false cite the kev-http-v1 Capture; floor at head; "
            f"next tick: triage no_change; attention re-posted the same item "
            f"({item['occurrences']} sightings, 1 item); acknowledged")
 
 
-def test_13_epss(gate: Gate) -> None:
+def test_14_epss(gate: Gate) -> None:
     before = {r["run"] for r in gate.runs("security.epss-triage")}
     run, out = gate.run_line("security.epss-daily")
     assert ": succeeded" in out, out
@@ -821,13 +888,13 @@ def test_13_epss(gate: Gate) -> None:
     tail = [Decimal(s) if s is not None else Decimal(-1) for _, kev, s in order if kev is not True]
     assert tail == sorted(tail, reverse=True), order
     assert order[0][0] == LOG4SHELL, order
-    record("13", f"EPSS file -> triage proposed {len(egress['target_paths'])} scores; accepted; "
+    record("14", f"EPSS file -> triage proposed {len(egress['target_paths'])} scores; accepted; "
            f"urgent_exposures {len(rows)} rows, KEV-listed first then EPSS descending "
            f"(first {order[0]})")
 
 
 
-def test_14_restart(gate: Gate) -> None:
+def test_15_restart(gate: Gate) -> None:
     gate.out("line", "enable", "security.kev-daily")
     gate.stop_daemon()
     stopped = datetime.now(UTC)
@@ -875,13 +942,13 @@ def test_14_restart(gate: Gate) -> None:
     for line in {g[0] for g in gaps} - {"security.kev-daily"}:
         gate.out("line", "dispatch", line)
     assert "line_coverage_gap" not in gate.next_text()
-    record("14", f"gap rows for {sorted({g[0] for g in gaps})}; dry-run listed {len(ticks)} "
+    record("15", f"gap rows for {sorted({g[0] for g in gaps})}; dry-run listed {len(ticks)} "
            "lapsed cadence ticks; dispatched, triage halted no_change on each landing; first "
            f"forward tick {(min(forward) - lapsed[-1]).total_seconds():.0f}s after the last "
            "lapsed one, none at the restart")
 
 
-def test_15_measure(gate: Gate) -> None:
+def test_16_measure(gate: Gate) -> None:
     out = gate.out("procedure", "measure", "security.kev-triage", "--run-id",
                    gate.values["first_triage"])
     assert "kev-backlog-cleared: pending" in out, out
@@ -893,10 +960,10 @@ def test_15_measure(gate: Gate) -> None:
                         "procedure_unit", "--evaluation-time", at)
         states.append(line.split(":", 1)[1].split()[0])
     assert states == ["pending", "open", "expired"], states
-    record("15", f"measure pending; readings at +0/+4/+11 days {states}")
+    record("16", f"measure pending; readings at +0/+4/+11 days {states}")
 
 
-def test_16_graduate(gate: Gate) -> None:
+def test_17_graduate(gate: Gate) -> None:
     digests = {name: gate.proof(f"Procedure:{name}")["artifact_digest"]
                for name in ("security.kev-triage", "security.epss-triage")}
     gate.submit("graduate", recipe.graduate())
@@ -922,12 +989,12 @@ def test_16_graduate(gate: Gate) -> None:
     assert gate.egress(epss["run"])["settle_outcome"] == "settled"
     assert gate.claims("security.vulnerability",
                        "security.vulnerability.epss_score")["cve-2026-102490"][0] == "0.0055"
-    record("16", "Procedure digests unchanged; authority settle; enablements stopped "
+    record("17", "Procedure digests unchanged; authority settle; enablements stopped "
            f"line_changed; {SETTLES} KEV fields and EPSS scores settled under the mandates "
            "(condition: a watched vulnerability)")
 
 
-def test_17_upgrade(gate: Gate) -> None:
+def test_18_upgrade(gate: Gate) -> None:
     gate.py(HERE / "edit_kev_exposure.py", "250")
     assert "edited locally: query-definitions/security.kev_exposure.json" in gate.out("kit", "status")
     subprocess.run([sys.executable, str(HERE / "publish_kit.py"), str(RELEASE_1_1),
@@ -956,12 +1023,12 @@ def test_17_upgrade(gate: Gate) -> None:
     assert kept["default_budgets"]["max_results"] == 250
     origin = json.dumps(gate.proof("Procedure:security.kev-acquire"))
     assert gate.values["kev_acquire_blueprint"] in origin
-    record("17", "upgrade preview: Blueprint replace, kev_cwes add, kev_exposure overwrites your "
+    record("18", "upgrade preview: Blueprint replace, kev_cwes add, kev_exposure overwrites your "
            "edit; --keep committed; status 1.1.0 kept; re-add unchanged; 1.0.0 would_block "
            "(downgrade); Procedure keeps Blueprint@1.0.0")
 
 
-def test_18_exit(gate: Gate) -> None:
+def test_19_exit(gate: Gate) -> None:
     for item in _inbox(gate, "--status", "unread"):
         gate.out("inbox", "ack", item["item_id"])
     gate.wait(lambda: "No repair work" in gate.next_text(), 120, "next not empty")
@@ -973,4 +1040,4 @@ def test_18_exit(gate: Gate) -> None:
             if '"enablement"' not in json.dumps(gate.card(run["run"]).get("triggered_by")):
                 kinds.add("manual")
     assert {"manual", "cadence", "capture_landing"} <= kinds, kinds
-    record("18", f"next empty; run history {sorted(kinds)} plus dispatched backfill")
+    record("19", f"next empty; run history {sorted(kinds)} plus dispatched backfill")

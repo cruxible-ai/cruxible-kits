@@ -118,7 +118,14 @@ JUSTIFICATIONS = {
     "vulnerable_code_not_present": "The component is present but not the vulnerable code "
     "(for example, a fixed version).",
 }
-EVIDENCE_KINDS = {SBOM_CONTRACT: "sbom_document"}  # every other kit contract: http_response
+WORKSPACE_EVIDENCE_CONTRACT = "security.workspace-evidence-v1"
+SELF_SOURCE_CONTRACT = "playbill.coordinator-self-source-v1"
+#: every other kit contract: http_response
+EVIDENCE_KINDS = {SBOM_CONTRACT: "sbom_document", WORKSPACE_EVIDENCE_CONTRACT: "workspace_file",
+                  SELF_SOURCE_CONTRACT: "self_asserted"}
+#: What an analyst's judgment may cite: their own words, or a workspace file
+#: retained by security.evidence-acquire.
+JUDGMENT_EVIDENCE = (SELF_SOURCE_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT)
 
 # --- ClaimTypes ---------------------------------------------------------------
 # (predicate, subject kinds, object, literal schema or object kinds, cardinality,
@@ -182,14 +189,23 @@ CLAIM_TYPES: list[ClaimRow] = [
      ("security.vulnerability",), "one", "normative", (), (),
      "The vulnerability this applicability assessment is about."),
     ("security.assessment.status", ("security.assessment",), "literal",
-     {"enum": list(STATUS), "type": "string"}, "one", "observation",
+     {"enum": list(STATUS), "type": "string"}, "one", "judged",
      (CVE_CONTRACT, OSV_CONTRACT, OUTPUT_CONTRACT), (),
-     "Whether the release is affected by the vulnerability, as observed from retained evidence."),
+     "Whether the release is affected by the vulnerability. An observation is a source's verdict "
+     "(OSV, a CVE record) citing its Capture; a normative Claim is an analyst's judgment citing "
+     "their own words or a workspace file, and comes with security.assessment.judgment."),
     ("security.assessment.justification", ("security.assessment",), "literal",
-     {"enum": sorted(JUSTIFICATIONS), "type": "string"}, "one", "observation",
+     {"enum": sorted(JUSTIFICATIONS), "type": "string"}, "one", "judged",
      (CVE_CONTRACT, OSV_CONTRACT, OUTPUT_CONTRACT), (),
-     "Why a not_affected release is not affected (the VEX/CSAF justification). The kit's "
-     "Procedures state it with every not_affected status; core cannot require it."),
+     "Why a not_affected release is not affected (the VEX/CSAF justification): an observation "
+     "from a source, or (normative) an analyst's judgment. Required in practice with every "
+     "not_affected status; core cannot require it."),
+    ("security.assessment.judgment", ("security.assessment",), "literal", TEXT, "one",
+     "analyst", (), (),
+     "An analyst's reasoning when the assessment's status (and justification) are their own "
+     "judgment rather than a source's verdict. Present means: this status is a judgment. The "
+     "kit's Procedures never revise an assessment that carries one; retire it to hand the "
+     "assessment back to them."),
     ("security.assessment.expected_status", ("security.assessment",), "literal",
      {"enum": ["affected", "not_affected"], "type": "string"}, "one", "normative", (), (),
      "An agent's stated bet on the assessment's status before a source observes it; "
@@ -293,35 +309,55 @@ SUBJECT_KIND_DESCRIPTIONS = {
 }
 
 
-def _evidence_rules(
-    role: str, contracts: tuple[str, ...]
-) -> tuple[ClaimEvidenceAdmissionRule, ...]:
-    if not contracts:
-        return ()
-    return (
-        ClaimEvidenceAdmissionRule(
-            rule_id="retained-security-evidence",
-            claim_roles=(role,),  # type: ignore[arg-type]
-            capture_contracts=tuple(
-                ArtifactRef(
-                    role="capture-contract",
-                    target=ArtifactIdentity(kind="CaptureContract", name=name),
-                )
-                for name in sorted(contracts)
-            ),
-            evidence_kinds=tuple(
-                sorted({EVIDENCE_KINDS.get(c, "http_response") for c in contracts})
-            ),
-            admission="direct",
-            subject_binding="exact_claim_subject",
+def _rule(rule_id: str, role: str, contracts: tuple[str, ...]) -> ClaimEvidenceAdmissionRule:
+    return ClaimEvidenceAdmissionRule(
+        rule_id=rule_id,
+        claim_roles=(role,),  # type: ignore[arg-type]
+        capture_contracts=tuple(
+            ArtifactRef(
+                role="capture-contract",
+                target=ArtifactIdentity(kind="CaptureContract", name=name),
+            )
+            for name in sorted(contracts)
         ),
+        evidence_kinds=tuple(sorted({EVIDENCE_KINDS.get(c, "http_response") for c in contracts})),
+        admission="direct",
+        subject_binding="exact_claim_subject",
     )
+
+
+def _evidence(role: str, contracts: tuple[str, ...]) -> tuple[
+    tuple[str, ...], str, tuple[ClaimEvidenceAdmissionRule, ...], str
+]:
+    """(permitted roles, default role, evidence rules, evidence requirement) for a row.
+
+    ``judged``: a source's verdict (observation, citing a kit Capture) or an analyst's
+    judgment (normative, citing their own words or a workspace file); writes default to
+    the judgment. ``analyst``: normative only, judgment evidence. Otherwise one role:
+    an observation needs a Capture under its contracts, a normative statement is
+    supported by its own origin.
+    """
+
+    if role == "judged":
+        return (
+            ("normative", "observation"), "normative",
+            (_rule("analyst-judgment", "normative", JUDGMENT_EVIDENCE),
+             _rule("source-verdict", "observation", contracts)),
+            "self",
+        )
+    if role == "analyst":
+        return (("normative",), "normative",
+                (_rule("analyst-judgment", "normative", JUDGMENT_EVIDENCE),), "self")
+    if not contracts:
+        return (role,), role, (), "none"
+    return (role,), role, (_rule("retained-security-evidence", role, contracts),), "captured"
 
 
 def claim_types(release: str) -> list[ClaimType]:
     rows = CLAIM_TYPES + (CLAIM_TYPES_1_1 if release != "1.0.0" else [])
     result = []
     for predicate, kinds, obj, shape, cardinality, role, contracts, form, description in rows:
+        roles, default_role, rules, requirement = _evidence(role, contracts)
         members = ()
         if predicate == "security.assessment.justification":
             members = tuple(
@@ -338,10 +374,8 @@ def claim_types(release: str) -> list[ClaimType]:
                 literal_schema=shape if obj == "literal" else None,
                 allowed_object_subject_kinds=tuple(shape) if obj == "subject" else (),
                 cardinality=cardinality,  # type: ignore[arg-type]
-                permitted_roles=(role,),  # type: ignore[arg-type]
-                evidence_admission_policy=ClaimEvidenceAdmissionPolicy(
-                    rules=_evidence_rules(role, contracts)
-                ),
+                permitted_roles=roles,  # type: ignore[arg-type]
+                evidence_admission_policy=ClaimEvidenceAdmissionPolicy(rules=rules),
                 admission_policy=ClaimAdmissionPolicy(),
                 resolution_policy=ClaimResolutionPolicy(
                     cardinality=cardinality,  # type: ignore[arg-type]
@@ -350,8 +384,8 @@ def claim_types(release: str) -> list[ClaimType]:
                 ),
                 description=description,
                 member_descriptions=members,
-                default_role=role,  # type: ignore[arg-type]
-                evidence_requirement="captured" if contracts else "none",
+                default_role=default_role,  # type: ignore[arg-type]
+                evidence_requirement=requirement,  # type: ignore[arg-type]
                 revision_evidence="replace",
                 canonical_form=tuple(form) if obj == "literal" else (),
             )
@@ -531,7 +565,8 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
          _field("cve_id", "assessment", "security.assessment.cve_id"),
          _field("status", "assessment", "security.assessment.status"),
          _field("justification", "assessment", "security.assessment.justification"),
-         _field("expected_status", "assessment", "security.assessment.expected_status")],
+         _field("expected_status", "assessment", "security.assessment.expected_status"),
+         _field("judgment", "assessment", "security.assessment.judgment")],
         max_results=2000,
     ))
     # Applicability for one vulnerability: every installed release with its assessment.
@@ -549,6 +584,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         _field("criticality", "service", "security.service.criticality"),
         _field("status", "assessment", "security.assessment.status"),
         _field("justification", "assessment", "security.assessment.justification"),
+        _field("judgment", "assessment", "security.assessment.judgment"),
         _field("version", "release", "security.release.version"),
     ]
     q.append(_query(
@@ -596,7 +632,8 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
            _field("product_name", "release", "security.release.product_name"),
            _field("version", "release", "security.release.version"),
            _field("internet_exposed", "asset", "security.asset.internet_exposed"),
-           _field("criticality", "service", "security.service.criticality")]
+           _field("criticality", "service", "security.service.criticality"),
+           _field("judgment", "assessment", "security.assessment.judgment")]
         + [_field(name, "vulnerability", "security.vulnerability." + name)
            for name in VULNERABILITY_FACTS],
         _cmp("assessment", "security.assessment.status", "affected"),
@@ -749,13 +786,16 @@ def capture_contracts() -> list[CaptureContract]:
         derived(OSV_CONTRACT, "osv.dev.query", ["external"], "http_response"),
         derived(EPSS_CONTRACT, "first.epss.daily", ["external"], "http_response"),
         derived(SBOM_CONTRACT, "cyclonedx.sbom", ["external"], "sbom_document"),
+        derived(WORKSPACE_EVIDENCE_CONTRACT, "security.analysis.evidence", ["external"],
+                "workspace_file"),
     ]
     return [CaptureContract.model_validate(item) for item in raw]
 
 
 def acquisition_policy() -> SourceAcquisitionPolicy:
     """`security.acquisition` covers every Source alias the kit uses: `catalog` (KEV),
-    `record` (CVE record), `epss`, `osv` and `sbom`. Each is required, at most 24 h
+    `record` (CVE record), `epss`, `osv`, `sbom` and `evidence` (an analyst's
+    workspace file). Each is required, at most 24 h
     old, refused when stale, unavailable or oversized. Network Captures replay as
     attested; the SBOM, a workspace file, replays exactly."""
 
@@ -778,8 +818,8 @@ def acquisition_policy() -> SourceAcquisitionPolicy:
         {
             "coherence": {"kind": "independent"},
             "identity": {"kind": "SourceAcquisitionPolicy", "name": POLICY},
-            "inputs": [rule("catalog"), rule("epss"), rule("osv"), rule("record"),
-                       rule("sbom", "exact")],
+            "inputs": [rule("catalog"), rule("epss"), rule("evidence", "exact"), rule("osv"),
+                       rule("record"), rule("sbom", "exact")],
         }
     )
 
@@ -890,12 +930,12 @@ OSV_RESULT = _contract(
     "security-osv-applicability-result",
     items=PropertySchema(type="json"),
     unkeyed=PropertySchema(type="json"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged"),
+    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged"),
 )
 OSV_SUMMARY = _contract(
     "security-osv-applicability-summary",
     unkeyed=PropertySchema(type="json"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged"),
+    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged"),
 )
 CVE_REQUEST = _contract(
     "security-cve-applicability-request",
@@ -908,12 +948,12 @@ CVE_RESULT = _contract(
     "security-cve-applicability-result",
     items=PropertySchema(type="json"),
     cve_id=PropertySchema(type="string"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged"),
+    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged"),
 )
 CVE_SUMMARY = _contract(
     "security-cve-applicability-summary",
     cve_id=PropertySchema(type="string"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged"),
+    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged"),
 )
 EPSS_ACQUIRE_SUMMARY = _contract(
     "security-epss-evidence",
@@ -1114,6 +1154,42 @@ def sbom_acquire(cx: Cruxible) -> Any:
         budget=_budget(60, 1, 16_777_216),
         hard_caps=_caps(120, 1, 16_777_216, 1),
     ).bind(sbom=builtin)
+    return sequence.build()
+
+
+def evidence_acquire(cx: Cruxible) -> Any:
+    builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
+    sequence = Sequence(
+        [
+            Source("evidence", capture_contract=WORKSPACE_EVIDENCE_CONTRACT, next="summary",
+                   request={
+                "tag": "playbill-workspace-file-source-request-v2",
+                "logical_source": "security.analysis.evidence",
+                "relative_path": "$input.relative_path",
+                "coordinate_type": "http-response-v1",
+                "coordinate": {"revision": "working"},
+                "selector_type": "whole-response-v1",
+                "selector": {"whole": True},
+                "replayability": "exact",
+            }),
+            Project("summary", contract_out=FILE_SUMMARY, fields={
+                "bytes_digest": "$steps.evidence.source.bytes_digest",
+                "byte_length": "$steps.evidence.source.byte_length",
+            }),
+        ],
+        name="security.evidence-acquire",
+        description=(
+            "Read one workspace file an analyst cites for a judgment (input.relative_path: code, "
+            "a config, an analysis note) and retain it under security.workspace-evidence-v1; "
+            "cite the Capture with `cruxible set ... --capture CAP-...`."
+        ),
+        contract_in=PATH_INPUT,
+        contract_out=FILE_SUMMARY,
+        returns="summary",
+        acquisition_policy=POLICY,
+        budget=_budget(60, 1, 16_777_216),
+        hard_caps=_caps(120, 1, 16_777_216, 1),
+    ).bind(evidence=builtin)
     return sequence.build()
 
 
@@ -1494,6 +1570,7 @@ def procedures(cx: Cruxible, release: str) -> None:
     draft.procedure(definition=cve_record_acquire(cx))
     draft.procedure(definition=epss_acquire(cx))
     draft.procedure(definition=sbom_acquire(cx))
+    draft.procedure(definition=evidence_acquire(cx))
     draft.procedure(definition=kev_triage(cx))
     draft.procedure(definition=kev_attention(cx))
     draft.procedure(definition=epss_triage(cx))

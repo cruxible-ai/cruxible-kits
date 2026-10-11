@@ -42,6 +42,9 @@
         },
         "unkeyed": {
           "type": "json"
+        },
+        "judged": {
+          "type": "integer"
         }
       },
       "allow_extra": false

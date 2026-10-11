@@ -8,11 +8,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-import security_analysis_provider
 from cruxible_provider_runtime.egress import EgressRecorder
 from cruxible_provider_runtime.protocol import Budgets
 from cruxible_provider_runtime.provider_api import ProviderRunContext
 from cruxible_provider_runtime.registration import load_registration
+
+import security_analysis_provider
 from security_analysis_provider.applicability import (
     CveApplicability,
     OsvApplicability,
@@ -449,6 +450,28 @@ def test_a_flipped_answer_revises_status_and_retires_the_stale_justification() -
     ]
     assert status[0]["revises"] == "CLM-" + "1" * 32
     assert status[0]["statement"]["object"]["value"] == "affected"
+
+
+def test_an_analyst_judgment_is_never_revised_by_a_source() -> None:
+    core = _release("cruxible-core", "0.3.2", ["pkg:pypi/jinja2@3.1.3"])
+    judged = _row(
+        {"assessment": ("security.assessment", "a1")},
+        cve_id="CVE-2024-34064",
+        release_id="cruxible-core--0.3.2",
+        status="not_affected",
+        justification="vulnerable_code_not_in_execute_path",
+        judgment="We never call the affected xmlattr filter.",
+    )
+    output = _run(
+        OsvApplicability(),
+        {
+            "osv": OSV,
+            "releases": [core],
+            "watched": [_vuln("CVE-2024-34064")],
+            "assessments": [judged],
+        },
+    )
+    assert output["items"] == [] and output["judged"] == 1 and output["affected"] == 0
 
 
 def test_purls_and_versions_compare_conservatively() -> None:

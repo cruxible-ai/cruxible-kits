@@ -231,6 +231,54 @@ quiet; a changed answer revises the held Claims and retires a justification an
 `affected` answer no longer has. Neither Procedure settles: a person or agent
 reviews every applicability proposal.
 
+### Analyst judgments
+
+`status` and `justification` have two roles, and every read shows which one a
+Claim has:
+
+| Role | Who states it | Evidence | Shown as |
+|---|---|---|---|
+| `observation` | an applicability Procedure (a source's verdict) | the OSV or CVE-record Capture it read | `role: observation`; no `judgment` |
+| `normative` | an analyst (their own judgment) | their own words, or a workspace file retained by `security.evidence-acquire` | `role: normative`, plus the analyst's reasoning in `security.assessment.judgment` |
+
+`cruxible query security.assessment --select status,justification,judgment
+--claims` prints each Claim's role; the named worklists (`assessment_index`,
+`triage`, `applicability_coverage`, `coverage_gaps`, `urgent_exposures`) carry a
+`judgment` column, empty for a source's verdict. The Procedures never revise an
+assessment with a `judgment`: their result counts it under `judged`. Retire the
+judgment to hand the assessment back to them. An observation in someone's own
+words has no admitted evidence: core writes it with verdict `uncovered` (and
+warns), and no worklist shows it, since they read supported Claims only.
+
+The workflow, for a proposed `affected` or `inconclusive` you have reviewed:
+
+1. Find it: `cruxible proposal review ID` (before activating), or after,
+   `cruxible query --name security.assessment_index` / `security.coverage_gaps`.
+2. Retain the evidence (optional; your own words are evidence too): put the
+   file in the workspace (code, a config, an analysis note) and
+   `echo '{"relative_path": "analysis/jinja2.md"}' > ev.json; cruxible procedure run
+   security.evidence-acquire ev.json`; note its `Capture evidence: sha256:...`.
+3. Record the judgment in one write (`cruxible write judgment.json`):
+
+   ```json
+   {"because": "Analyst review of the OSV verdict: the vulnerable path is unreachable.",
+    "subject": "security.assessment/gate-app-1.0.0--cve-2024-56201",
+    "changes": [
+     {"op": "set", "field": "status", "value": "not_affected", "role": "normative",
+      "evidence": {"kind": "capture", "capture": "sha256:..."}},
+     {"op": "set", "field": "justification", "value": "vulnerable_code_not_in_execute_path",
+      "role": "normative", "evidence": {"kind": "capture", "capture": "sha256:..."}},
+     {"op": "set", "field": "judgment",
+      "value": "We compile only packaged templates; the attacker-controlled filename never reaches Jinja."}]}
+   ```
+
+   Without `evidence` each change cites `because` as your own words. Always set
+   `judgment` with a normative status: it is what marks the assessment as yours
+   and keeps the Procedures from overwriting it.
+
+A `not_affected` assessment no longer keeps its CVE watched; if the CVE should
+stay on the watch list, state a `watch_reason`.
+
 ## KEV, EPSS and attention
 
 `security.kev-triage` compares each retained KEV catalog with every watched
@@ -321,13 +369,13 @@ not change, so their digests and track records carry through.
 
 | Kind | Count | Notes |
 |---|---:|---|
-| ClaimType | 46 | All v8. Ten identity keys; inventory, applicability (`status`, `justification`, `expected_status`), KEV, EPSS and remediation-work vocabulary. Observations require a Capture under a kit CaptureContract; normative statements are supported by their own origin. |
+| ClaimType | 47 | All v8. Ten identity keys; inventory, applicability (`status` and `justification`: a source's observation or an analyst's normative judgment; `judgment`; `expected_status`), KEV, EPSS, `watch_reason` and remediation-work vocabulary. Observations require a Capture under a kit CaptureContract; a judgment cites the analyst's own words or a workspace file; other normative statements are supported by their own origin. |
 | SubjectKind | 11 | See Identity. |
-| CaptureContract | 6 | `security.kev-http-v1`, `security.cve-record-http-v1`, `security.osv-query-v1`, `security.epss-daily-v1`, `security.cyclonedx-sbom-v1` (a workspace file), `security.observation-output-v1` (acquisition terminals). |
+| CaptureContract | 7 | `security.kev-http-v1`, `security.cve-record-http-v1`, `security.osv-query-v1`, `security.epss-daily-v1`, `security.cyclonedx-sbom-v1` (a workspace file), `security.workspace-evidence-v1` (a workspace file an analyst cites), `security.observation-output-v1` (acquisition terminals). |
 | QueryDefinition | 19 | Worklists (`urgent_exposures`, `kev_exposure`, `triage`, `coverage_gaps`, `remediation_work`, ...), the Procedures' state taps (`watched_vulnerabilities`, `release_inventory`, `assessment_index`), the settle condition and the triage backlog. CVE-scoped ones take `vulnerability` (`Subject:security.vulnerability/<id>`). |
-| SourceAcquisitionPolicy | 1 | `security.acquisition`: aliases `catalog`, `record`, `epss`, `osv` (attested) and `sbom` (exact); each required, at most 24 h old, refused stale, unavailable or oversized. |
+| SourceAcquisitionPolicy | 1 | `security.acquisition`: aliases `catalog`, `record`, `epss`, `osv` (attested), `sbom` and `evidence` (exact); each required, at most 24 h old, refused stale, unavailable or oversized. |
 | Blueprint | 4 | `security.kev-acquire`, `security.cve-record-acquire` (slot typed `web.fetch`), `security.epss-acquire` (`security.epss-daily`), `security.osv-applicability` (`security.osv-query`). |
-| Procedure | 6 | `security.kev-triage` and `security.epss-triage` (settle terminal; they propose under a propose cap), `security.kev-attention` (inbox), `security.sbom-acquire` (direct), `security.sbom-import` and `security.cve-applicability` (propose). |
+| Procedure | 7 | `security.kev-triage` and `security.epss-triage` (settle terminal; they propose under a propose cap), `security.kev-attention` (inbox), `security.sbom-acquire` and `security.evidence-acquire` (direct), `security.sbom-import` and `security.cve-applicability` (propose). |
 | ProviderInterface | 9 | `web.fetch` (core's), six analysis interfaces, two Source interfaces. |
 | Providers | 3 | Bundled: `security-analysis-provider` 1.0.0 (deterministic parsing and decisions, no network) and `security-sources-provider` 1.0.0 (the OSV.dev and EPSS Sources). Default by name: `cruxible-provider-web` 0.2.1. |
 
