@@ -1000,7 +1000,7 @@ def test_17_graduate(gate: Gate) -> None:
                        "security.vulnerability.epss_score")["cve-2026-102490"][0] == "0.0055"
     record("17", "Procedure digests unchanged; authority settle; enablements stopped "
            f"line_changed; {SETTLES} KEV fields and EPSS scores settled under the mandates "
-           "(condition: a watched vulnerability)")
+           "(condition: a keyed vulnerability; triage only changes watched ones)")
 
 
 def test_18_upgrade(gate: Gate) -> None:
