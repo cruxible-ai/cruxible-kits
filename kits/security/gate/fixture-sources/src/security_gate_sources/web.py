@@ -1,10 +1,11 @@
 """web.fetch over vendored responses: the real adapter, a fixed transport.
 
-The gate needs a KEV catalog Capture without contacting cisa.gov. This reuses
-cruxible-provider-web's ``WebFetch`` unchanged (request validation, byte cap,
-material shape, Capture result) and swaps only the client factory: the KEV feed
-URL and one CVE record URL are answered from ``responses/``; anything else is a
-404. Every run is labelled ``packaged-recording``, never ``network``.
+The gate needs KEV catalog and CVE record Captures without contacting cisa.gov
+or cveawg.mitre.org. This reuses cruxible-provider-web's ``WebFetch`` unchanged
+(request validation, byte cap, material shape, Capture result) and swaps only
+the client factory: the KEV feed URL and the CVE record URLs of
+``responses/cve/`` are answered from ``responses/``; anything else is a 404.
+Every run is labelled ``packaged-recording``, never ``network``.
 """
 
 from __future__ import annotations
@@ -21,7 +22,10 @@ ROUTES = {
     "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json": (
         "known_exploited_vulnerabilities.json"
     ),
-    "https://cveawg.mitre.org/api/cve/CVE-2021-44228": "CVE-2021-44228.json",
+    **{
+        f"https://cveawg.mitre.org/api/cve/{path.stem}": f"cve/{path.name}"
+        for path in sorted((RESPONSES / "cve").glob("*.json"))
+    },
 }
 
 
@@ -44,12 +48,12 @@ def gate_client_factory(
         recorder,
         timeout_seconds=timeout_seconds,
         transport=httpx.MockTransport(handler),
-        recording_id=f"kev-gate:{name or 'missing'}",
+        recording_id=f"security-gate:{name or 'missing'}",
     )
 
 
 class GateWebFetch(WebFetch):
-    """``web.fetch`` answering the gate's two URLs from vendored bytes."""
+    """``web.fetch`` answering the gate's KEV and CVE record URLs from vendored bytes."""
 
     def __init__(self) -> None:
         super().__init__(client_factory=gate_client_factory)

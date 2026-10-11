@@ -1,5 +1,5 @@
-"""Offline web.fetch for the security kit release gate."""
+"""The security kit release gate's offline Sources: web.fetch, security.osv-query, security.epss-daily."""
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

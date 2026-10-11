@@ -2,7 +2,7 @@
   "interfaces": [
     {
       "classifier": {
-        "entrypoint": "kev_gate_web.classifier:classify_web_fetch",
+        "entrypoint": "security_gate_sources.classifier:classify_web_fetch",
         "identity": "web.fetch.input",
         "source": {
           "digest": "sha256:2f134050d318ef94c19d4ed6d09848c2a68c29f795720ce0b62ecab5290602c2",
@@ -25,10 +25,62 @@
         "digest": "sha256:111eb609750ec1fe4a2256338859b22a3ac3a2cd317b0366839cdbcc0fa2c226",
         "path": "vocab/web.fetch.yaml"
       }
+    },
+    {
+      "classifier": {
+        "entrypoint": "security_gate_sources._sources:classify_osv",
+        "identity": "security.osv-query.input",
+        "source": {
+          "digest": "sha256:d2bf84e75d2fee3d1f5b716bc0d8bd05c08a8a47318e496f6295503043443ea4",
+          "path": "_sources.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:97ad7625eeb03a6cc04268ea9ff3530aefd4c7ec70aa8786e777e120c94dfff4",
+        "path": "contracts/security.osv-query.json"
+      },
+      "fixtures": {
+        "digest": "sha256:01d54d99b38e9d2d928b2353b8d6a72113be7174e77a91227a9e0fc8e9165bd5",
+        "path": "registration-fixtures/security.osv-query.json"
+      },
+      "interface_digest": "sha256:92a7c29cdc19ede3a1c55edab561b2e9ef3de2e70ca287e30a6c30f39f49c2ae",
+      "interface_id": "security.osv-query",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:dff8557a90f92453d6efb6f20c45fa1cbfe90f1ad87726967ae431a4f271d0b1",
+        "path": "vocab/security.osv-query.json"
+      }
+    },
+    {
+      "classifier": {
+        "entrypoint": "security_gate_sources._sources:classify_epss",
+        "identity": "security.epss-daily.input",
+        "source": {
+          "digest": "sha256:d2bf84e75d2fee3d1f5b716bc0d8bd05c08a8a47318e496f6295503043443ea4",
+          "path": "_sources.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:73ec58ba23e16f8366a5095af45c2cada32113a4b0b1431b27e2d0116cc7bfb0",
+        "path": "contracts/security.epss-daily.json"
+      },
+      "fixtures": {
+        "digest": "sha256:838ef4d102481d4c098ad7fb0827e727c81386f2e637725a8ab1383fc105db5d",
+        "path": "registration-fixtures/security.epss-daily.json"
+      },
+      "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
+      "interface_id": "security.epss-daily",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:236693665d7484f1c4b4cbf67077ba9a773c9c8278c643c843214392dc773e98",
+        "path": "vocab/security.epss-daily.json"
+      }
     }
   ],
   "manifest": {
-    "digest": "sha256:7130fc4b9bed739d182f1d1387c21d86af9ba1e3ff16c0091c7d5f256d4a7975",
+    "digest": "sha256:04d22c7d12e4f1017ab4165a6d607a1b6fa05d6031d71d4e8afbe2378266feca",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

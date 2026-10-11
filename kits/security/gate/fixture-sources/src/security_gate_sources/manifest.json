@@ -1,7 +1,7 @@
 {
   "distribution": {
-    "name": "kev-gate-web",
-    "version": "0.1.0"
+    "name": "security-gate-sources",
+    "version": "0.2.0"
   },
   "entrypoint_group": "cruxible.providers",
   "implementations": [
@@ -22,14 +22,60 @@
         "source_kind=api_json;access=*;page_weight=*"
       ],
       "deterministic": true,
-      "entrypoint": "kev_gate_web.provider:GateWebFetch",
+      "entrypoint": "security_gate_sources.web:GateWebFetch",
       "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
       "interface_id": "web.fetch",
       "requires_extras": [],
       "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "components=*;watchlist=*": "osv-query-fixture"
+      },
+      "capture_contract_families": [
+        "security.osv.exchanges.v1"
+      ],
+      "declared_endpoints": [
+        "https://api.osv.dev"
+      ],
+      "declared_input_buckets": [
+        "components=*;watchlist=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_gate_sources.feeds:GateOsvQuery",
+      "interface_digest": "sha256:92a7c29cdc19ede3a1c55edab561b2e9ef3de2e70ca287e30a6c30f39f49c2ae",
+      "interface_id": "security.osv-query",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "file=daily": "epss-daily-fixture"
+      },
+      "capture_contract_families": [
+        "security.epss.daily.v1"
+      ],
+      "declared_endpoints": [
+        "https://epss.empiricalsecurity.com"
+      ],
+      "declared_input_buckets": [
+        "file=daily"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_gate_sources.feeds:GateEpssDaily",
+      "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
+      "interface_id": "security.epss-daily",
+      "requires_extras": [],
+      "side_effects": false
     }
   ],
-  "provider_id": "kev-gate-web",
+  "provider_id": "security-gate-sources",
   "schema_version": 1,
   "supported_protocol_majors": [
     1

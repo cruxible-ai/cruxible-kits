@@ -1,0 +1,18 @@
+{
+  "description": "The FIRST EPSS daily scores file to retain.",
+  "dimensions": [
+    {
+      "classes": [
+        {
+          "description": "the current daily scores file",
+          "id": "daily"
+        }
+      ],
+      "description": "which EPSS file",
+      "name": "file"
+    }
+  ],
+  "interface_id": "security.epss-daily",
+  "status": "draft",
+  "version": 1
+}
