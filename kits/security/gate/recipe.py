@@ -29,18 +29,14 @@ LINES: dict[str, tuple[str, str, str | None]] = {
     "security.osv-applicability": ("security.osv-applicability", "propose", None),
     "security.cve-applicability": ("security.cve-applicability", "propose", "record"),
 }
-#: The Procedures' identity and relationship Claims cite their own words; the
-#: first such Claim on an instance installs this CaptureContract, so a mandate of
-#: a Procedure that creates Subjects must reach it.
-SELF_SOURCE = "capture-contracts/playbill.coordinator-self-source-v1.json"
 APPLICABILITY_NAMESPACE = [
-    SELF_SOURCE, "claims", "subjects/security.assessment", "subjects/security.vulnerability"]
+    "claims", "subjects/security.assessment", "subjects/security.vulnerability"]
 #: Procedure -> (namespace, wall clock s, provider calls, capture bytes, items)
 MANDATES: dict[str, tuple[list[str], int, int, int, int]] = {
     "security.kev-triage": (["claims"], 300, 2, 16_777_216, 5000),
     "security.epss-triage": (["claims"], 300, 2, 33_554_432, 5000),
     "security.sbom-import": (
-        [SELF_SOURCE, "claims", "subjects/security.product", "subjects/security.release",
+        ["claims", "subjects/security.product", "subjects/security.release",
          "subjects/security.supplier"], 300, 2, 16_777_216, 5000),
     "security.osv-applicability": (APPLICABILITY_NAMESPACE, 600, 2, 67_108_864, 5000),
     "security.cve-applicability": (APPLICABILITY_NAMESPACE, 300, 2, 16_777_216, 5000),

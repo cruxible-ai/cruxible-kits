@@ -154,24 +154,11 @@ def key_ref(kind: str, **key: str) -> dict[str, Any]:
     return {"subject_kind": kind, "key": dict(key)}
 
 
-def own_words(text: str) -> dict[str, str]:
-    """A self-source citing the item's own words.
-
-    Identity and relationship Claims are normative: they are supported by their
-    own origin, and no kit ClaimType admits a source Capture as their evidence.
-    The observation Claims of the same run cite the Capture the run read.
-    """
-
-    return {
-        "tag": "playbill-self-source-body-v1",
-        "content_base64": base64.b64encode((text + "\n").encode("utf-8")).decode("ascii"),
-    }
-
-
 def subject_item(kind: str, key: Mapping[str, str], rationale: str) -> dict[str, Any]:
     """Create the Subject of ``kind`` by ``key``, or name the live holder (creates nothing).
 
-    Its key Claims cite the item's own words (``own_words``).
+    Its key Claims are covered by the creation itself (Claim law v2 revision 9); like
+    every other item, it cites the Capture the run read.
     """
 
     return {
@@ -180,7 +167,7 @@ def subject_item(kind: str, key: Mapping[str, str], rationale: str) -> dict[str,
         "key": dict(key),
         "rationale": rationale,
         "create_new": False,
-        "source": own_words(rationale),
+        "source": None,
     }
 
 
@@ -196,12 +183,12 @@ def claim_item(
     """One Claim item about an existing Subject (``Bound``) or a keyed one (``key_ref``).
 
     ``value`` is a literal, a ``Bound`` (a Subject-valued object core already
-    named) or a ``key_ref`` (a Subject-valued object named by key). An
-    observation cites the Capture the run read (core attaches it); a normative
-    Claim cites its own words.
+    named) or a ``key_ref`` (a Subject-valued object named by key). Every item
+    cites the Capture the run read (core attaches it): an observation as the
+    source's verdict, a normative relationship as the source that states it.
     """
 
-    keyed = isinstance(subject, dict) or isinstance(value, dict) or role == "normative"
+    keyed = isinstance(subject, dict) or isinstance(value, dict)
     if isinstance(value, Bound):
         obj: dict[str, Any] = {"kind": "subject", "address": address(value.path)}
     elif isinstance(value, dict):
@@ -225,7 +212,7 @@ def claim_item(
         "revises": revises,
     }
     if keyed:
-        item["source"] = own_words(rationale) if role == "normative" else None
+        item["source"] = None
     return item
 
 

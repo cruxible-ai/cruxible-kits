@@ -79,23 +79,21 @@ remains is listed at the end of this section.
     {"kind": "procedure_mandate", "name": "security.epss-triage-propose", "procedure_name": "security.epss-triage", "grants": "propose", "namespace": ["claims"], "valid_from": "NOW", "expires_at": "NOW+90d",
      "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2, "max_capture_bytes": 33554432, "max_items": 5000, "max_repeat_attempts": 1}},
     {"kind": "procedure_mandate", "name": "security.sbom-import-propose", "procedure_name": "security.sbom-import", "grants": "propose",
-     "namespace": ["capture-contracts/playbill.coordinator-self-source-v1.json", "claims", "subjects/security.product", "subjects/security.release", "subjects/security.supplier"], "valid_from": "NOW", "expires_at": "NOW+90d",
+     "namespace": ["claims", "subjects/security.product", "subjects/security.release", "subjects/security.supplier"], "valid_from": "NOW", "expires_at": "NOW+90d",
      "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2, "max_capture_bytes": 16777216, "max_items": 5000, "max_repeat_attempts": 1}},
     {"kind": "procedure_mandate", "name": "security.osv-applicability-propose", "procedure_name": "security.osv-applicability", "grants": "propose",
-     "namespace": ["capture-contracts/playbill.coordinator-self-source-v1.json", "claims", "subjects/security.assessment", "subjects/security.vulnerability"], "valid_from": "NOW", "expires_at": "NOW+90d",
+     "namespace": ["claims", "subjects/security.assessment", "subjects/security.vulnerability"], "valid_from": "NOW", "expires_at": "NOW+90d",
      "resource_ceiling": {"max_wall_clock": {"microseconds": 600000000}, "max_provider_calls": 2, "max_capture_bytes": 67108864, "max_items": 5000, "max_repeat_attempts": 1}},
     {"kind": "procedure_mandate", "name": "security.cve-applicability-propose", "procedure_name": "security.cve-applicability", "grants": "propose",
-     "namespace": ["capture-contracts/playbill.coordinator-self-source-v1.json", "claims", "subjects/security.assessment", "subjects/security.vulnerability"], "valid_from": "NOW", "expires_at": "NOW+90d",
+     "namespace": ["claims", "subjects/security.assessment", "subjects/security.vulnerability"], "valid_from": "NOW", "expires_at": "NOW+90d",
      "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2, "max_capture_bytes": 16777216, "max_items": 5000, "max_repeat_attempts": 1}}]}
    ```
 
    Cron is UTC. CISA publishes on US business days and FIRST publishes EPSS once a
-   day around 12:00 UTC, so one fetch a day each is enough. The import and
-   applicability mandates reach
-   `capture-contracts/playbill.coordinator-self-source-v1.json` because those
-   Procedures state identity and relationship Claims in their own words, and the
-   first such Claim on an instance installs that contract; without it the first
-   import refuses `procedure_mandate_namespace_mismatch`.
+   day around 12:00 UTC, so one fetch a day each is enough. A mandate of a
+   Procedure that creates Subjects reaches `claims` and those kinds
+   (`subjects/<kind>`) only: the key Claims a creation writes are covered by the
+   creation itself.
 
 5. **Enable the Lines**: `for l in kev-daily kev-triage kev-attention epss-daily
    epss-triage sbom-import osv-applicability cve-applicability; do cruxible line
@@ -392,7 +390,7 @@ not change, so their digests and track records carry through.
 
 | Kind | Count | Notes |
 |---|---:|---|
-| ClaimType | 47 | All v8. Ten identity keys; inventory, applicability (`status` and `justification`: a source's observation or an analyst's normative judgment; `judgment`; `expected_status`), KEV, EPSS, `watch_reason` and remediation-work vocabulary. Observations require a Capture under a kit CaptureContract; a judgment cites the analyst's own words or a workspace file; other normative statements are supported by their own origin. |
+| ClaimType | 47 | All v8. Ten identity keys; inventory, applicability (`status` and `justification`: a source's observation or an analyst's normative judgment; `judgment`; `expected_status`), KEV, EPSS, `watch_reason` and remediation-work vocabulary. Observations require a Capture under a kit CaptureContract; a judgment cites the analyst's own words or a workspace file; relationships a Procedure reads from a source (`release.product`, `product.supplied_by`, `assessment.release`, `assessment.vulnerability`) cite that Capture, and their author's own words otherwise; other normative statements are supported by their own origin. |
 | SubjectKind | 11 | See Identity. |
 | CaptureContract | 7 | `security.kev-http-v1`, `security.cve-record-http-v1`, `security.osv-query-v1`, `security.epss-daily-v1`, `security.cyclonedx-sbom-v1` (a workspace file), `security.workspace-evidence-v1` (a workspace file an analyst cites), `security.observation-output-v1` (acquisition terminals). |
 | QueryDefinition | 19 | Worklists (`urgent_exposures`, `kev_exposure`, `triage`, `coverage_gaps`, `remediation_work`, ...), the Procedures' state taps (`watched_vulnerabilities`, `release_inventory`, `assessment_index`), the settle condition and the triage backlog. CVE-scoped ones take `vulnerability` (`Subject:security.vulnerability/<id>`). |

@@ -170,13 +170,13 @@ CLAIM_TYPES: list[ClaimRow] = [
     ("security.asset.serves", ("security.asset",), "subject", ("security.service",), "many",
      "normative", (), (), "A service the asset serves."),
     ("security.release.product", ("security.release",), "subject", ("security.product",), "one",
-     "normative", (), (), "The product this release is a version of."),
+     "sourced", (SBOM_CONTRACT,), (), "The product this release is a version of."),
     ("security.release.component", ("security.release",), "literal", PURL, "many",
      "observation", (SBOM_CONTRACT,), ("trim",),
      "A component of the release, as its package URL with version (purl@version), observed "
      "in an SBOM."),
     ("security.product.supplied_by", ("security.product",), "subject", ("security.supplier",),
-     "one", "normative", (), (), "The supplier of the product."),
+     "one", "sourced", (SBOM_CONTRACT,), (), "The supplier of the product."),
     ("security.service.criticality", ("security.service",), "literal",
      {"enum": ["critical", "standard"], "type": "string"}, "one", "normative", (), (),
      "How critical the service is to the organization."),
@@ -184,9 +184,10 @@ CLAIM_TYPES: list[ClaimRow] = [
      "normative", (), (), "The team accountable for the service."),
     # Applicability.
     ("security.assessment.release", ("security.assessment",), "subject", ("security.release",),
-     "one", "normative", (), (), "The release this applicability assessment is about."),
+     "one", "sourced", (CVE_CONTRACT, OSV_CONTRACT), (),
+     "The release this applicability assessment is about."),
     ("security.assessment.vulnerability", ("security.assessment",), "subject",
-     ("security.vulnerability",), "one", "normative", (), (),
+     ("security.vulnerability",), "one", "sourced", (CVE_CONTRACT, OSV_CONTRACT), (),
      "The vulnerability this applicability assessment is about."),
     ("security.assessment.status", ("security.assessment",), "literal",
      {"enum": list(STATUS), "type": "string"}, "one", "judged",
@@ -336,7 +337,9 @@ def _evidence(role: str, contracts: tuple[str, ...]) -> tuple[
 
     ``judged``: a source's verdict (observation, citing a kit Capture) or an analyst's
     judgment (normative, citing their own words or a workspace file); writes default to
-    the judgment. ``analyst``: normative only, judgment evidence. Otherwise one role:
+    the judgment. ``analyst``: normative only, judgment evidence. ``sourced``: a
+    normative relationship citing its author's words or the source Capture a Procedure
+    read it from. Otherwise one role:
     an observation needs a Capture under its contracts, a normative statement is
     supported by its own origin.
     """
@@ -346,6 +349,15 @@ def _evidence(role: str, contracts: tuple[str, ...]) -> tuple[
             ("normative", "observation"), "normative",
             (_rule("analyst-judgment", "normative", JUDGMENT_EVIDENCE),
              _rule("source-verdict", "observation", contracts)),
+            "self",
+        )
+    if role == "sourced":
+        # A relationship a Procedure reads from a source (an SBOM, an OSV answer, a
+        # CVE record) cites that Capture; one a person states cites their own words.
+        return (
+            ("normative",), "normative",
+            (_rule("own-words", "normative", (SELF_SOURCE_CONTRACT,)),
+             _rule("stated-by-source", "normative", contracts)),
             "self",
         )
     if role == "analyst":
