@@ -284,10 +284,17 @@ class Gate:
         return list(self.card(f"Line:{line}").get("recent_runs") or [])
 
     def rows(self, name: str, **params: str) -> list[dict[str, Any]]:
-        args = ["query", "--name", name]
+        args = ["query", "--name", name, "--limit", "500"]
         for key, value in params.items():
             args += ["--param", f"{key}={value}"]
-        return list(self.json(*args)["rows"])
+        rows: list[dict[str, Any]] = []
+        cursor: list[str] = []
+        while True:  # pages hold at most 500 rows
+            page = self.json(*args, *cursor)
+            rows += page["rows"]
+            if not page.get("next_cursor"):
+                return rows
+            cursor = ["--cursor", page["next_cursor"]]
 
     def claims(self, kind: str, predicate: str) -> dict[str, tuple[Any, str]]:
         """subject_id -> (value, Claim ID) for one field, from the query's Claim cells."""
@@ -637,7 +644,7 @@ def test_08_osv_applicability(gate: Gate) -> None:
     assert held[(app, LOG4SHELL)] == ("affected", None), held
     assert held[(app, JINJA)] == ("affected", None), held
     assert held[(app, REQUESTS_FIXED)] == ("not_affected", "vulnerable_code_not_present"), held
-    assert held[(app, STRUTS)] == ("not_affected", "component_not_present"), held
+    assert (app, STRUTS) not in held, held  # no struts2-core component: not assessed
     watched = gate.claims("security.vulnerability", "security.vulnerability.cve_id")
     assert "cve-2024-34064" in watched, watched
     assessment = gate.values["assessment_ids"][(app, LOG4SHELL)]
@@ -649,8 +656,8 @@ def test_08_osv_applicability(gate: Gate) -> None:
     assert ": halted" in rerun_out or "no_change" in rerun_out, rerun_out
     affected = sum(1 for (r, _), (s, _) in held.items() if r == app and s == "affected")
     record("08", f"OSV proposal accepted: {affected} affected for {app} (CVEs watched by key), "
-           f"{REQUESTS_FIXED} not_affected/vulnerable_code_not_present, {STRUTS} "
-           "not_affected/component_not_present; evidence cites the OSV Capture; re-run "
+           f"{REQUESTS_FIXED} not_affected/vulnerable_code_not_present, {STRUTS} (no "
+           "struts2-core component) not assessed; evidence cites the OSV Capture; re-run "
            "no_change")
 
 

@@ -113,7 +113,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:cb62a8ae0a726354d67d4772093fc9048f1a0cdc22c60460182140f9aa5cd10b",
+        "implementation_digest": "sha256:dd18357f26dd53f539cd5c70517276b9e3160f9dc8c4879b7d4a18e85189e237",
         "input": {
           "daily_base64": "$steps.epss.retrieved.body_base64",
           "watched": "$steps.watched.result.rows"
@@ -131,7 +131,7 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+          "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -216,7 +216,7 @@
     "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:4434a3e151f9ca98fdee6d894fba0785fab9282aa4e485cf8a0c30a923f794d7",
+  "definition_digest": "sha256:366a6840881dcc146e4dafe5000613605da3a786d8baae78ca06013966e96335",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
@@ -471,7 +471,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+      "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
       "role": "provider",
       "target": {
         "kind": "Provider",

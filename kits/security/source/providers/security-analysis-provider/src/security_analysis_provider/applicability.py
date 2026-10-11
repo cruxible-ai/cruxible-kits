@@ -18,9 +18,12 @@ watched CVE (and their aliases). For a release with components:
   by the same proposal when it is not yet);
 - a watched CVE OSV knows package data for, not listed for any component:
   a component of one of its packages is present at a version OSV does not list
-  -> ``not_affected`` / ``vulnerable_code_not_present``; no component of its
-  packages -> ``not_affected`` / ``component_not_present``;
+  -> ``not_affected`` / ``vulnerable_code_not_present``;
 - a component of one of its packages whose OSV query failed -> ``inconclusive``;
+- a watched CVE none of whose packages is a component -> no assessment. Writing
+  ``component_not_present`` for every such pair is releases x watched CVEs of
+  answers nobody asked for (the self-dogfood run's second day: 509 of them, 2,545
+  proposal items); an unassessed pair with an SBOM means exactly that;
 - a watched CVE OSV has no package data for -> no answer here (vendor products
   are the CVE record analysis's).
 An OSV advisory with no CVE alias cannot be keyed and is reported in
@@ -436,19 +439,6 @@ class OsvApplicability:
                             "vulnerable_code_not_present",
                             f"{', '.join(present)} is a package {cve} affects ({advisories}), at a "
                             "version OSV does not list as affected.",
-                        )
-                    )
-                else:
-                    names = ", ".join(sorted(f"{kind}/{name}" for kind, name in packages))
-                    decisions.append(
-                        Decision(
-                            release,
-                            cve,
-                            "not_affected",
-                            "component_not_present",
-                            "No component of the release's SBOM is a package "
-                            f"{cve} affects ({names}; "
-                            f"{advisories}).",
                         )
                     )
         items, counts = decisions_to_items(decisions, held, watched)

@@ -375,7 +375,8 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
     ]
     status = [s for s in _statements(output["items"]) if s[1] == "status"]
     assert [s[2] for s in status] == ["affected"]
-    # Watched: every release with an SBOM gets an answer.
+    # Watched: every release with a component of the CVE's packages gets an answer; a
+    # release with none of them (client: no jinja2) is not assessed.
     watched = _run(
         OsvApplicability(),
         {
@@ -390,11 +391,8 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
         for s in _statements(watched["items"])
         if s[1] in {"status", "justification"} and s[2] not in {"affected", "not_affected"}
     }
-    assert decided == {
-        "cruxible-client--0.3.2": "component_not_present",
-        "other--1.0": "vulnerable_code_not_present",
-    }
-    assert (watched["affected"], watched["not_affected"]) == (1, 2)
+    assert decided == {"other--1.0": "vulnerable_code_not_present"}
+    assert (watched["affected"], watched["not_affected"]) == (1, 1)
     held = [
         _row(
             {"assessment": ("security.assessment", f"a{n}")},
@@ -406,7 +404,6 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
         for n, (rid, status, j) in enumerate(
             [
                 ("cruxible-core--0.3.2", "affected", None),
-                ("cruxible-client--0.3.2", "not_affected", "component_not_present"),
                 ("other--1.0", "not_affected", "vulnerable_code_not_present"),
             ]
         )
@@ -420,7 +417,7 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
             "assessments": held,
         },
     )
-    assert again["items"] == [] and again["unchanged"] == 3
+    assert again["items"] == [] and again["unchanged"] == 2
 
 
 def test_a_flipped_answer_revises_status_and_retires_the_stale_justification() -> None:

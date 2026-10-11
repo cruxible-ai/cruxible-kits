@@ -109,7 +109,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_osv",
         "identity": "security.osv-applicability.input",
         "source": {
-          "digest": "sha256:9986d983286d09e6acb8c126a61716a747a89bbad9e4caf91eb3c91e2b66b5eb",
+          "digest": "sha256:6c74b30175e29d93ae961e0ea3596f8632fece37f2a6621245e76a24664ed520",
           "path": "applicability.py"
         },
         "version": 1
@@ -135,7 +135,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_cve",
         "identity": "security.cve-applicability.input",
         "source": {
-          "digest": "sha256:9986d983286d09e6acb8c126a61716a747a89bbad9e4caf91eb3c91e2b66b5eb",
+          "digest": "sha256:6c74b30175e29d93ae961e0ea3596f8632fece37f2a6621245e76a24664ed520",
           "path": "applicability.py"
         },
         "version": 1

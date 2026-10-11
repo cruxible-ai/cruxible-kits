@@ -1,4 +1,4 @@
-"""Build the security kit release (1.0.0) and its 1.1.0 gate variant from a fresh authoring instance.
+"""Build the security kit release (1.0.0) and its 1.1.0 gate variant from a fresh instance.
 
     python source/build_release.py SCRATCH_DIR [--providers]
 

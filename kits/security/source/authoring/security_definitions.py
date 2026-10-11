@@ -293,7 +293,9 @@ SUBJECT_KIND_DESCRIPTIONS = {
 }
 
 
-def _evidence_rules(role: str, contracts: tuple[str, ...]) -> tuple[ClaimEvidenceAdmissionRule, ...]:
+def _evidence_rules(
+    role: str, contracts: tuple[str, ...]
+) -> tuple[ClaimEvidenceAdmissionRule, ...]:
     if not contracts:
         return ()
     return (
@@ -307,7 +309,9 @@ def _evidence_rules(role: str, contracts: tuple[str, ...]) -> tuple[ClaimEvidenc
                 )
                 for name in sorted(contracts)
             ),
-            evidence_kinds=tuple(sorted({EVIDENCE_KINDS.get(c, "http_response") for c in contracts})),
+            evidence_kinds=tuple(
+                sorted({EVIDENCE_KINDS.get(c, "http_response") for c in contracts})
+            ),
             admission="direct",
             subject_binding="exact_claim_subject",
         ),
@@ -474,7 +478,9 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
     q: list[QueryDefinitionSpec] = []
     vuln_ref = QueryParameterRef(parameter="vulnerability")
     on_vulnerability = QueryComparisonFilter(
-        left=QueryClaimValueRef(binding="assessment", predicate="security.assessment.vulnerability"),
+        left=QueryClaimValueRef(
+            binding="assessment", predicate="security.assessment.vulnerability"
+        ),
         operator="eq",
         right=vuln_ref,
         value_type="subject_reference",

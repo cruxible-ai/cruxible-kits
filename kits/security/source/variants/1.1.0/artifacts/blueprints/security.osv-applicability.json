@@ -146,7 +146,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:25f3aab5eaafa178119bfe8bdf89b56a78f7756c3db4ef347fb033586dd1a380",
+        "implementation_digest": "sha256:8a8f57eb20df7d67d8a6e4e81bd2720a4d3bf709bdb9a8b27b990ad777e310ed",
         "input": {
           "assessments": "$steps.assessments.result.rows",
           "osv": "$steps.osv",
@@ -154,7 +154,7 @@
           "watched": "$steps.watched.result.rows"
         },
         "interface": {
-          "artifact_digest": "sha256:f9d1e3416513fb161c8fbc1e5c84e3239d541a72c104e5a0aecb78cb50032a13",
+          "artifact_digest": "sha256:89579eb66d95c561e0902c329405a5e10378817249d02eca9857c19725b6fd6b",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
@@ -166,7 +166,7 @@
         "next": "summary",
         "node_id": "decide",
         "provider": {
-          "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+          "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -260,7 +260,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:1052b6d587d1bbad5d7e27dc7a7d0ba4e46e3ab8107df3085c779098f4a96c81",
+  "definition_digest": "sha256:36c3e84117ff20f71a3496325212a21b902ac2f31aabf1596be0927280185faa",
   "identity": {
     "kind": "Blueprint",
     "name": "security.osv-applicability"
@@ -551,7 +551,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+      "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
       "role": "provider",
       "target": {
         "kind": "Provider",
@@ -559,7 +559,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:f9d1e3416513fb161c8fbc1e5c84e3239d541a72c104e5a0aecb78cb50032a13",
+      "artifact_digest": "sha256:89579eb66d95c561e0902c329405a5e10378817249d02eca9857c19725b6fd6b",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",

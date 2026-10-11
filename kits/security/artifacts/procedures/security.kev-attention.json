@@ -154,7 +154,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:9f4a3aef5d3da6cde4969fd4b9e782af054c3218e7b572e65be152f539ebfe29",
+        "implementation_digest": "sha256:03482bb1b2af05c98051b02b37e5497b11035d82fd62ceeff7dd463719d639df",
         "input": {
           "assessments": "$steps.assessments.result.rows",
           "catalog_base64": "$steps.catalog.retrieved.body_base64",
@@ -174,7 +174,7 @@
         "next": "summary",
         "node_id": "match",
         "provider": {
-          "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+          "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -256,7 +256,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:705fff9027bfc3f2ea111d5cbdb35d7a70c5ae20de4050c37ad31bd8711f2627",
+  "definition_digest": "sha256:9255e0ead9985919af90c36c46240e638e08e7877dc2ed20fecd21a9b2d40f54",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-attention"
@@ -497,7 +497,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+      "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
       "role": "provider",
       "target": {
         "kind": "Provider",

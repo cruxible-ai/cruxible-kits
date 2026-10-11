@@ -172,7 +172,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:dbf9b5329972a446900c668bc4b5642511f21ccc22a0800c1259f02f2097fba6",
+        "implementation_digest": "sha256:136ab294ccc3808f2c00c93342d01b22c183c038feb60de799501bea679b1cf0",
         "input": {
           "catalog_base64": "$steps.catalog.retrieved.body_base64",
           "watched": "$steps.watched.result.rows"
@@ -190,7 +190,7 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+          "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -274,7 +274,7 @@
     "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:5fffd37729a6e3875383cec8f99dca81fb21360f96192e257236709e223e5e42",
+  "definition_digest": "sha256:d7717c6f3b774d0b49c30fd2ee7944a02aa6c2c7bffbc102037e080372d4d6e7",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-triage"
@@ -526,7 +526,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+      "artifact_digest": "sha256:e626755a9f41a290197b5c31c9d48073b4d288d16bad1bad545508d886ff4e2c",
       "role": "provider",
       "target": {
         "kind": "Provider",
