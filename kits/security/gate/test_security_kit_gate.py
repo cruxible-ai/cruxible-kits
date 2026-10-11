@@ -285,17 +285,10 @@ class Gate:
         return list(self.card(f"Line:{line}").get("recent_runs") or [])
 
     def rows(self, name: str, **params: str) -> list[dict[str, Any]]:
-        args = ["query", "--name", name, "--limit", "500"]
+        args = ["query", "--name", name, "--all"]
         for key, value in params.items():
             args += ["--param", f"{key}={value}"]
-        rows: list[dict[str, Any]] = []
-        cursor: list[str] = []
-        while True:  # pages hold at most 500 rows
-            page = self.json(*args, *cursor)
-            rows += page["rows"]
-            if not page.get("next_cursor"):
-                return rows
-            cursor = ["--cursor", page["next_cursor"]]
+        return list(self.json(*args)["rows"])
 
     def claims(self, kind: str, predicate: str) -> dict[str, tuple[Any, str]]:
         """subject_id -> (value, Claim ID) for one field, from the query's Claim cells."""

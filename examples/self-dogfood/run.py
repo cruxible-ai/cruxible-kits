@@ -162,14 +162,7 @@ class Session:
         return len(egress.get("target_paths") or ())
 
     def rows(self, name: str) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
-        cursor: list[str] = []
-        while True:  # pages hold at most 500 rows
-            page = self.json("query", "--name", name, "--limit", "500", *cursor)
-            rows += page["rows"]
-            if not page.get("next_cursor"):
-                return rows
-            cursor = ["--cursor", page["next_cursor"]]
+        return list(self.json("query", "--name", name, "--all")["rows"])
 
 
 def main() -> None:
