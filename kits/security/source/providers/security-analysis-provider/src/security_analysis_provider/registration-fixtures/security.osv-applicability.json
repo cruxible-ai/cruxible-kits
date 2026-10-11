@@ -1,0 +1,14 @@
+[
+  {
+    "canonical_input": {
+      "assessments": [],
+      "osv": {
+        "exchanges": []
+      },
+      "releases": [],
+      "watched": []
+    },
+    "fixture_id": "osv-applicability-fixture",
+    "measured_bucket_id": "osv=present;inventory=small"
+  }
+]

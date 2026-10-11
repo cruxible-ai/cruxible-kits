@@ -8,7 +8,7 @@
     "max_traversal_depth": 1,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "Every watched vulnerability with its current KEV Claims. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Every watched vulnerability with its current KEV and EPSS Claims. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "vulnerability",
     "subject_id": null,
@@ -50,7 +50,31 @@
   "parameters": [],
   "pins": [
     {
-      "artifact_digest": "sha256:31abc333d95f66bc76b4335c11e37435a3c45a434c0eab94e3168fb4086ff8d3",
+      "artifact_digest": "sha256:71d273d960c85450760acab13b526712916c7a62125ff08d0837999a4c358ea9",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.cve_id"
+      }
+    },
+    {
+      "artifact_digest": "sha256:675416196623443fab7368f0324dd0b7091385940c62bcdaf04394923176c054",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.epss_percentile"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f247297a4958490cf976a06f8ce1bb40081a9e15c57acf1a8eb8759bf35a0d40",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.epss_score"
+      }
+    },
+    {
+      "artifact_digest": "sha256:4d7063ebe228e51f59707c89315683e4c814a904fb154d17ac9ec938b8dbb8c4",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -58,7 +82,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:3ba024a0f76ed5a6a992806d67048fbaf128773ca6d6cd425bb8087274169b2c",
+      "artifact_digest": "sha256:7b7f1fa9a3325314b526e3fdbb8f665b57c56e2d2d5b4f3c19d4d73f9c5e5d67",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -66,7 +90,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:9a8166173968a4a2570da2ec8f4301c22ed2c2b4d490cbe4b7f8e7de58112880",
+      "artifact_digest": "sha256:c66e54c640a4702b326e907f4686499ef792bd3785c53974441785d825e853d3",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -74,7 +98,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:be742e7d4dddac9c495668cd4a525b12c670e24e12a690c06a6c030cba003191",
+      "artifact_digest": "sha256:1a865ab32f408e30aba6e6919a3fffceaf36620dcbedee139ea830b810feab79",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -84,6 +108,36 @@
   ],
   "projection": {
     "fields": [
+      {
+        "name": "cve_id",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.cve_id",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "epss_percentile",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.epss_percentile",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "epss_score",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.epss_score",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
       {
         "name": "kev_date_added",
         "tag": "playbill-query-projection-field-v1",

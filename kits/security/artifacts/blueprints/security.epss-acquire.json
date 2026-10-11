@@ -1,0 +1,235 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-blueprint-v1",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 33554432,
+      "max_provider_calls": 1,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 120000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      }
+    },
+    "description": "Fetch FIRST's current EPSS daily scores file (gzip CSV) and retain it under security.epss-daily-v1. Interpretation is security.epss-triage's job.",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 33554432,
+      "max_items": 1,
+      "max_provider_calls": 1,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [],
+    "name": "security.epss-acquire",
+    "nodes": [
+      {
+        "as": "epss",
+        "capture_contract": {
+          "artifact_digest": "sha256:1cf4b39dae1713d2675fd138b5589f36219e9085d1c9354c564fa24934cca7bb",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.epss-daily-v1"
+          }
+        },
+        "implementation_digest": null,
+        "interface": {
+          "artifact_digest": "sha256:d0b686ea5f662f499fe0811b2f80018ba4bafabdb41e02fa7348361c73773b79",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.epss-daily"
+          }
+        },
+        "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
+        "kind": "source",
+        "next": "summary",
+        "node_id": "epss",
+        "provider": {
+          "slot_name": "epss",
+          "tag": "playbill-procedure-pin-slot-ref-v1"
+        },
+        "request": {}
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-http-evidence"
+          }
+        },
+        "fields": {
+          "body_digest": "$steps.epss.retrieved.body_sha256",
+          "status": "$steps.epss.retrieved.status_code",
+          "url": "$steps.epss.retrieved.final_url"
+        },
+        "kind": "project",
+        "next": "emit",
+        "node_id": "summary"
+      },
+      {
+        "capture_contract": {
+          "artifact_digest": "sha256:204609ce92af2744651e9dd40ac2073b74b0129cba3e44511266e6bbc0ea0c3f",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.observation-output-v1"
+          }
+        },
+        "input": "$steps.summary",
+        "kind": "emit_capture",
+        "node_id": "emit",
+        "result": "$steps.summary"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [
+      {
+        "artifact_kind": "Provider",
+        "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
+        "pin_role": "provider",
+        "slot_name": "epss",
+        "tag": "playbill-procedure-pin-slot-v1"
+      }
+    ],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:4d5a7470872fb4605b2cf3b505c288fef46af39abe725fce7f17c08899843525",
+  "identity": {
+    "kind": "Blueprint",
+    "name": "security.epss-acquire"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {}
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "body_digest": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "status": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "int"
+          },
+          "url": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:1cf4b39dae1713d2675fd138b5589f36219e9085d1c9354c564fa24934cca7bb",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.epss-daily-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:204609ce92af2744651e9dd40ac2073b74b0129cba3e44511266e6bbc0ea0c3f",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.observation-output-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d0b686ea5f662f499fe0811b2f80018ba4bafabdb41e02fa7348361c73773b79",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.epss-daily"
+      }
+    }
+  ]
+}

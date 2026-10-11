@@ -1,0 +1,9 @@
+[
+  {
+    "canonical_input": {
+      "url": "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz"
+    },
+    "fixture_id": "epss-daily-fixture",
+    "measured_bucket_id": "file=daily"
+  }
+]

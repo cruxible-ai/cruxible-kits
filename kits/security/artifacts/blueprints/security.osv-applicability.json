@@ -1,0 +1,602 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-blueprint-v1",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 67108864,
+      "max_provider_calls": 2,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 300000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:ea6928231e515ff19ee2a93d1d6c714172574630c74579355ce324763a99ece5",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-osv-applicability-summary"
+      }
+    },
+    "description": "Ask OSV.dev about every SBOM component (purl@version) of every release and every watched CVE, retain the answer under security.osv-query-v1, and propose an assessment per (release, CVE) whose answer changed: affected (watching the CVE when it is new), not_affected with its VEX justification, or inconclusive. Propose-only; never settles. Runs as a Line (daily, or `line run` after an SBOM import is accepted).",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 67108864,
+      "max_items": 5000,
+      "max_provider_calls": 2,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 600000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [],
+    "name": "security.osv-applicability",
+    "nodes": [
+      {
+        "as": "releases",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "watched",
+        "node_id": "releases",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:baa49156777e3c8def00797ebda3bd1ac5f0b65b0983ff977b4b59c2f87bb02c",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.release_inventory"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "watched",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "assessments",
+        "node_id": "watched",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:5453c2efa68193e9dbffcc808e13469ff7dbfeecb3329fbb6a6de979ddf8e476",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.watched_vulnerabilities"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "assessments",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "osv",
+        "node_id": "assessments",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:7008f60ac901c0eea835d7e031a0465de148745736884c01fd12fa0e45ee5802",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.assessment_index"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "osv",
+        "capture_contract": {
+          "artifact_digest": "sha256:675cf750e2f9a8ca72e79685016692827846cbe0e8c2b5a4ece41a17eb483ef8",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.osv-query-v1"
+          }
+        },
+        "implementation_digest": null,
+        "interface": {
+          "artifact_digest": "sha256:557e591bfb320915e29c78f9e10542043ed08751c310393ca88a32e12bbfa791",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-query"
+          }
+        },
+        "interface_digest": "sha256:92a7c29cdc19ede3a1c55edab561b2e9ef3de2e70ca287e30a6c30f39f49c2ae",
+        "kind": "source",
+        "next": "decide",
+        "node_id": "osv",
+        "provider": {
+          "slot_name": "osv",
+          "tag": "playbill-procedure-pin-slot-ref-v1"
+        },
+        "request": {
+          "releases": "$steps.releases.result.rows",
+          "watched": "$steps.watched.result.rows"
+        }
+      },
+      {
+        "as": "decide",
+        "contract_in": {
+          "artifact_digest": "sha256:d556f6928944f023cfb4b60515370543372fd495cc65b3c9dc28cc7569865e9f",
+          "role": "contract-in",
+          "target": {
+            "kind": "Contract",
+            "name": "security-osv-applicability-request"
+          }
+        },
+        "contract_out": {
+          "artifact_digest": "sha256:40c9bb2700437465fc87f3c54ee8305df1847b474788fd289ff608ece6c33b8a",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-osv-applicability-result"
+          }
+        },
+        "effect_policy": null,
+        "implementation_digest": "sha256:80ba9ee6dffcaa0da0dbb89bdb8dcf49b3f583d668b38aa064a68ef9a88e2646",
+        "input": {
+          "assessments": "$steps.assessments.result.rows",
+          "osv": "$steps.osv",
+          "releases": "$steps.releases.result.rows",
+          "watched": "$steps.watched.result.rows"
+        },
+        "interface": {
+          "artifact_digest": "sha256:f9d1e3416513fb161c8fbc1e5c84e3239d541a72c104e5a0aecb78cb50032a13",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-applicability"
+          }
+        },
+        "interface_digest": "sha256:3b525fb33992f904f53b5e8bb06db912cf60e0f2b49b081c4d09f9925ce7e6dd",
+        "kind": "call",
+        "next": "summary",
+        "node_id": "decide",
+        "provider": {
+          "artifact_digest": "sha256:05e70b3c2bd9f9f135b9de0abefbc7e7a4c3a33f5f4aadd8f489e17b0bc03b40",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "security-analysis-provider"
+          }
+        }
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:ea6928231e515ff19ee2a93d1d6c714172574630c74579355ce324763a99ece5",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-osv-applicability-summary"
+          }
+        },
+        "fields": {
+          "affected": "$steps.decide.affected",
+          "changed": "$steps.decide.changed",
+          "inconclusive": "$steps.decide.inconclusive",
+          "not_affected": "$steps.decide.not_affected",
+          "unchanged": "$steps.decide.unchanged",
+          "unkeyed": "$steps.decide.unkeyed"
+        },
+        "kind": "project",
+        "next": "changed",
+        "node_id": "summary"
+      },
+      {
+        "kind": "guard",
+        "message": "OSV changes no assessment.",
+        "node_id": "changed",
+        "on_false": "nochange",
+        "on_true": "propose",
+        "predicate": {
+          "all_of": null,
+          "any_of": null,
+          "left": {
+            "alias": "decide",
+            "input_name": null,
+            "kind": "step",
+            "parameter_name": null,
+            "path": [
+              "changed"
+            ],
+            "tag": "playbill-predicate-operand-v1",
+            "value": null
+          },
+          "not_of": null,
+          "operator": "gt",
+          "right": {
+            "alias": null,
+            "input_name": null,
+            "kind": "literal",
+            "parameter_name": null,
+            "path": [],
+            "tag": "playbill-predicate-operand-v1",
+            "value": 0
+          },
+          "tag": "playbill-guard-predicate-v1"
+        },
+        "refusal_code": "no_change"
+      },
+      {
+        "candidate_templates": {
+          "items": "$steps.decide.items"
+        },
+        "claim_types": [],
+        "kind": "propose_change_set",
+        "node_id": "propose",
+        "result": "$steps.summary"
+      },
+      {
+        "kind": "halt",
+        "node_id": "nochange",
+        "reason": "no_change"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [
+      {
+        "artifact_kind": "Provider",
+        "interface_digest": "sha256:92a7c29cdc19ede3a1c55edab561b2e9ef3de2e70ca287e30a6c30f39f49c2ae",
+        "pin_role": "provider",
+        "slot_name": "osv",
+        "tag": "playbill-procedure-pin-slot-v1"
+      }
+    ],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 2
+  },
+  "definition_digest": "sha256:1e1077e8058b3b1b1031370613d2ac375f7647ab41e6ba2756f1d7339c99679a",
+  "identity": {
+    "kind": "Blueprint",
+    "name": "security.osv-applicability"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {}
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-osv-applicability-request"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "assessments": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "osv": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "releases": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "watched": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-osv-applicability-result"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "affected": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "inconclusive": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "items": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "not_affected": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "unchanged": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "unkeyed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-osv-applicability-summary"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "affected": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "inconclusive": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "not_affected": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "unchanged": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "unkeyed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:675cf750e2f9a8ca72e79685016692827846cbe0e8c2b5a4ece41a17eb483ef8",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.osv-query-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d556f6928944f023cfb4b60515370543372fd495cc65b3c9dc28cc7569865e9f",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-osv-applicability-request"
+      }
+    },
+    {
+      "artifact_digest": "sha256:40c9bb2700437465fc87f3c54ee8305df1847b474788fd289ff608ece6c33b8a",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-osv-applicability-result"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ea6928231e515ff19ee2a93d1d6c714172574630c74579355ce324763a99ece5",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-osv-applicability-summary"
+      }
+    },
+    {
+      "artifact_digest": "sha256:05e70b3c2bd9f9f135b9de0abefbc7e7a4c3a33f5f4aadd8f489e17b0bc03b40",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "security-analysis-provider"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f9d1e3416513fb161c8fbc1e5c84e3239d541a72c104e5a0aecb78cb50032a13",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.osv-applicability"
+      }
+    },
+    {
+      "artifact_digest": "sha256:557e591bfb320915e29c78f9e10542043ed08751c310393ca88a32e12bbfa791",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.osv-query"
+      }
+    },
+    {
+      "artifact_digest": "sha256:7008f60ac901c0eea835d7e031a0465de148745736884c01fd12fa0e45ee5802",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.assessment_index"
+      }
+    },
+    {
+      "artifact_digest": "sha256:baa49156777e3c8def00797ebda3bd1ac5f0b65b0983ff977b4b59c2f87bb02c",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.release_inventory"
+      }
+    },
+    {
+      "artifact_digest": "sha256:5453c2efa68193e9dbffcc808e13469ff7dbfeecb3329fbb6a6de979ddf8e476",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.watched_vulnerabilities"
+      }
+    }
+  ]
+}

@@ -1,30 +1,30 @@
 {
   "artifact_format": "playbill-provider-interface-v2",
   "classifier_code": {
-    "entrypoint": "security_kev_provider.provider:classify",
-    "source_digest": "sha256:7ad5459776d0f7609dc80c6875add138b26b5596206ca6828cdb59289d189ddf"
+    "entrypoint": "security_analysis_provider.kev:classify_triage",
+    "source_digest": "sha256:a6c77758625fd063a19b886780d94ed637717964f59fb8853404cb5bb77d12c0"
   },
-  "classifier_digest": "sha256:8f12e998e021bf32b9beae57c3d05039878ef60ae2ba57c41695c75c47b1ecf3",
+  "classifier_digest": "sha256:73980b27fb018a7189ac057141db5fbdd7e72ef1656f9f4385975a14661a0051",
   "classifier_identity": "security.kev-catalog.input",
   "classifier_version": 1,
-  "conformance_fixture_set_digest": "sha256:13ad810c6d3e6a2e498bdf149503328c1f4c06d510256b37c04b3cfd1c34dce3",
+  "conformance_fixture_set_digest": "sha256:eefda14748b303923a69906ae187a75d32fb7dc6e325b9cc6c7945d0c6b67a76",
   "conformance_fixtures": [
     {
       "canonical_input": {
-        "catalog_base64": "eyJjYXRhbG9nVmVyc2lvbiI6ICJmaXh0dXJlIiwgInZ1bG5lcmFiaWxpdGllcyI6IFt7ImN2ZUlEIjogIkNWRS0wMDAwLTAwMDAifV19",
+        "catalog_base64": "eyJjYXRhbG9nVmVyc2lvbiI6ICJmaXh0dXJlIiwgImRhdGVSZWxlYXNlZCI6ICIyMDI2LTAxLTAxVDAwOjAwOjAwWiIsICJ2dWxuZXJhYmlsaXRpZXMiOiBbeyJjdmVJRCI6ICJDVkUtMDAwMC0wMDAwIiwgImRhdGVBZGRlZCI6ICIyMDI2LTAxLTAxIn1dfQ==",
         "watched": []
       },
-      "fixture_id": "kev-catalog-small",
+      "fixture_id": "kev-catalog-fixture",
       "measured_bucket_id": "catalog=present;watchlist=small",
       "tag": "playbill-provider-bucket-conformance-fixture-v1"
     }
   ],
   "conformance_proofs": [
     {
-      "fixture_digest": "sha256:526b591941f96d066359c96c78aa33830e88d6edd48e86227c2240d7cf8ea017",
-      "fixture_id": "kev-catalog-small",
+      "fixture_digest": "sha256:efe1abed2f3f8d023442341404efbe77b5370e13f8b8f90615e0ed7a81979771",
+      "fixture_id": "kev-catalog-fixture",
       "measured_bucket_id": "catalog=present;watchlist=small",
-      "selector": "catalog=present;watchlist=small",
+      "selector": "catalog=present;watchlist=*",
       "tag": "playbill-provider-bucket-conformance-fixture-proof-v1"
     }
   ],

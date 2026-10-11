@@ -1,0 +1,32 @@
+{
+  "interface_id": "security.epss-daily",
+  "version": 1,
+  "effect_class": "external_read",
+  "contracts": {
+    "input": {
+      "fields": {
+        "url": {
+          "type": "string",
+          "optional": true,
+          "default": "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": "playbill-provider-result-to-external-capture-v1",
+    "material": {
+      "allow_extra": false,
+      "fields": {
+        "input_bucket": {
+          "type": "string"
+        },
+        "retrieved": {
+          "type": "json"
+        }
+      }
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

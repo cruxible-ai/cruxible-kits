@@ -1,0 +1,10 @@
+[
+  {
+    "canonical_input": {
+      "daily_base64": "H4sIAAAAAAAC/1POzU9JzYkvSy0qzszPs0rLrCgpLUrVKU7OL0qNT0ksSbUyMjAy0zUwBKIQAwMrMIriSi5L1UktKC7WKUgtSk7NK8nMSeVyDnPVNQACMKFjoGdgYAimDUF8LgBmlqCfaQAAAA==",
+      "watched": []
+    },
+    "fixture_id": "epss-scores-fixture",
+    "measured_bucket_id": "daily=present;watchlist=small"
+  }
+]

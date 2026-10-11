@@ -1,0 +1,82 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [],
+  "allowed_subject_kinds": [
+    "security.release"
+  ],
+  "artifact_format": "playbill-claim-type-v8",
+  "attestation_consequence_policy": null,
+  "canonical_form": [
+    "trim"
+  ],
+  "cardinality": "many",
+  "default_role": "observation",
+  "description": "A component of the release, as its package URL with version (purl@version), observed in an SBOM.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.cyclonedx-sbom-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "evidence_kinds": [
+          "sbom_document"
+        ],
+        "rule_id": "retained-security-evidence",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      }
+    ],
+    "tag": "playbill-claim-evidence-admission-policy-v3"
+  },
+  "evidence_freshness": null,
+  "evidence_requirement": "captured",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "security.release.component"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": {
+    "pattern": "^pkg:[a-z0-9.+-]+/.+@.+$",
+    "type": "string"
+  },
+  "member_descriptions": [],
+  "object_kind": "literal",
+  "permitted_roles": [
+    "observation"
+  ],
+  "pins": [],
+  "predicate": "security.release.component",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "many",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "all",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "slot_policy": null,
+  "subject_scope": null
+}

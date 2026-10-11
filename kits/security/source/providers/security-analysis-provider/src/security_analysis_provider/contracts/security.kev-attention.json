@@ -1,0 +1,44 @@
+{
+  "interface_id": "security.kev-attention",
+  "version": 1,
+  "effect_class": "pure",
+  "contracts": {
+    "input": {
+      "fields": {
+        "catalog_base64": {
+          "type": "string"
+        },
+        "releases": {
+          "type": "json"
+        },
+        "watched": {
+          "type": "json"
+        },
+        "assessments": {
+          "type": "json"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": {
+      "fields": {
+        "items": {
+          "type": "json"
+        },
+        "posted": {
+          "type": "integer"
+        },
+        "newly_listed": {
+          "type": "integer"
+        },
+        "catalog_version": {
+          "type": "string"
+        }
+      },
+      "allow_extra": false
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

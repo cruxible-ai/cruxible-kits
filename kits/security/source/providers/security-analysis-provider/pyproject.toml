@@ -1,0 +1,36 @@
+# The security kit's analysis provider: deterministic readings of the KEV
+# catalog, the EPSS daily file, CycloneDX SBOMs, OSV answers and CVE records,
+# returned as Claim proposal items or inbox payloads. No network, no clock. It
+# is not published: it ships inside the security kit as its built wheel plus
+# this lock, and `cruxible kit add` installs it before the kit's definitions.
+[project]
+name = "security-analysis-provider"
+version = "1.0.0"
+description = "Security kit provider: KEV, EPSS, SBOM and applicability analysis to proposal items."
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = [
+  "cruxible-provider-runtime>=0.2.0",
+]
+
+[project.entry-points."cruxible.providers"]
+"security.kev-catalog" = "security_analysis_provider.kev:KevTriage"
+"security.kev-attention" = "security_analysis_provider.kev:KevAttention"
+"security.epss-scores" = "security_analysis_provider.epss:EpssTriage"
+"security.cyclonedx-components" = "security_analysis_provider.sbom:CycloneDxComponents"
+"security.osv-applicability" = "security_analysis_provider.applicability:OsvApplicability"
+"security.cve-applicability" = "security_analysis_provider.applicability:CveApplicability"
+
+[dependency-groups]
+dev = ["pytest>=8.2"]
+
+[build-system]
+requires = ["hatchling==1.32.1"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/security_analysis_provider"]
+
+# The lock travels inside the wheel, as the provider template does.
+[tool.hatch.build.targets.wheel.extra-metadata]
+"uv.lock" = "uv.lock"

@@ -1,0 +1,267 @@
+"""Write the package's registration files (manifest, vocabularies, fixtures, registration.json).
+
+Run after any change to a contract or a module, before ``uv build``:
+
+    uv run --no-project --with cruxible-provider-runtime==0.2.0 python build_registration.py
+
+Every file the registration references is hashed here, so the registration a
+built wheel carries always matches the bytes beside it.
+"""
+
+from __future__ import annotations
+
+import base64
+import gzip
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+from cruxible_provider_runtime.canonical import domain_digest
+from cruxible_provider_runtime.registration import INTERFACE_DOMAIN, load_registration
+
+ROOT = Path(__file__).resolve().parent
+MODULE = ROOT / "src" / "security_analysis_provider"
+VERSION = "1.0.0"
+
+
+def _b64(data: bytes) -> str:
+    return base64.b64encode(data).decode()
+
+
+_CATALOG = _b64(
+    json.dumps(
+        {
+            "catalogVersion": "fixture",
+            "dateReleased": "2026-01-01T00:00:00Z",
+            "vulnerabilities": [{"cveID": "CVE-0000-0000", "dateAdded": "2026-01-01"}],
+        }
+    ).encode()
+)
+_EPSS = _b64(
+    gzip.compress(
+        b"#model_version:fixture,score_date:2026-01-01T00:00:00Z\ncve,epss,percentile\n"
+        b"CVE-0000-0000,0.00100,0.10000\n",
+        mtime=0,
+    )
+)
+_SBOM = json.dumps(
+    {
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.5",
+        "metadata": {"component": {"type": "application", "name": "fixture", "version": "1.0"}},
+        "components": [
+            {"type": "library", "name": "dep", "version": "1.0", "purl": "pkg:pypi/dep@1.0"}
+        ],
+    }
+)
+_RECORD = _b64(
+    json.dumps(
+        {
+            "cveMetadata": {"cveId": "CVE-0000-0000"},
+            "containers": {"cna": {"affected": [{"vendor": "v", "product": "p", "versions": []}]}},
+        }
+    ).encode()
+)
+
+
+def _dimension(name: str, description: str, classes: dict[str, str]) -> dict[str, Any]:
+    return {
+        "name": name,
+        "description": description,
+        "classes": [{"id": key, "description": value} for key, value in classes.items()],
+    }
+
+
+SIZE = {"small": "at most 1000 rows", "large": "more than 1000 rows"}
+
+#: interface -> (entrypoint, classifier, description, dimensions, fixture input, bucket,
+#:               declared selector)
+INTERFACES: dict[str, tuple[str, str, str, list[dict[str, Any]], dict[str, Any], str, str]] = {
+    "security.kev-catalog": (
+        "kev:KevTriage",
+        "kev:classify_triage",
+        "A KEV catalog body and the watched vulnerabilities to compare it with.",
+        [
+            _dimension(
+                "catalog",
+                "whether a catalog body is present",
+                {"present": "a nonempty base64 body"},
+            ),
+            _dimension("watchlist", "how many watched vulnerabilities the request carries", SIZE),
+        ],
+        {"catalog_base64": _CATALOG, "watched": []},
+        "catalog=present;watchlist=small",
+        "catalog=present;watchlist=*",
+    ),
+    "security.kev-attention": (
+        "kev:KevAttention",
+        "kev:classify_attention",
+        "A KEV catalog body and the inventory to find newly listed, unwatched exposure in.",
+        [
+            _dimension(
+                "catalog",
+                "whether a catalog body is present",
+                {"present": "a nonempty base64 body"},
+            ),
+            _dimension("inventory", "how many releases the request carries", SIZE),
+        ],
+        {"catalog_base64": _CATALOG, "releases": [], "watched": [], "assessments": []},
+        "catalog=present;inventory=small",
+        "catalog=present;inventory=*",
+    ),
+    "security.epss-scores": (
+        "epss:EpssTriage",
+        "epss:classify",
+        "An EPSS daily file and the watched vulnerabilities to score.",
+        [
+            _dimension(
+                "daily", "whether a daily file is present", {"present": "a nonempty base64 body"}
+            ),
+            _dimension("watchlist", "how many watched vulnerabilities the request carries", SIZE),
+        ],
+        {"daily_base64": _EPSS, "watched": []},
+        "daily=present;watchlist=small",
+        "daily=present;watchlist=*",
+    ),
+    "security.cyclonedx-components": (
+        "sbom:CycloneDxComponents",
+        "sbom:classify",
+        "A CycloneDX JSON SBOM and the releases already in inventory.",
+        [
+            _dimension("sbom", "whether an SBOM text is present", {"present": "a nonempty text"}),
+            _dimension(
+                "size", "how large the SBOM is", {"small": "at most 4 MiB", "large": "more"}
+            ),
+        ],
+        {"sbom_text": _SBOM, "releases": []},
+        "sbom=present;size=small",
+        "sbom=present;size=small",
+    ),
+    "security.osv-applicability": (
+        "applicability:OsvApplicability",
+        "applicability:classify_osv",
+        "An OSV query Capture body, the releases, the watched CVEs and held assessments.",
+        [
+            _dimension("osv", "whether an OSV body is present", {"present": "an object"}),
+            _dimension("inventory", "how many releases the request carries", SIZE),
+        ],
+        {"osv": {"exchanges": []}, "releases": [], "watched": [], "assessments": []},
+        "osv=present;inventory=small",
+        "osv=present;inventory=*",
+    ),
+    "security.cve-applicability": (
+        "applicability:CveApplicability",
+        "applicability:classify_cve",
+        "A CVE record Capture body, the releases, the watched CVEs and held assessments.",
+        [
+            _dimension("record", "whether a record body is present", {"present": "a base64 body"}),
+            _dimension("inventory", "how many releases the request carries", SIZE),
+        ],
+        {"record_base64": _RECORD, "releases": [], "watched": [], "assessments": []},
+        "record=present;inventory=small",
+        "record=present;inventory=*",
+    ),
+}
+
+
+def _write(name: str, value: object) -> dict[str, str]:
+    content = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+    (MODULE / name).parent.mkdir(parents=True, exist_ok=True)
+    (MODULE / name).write_bytes(content)
+    return _ref(name)
+
+
+def _ref(name: str) -> dict[str, str]:
+    digest = hashlib.sha256((MODULE / name).read_bytes()).hexdigest()
+    return {"path": name, "digest": "sha256:" + digest}
+
+
+def main() -> None:
+    implementations = []
+    interfaces = []
+    for interface, (
+        entry,
+        classifier,
+        description,
+        dims,
+        fixture,
+        bucket,
+        selector,
+    ) in INTERFACES.items():
+        contract_path = f"contracts/{interface}.json"
+        definition = json.loads((MODULE / contract_path).read_bytes())
+        digest = domain_digest(INTERFACE_DOMAIN, definition)
+        vocabulary = _write(
+            f"vocab/{interface}.json",
+            {
+                "interface_id": interface,
+                "version": 1,
+                "status": "draft",
+                "description": description,
+                "dimensions": dims,
+            },
+        )
+        fixture_id = interface.removeprefix("security.") + "-fixture"
+        fixtures = _write(
+            f"registration-fixtures/{interface}.json",
+            [{"fixture_id": fixture_id, "canonical_input": fixture, "measured_bucket_id": bucket}],
+        )
+        module, _, _ = classifier.partition(":")
+        implementations.append(
+            {
+                "interface_id": interface,
+                "interface_digest": digest,
+                "entrypoint": f"security_analysis_provider.{entry}",
+                "backends": ["local_env"],
+                "requires_extras": [],
+                "declared_input_buckets": [selector],
+                "bucket_conformance": {selector: fixture_id},
+                "declared_endpoints": [],
+                "capture_contract_families": [],
+                "deterministic": True,
+                "side_effects": False,
+            }
+        )
+        interfaces.append(
+            {
+                "interface_id": interface,
+                "interface_digest": digest,
+                "definition": _ref(contract_path),
+                "vocabulary": vocabulary,
+                "classifier": {
+                    "identity": f"{interface}.input",
+                    "version": 1,
+                    "entrypoint": f"security_analysis_provider.{classifier}",
+                    "source": _ref(f"{module}.py"),
+                },
+                "fixtures": fixtures,
+                "predecessors": [],
+            }
+        )
+        print(f"{interface} {digest}")
+    manifest = _write(
+        "manifest.json",
+        {
+            "schema_version": 1,
+            "provider_id": "security-analysis-provider",
+            "distribution": {"name": "security-analysis-provider", "version": VERSION},
+            "entrypoint_group": "cruxible.providers",
+            "supported_protocol_majors": [1],
+            "implementations": implementations,
+        },
+    )
+    _write(
+        "registration.json",
+        {
+            "schema_version": 1,
+            "manifest": manifest,
+            "interfaces": interfaces,
+            "runtime_requirements": [],
+        },
+    )
+    load_registration(MODULE)  # verifies every reference and cross-link
+
+
+if __name__ == "__main__":
+    main()

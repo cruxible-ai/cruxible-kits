@@ -8,11 +8,14 @@
   "allowed_subject_kinds": [
     "security.release"
   ],
-  "artifact_format": "playbill-claim-type-v7",
+  "artifact_format": "playbill-claim-type-v8",
   "attestation_consequence_policy": null,
+  "canonical_form": [
+    "trim"
+  ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The release's version string.",
+  "description": "The release's version string; with product_name, the release's key.",
   "evidence_admission_policy": {
     "rules": [],
     "tag": "playbill-claim-evidence-admission-policy-v3"
@@ -28,6 +31,7 @@
     "state": "live"
   },
   "literal_schema": {
+    "minLength": 1,
     "type": "string"
   },
   "member_descriptions": [],

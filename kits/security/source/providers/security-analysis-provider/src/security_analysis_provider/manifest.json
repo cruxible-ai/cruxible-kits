@@ -1,0 +1,128 @@
+{
+  "distribution": {
+    "name": "security-analysis-provider",
+    "version": "1.0.0"
+  },
+  "entrypoint_group": "cruxible.providers",
+  "implementations": [
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "catalog=present;watchlist=*": "kev-catalog-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "catalog=present;watchlist=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.kev:KevTriage",
+      "interface_digest": "sha256:102036c6548173cc88668c1265af902c9ac3dc7c347da6ac080c548d6beab5c4",
+      "interface_id": "security.kev-catalog",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "catalog=present;inventory=*": "kev-attention-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "catalog=present;inventory=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.kev:KevAttention",
+      "interface_digest": "sha256:0badd0d8c3547816db58b0964ca4584c13b54aa8e98210fb97c645f5c0d3f141",
+      "interface_id": "security.kev-attention",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "daily=present;watchlist=*": "epss-scores-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "daily=present;watchlist=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.epss:EpssTriage",
+      "interface_digest": "sha256:5d2bb4e2e84aebdfa01f3d1a6800ef8e2c8e8e468f047cc94eeff9cdb69f5b64",
+      "interface_id": "security.epss-scores",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "sbom=present;size=small": "cyclonedx-components-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "sbom=present;size=small"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.sbom:CycloneDxComponents",
+      "interface_digest": "sha256:c36b224a1408c34a4cf651218e117db35ab294a0de8c822686394729a4f94a65",
+      "interface_id": "security.cyclonedx-components",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "osv=present;inventory=*": "osv-applicability-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "osv=present;inventory=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.applicability:OsvApplicability",
+      "interface_digest": "sha256:3b525fb33992f904f53b5e8bb06db912cf60e0f2b49b081c4d09f9925ce7e6dd",
+      "interface_id": "security.osv-applicability",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "record=present;inventory=*": "cve-applicability-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "record=present;inventory=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.applicability:CveApplicability",
+      "interface_digest": "sha256:d5deeb11e5d44e03177199cfa573c32066f24db8b740983915f41694e2d49f1e",
+      "interface_id": "security.cve-applicability",
+      "requires_extras": [],
+      "side_effects": false
+    }
+  ],
+  "provider_id": "security-analysis-provider",
+  "schema_version": 1,
+  "supported_protocol_majors": [
+    1
+  ]
+}

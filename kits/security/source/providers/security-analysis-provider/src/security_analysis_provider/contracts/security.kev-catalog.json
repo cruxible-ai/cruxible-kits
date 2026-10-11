@@ -1,0 +1,44 @@
+{
+  "interface_id": "security.kev-catalog",
+  "version": 2,
+  "effect_class": "pure",
+  "contracts": {
+    "input": {
+      "fields": {
+        "catalog_base64": {
+          "type": "string"
+        },
+        "watched": {
+          "type": "json"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": {
+      "fields": {
+        "items": {
+          "type": "json"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "watched": {
+          "type": "integer"
+        },
+        "listed": {
+          "type": "integer"
+        },
+        "catalog_version": {
+          "type": "string"
+        },
+        "catalog_count": {
+          "type": "integer"
+        }
+      },
+      "allow_extra": false
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [],
+  "allowed_subject_kinds": [
+    "security.assessment"
+  ],
+  "artifact_format": "playbill-claim-type-v8",
+  "attestation_consequence_policy": null,
+  "canonical_form": [],
+  "cardinality": "one",
+  "default_role": "observation",
+  "description": "Why a not_affected release is not affected (the VEX/CSAF justification). The kit's Procedures state it with every not_affected status; core cannot require it.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.cve-record-http-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.observation-output-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.osv-query-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "evidence_kinds": [
+          "http_response"
+        ],
+        "rule_id": "retained-security-evidence",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      }
+    ],
+    "tag": "playbill-claim-evidence-admission-policy-v3"
+  },
+  "evidence_freshness": null,
+  "evidence_requirement": "captured",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "security.assessment.justification"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": {
+    "enum": [
+      "component_not_present",
+      "inline_mitigations_already_exist",
+      "vulnerable_code_cannot_be_controlled_by_adversary",
+      "vulnerable_code_not_in_execute_path",
+      "vulnerable_code_not_present"
+    ],
+    "type": "string"
+  },
+  "member_descriptions": [
+    {
+      "description": "The vulnerable component is not in the release.",
+      "member": "component_not_present"
+    },
+    {
+      "description": "Built-in protections prevent exploitation.",
+      "member": "inline_mitigations_already_exist"
+    },
+    {
+      "description": "The vulnerable code cannot be reached with adversary-controlled input.",
+      "member": "vulnerable_code_cannot_be_controlled_by_adversary"
+    },
+    {
+      "description": "The vulnerable code is present but never runs.",
+      "member": "vulnerable_code_not_in_execute_path"
+    },
+    {
+      "description": "The component is present but not the vulnerable code (for example, a fixed version).",
+      "member": "vulnerable_code_not_present"
+    }
+  ],
+  "object_kind": "literal",
+  "permitted_roles": [
+    "observation"
+  ],
+  "pins": [],
+  "predicate": "security.assessment.justification",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "slot_policy": null,
+  "subject_scope": null
+}

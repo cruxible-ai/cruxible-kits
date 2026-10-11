@@ -1,0 +1,32 @@
+{
+  "description": "An OSV query Capture body, the releases, the watched CVEs and held assessments.",
+  "dimensions": [
+    {
+      "classes": [
+        {
+          "description": "an object",
+          "id": "present"
+        }
+      ],
+      "description": "whether an OSV body is present",
+      "name": "osv"
+    },
+    {
+      "classes": [
+        {
+          "description": "at most 1000 rows",
+          "id": "small"
+        },
+        {
+          "description": "more than 1000 rows",
+          "id": "large"
+        }
+      ],
+      "description": "how many releases the request carries",
+      "name": "inventory"
+    }
+  ],
+  "interface_id": "security.osv-applicability",
+  "status": "draft",
+  "version": 1
+}

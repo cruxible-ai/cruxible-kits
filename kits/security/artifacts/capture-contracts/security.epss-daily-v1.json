@@ -1,0 +1,98 @@
+{
+  "allowed_materialization_modes": [
+    "cas"
+  ],
+  "allowed_source_kinds": [
+    "external"
+  ],
+  "artifact_format": "playbill-capture-contract-v1",
+  "commitment_canonicalizer": {
+    "artifact_digest": "sha256:9b01f3d9811cb4359865e76218b5ddbedbb353a3eb784a9d6e875d04e394f16a",
+    "role": "commitment-canonicalizer",
+    "target": {
+      "kind": "Contract",
+      "name": "canonical-json-v1"
+    }
+  },
+  "coordinate_schema_pins": [
+    {
+      "artifact_digest": "sha256:1540500a4740265aeede322b424492db3281d30002297308caa9180925e5742d",
+      "role": "coordinate-schema",
+      "target": {
+        "kind": "Contract",
+        "name": "http-response-v1"
+      }
+    }
+  ],
+  "epistemic_grade": "observed",
+  "evidence_kinds": [
+    "http_response"
+  ],
+  "identity": {
+    "kind": "CaptureContract",
+    "name": "security.epss-daily-v1"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "logical_source_identities": [
+    "first.epss.daily"
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:3209d7813a9932cc7bdfb02d19e1ccecf5e7c4b401aa0a33b1bec17b4dc5ca63",
+      "role": "provenance-rule",
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.external.daemon-fetched-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f64960ed08091396f34bac6511f8e1daffc5d45339e4f57b34b5b5c950efb6ea",
+      "role": "replay-policy",
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.external.exact-replay-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d4811b19cac6947dfc72fbc6346b8eaeeb69b1dd78b663342be2e6bcc851e5d9",
+      "role": "source-subject-mapping",
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.external.record-subject-v1"
+      }
+    }
+  ],
+  "provenance_rule_digest": "sha256:3209d7813a9932cc7bdfb02d19e1ccecf5e7c4b401aa0a33b1bec17b4dc5ca63",
+  "replay_policy_digest": "sha256:f64960ed08091396f34bac6511f8e1daffc5d45339e4f57b34b5b5c950efb6ea",
+  "retention_erasure_policy": {
+    "body_retention": "required_for_duration",
+    "erasure": "prohibited",
+    "erasure_rule_digest": null,
+    "minimum_retention": {
+      "microseconds": 2592000000000,
+      "tag": "playbill-duration-v1"
+    },
+    "selector_privacy": "direct_allowed",
+    "tag": "playbill-capture-retention-erasure-policy-v1"
+  },
+  "selection_budget": {
+    "max_bytes": 16777216,
+    "max_items": 1,
+    "max_rows": 1,
+    "tag": "playbill-capture-selection-budget-v1"
+  },
+  "selector_schema_pins": [
+    {
+      "artifact_digest": "sha256:b3ef09f5b5b9dab400717a909c3b3bf21f58707eb7ffcd3b218acf6859a969e5",
+      "role": "selector-schema",
+      "target": {
+        "kind": "Contract",
+        "name": "whole-response-v1"
+      }
+    }
+  ],
+  "source_subject_mapping_digest": "sha256:d4811b19cac6947dfc72fbc6346b8eaeeb69b1dd78b663342be2e6bcc851e5d9"
+}

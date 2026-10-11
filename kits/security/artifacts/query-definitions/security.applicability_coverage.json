@@ -2,7 +2,7 @@
   "artifact_format": "playbill-query-definition-v1",
   "dedupe": "path",
   "default_budgets": {
-    "max_paths": 2000,
+    "max_paths": 20000,
     "max_paths_per_result": 100,
     "max_results": 200,
     "max_traversal_depth": 10,
@@ -58,7 +58,15 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:ba5cedc831c9b1638d3cfd66e99424f9e5a4afdbc1f3235be46fe72f1124c870",
+      "artifact_digest": "sha256:3272042739e226b7ae487e28c6beda4e313508f23981e70be97bb61f24fc59b1",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.justification"
+      }
+    },
+    {
+      "artifact_digest": "sha256:eb31ece87b15489dfc7800062b6ea1a054f1bbde6da12bce670956ee48b544fb",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -66,7 +74,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:a13a9df996f1db0f09af4c19d42e8f22e29edd6d03382751a4dbc6dfa7b1c8d7",
+      "artifact_digest": "sha256:52fb2248fc6f11e1d99e6222ab94be8d676c0a4b39c09f9f921d29c4938ad2c3",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -74,7 +82,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:25cb55a427037308770a91f754229147276e35168f17a46bfa7e635f274a4041",
+      "artifact_digest": "sha256:47c9aa21d2d98ad19c9b0204cfc41857caa5ac03c5a46019cdd5c74a3ee8c29c",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -82,7 +90,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:88595e13bcdbd2d3da8d5334ba8a86a47f3f1ad617a7abaabb5b73679c102cbc",
+      "artifact_digest": "sha256:7a39322364e2e1059c8c73dd4cc0331169550be8aa32d05f40a3e99473fe4aae",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -90,7 +98,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:fa856713caa41f9c178e61125fb1d3139c073c4c5e7f925bcbf4dc322f7edf4d",
+      "artifact_digest": "sha256:3c41f5f9c98a498dfc23382838af60685e59e22c9186ef5d9d9bca6aff29d9c9",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -98,7 +106,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:7c97d3df044fa28b8894261026affbf553874abf85ffadd377d5f0c9fb152db3",
+      "artifact_digest": "sha256:ec3456c6a80c2313607ed1a1060293cc6b71bd18cffd449d5eb6c7466b500959",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -106,7 +114,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:54c5022ac8f1fd4267505acb7f08859719002a755633532536ebd3d12b7b57fd",
+      "artifact_digest": "sha256:4f00800056fb9c2af1d558a2ebdc688148172e319f5fdf9bcf8aaf121305a283",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -114,7 +122,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:dd8c4f85626741e9774171f17c20d69ca4b2404d6a5da08240d5ae333479abfd",
+      "artifact_digest": "sha256:d6a354160e5eff130a244fcfbd6015d7f771a7dcfe511978d34d0b00eab5e196",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -122,7 +130,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:c398c6d6cfa7e99dfb67d9efaa37f87cf4b79389a9e4c257e7b8fdb1dc9779cf",
+      "artifact_digest": "sha256:d91ba8d6d651d1632629f945fe6e4ea3f21411bbbbb819855e7521437135f6cb",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -169,6 +177,16 @@
           "binding": "asset",
           "kind": "claim_value",
           "predicate": "security.asset.internet_exposed",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "justification",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "kind": "claim_value",
+          "predicate": "security.assessment.justification",
           "tag": "playbill-query-claim-value-ref-v1"
         }
       },
@@ -268,6 +286,18 @@
         "tag": "playbill-query-comparison-filter-v1",
         "value_type": "subject_reference"
       }
+    },
+    {
+      "binding": "vulnerability",
+      "direction": "forward",
+      "from_binding": "assessment",
+      "predicate": "security.assessment.vulnerability",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.vulnerability"
+      ],
+      "where": null
     },
     {
       "binding": "service",

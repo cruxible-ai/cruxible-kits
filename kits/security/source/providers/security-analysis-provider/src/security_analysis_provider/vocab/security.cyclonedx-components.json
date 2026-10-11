@@ -1,0 +1,32 @@
+{
+  "description": "A CycloneDX JSON SBOM and the releases already in inventory.",
+  "dimensions": [
+    {
+      "classes": [
+        {
+          "description": "a nonempty text",
+          "id": "present"
+        }
+      ],
+      "description": "whether an SBOM text is present",
+      "name": "sbom"
+    },
+    {
+      "classes": [
+        {
+          "description": "at most 4 MiB",
+          "id": "small"
+        },
+        {
+          "description": "more",
+          "id": "large"
+        }
+      ],
+      "description": "how large the SBOM is",
+      "name": "size"
+    }
+  ],
+  "interface_id": "security.cyclonedx-components",
+  "status": "draft",
+  "version": 1
+}

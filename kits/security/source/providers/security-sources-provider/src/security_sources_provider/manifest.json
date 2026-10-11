@@ -1,0 +1,60 @@
+{
+  "distribution": {
+    "name": "security-sources-provider",
+    "version": "1.0.0"
+  },
+  "entrypoint_group": "cruxible.providers",
+  "implementations": [
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "components=*;watchlist=*": "osv-query-fixture"
+      },
+      "capture_contract_families": [
+        "security.osv.exchanges.v1"
+      ],
+      "declared_endpoints": [
+        "https://api.osv.dev"
+      ],
+      "declared_input_buckets": [
+        "components=*;watchlist=*"
+      ],
+      "deterministic": false,
+      "entrypoint": "security_sources_provider.sources:OsvQuery",
+      "interface_digest": "sha256:92a7c29cdc19ede3a1c55edab561b2e9ef3de2e70ca287e30a6c30f39f49c2ae",
+      "interface_id": "security.osv-query",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "file=daily": "epss-daily-fixture"
+      },
+      "capture_contract_families": [
+        "security.epss.daily.v1"
+      ],
+      "declared_endpoints": [
+        "https://epss.empiricalsecurity.com"
+      ],
+      "declared_input_buckets": [
+        "file=daily"
+      ],
+      "deterministic": false,
+      "entrypoint": "security_sources_provider.sources:EpssDaily",
+      "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
+      "interface_id": "security.epss-daily",
+      "requires_extras": [],
+      "side_effects": false
+    }
+  ],
+  "provider_id": "security-sources-provider",
+  "schema_version": 1,
+  "supported_protocol_majors": [
+    1
+  ]
+}

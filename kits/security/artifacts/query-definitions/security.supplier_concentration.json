@@ -2,7 +2,7 @@
   "artifact_format": "playbill-query-definition-v1",
   "dedupe": "path",
   "default_budgets": {
-    "max_paths": 2000,
+    "max_paths": 20000,
     "max_paths_per_result": 100,
     "max_results": 200,
     "max_traversal_depth": 10,
@@ -50,7 +50,7 @@
   "parameters": [],
   "pins": [
     {
-      "artifact_digest": "sha256:88595e13bcdbd2d3da8d5334ba8a86a47f3f1ad617a7abaabb5b73679c102cbc",
+      "artifact_digest": "sha256:7a39322364e2e1059c8c73dd4cc0331169550be8aa32d05f40a3e99473fe4aae",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -58,7 +58,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:7c97d3df044fa28b8894261026affbf553874abf85ffadd377d5f0c9fb152db3",
+      "artifact_digest": "sha256:ec3456c6a80c2313607ed1a1060293cc6b71bd18cffd449d5eb6c7466b500959",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -66,7 +66,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:92e1dfa83721002e05ad1a1e3baf550738f3dfb40c33da4bf4d7096d7c0d6810",
+      "artifact_digest": "sha256:aa18f04875c7ff538a2d91a0b57e983ae0fc45b533c0c5b66bc78304f468ded1",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -74,7 +74,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:7a3f589d5a5cf208aff60e01c984b78123a573d6424f7f7584eeaa105bb86513",
+      "artifact_digest": "sha256:858d8cefc934511ccdc1b8a38017637d3fa275f0ad610f174817bc944ade7547",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -82,7 +82,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:c398c6d6cfa7e99dfb67d9efaa37f87cf4b79389a9e4c257e7b8fdb1dc9779cf",
+      "artifact_digest": "sha256:d91ba8d6d651d1632629f945fe6e4ea3f21411bbbbb819855e7521437135f6cb",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",

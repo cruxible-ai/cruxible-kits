@@ -1,0 +1,44 @@
+{
+  "interface_id": "security.epss-scores",
+  "version": 1,
+  "effect_class": "pure",
+  "contracts": {
+    "input": {
+      "fields": {
+        "daily_base64": {
+          "type": "string"
+        },
+        "watched": {
+          "type": "json"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": {
+      "fields": {
+        "items": {
+          "type": "json"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "watched": {
+          "type": "integer"
+        },
+        "scored": {
+          "type": "integer"
+        },
+        "model_version": {
+          "type": "string"
+        },
+        "score_date": {
+          "type": "string"
+        }
+      },
+      "allow_extra": false
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

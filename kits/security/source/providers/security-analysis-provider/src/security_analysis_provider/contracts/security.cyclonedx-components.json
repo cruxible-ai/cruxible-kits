@@ -1,0 +1,47 @@
+{
+  "interface_id": "security.cyclonedx-components",
+  "version": 1,
+  "effect_class": "pure",
+  "contracts": {
+    "input": {
+      "fields": {
+        "sbom_text": {
+          "type": "string"
+        },
+        "releases": {
+          "type": "json"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": {
+      "fields": {
+        "items": {
+          "type": "json"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "product": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "components": {
+          "type": "integer"
+        },
+        "added": {
+          "type": "integer"
+        },
+        "skipped": {
+          "type": "integer"
+        }
+      },
+      "allow_extra": false
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}
