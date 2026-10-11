@@ -1,0 +1,19 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "A business service, named by its name.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.service"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.service.name"
+    ],
+    "rule": "keys",
+    "uniqueness": "hint"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

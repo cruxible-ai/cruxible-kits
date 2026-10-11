@@ -2,7 +2,7 @@
   "artifact_format": "playbill-query-definition-v1",
   "dedupe": "path",
   "default_budgets": {
-    "max_paths": 2000,
+    "max_paths": 20000,
     "max_paths_per_result": 100,
     "max_results": 200,
     "max_traversal_depth": 10,
@@ -50,7 +50,7 @@
   "parameters": [],
   "pins": [
     {
-      "artifact_digest": "sha256:0f6c35c1b8110d810bde0794fb6c82891769f5379d4fd613d4de054ab41c2e05",
+      "artifact_digest": "sha256:50a489ce0116180bd1ea088ce3a791521a3a0179c61646fd784189d11ae1a644",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -58,7 +58,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:b13657f4b39694e79a8f6371242af6188a72e937ff5ef911c23ea21a231e25a5",
+      "artifact_digest": "sha256:12174a74ba83dcd47fe896a5ea8d6c6109ec657682f1f4249907fddc7c93c9c0",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -66,7 +66,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:12ebf4183d5b89f83d06f69c7c0cb9b67bf1d2eb55da7242feb3a160a3cb6185",
+      "artifact_digest": "sha256:2a29f2494840a6dea9e7da0c7d0bf458b6022a1e45cdefc78476c95c29239857",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -74,7 +74,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:b1211537bf7ce95b6e3b0b83a3980cc382bad4c3d798790185869a602fb7b4e9",
+      "artifact_digest": "sha256:62ff1936036ef6b36a7223c478fc31bbae2076450f1e524b5296cf18781320fe",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -82,7 +82,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:25c4f0e198ba6975dc32d4062802895b7a485407a74f0db3f55fc9804feb8d9c",
+      "artifact_digest": "sha256:abb8f39dc629f6ae6f50d876b396740e3cced99d65d22c8e9da0bb5b6b9b75c7",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -90,7 +90,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:9efdc5aec62df13c3064f55c75d9183c52d83ab90ebcd40f56e18d4a269d6792",
+      "artifact_digest": "sha256:0954f2ac7a329507371c62a37de294cd171f5e7fb5ebb02d85d77031cda3379c",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -98,7 +98,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:20c9b7376825653885c94cfc83c7243d2f735d11c29d30f27fb278a1b47d23ad",
+      "artifact_digest": "sha256:8fe9f54a64e2876aa1d71365b70635e9d808f2e2ea36b23cbfe061b5b96e3f41",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",

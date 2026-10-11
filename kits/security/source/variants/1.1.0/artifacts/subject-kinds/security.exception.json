@@ -1,0 +1,15 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "A risk exception (minted id).",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.exception"
+  },
+  "identity_rule": {
+    "rule": "minted"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

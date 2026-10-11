@@ -28,7 +28,7 @@
         "name": "security-http-evidence"
       }
     },
-    "description": "Fetch the CISA KEV catalog (static JSON, no rendering) and retain it under security.kev-http-v1. Interpretation is security.kev-triage's job. 1.1.0: a 90 s budget.",
+    "description": "Fetch the CISA KEV catalog (static JSON, no rendering) and retain it under security.kev-http-v1. Interpretation is security.kev-triage's and security.kev-attention's job. 1.1.0: a 90 s budget.",
     "graph_format": 6,
     "hard_caps": {
       "max_capture_bytes": 16777216,
@@ -68,7 +68,7 @@
         "next": "summary",
         "node_id": "catalog",
         "provider": {
-          "slot_name": "fetch",
+          "slot_name": "catalog",
           "tag": "playbill-procedure-pin-slot-ref-v1"
         },
         "request": {
@@ -108,7 +108,7 @@
             "name": "security.observation-output-v1"
           }
         },
-        "input": "$steps.catalog",
+        "input": "$steps.summary",
         "kind": "emit_capture",
         "node_id": "emit",
         "result": "$steps.summary"
@@ -120,7 +120,7 @@
         "artifact_kind": "Provider",
         "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
         "pin_role": "provider",
-        "slot_name": "fetch",
+        "slot_name": "catalog",
         "tag": "playbill-procedure-pin-slot-v1"
       }
     ],
@@ -128,7 +128,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:5a99b5716618e654fa98e2931133fa966dbf3882dc5c8c2673acc19bef48ba59",
+  "definition_digest": "sha256:df0975a4b668da92681bf6fb50800eda204833f807ad8df0cfcbd56e61c96f4b",
   "identity": {
     "kind": "Blueprint",
     "name": "security.kev-acquire"

@@ -13,7 +13,7 @@
       "path": "blueprints/security.kev-acquire.json"
     },
     {
-      "artifact_digest": "sha256:97343dd42bff5bed932c426da50e07454b7de5b7e750158dc37190e86ee6f413",
+      "artifact_digest": "sha256:83e3517f5ad4ecbf8b28bced640e1eb0e275a927581b6b6323e0c11f83cd8973",
       "path": "blueprints/security.osv-applicability.json"
     },
     {
@@ -225,19 +225,19 @@
       "path": "claim-types/security.work/verification.json"
     },
     {
-      "artifact_digest": "sha256:7e8dbff375c41ef0def7ebd86968b20cdb2e62a5e5d6bacd873c5398af6c3e42",
+      "artifact_digest": "sha256:7bbe2f67d52e9f72a9a9ca7141a0cb31182fd1cf7a3c34f7c99364ce729d1ca3",
       "path": "procedures/security.cve-applicability.json"
     },
     {
-      "artifact_digest": "sha256:0c27e11c00594e5d931977da4f02c5c3779d16326465e5b8a97ad0089c076c16",
+      "artifact_digest": "sha256:92aea2f562d318bf7f6b26b0fff19c5ae35a13c38ab06f8b2174b06ffdc815a4",
       "path": "procedures/security.epss-triage.json"
     },
     {
-      "artifact_digest": "sha256:4afcdeb60c3806b9c034a14581525e930ef346622ff8454a3b13724c882a0fa5",
+      "artifact_digest": "sha256:2b1c68686007a9f62ae2820929f6c94bac74f0de51d2929bf465572efbbf30ab",
       "path": "procedures/security.kev-attention.json"
     },
     {
-      "artifact_digest": "sha256:af4e717a7d8b0ad4933bc6dcb06540b81d22f4f5a95442c0ed1d0e796eae1202",
+      "artifact_digest": "sha256:2da17a620dbc0950da28c80beacabff25b934fa620db760739e11362cbce991c",
       "path": "procedures/security.kev-triage.json"
     },
     {
@@ -245,7 +245,7 @@
       "path": "procedures/security.sbom-acquire.json"
     },
     {
-      "artifact_digest": "sha256:14f562051556eab0f658639d8136c5bf9b71c1162be80ad0a7dfd17fb1c658ea",
+      "artifact_digest": "sha256:6099a4bf4abdf457f7fc9fae1b810319b8813afc49660141957ddcbd9e3020c1",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -416,13 +416,13 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:29c8c866159d449c28320d49ad9f6f400aa40bb923c2334f34db74aec4b59f22",
-      "generation_root": "sha256:c688ca0e108e7c825091d280edd0d08e0abe216b936a5ee1d751d50915b62686",
-      "git_oid": "003e07080e2ef79cfbf730212a6f698b55a7f0ab",
-      "semantic_root": "sha256:b89ddc2e0985c548e9a74bbe8dabc8bf8cc5a2976ba1a5dcb0bef9ef91ef0f51",
+      "generation_root": "sha256:ae132b78e1707b7012cc772bb89ed4ea53ffa6e15965f67aafdb331497af0fd0",
+      "git_oid": "878299432fb01b318a0dc324ef79b27b86fb65d1",
+      "semantic_root": "sha256:b18be029b7da04240e55cffcc87d47d1b9618af9052603f7c7dea23d22e01bbb",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_a9a472162dba4556",
-    "principal_id": "owner"
+    "instance_id": "inst_d57b1802f77f4ebd",
+    "principal_id": "kit-author"
   },
   "providers": [
     {
@@ -463,7 +463,7 @@
       "version": "1.0.0",
       "wheel": {
         "filename": "security_analysis_provider-1.0.0-py3-none-any.whl",
-        "sha256": "sha256:dee499b323ce0af71b67a603b417bc44b68d06f39bc6dab3b8a0baa9d9f7c582"
+        "sha256": "sha256:2579fe48d43ca12a03a469591e0b797a3b5c249b2cbeb2604ac067acf158c233"
       }
     },
     {

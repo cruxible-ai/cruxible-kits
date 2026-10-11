@@ -126,7 +126,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:35807128d77161b8fd2495dbfd1779b64da5fe5c8c7b62a0e0680ac8566e0509",
+        "implementation_digest": "sha256:d73bffce0563c734ec46b3aac0afd51da01fe4ddaee3a71d0cbcb1766ef3dce2",
         "input": {
           "releases": "$steps.releases.result.rows",
           "sbom_text": "$steps.sbom.content.text"
@@ -144,7 +144,7 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:05e70b3c2bd9f9f135b9de0abefbc7e7a4c3a33f5f4aadd8f489e17b0bc03b40",
+          "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -230,7 +230,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:f09477804496fd9cb66622c70e75a15d76b3b168f8c1d0118d40e5e6d78c30dd",
+  "definition_digest": "sha256:a8a701209f2ed78f965000b738e5750844f10f4678483552cf3b3e59a6563c18",
   "identity": {
     "kind": "Procedure",
     "name": "security.sbom-import"
@@ -515,7 +515,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:05e70b3c2bd9f9f135b9de0abefbc7e7a4c3a33f5f4aadd8f489e17b0bc03b40",
+      "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
       "role": "provider",
       "target": {
         "kind": "Provider",

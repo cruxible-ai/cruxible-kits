@@ -113,7 +113,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:c2d3395deeea497ccf5902545a65dbf4c126f8bd8e8a88d437edc6f80165f323",
+        "implementation_digest": "sha256:cb62a8ae0a726354d67d4772093fc9048f1a0cdc22c60460182140f9aa5cd10b",
         "input": {
           "daily_base64": "$steps.epss.retrieved.body_base64",
           "watched": "$steps.watched.result.rows"
@@ -131,7 +131,7 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:05e70b3c2bd9f9f135b9de0abefbc7e7a4c3a33f5f4aadd8f489e17b0bc03b40",
+          "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -216,7 +216,7 @@
     "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:65737e78948e8698f7f3f6e6104dd2e4ee62436d50656ea3a76cf214c4305312",
+  "definition_digest": "sha256:4434a3e151f9ca98fdee6d894fba0785fab9282aa4e485cf8a0c30a923f794d7",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
@@ -471,7 +471,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:05e70b3c2bd9f9f135b9de0abefbc7e7a4c3a33f5f4aadd8f489e17b0bc03b40",
+      "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
       "role": "provider",
       "target": {
         "kind": "Provider",

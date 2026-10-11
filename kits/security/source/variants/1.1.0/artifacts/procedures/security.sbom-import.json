@@ -1,0 +1,550 @@
+{
+  "activation_policy": "drain",
+  "artifact_format": "playbill-procedure-v2",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 16777216,
+      "max_provider_calls": 2,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 120000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:3d04492c954c1e9cdf32830a660de02d88c5a131e8712ea0b0d48f231422a2dc",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sbom-summary"
+      }
+    },
+    "description": "Read the CycloneDX SBOM Capture that triggered the Line (security.cyclonedx-sbom-v1) and propose its product and release (created by key, or the held ones), the release's product link, supplier, and one security.release.component observation per component purl the release does not hold yet. Propose-only. Runs as a Line with trigger_input sbom.",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 16777216,
+      "max_items": 5000,
+      "max_provider_calls": 2,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [],
+    "name": "security.sbom-import",
+    "nodes": [
+      {
+        "as": "sbom",
+        "capture_contract": {
+          "artifact_digest": "sha256:26391ef005ecab1dbedf0b68849b5aea1cab2e35161c3a52bcd1e0a626332eef",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.cyclonedx-sbom-v1"
+          }
+        },
+        "implementation_digest": "sha256:67c337ac0a87cfe8ee42da30a21c4cce658a0ad6bb3944b39a81e921aaba843c",
+        "interface": {
+          "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "interface_digest": "sha256:faa92552bd6032d3280753881ce991501013b2eaa2005e0f974820f01248d866",
+        "kind": "source",
+        "next": "releases",
+        "node_id": "sbom",
+        "provider": {
+          "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "cruxible-builtin"
+          }
+        },
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "cyclonedx.sbom",
+          "relative_path": "sbom.cdx.json",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "as": "releases",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "parse",
+        "node_id": "releases",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:baa49156777e3c8def00797ebda3bd1ac5f0b65b0983ff977b4b59c2f87bb02c",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.release_inventory"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "parse",
+        "contract_in": {
+          "artifact_digest": "sha256:33ad43062a954acfff2fe30f76e337bd28c4961506359af4ac5d46c2b3b04e91",
+          "role": "contract-in",
+          "target": {
+            "kind": "Contract",
+            "name": "security-sbom-request"
+          }
+        },
+        "contract_out": {
+          "artifact_digest": "sha256:1b2899c8a38176d82b923acca280a00805d600a04abb7ab9621d4fa66b4a0a12",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-sbom-result"
+          }
+        },
+        "effect_policy": null,
+        "implementation_digest": "sha256:d73bffce0563c734ec46b3aac0afd51da01fe4ddaee3a71d0cbcb1766ef3dce2",
+        "input": {
+          "releases": "$steps.releases.result.rows",
+          "sbom_text": "$steps.sbom.content.text"
+        },
+        "interface": {
+          "artifact_digest": "sha256:ec15225e87e05c59c10b01a5d6532c87caaf0ee54cda0f71bb3db3ad03bd3316",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.cyclonedx-components"
+          }
+        },
+        "interface_digest": "sha256:c36b224a1408c34a4cf651218e117db35ab294a0de8c822686394729a4f94a65",
+        "kind": "call",
+        "next": "summary",
+        "node_id": "parse",
+        "provider": {
+          "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "security-analysis-provider"
+          }
+        }
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:3d04492c954c1e9cdf32830a660de02d88c5a131e8712ea0b0d48f231422a2dc",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-sbom-summary"
+          }
+        },
+        "fields": {
+          "added": "$steps.parse.added",
+          "changed": "$steps.parse.changed",
+          "components": "$steps.parse.components",
+          "product": "$steps.parse.product",
+          "skipped": "$steps.parse.skipped",
+          "version": "$steps.parse.version"
+        },
+        "kind": "project",
+        "next": "changed",
+        "node_id": "summary"
+      },
+      {
+        "kind": "guard",
+        "message": "The SBOM adds nothing inventory lacks.",
+        "node_id": "changed",
+        "on_false": "nochange",
+        "on_true": "propose",
+        "predicate": {
+          "all_of": null,
+          "any_of": null,
+          "left": {
+            "alias": "parse",
+            "input_name": null,
+            "kind": "step",
+            "parameter_name": null,
+            "path": [
+              "changed"
+            ],
+            "tag": "playbill-predicate-operand-v1",
+            "value": null
+          },
+          "not_of": null,
+          "operator": "gt",
+          "right": {
+            "alias": null,
+            "input_name": null,
+            "kind": "literal",
+            "parameter_name": null,
+            "path": [],
+            "tag": "playbill-predicate-operand-v1",
+            "value": 0
+          },
+          "tag": "playbill-guard-predicate-v1"
+        },
+        "refusal_code": "no_change"
+      },
+      {
+        "candidate_templates": {
+          "items": "$steps.parse.items"
+        },
+        "claim_types": [],
+        "kind": "propose_change_set",
+        "node_id": "propose",
+        "result": "$steps.summary"
+      },
+      {
+        "kind": "halt",
+        "node_id": "nochange",
+        "reason": "no_change"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 2
+  },
+  "definition_digest": "sha256:a8a701209f2ed78f965000b738e5750844f10f4678483552cf3b3e59a6563c18",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.sbom-import"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {}
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-sbom-request"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "releases": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "sbom_text": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-sbom-result"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "added": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "components": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "items": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "product": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "skipped": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "version": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-sbom-summary"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "added": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "components": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "product": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "skipped": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "version": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:41aab5edac4d2a47a05dd0c6337108008c87275f1bd476d38f0b200b6d62eea5",
+      "role": "acquisition-policy",
+      "target": {
+        "kind": "SourceAcquisitionPolicy",
+        "name": "security.acquisition"
+      }
+    },
+    {
+      "artifact_digest": "sha256:26391ef005ecab1dbedf0b68849b5aea1cab2e35161c3a52bcd1e0a626332eef",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.cyclonedx-sbom-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:33ad43062a954acfff2fe30f76e337bd28c4961506359af4ac5d46c2b3b04e91",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sbom-request"
+      }
+    },
+    {
+      "artifact_digest": "sha256:1b2899c8a38176d82b923acca280a00805d600a04abb7ab9621d4fa66b4a0a12",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sbom-result"
+      }
+    },
+    {
+      "artifact_digest": "sha256:3d04492c954c1e9cdf32830a660de02d88c5a131e8712ea0b0d48f231422a2dc",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sbom-summary"
+      }
+    },
+    {
+      "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "cruxible-builtin"
+      }
+    },
+    {
+      "artifact_digest": "sha256:4624fe6c3edcd851bdb0808d2a4add279b48347e0b9e76dd41d123ed723e2a0f",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "security-analysis-provider"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ec15225e87e05c59c10b01a5d6532c87caaf0ee54cda0f71bb3db3ad03bd3316",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.cyclonedx-components"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "workspace.file"
+      }
+    },
+    {
+      "artifact_digest": "sha256:baa49156777e3c8def00797ebda3bd1ac5f0b65b0983ff977b4b59c2f87bb02c",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.release_inventory"
+      }
+    }
+  ]
+}

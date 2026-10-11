@@ -1,0 +1,15 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "A compensating control (minted id).",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.control"
+  },
+  "identity_rule": {
+    "rule": "minted"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

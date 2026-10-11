@@ -1,0 +1,19 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "A product's supplier, named by its name.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.supplier"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.supplier.name"
+    ],
+    "rule": "keys",
+    "uniqueness": "hint"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

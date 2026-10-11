@@ -10,8 +10,9 @@
   "allowed_subject_kinds": [
     "security.service"
   ],
-  "artifact_format": "playbill-claim-type-v7",
+  "artifact_format": "playbill-claim-type-v8",
   "attestation_consequence_policy": null,
+  "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
   "description": "The team accountable for the service.",
