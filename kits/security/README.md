@@ -479,3 +479,10 @@ Cruxible's own dependency tree: `sbom_from_uv_lock.py` writes a CycloneDX SBOM
 per package from a uv.lock, and `run.py` imports them into a fresh instance,
 asks OSV, KEV and EPSS, reads `urgent_exposures`, and times settle batches of
 ~400 KEV Claims.
+
+A persistent instance runs the kit daily over the same dependencies:
+`setup_persistent.py` creates it (KEV and EPSS triage graduated to settle,
+applicability propose-only: the review queue), `daemon.sh` starts, stops and
+checks its daemon, `refresh_sboms.py` re-imports the SBOMs whose bytes changed
+after a dependency change, and `snapshot.py` appends one daily metrics line.
+The instance root's `OPERATING.md` says how to run and read it.
