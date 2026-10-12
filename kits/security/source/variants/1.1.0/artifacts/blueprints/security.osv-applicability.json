@@ -146,7 +146,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:5f225f24e91e8d3bdf8d5623025cf399560ec5e29b64ae5e33b472fa9096c6fb",
+        "implementation_digest": "sha256:f77ee46060605fac76e139d2fe5725c0d00dfd2f34eefb7c833e47bdd1bf9e85",
         "input": {
           "assessments": "$steps.assessments.result.rows",
           "osv": "$steps.osv",
@@ -166,7 +166,7 @@
         "next": "summary",
         "node_id": "decide",
         "provider": {
-          "artifact_digest": "sha256:82e9aae469fb94166d835f2e9fb32e61d7b16f6abf1edd5cc2653f5c0047bb53",
+          "artifact_digest": "sha256:c4f21fb3d22b82135e926aeccd0ce4d8d572b7d934e74546d8c97c7037f5a4a4",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -261,7 +261,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:8d26d31e51d0ffb53fc45a3ad1d4bf9aca0be457ee0a491144d132756e1076e7",
+  "definition_digest": "sha256:a0770e21755058059df414ce39f0e7dc5a646a5591352098805f9157c7ba7f69",
   "identity": {
     "kind": "Blueprint",
     "name": "security.osv-applicability"
@@ -574,7 +574,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:82e9aae469fb94166d835f2e9fb32e61d7b16f6abf1edd5cc2653f5c0047bb53",
+      "artifact_digest": "sha256:c4f21fb3d22b82135e926aeccd0ce4d8d572b7d934e74546d8c97c7037f5a4a4",
       "role": "provider",
       "target": {
         "kind": "Provider",

@@ -83,7 +83,7 @@
         "entrypoint": "security_analysis_provider.sbom:classify",
         "identity": "security.cyclonedx-components.input",
         "source": {
-          "digest": "sha256:6d762b6e110f23520ac85206ecb6637c972d750fb780f5f1bd8d60f4026a3400",
+          "digest": "sha256:c96ddda633e41282459b56187c8ec9debe4c96e399c9faf723cd4dfff17feda2",
           "path": "sbom.py"
         },
         "version": 1
@@ -158,7 +158,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:cf4a706d7e0b799e73950c69d5537ee1437577df81c29e06a19fee82f4d93afb",
+    "digest": "sha256:690a66db8410a9cf9e98dcee093f4b887833c3774fc22296bbfa00f76b540582",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

@@ -1,7 +1,7 @@
 {
   "distribution": {
     "name": "security-analysis-provider",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "entrypoint_group": "cruxible.providers",
   "implementations": [

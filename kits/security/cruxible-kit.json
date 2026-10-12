@@ -13,7 +13,7 @@
       "path": "blueprints/security.kev-acquire.json"
     },
     {
-      "artifact_digest": "sha256:83303aca4729a4849b9f515df2d1cda81c71f1c127a0997f293d2f14afa460f1",
+      "artifact_digest": "sha256:7603bcf2828200a0f71dbb7d4a9172e2b0375d525c25d9d9a2e7f766ba69eaa0",
       "path": "blueprints/security.osv-applicability.json"
     },
     {
@@ -233,11 +233,11 @@
       "path": "claim-types/security.work/verification.json"
     },
     {
-      "artifact_digest": "sha256:0a2770d369ab4363c1d1e4c6d087692a4241280f9f58f0378c94506014d66c02",
+      "artifact_digest": "sha256:9ebc2b60cf4a24ca5bc7d1d3e6afcd4149d3873d61f11c579031387b15223a1b",
       "path": "procedures/security.cve-applicability.json"
     },
     {
-      "artifact_digest": "sha256:42559e75e2d7b3590c72bc963618f57632ab531feb63b3013e1a75e9d0d61d9b",
+      "artifact_digest": "sha256:0cf35469eb192d366aae7dea1e27f4276a6f89b74f58d5e88b2bf369577a00b2",
       "path": "procedures/security.epss-triage.json"
     },
     {
@@ -245,11 +245,11 @@
       "path": "procedures/security.evidence-acquire.json"
     },
     {
-      "artifact_digest": "sha256:bf3f7ee3f4a3447f0cb97230ea4337ed54c492bae7098b8efcd01c40f4f27061",
+      "artifact_digest": "sha256:0b429dbf7ca3571579f42bdb96c0a593d15c98ee53e564f2780d70ffd56c59c1",
       "path": "procedures/security.kev-attention.json"
     },
     {
-      "artifact_digest": "sha256:5d1c41f9e5b8cd0f50d7ed680e643d9b366bec9aa89f97f96cca94410ff8963e",
+      "artifact_digest": "sha256:b157b76c63f38b8d0af9e4af0bf6be27c0c93a9b498f72b9bf1e21d8167a6e28",
       "path": "procedures/security.kev-triage.json"
     },
     {
@@ -257,7 +257,7 @@
       "path": "procedures/security.sbom-acquire.json"
     },
     {
-      "artifact_digest": "sha256:23e0e8ce65183e8ff2e6bb8b952d14fc2b86db5f39da7f85b2f0e6d129d3725c",
+      "artifact_digest": "sha256:c6e40375e137a1c6056d0062b56debbcf3243941f6203db8d53a0239a09935f5",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -265,7 +265,7 @@
       "path": "provider-interfaces/security.cve-applicability.json"
     },
     {
-      "artifact_digest": "sha256:ec15225e87e05c59c10b01a5d6532c87caaf0ee54cda0f71bb3db3ad03bd3316",
+      "artifact_digest": "sha256:d8290806a14e799f37ed39006d8d32a66c013d8ce6b37e22a490c4783e926629",
       "path": "provider-interfaces/security.cyclonedx-components.json"
     },
     {
@@ -428,12 +428,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:29c8c866159d449c28320d49ad9f6f400aa40bb923c2334f34db74aec4b59f22",
-      "generation_root": "sha256:0e9cc9751f0b02661ab0a05a8ea9914ec046809f845e2ecb9ecb26e8e94d385d",
-      "git_oid": "324d69e8229095fb46dcfa2dc17d8bb76de08b7a",
-      "semantic_root": "sha256:0f204241b77946e6a4cf83e4bacdbb6fb1518d33488dafac496af7ec48c4173c",
+      "generation_root": "sha256:1752569639ff2dadd39798f99533fe4c6cf8bd43752fc269fc0f87357fedefba",
+      "git_oid": "04195829b0584fc196fecd5235769195108eeb06",
+      "semantic_root": "sha256:eea5870d10d04cd7f8420e3e39e4a6c478401d691dc0d0ad9048b77d88fad078",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_e8fed059ea4e42b9",
+    "instance_id": "inst_d2709c77f4c44d6a",
     "principal_id": "kit-author"
   },
   "providers": [
@@ -467,15 +467,15 @@
         "security.osv-applicability"
       ],
       "lock": {
-        "filename": "security-analysis-provider-1.0.0.uv.lock",
-        "sha256": "sha256:ba08f5dcd22c5e97bacb4aa6b6d5ed01b9920745a2751f90c2e2d4a960ef79a6"
+        "filename": "security-analysis-provider-1.0.1.uv.lock",
+        "sha256": "sha256:b57f89765cac7705e770dc03e281697e99a1ec61afe1f25ddd97df049e9b7a5c"
       },
       "package": "security-analysis-provider",
       "provider_id": "security-analysis-provider",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "wheel": {
-        "filename": "security_analysis_provider-1.0.0-py3-none-any.whl",
-        "sha256": "sha256:64b34e0bd4229f9fd23490a60763112b9033f56027f7334fe05a5165fbdbf673"
+        "filename": "security_analysis_provider-1.0.1-py3-none-any.whl",
+        "sha256": "sha256:46297a3cff661c8c976689c3cbc3c16211c99586dc9ad4982e04499fb5421dcf"
       }
     },
     {
@@ -498,5 +498,5 @@
     }
   ],
   "tag": "playbill-kit-manifest-v1",
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
