@@ -1,4 +1,4 @@
-"""Build the security kit release (1.0.0) and its 1.1.0 gate variant from a fresh instance.
+"""Build the security kit release (1.0.1) and its 1.1.0 gate variant from a fresh instance.
 
     python source/build_release.py SCRATCH_DIR [--providers]
 
@@ -7,9 +7,9 @@ Run with the interpreter of the cruxible build the release targets (its
 state root and workspace; nothing outside it and this kit directory is written.
 ``--providers`` first rebuilds both bundled providers (registration, lock-checked
 tests, wheel). Then: start a daemon, ``init``, install ``cruxible-provider-web``
-0.2.1 and the bundled wheels, author the 1.0.0 definitions and Procedures,
-``kit build`` 1.0.0, author the 1.1.0 successors on the same instance, ``kit
-build`` 1.1.0, copy 1.0.0 over this kit's ``cruxible-kit.json``, ``artifacts/``
+0.2.1 and the bundled wheels, author the release's definitions and Procedures,
+``kit build`` it, author the 1.1.0 successors on the same instance, ``kit
+build`` 1.1.0, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
 and ``providers/`` and 1.1.0 over ``source/variants/1.1.0``, and stop the daemon.
 """
 
@@ -28,6 +28,8 @@ SOURCE = KIT / "source"
 PROVIDERS = SOURCE / "providers"
 BUNDLED = ("security-analysis-provider", "security-sources-provider")
 AUTHORING = SOURCE / "authoring" / "security_definitions.py"
+RELEASE = "1.0.1"  # keep in step with security_definitions.RELEASE
+VARIANT = "1.1.0"
 
 
 def _bin() -> str:
@@ -102,7 +104,7 @@ def main() -> None:
         for name in BUNDLED:
             (wheel,) = (PROVIDERS / name / "dist").glob("*.whl")
             cx("provider", "install", str(wheel), "--lock", str(PROVIDERS / name / "uv.lock"))
-        for release in ("1.0.0", "1.1.0"):
+        for release in (RELEASE, VARIANT):
             for stage in ("definitions", "procedures"):
                 result = subprocess.run([sys.executable, str(AUTHORING), stage, "--release",
                                          release], env=env, cwd=ws, capture_output=True,
@@ -124,12 +126,12 @@ def main() -> None:
             daemon.terminate()
             daemon.wait(timeout=30)
         shutil.rmtree(run_dir, ignore_errors=True)
-    for release, target in (("1.0.0", KIT), ("1.1.0", SOURCE / "variants" / "1.1.0")):
+    for release, target in ((RELEASE, KIT), (VARIANT, SOURCE / "variants" / VARIANT)):
         for name in ("artifacts", "providers"):
             shutil.rmtree(target / name, ignore_errors=True)
             shutil.copytree(out / release / name, target / name)
         shutil.copyfile(out / release / "cruxible-kit.json", target / "cruxible-kit.json")
-    print(f"copied 1.0.0 to {KIT} and 1.1.0 to {SOURCE / 'variants' / '1.1.0'}")
+    print(f"copied {RELEASE} to {KIT} and {VARIANT} to {SOURCE / 'variants' / VARIANT}")
 
 
 if __name__ == "__main__":

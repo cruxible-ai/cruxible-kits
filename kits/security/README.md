@@ -23,8 +23,8 @@ yours to author.
 Nine steps; provider installs take most of the time. Every manual step that
 remains is listed at the end of this section.
 
-1. **Install.** `cruxible kit add security:1.0.0` previews; commit it at the
-   coordinate the preview prints: `cruxible kit add security:1.0.0 --commit --at OID`.
+1. **Install.** `cruxible kit add security:1.0.1` previews; commit it at the
+   coordinate the preview prints: `cruxible kit add security:1.0.1 --commit --at OID`.
    This installs the bundled `security-analysis-provider` and
    `security-sources-provider` and the default `cruxible-provider-web` 0.2.1
    (by name from PyPI, verified against the recorded hashes).
@@ -113,6 +113,13 @@ remains is listed at the end of this section.
    one `security.release.component` per component purl. Review and activate it:
    `cruxible proposal list`, `cruxible proposal review ID`, `cruxible proposal
    activate ID`.
+
+   Re-reading an SBOM proposes only what the instance does not hold yet: a new
+   `metadata.component` version is a new release of the same product, a changed
+   SBOM for a held release adds its new components, and a changed supplier
+   revises the held one. A superseded release is kept, with its components and
+   assessments, since it may still be deployed; retire it yourself when it is
+   not. Components an SBOM no longer lists are not removed.
 
 7. **Ask OSV**: `cruxible line run security.osv-applicability`, then review and
    activate its proposal. Each (release, CVE) OSV relates gets an assessment; a
@@ -396,7 +403,7 @@ Procedures only change watched vulnerabilities, so the grant's scope decides.
 The Procedures do
 not change, so their digests and track records carry through.
 
-## What 1.0.0 contains
+## What 1.0.1 contains
 
 | Kind | Count | Notes |
 |---|---:|---|
@@ -408,7 +415,7 @@ not change, so their digests and track records carry through.
 | Blueprint | 4 | `security.kev-acquire`, `security.cve-record-acquire` (slot typed `web.fetch`), `security.epss-acquire` (`security.epss-daily`), `security.osv-applicability` (`security.osv-query`). |
 | Procedure | 7 | `security.kev-triage` and `security.epss-triage` (settle terminal; they propose under a propose cap), `security.kev-attention` (inbox), `security.sbom-acquire` and `security.evidence-acquire` (direct), `security.sbom-import` and `security.cve-applicability` (propose). |
 | ProviderInterface | 9 | `web.fetch` (core's), six analysis interfaces, two Source interfaces. |
-| Providers | 3 | Bundled: `security-analysis-provider` 1.0.0 (deterministic parsing and decisions, no network) and `security-sources-provider` 1.0.0 (the OSV.dev and EPSS Sources). Default by name: `cruxible-provider-web` 0.2.1. |
+| Providers | 3 | Bundled: `security-analysis-provider` 1.0.1 (deterministic parsing and decisions, no network) and `security-sources-provider` 1.0.0 (the OSV.dev and EPSS Sources). Default by name: `cruxible-provider-web` 0.2.1. |
 
 ## Operating notes
 
@@ -438,8 +445,8 @@ with the interpreter of the cruxible build the release targets. It rebuilds both
 bundled providers (registration, tests, wheel), starts a daemon on a fresh state
 root under `SCRATCH_DIR`, installs `cruxible-provider-web` 0.2.1 and the bundled
 wheels, runs `source/authoring/security_definitions.py definitions` and
-`procedures` for 1.0.0, `kit build`s it, authors the 1.1.0 successors on the
-same instance and builds those, then copies 1.0.0 over `cruxible-kit.json`,
+`procedures` for 1.0.1, `kit build`s it, authors the 1.1.0 successors on the
+same instance and builds those, then copies 1.0.1 over `cruxible-kit.json`,
 `artifacts/` and `providers/` here and 1.1.0 over `source/variants/1.1.0`. The
 same sources build the same kit digest. After changing a provider, bump its
 version. `source/providers/cruxible-provider-web` holds the published 0.2.1
@@ -456,7 +463,8 @@ daemon with a scratch state root and HOME: the kit is published to a throwaway
 HTTPS OCI registry on 127.0.0.1, installed, instantiated, automated, fed an
 inventory and an SBOM, run through OSV and CVE-record applicability, applicability
 bets, KEV triage and attention, EPSS, a restart, measurement, graduation to
-settle and the upgrade to `source/variants/1.1.0`, asserting each step's
+settle, the upgrade to `source/variants/1.1.0` and the re-import of a changed
+SBOM and a new release, asserting each step's
 observable. It is offline from every security source: `gate/fixture-sources`
 (package `security-gate-sources`) is cruxible-provider-web's own `WebFetch` and
 the kit's own OSV and EPSS adapters (vendored by its `build_registration.py`)

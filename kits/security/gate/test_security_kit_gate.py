@@ -46,6 +46,7 @@ import recipe  # noqa: E402
 KIT = HERE.parent
 RELEASE_1_0 = KIT
 RELEASE_1_1 = KIT / "source" / "variants" / "1.1.0"
+VERSION = json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())["version"]  # 1.0.x
 FIXTURE = HERE / "fixture-sources"
 SBOM = HERE / "data" / "gate-app.cdx.json"
 CADENCE = int(os.environ.get("SECURITY_KIT_GATE_CADENCE", "30"))
@@ -77,7 +78,8 @@ STEPS = {
     "16": "measure pending; readings pending/open/expired",
     "17": "graduate KEV and EPSS triage to settle by max_authority",
     "18": "upgrade to 1.1.0 keeping a local edit; re-add; downgrade blocked",
-    "19": "exit: next empty, run history",
+    "19": "SBOM re-import: a changed SBOM and a new release land; OSV assesses the new one",
+    "20": "exit: next empty, run history",
 }
 
 
@@ -373,7 +375,7 @@ def gate() -> Iterator[Gate]:
     try:
         instance.start_registry()
         subprocess.run([sys.executable, str(HERE / "publish_kit.py"), str(RELEASE_1_0),
-                        f"{instance.registry}:1.0.0"], env=instance.env, check=True,
+                        f"{instance.registry}:{VERSION}"], env=instance.env, check=True,
                        capture_output=True)
         instance.start_daemon()
         subprocess.run(["git", "init", "-q", "-b", "main", "."], cwd=instance.ws, check=True,
@@ -411,7 +413,7 @@ KIT_COUNTS = {"Blueprint": 4, "CaptureContract": 7, "ClaimType": 47, "Procedure"
 
 
 def test_02_kit_add(gate: Gate) -> None:
-    preview = gate.json("kit", "add", f"{gate.registry}:1.0.0", "--dry-run")
+    preview = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--dry-run")
     assert (preview["status"], preview["transition"]) == ("would_propose", "install")
     counts: dict[str, int] = {}
     for item in preview["plan"]:
@@ -422,11 +424,11 @@ def test_02_kit_add(gate: Gate) -> None:
     actions = {p["package"]: p["action"] for p in preview["providers"]}
     assert set(actions) == {"cruxible-provider-web", "security-analysis-provider",
                             "security-sources-provider"}, actions
-    committed = gate.json("kit", "add", f"{gate.registry}:1.0.0", "--commit",
+    committed = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--commit",
                           "--at", preview["coordinate"]["git_oid"])
     assert committed["status"] == "accepted", committed
     status = gate.out("kit", "status")
-    assert "security 1.0.0" in status and "up to date" in status, status
+    assert f"security {VERSION}" in status and "up to date" in status, status
     (kit,) = gate.json("kit", "status")["kits"]
     delivery = {p["package"]: (p["delivery"], p["state"]) for p in kit["providers"]}
     assert delivery == {"cruxible-provider-web": ("index", "installed"),
@@ -434,7 +436,7 @@ def test_02_kit_add(gate: Gate) -> None:
                         "security-sources-provider": ("bundled", "installed")}, delivery
     kinds = gate.out("get", "SubjectKind:security.assessment")
     assert "security.assessment.release_id" in kinds and "unique" in kinds, kinds
-    record("02", f"preview {counts}; accepted; status 1.0.0 up to date; providers {delivery}")
+    record("02", f"preview {counts}; accepted; status {VERSION} up to date; providers {delivery}")
 
 
 def test_03_fixture_sources(gate: Gate) -> None:
@@ -1025,18 +1027,56 @@ def test_18_upgrade(gate: Gate) -> None:
     assert "security 1.1.0" in status and "kept: QueryDefinition:security.kev_exposure" in status
     again = gate.json("kit", "add", f"{gate.registry}:1.1.0", "--dry-run")
     assert again["status"] == "unchanged", again
-    down = gate.json("kit", "add", f"{gate.registry}:1.0.0", "--dry-run")
+    down = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--dry-run")
     assert (down["status"], down["transition"]) == ("would_block", "downgrade"), down
     kept = gate.proof("QueryDefinition:security.kev_exposure")["envelope"]
     assert kept["default_budgets"]["max_results"] == 250
     origin = json.dumps(gate.proof("Procedure:security.kev-acquire"))
     assert gate.values["kev_acquire_blueprint"] in origin
     record("18", "upgrade preview: Blueprint replace, kev_cwes add, kev_exposure overwrites your "
-           "edit; --keep committed; status 1.1.0 kept; re-add unchanged; 1.0.0 would_block "
-           "(downgrade); Procedure keeps Blueprint@1.0.0")
+           "edit; --keep committed; status 1.1.0 kept; re-add unchanged; "
+           f"{VERSION} would_block (downgrade); Procedure keeps its Blueprint@{VERSION}")
 
 
-def test_19_exit(gate: Gate) -> None:
+def _import(gate: Gate, source: Path, relative: str) -> dict[str, Any]:
+    before = {r["run"] for r in gate.runs("security.sbom-import")}
+    shutil.copyfile(source, gate.ws / relative)
+    gate.out("procedure", "run", "security.sbom-acquire",
+             gate.payload(f"sbom-{source.stem}", {"relative_path": relative}))
+    run = _wait_for_run(gate, "security.sbom-import", before, 180)
+    assert run["status"] == "succeeded", gate.out("get", run["run"])[-1500:]
+    egress = gate.egress(run["run"])
+    gate.activate(egress["proposal_id"])
+    return egress
+
+
+def test_19_sbom_reimport(gate: Gate) -> None:
+    # The daily-change path: a dependency moved. The same release's SBOM gains a
+    # component, and the product's next version arrives as its own SBOM. Each
+    # lands without restating what inventory holds (product, supplier, release).
+    changed = _import(gate, SBOM.with_name("gate-app-1.0.0-changed.cdx.json"),
+                      "sboms/gate-app.cdx.json")
+    new = _import(gate, SBOM.with_name("gate-app-1.1.0.cdx.json"),
+                  "sboms/gate-app-1.1.0.cdx.json")
+    rows = {(_field(r, "product_name"), _field(r, "version")): r
+            for r in gate.rows("security.release_inventory")}
+    assert "pkg:pypi/urllib3@2.5.0" in _field(rows[("gate-app", "1.0.0")], "components")
+    assert len(_field(rows[("gate-app", "1.0.0")], "components")) == 4
+    assert _field(rows[("gate-app", "1.1.0")], "supplier_name") == "gate example"
+    run, out = gate.run_line("security.osv-applicability")
+    assert ": succeeded" in out, out
+    gate.activate(gate.egress(run)["proposal_id"])
+    held = _assessments(gate)
+    assert held[("gate-app--1.1.0", LOG4SHELL)] == (
+        "not_affected", "vulnerable_code_not_present"), held
+    assert held[("gate-app--1.0.0", LOG4SHELL)] == ("affected", None), held
+    record("19", f"changed SBOM added 1 component to gate-app 1.0.0 "
+           f"({len(changed['target_paths'])} paths); gate-app 1.1.0 landed as a new release "
+           f"({len(new['target_paths'])} paths) reusing product and supplier; OSV assessed "
+           "1.1.0 (Log4Shell not_affected at log4j-core 2.17.1); 1.0.0 kept")
+
+
+def test_20_exit(gate: Gate) -> None:
     for item in _inbox(gate, "--status", "unread"):
         gate.out("inbox", "ack", item["item_id"])
     gate.wait(lambda: "No repair work" in gate.next_text(), 120, "next not empty")
@@ -1048,4 +1088,4 @@ def test_19_exit(gate: Gate) -> None:
             if '"enablement"' not in json.dumps(gate.card(run["run"]).get("triggered_by")):
                 kinds.add("manual")
     assert {"manual", "cadence", "capture_landing"} <= kinds, kinds
-    record("19", f"next empty; run history {sorted(kinds)} plus dispatched backfill")
+    record("20", f"next empty; run history {sorted(kinds)} plus dispatched backfill")

@@ -1,7 +1,9 @@
 """Author the security kit's definitions in a fresh authoring instance.
 
-    python security_definitions.py definitions [--release 1.0.0|1.1.0]
-    python security_definitions.py procedures  [--release 1.0.0|1.1.0]
+    python security_definitions.py definitions [--release 1.0.1|1.1.0]
+    python security_definitions.py procedures  [--release 1.0.1|1.1.0]
+
+``1.1.0`` is the release gate's upgrade variant; any other release is the base.
 
 ``definitions`` proposes and activates the CaptureContracts, ClaimTypes, the
 SubjectKinds that name every security Subject, the QueryDefinitions and the
@@ -89,6 +91,8 @@ EPSS_CONTRACT = "security.epss-daily-v1"
 SBOM_CONTRACT = "security.cyclonedx-sbom-v1"
 OUTPUT_CONTRACT = "security.observation-output-v1"
 POLICY = "security.acquisition"
+RELEASE = "1.0.1"  # the kit release
+VARIANT = "1.1.0"  # the release gate's upgrade variant (not published)
 WEB_PROVIDER = "cruxible-provider-web"
 ANALYSIS_PROVIDER = "security-analysis-provider"
 SOURCES_PROVIDER = "security-sources-provider"
@@ -370,7 +374,7 @@ def _evidence(role: str, contracts: tuple[str, ...]) -> tuple[
 
 
 def claim_types(release: str) -> list[ClaimType]:
-    rows = CLAIM_TYPES + (CLAIM_TYPES_1_1 if release != "1.0.0" else [])
+    rows = CLAIM_TYPES + (CLAIM_TYPES_1_1 if release == VARIANT else [])
     result = []
     for predicate, kinds, obj, shape, cardinality, role, contracts, form, description in rows:
         roles, default_role, rules, requirement = _evidence(role, contracts)
@@ -630,7 +634,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         _all(_cmp("assessment", "security.assessment.status", "affected"),
              _cmp("asset", "security.asset.internet_exposed", True, "boolean"),
              _cmp("vulnerability", "security.vulnerability.kev_listed", True, "boolean")),
-        max_results=100 if release == "1.0.0" else 500,
+        max_results=500 if release == VARIANT else 100,
     ))
     # Urgent exposures: every release assessed affected, KEV-listed first, then by EPSS,
     # with the assets that install it.
@@ -1088,7 +1092,7 @@ def _interface(cx: Cruxible, name: str) -> dict[str, Any]:
 
 def kev_acquire(cx: Cruxible, release: str) -> BlueprintInput:
     web = cx.provider_interface("web.fetch", provider=WEB_PROVIDER)
-    budget_seconds = 60 if release == "1.0.0" else 90
+    budget_seconds = 90 if release == VARIANT else 60
     sequence = Sequence(
         [
             Source("catalog", capture_contract=KEV_CONTRACT, next="summary",
@@ -1102,7 +1106,7 @@ def kev_acquire(cx: Cruxible, release: str) -> BlueprintInput:
             "Fetch the CISA KEV catalog (static JSON, no rendering) and retain it under "
             "security.kev-http-v1. Interpretation is security.kev-triage's and "
             "security.kev-attention's job."
-            + ("" if release == "1.0.0" else " 1.1.0: a 90 s budget.")
+            + (" 1.1.0: a 90 s budget." if release == VARIANT else "")
         ),
         contract_in=EMPTY,
         contract_out=HTTP_SUMMARY,
@@ -1612,7 +1616,7 @@ def procedures(cx: Cruxible, release: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("stage", choices=("definitions", "procedures"))
-    parser.add_argument("--release", default="1.0.0", choices=("1.0.0", "1.1.0"))
+    parser.add_argument("--release", default=RELEASE, choices=(RELEASE, VARIANT))
     args = parser.parse_args()
     with Cruxible.connect() as cx:
         if args.stage == "definitions":
