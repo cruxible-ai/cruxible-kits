@@ -312,6 +312,56 @@ def test_sbom_import_creates_by_key_and_reimports_nothing() -> None:
     assert again["items"] == [] and again["changed"] == 0
 
 
+def _held_release(version: str, components: list[str], supplier: str = "Cruxible") -> dict:
+    return _row(
+        {
+            "release": ("security.release", f"cruxible-core--{version}"),
+            "product": ("security.product", "cruxible-core"),
+            "supplier": ("security.supplier", supplier.lower()),
+        },
+        {("product", "security.product.supplied_by"): "CLM-" + "5" * 32},
+        product_name="cruxible-core",
+        version=version,
+        supplier_name=supplier.lower(),
+        components=components,
+    )
+
+
+def test_a_new_version_reuses_the_product_and_restates_nothing_it_holds() -> None:
+    held = _held_release("0.3.1", ["pkg:pypi/httpx@0.28.1"])
+    sbom = json.loads(json.dumps(SBOM))
+    sbom["metadata"]["component"]["name"] = "cruxible-core"
+    output = _run(CycloneDxComponents(), {"sbom_text": json.dumps(sbom), "releases": [held]})
+    subjects = [(i["subject_kind"], i["key"]) for i in output["items"] if "key" in i]
+    assert subjects == [("security.release", {"product_name": "cruxible-core", "version": "0.3.2"})]
+    predicates = sorted(s[1] for s in _statements(output["items"]))
+    assert predicates == ["component", "component", "product"]  # no supplied_by restated
+
+
+def test_a_changed_sbom_for_a_held_release_adds_only_its_new_components() -> None:
+    held = _held_release("0.3.2", ["pkg:pypi/httpx@0.28.1"])
+    sbom = json.loads(json.dumps(SBOM))
+    sbom["metadata"]["component"]["name"] = "cruxible-core"
+    output = _run(CycloneDxComponents(), {"sbom_text": json.dumps(sbom), "releases": [held]})
+    assert [i for i in output["items"] if "key" in i] == []
+    assert [s[2] for s in _statements(output["items"])] == ["pkg:pypi/jinja2@3.1.3"]
+
+
+def test_a_changed_supplier_revises_the_held_one() -> None:
+    held = _held_release(
+        "0.3.2", ["pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3"], supplier="Someone Else"
+    )
+    sbom = json.loads(json.dumps(SBOM))
+    sbom["metadata"]["component"]["name"] = "cruxible-core"
+    output = _run(CycloneDxComponents(), {"sbom_text": json.dumps(sbom), "releases": [held]})
+    revising = [
+        i
+        for i in output["items"]
+        if i.get("statement", {}).get("predicate") == "security.product.supplied_by"
+    ]
+    assert [i["revises"] for i in revising] == ["CLM-" + "5" * 32]
+
+
 # --- OSV applicability ---------------------------------------------------------
 
 

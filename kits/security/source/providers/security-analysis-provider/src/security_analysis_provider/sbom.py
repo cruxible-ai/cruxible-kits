@@ -7,13 +7,15 @@ product and version; its ``components`` with a package URL are the release's
 components.
 
 The output ``items``: a Subject item for the product (key: name) and one for the
-release (key: product name + version) -- each names the live holder when there
-is one, and creates nothing then -- the release's ``product`` (when the release
-does not have one yet), one ``security.release.component`` observation per
-component purl the release does not hold yet, and the supplier with
-``product.supplied_by`` when the SBOM names a supplier and the product has none.
-A re-import of the same SBOM proposes nothing. Removing components, licences and
-the dependency graph are out of scope.
+release (key: product name + version) when inventory does not hold them yet, the
+release's ``product`` (when the release does not have one), one
+``security.release.component`` observation per component purl the release does
+not hold yet, and the supplier with ``product.supplied_by`` when the SBOM names
+a supplier the product does not have (revising the held one when it differs).
+A re-import of the same SBOM proposes nothing; a new version of the product is a
+new release beside the held ones, which stay (they may still be deployed).
+Removing components, retiring releases, licences and the dependency graph are
+out of scope.
 """
 
 from __future__ import annotations
@@ -106,23 +108,44 @@ class CycloneDxComponents:
             return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, str(error))
         product = key_ref(PRODUCT, name=name)
         release = key_ref(RELEASE, product_name=name, version=version)
-        # The release's held facts, when inventory already has it (matched by its key values).
+        # What inventory already holds, matched by key values: the release (its
+        # components, its product link) and the product (any of its releases' rows
+        # carries its supplier). Only what is new or changed is proposed: core does
+        # not see a statement as restated when its Subject is named through a Subject
+        # item of the same terminal (the item's creation address, not the live path),
+        # so restating a one-valued relationship would demand a disposition.
         held_components: set[str] = set()
-        has_product = has_supplier = False
+        release_held = has_product = False
+        product_held = False
+        held_supplier: tuple[str, str | None] | None = None  # (name, Claim id)
         for row in rows:
-            if (row.value("product_name"), row.value("version")) == (name_form(name), version):
+            if row.value("product_name") != name_form(name):
+                continue
+            product_bound = row.subject("product")
+            product_held = product_held or product_bound is not None
+            if product_bound is not None and row.subject("supplier") is not None:
+                held_supplier = (
+                    str(row.value("supplier_name") or ""),
+                    row.claim_id(product_bound, "security.product.supplied_by"),
+                )
+            if row.value("version") == version:
+                release_held = True
                 held_components.update(row.value("components") or ())
-                has_product = row.subject("product") is not None
-                has_supplier = row.subject("supplier") is not None
+                has_product = product_bound is not None
         source = f"CycloneDX SBOM for {name} {version}"
-        items = [
-            subject_item(PRODUCT, {"name": name}, f"{source} names the product {name}."),
-            subject_item(
-                RELEASE,
-                {"product_name": name, "version": version},
-                f"{source} describes release {version} of {name}.",
-            ),
-        ]
+        items = []
+        if not product_held:
+            items.append(
+                subject_item(PRODUCT, {"name": name}, f"{source} names the product {name}.")
+            )
+        if not release_held:
+            items.append(
+                subject_item(
+                    RELEASE,
+                    {"product_name": name, "version": version},
+                    f"{source} describes release {version} of {name}.",
+                )
+            )
         if not has_product:
             items.append(
                 claim_item(
@@ -133,7 +156,7 @@ class CycloneDxComponents:
                     role="normative",
                 )
             )
-        if supplier and not has_supplier:
+        if supplier and (held_supplier is None or held_supplier[0] != name_form(supplier)):
             items.append(
                 subject_item(
                     SUPPLIER, {"name": supplier}, f"{source} names the supplier {supplier}."
@@ -146,6 +169,7 @@ class CycloneDxComponents:
                     key_ref(SUPPLIER, name=supplier),
                     f"{source} names {supplier} as the supplier.",
                     role="normative",
+                    revises=held_supplier[1] if held_supplier is not None else None,
                 )
             )
         added = [purl for purl in purls if purl not in held_components]
