@@ -1,6 +1,6 @@
 """Regenerate the dogfood SBOMs from the current uv.lock files; re-acquire the changed ones.
 
-    python refresh_sboms.py [--core-ref claude/cut-b] [--providers-ref main] [--dry-run]
+    python refresh_sboms.py [--core-ref claude/cut-b] [--providers-ref origin/main] [--dry-run]
 
 Run it when Cruxible's dependencies change (after a deploy, or a lock bump on
 either repository). It reads each lock read-only through git (``git show
@@ -91,7 +91,7 @@ def refresh(instance: Instance, core_ref: str, providers_ref: str,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--core-ref", default="claude/cut-b")
-    parser.add_argument("--providers-ref", default="main")
+    parser.add_argument("--providers-ref", default="origin/main")
     parser.add_argument("--dry-run", action="store_true", help="list what changed, acquire nothing")
     args = parser.parse_args()
     changed = refresh(Instance(ROOT), args.core_ref, args.providers_ref, args.dry_run)

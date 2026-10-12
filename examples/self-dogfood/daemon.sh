@@ -3,7 +3,7 @@
 #
 #   SECURITY_DOGFOOD_ROOT  the instance root (default ~/tmp-workspaces/security-dogfood)
 #   SECURITY_DOGFOOD_CORE  the cruxible checkout whose .venv runs it
-#                          (default ~/tmp-workspaces/kitcore-security)
+#                          (default ~/tmp-workspaces/security-dogfood-core)
 #
 # The daemon runs under nohup with HOME, state root and socket inside the root;
 # its log is ROOT/logs/daemon.log. The owner's settings (principal, credentials)
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 ROOT="${SECURITY_DOGFOOD_ROOT:-$HOME/tmp-workspaces/security-dogfood}"
-CORE="${SECURITY_DOGFOOD_CORE:-$HOME/tmp-workspaces/kitcore-security}"
+CORE="${SECURITY_DOGFOOD_CORE:-$HOME/tmp-workspaces/security-dogfood-core}"
 CRUXIBLE="$CORE/.venv/bin/cruxible"
 
 for name in $(env | grep '^CRUXIBLE_' | cut -d= -f1); do unset "$name"; done

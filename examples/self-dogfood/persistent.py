@@ -29,7 +29,7 @@ from typing import Any
 ROOT = Path(os.environ.get("SECURITY_DOGFOOD_ROOT",
                            Path.home() / "tmp-workspaces" / "security-dogfood")).resolve()
 CORE = Path(os.environ.get("SECURITY_DOGFOOD_CORE",
-                           Path.home() / "tmp-workspaces" / "kitcore-security")).resolve()
+                           Path.home() / "tmp-workspaces" / "security-dogfood-core")).resolve()
 HERE = Path(__file__).resolve().parent
 KIT = HERE.parents[1] / "kits" / "security"
 
