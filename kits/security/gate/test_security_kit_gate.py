@@ -716,6 +716,7 @@ def test_09_analyst_judgment(gate: Gate) -> None:
     assert _field(_index_row(gate, assessment), "status_role") == "normative"
     evidence = gate.out("get", cells["status"][0]["claim"], "--detail", "evidence")
     assert "security.workspace-evidence-v1" in evidence, evidence
+    assert "the vulnerable path is unreachable" in evidence, evidence  # the write's because
     # An observation in someone's own words has no admitted evidence: its verdict is
     # uncovered, so no worklist (supported Claims only) would ever show it.
     own = gate.cx("set", f"security.assessment/{assessment}", "status", "affected", "--role",

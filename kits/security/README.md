@@ -405,6 +405,41 @@ Procedures only change watched vulnerabilities, so the grant's scope decides.
 The Procedures do
 not change, so their digests and track records carry through.
 
+## Upgrading from 1.0.1
+
+1.0.2 drops `security.assessment.judgment` (a normative status is the judgment),
+rebuilds `security-analysis-provider` (1.0.2) and names `cruxible-provider-web`
+0.2.2 as the default. On a 1.0.1 instance `cruxible kit add security:1.0.2`
+blocks on both providers (another build is installed), and `provider install`
+of either refuses (`cruxible.change_set.incomplete_closure`) while live
+definitions pin the 1.0.1 builds. The path that works:
+
+1. In one change set, retire the Blueprint `security.osv-applicability` and the
+   Procedures `security.kev-triage`, `security.kev-attention`,
+   `security.epss-triage`, `security.sbom-import` and `security.cve-applicability`,
+   with every Blueprint instance, Line, Trigger and mandate over them.
+2. `cruxible provider install cruxible-provider-web==0.2.2`, then
+   `cruxible provider install providers/security_analysis_provider-1.0.2-py3-none-any.whl
+   --lock providers/security-analysis-provider-1.0.2.uv.lock` (this kit's files).
+3. `cruxible kit add security:1.0.2 --retire-dependents
+   ClaimType:security.assessment.judgment --keep
+   ProviderInterface:security.osv-applicability --keep
+   ProviderInterface:security.cve-applicability`, then commit it with `--commit
+   --at OID`. It re-adds the retired Blueprint and Procedures, replaces the
+   queries and the status ClaimType, and retires the judgment ClaimType with its
+   live Claims. The two `--keep`s keep this instance's applicability interface
+   registrations: the definitions are the same and only the classifier source
+   digest differs; provider install binds the registration the instance holds,
+   and kit add refuses to replace a ProviderInterface registration.
+4. Author again what step 1 retired (Blueprint instance, Lines, Triggers,
+   mandates) and enable the Lines.
+
+Judgment Claims are retired, not carried into the status Claim's `because`: a
+judged assessment stays judged through its normative status, and the judgment's
+text stays readable on the retired Claim (`cruxible get CLM-...`). An
+assessment whose judgment sat on an observation status is the Procedures'
+again.
+
 ## What 1.0.2 contains
 
 | Kind | Count | Notes |
