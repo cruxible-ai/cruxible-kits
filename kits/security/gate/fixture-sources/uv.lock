@@ -218,7 +218,7 @@ wheels = [
 
 [[package]]
 name = "cruxible-provider-web"
-version = "0.2.1"
+version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cruxible-provider-runtime" },
@@ -227,7 +227,7 @@ dependencies = [
     { name = "trafilatura" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/27/c1b22df18069ffba5d629afe38399abf4ff6e79514842388b45929d0ea19/cruxible_provider_web-0.2.1-py3-none-any.whl", hash = "sha256:a04da0c479f9bbbcb66d52bbb4a2c02001f9d221d1de56de14d0448f725e41c7", size = 137886, upload-time = "2026-10-08T16:19:20.199Z" },
+    { url = "https://files.pythonhosted.org/packages/51/4a/869e41d323b43585f7225e0b6591fd10a9af0bea343199d72ff56b19c6f3/cruxible_provider_web-0.2.2-py3-none-any.whl", hash = "sha256:1340f1b7b75c51405fa771282e288d985cfe9ef0a0be76682ef66f10bb02f736", size = 138907, upload-time = "2026-10-13T20:46:20.332Z" },
 ]
 
 [[package]]
@@ -823,7 +823,7 @@ wheels = [
 
 [[package]]
 name = "security-gate-sources"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "cruxible-provider-runtime" },
@@ -834,7 +834,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "cruxible-provider-runtime", specifier = ">=0.2.0" },
-    { name = "cruxible-provider-web", specifier = "==0.2.1" },
+    { name = "cruxible-provider-web", specifier = "==0.2.2" },
     { name = "httpx", specifier = ">=0.27" },
 ]
 

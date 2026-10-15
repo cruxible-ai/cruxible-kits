@@ -80,7 +80,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:04d22c7d12e4f1017ab4165a6d607a1b6fa05d6031d71d4e8afbe2378266feca",
+    "digest": "sha256:d394c333882182485907b02e3f501fae5c6b4a68f2d51debcc876cff96954d35",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

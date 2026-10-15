@@ -7,7 +7,7 @@ Run with the interpreter of the cruxible build the release targets (its
 state root and workspace; nothing outside it and this kit directory is written.
 ``--providers`` first rebuilds both bundled providers (registration, lock-checked
 tests, wheel). Then: start a daemon, ``init``, install ``cruxible-provider-web``
-0.2.1 and the bundled wheels, author the release's definitions and Procedures,
+0.2.2 and the bundled wheels, author the release's definitions and Procedures,
 ``kit build`` it, author the 1.1.0 successors on the same instance, ``kit
 build`` 1.1.0, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
 and ``providers/`` and 1.1.0 over ``source/variants/1.1.0``, and stop the daemon.
@@ -100,7 +100,7 @@ def main() -> None:
             if "=" in line and not line.lstrip().startswith("#"):
                 key, _, value = line.partition("=")
                 env[key.strip().removeprefix("export ").strip()] = value.strip().strip("'\"")
-        cx("provider", "install", "cruxible-provider-web==0.2.1")
+        cx("provider", "install", "cruxible-provider-web==0.2.2")
         for name in BUNDLED:
             (wheel,) = (PROVIDERS / name / "dist").glob("*.whl")
             cx("provider", "install", str(wheel), "--lock", str(PROVIDERS / name / "uv.lock"))

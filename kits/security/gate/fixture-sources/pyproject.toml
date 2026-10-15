@@ -4,13 +4,13 @@
 # file from this package. Gate fixture only, never published.
 [project]
 name = "security-gate-sources"
-version = "0.2.0"
+version = "0.2.1"
 description = "Offline web.fetch, security.osv-query and security.epss-daily for the security kit gate."
 requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = [
   "cruxible-provider-runtime>=0.2.0",
-  "cruxible-provider-web==0.2.1",
+  "cruxible-provider-web==0.2.2",
   "httpx>=0.27",
 ]
 

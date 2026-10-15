@@ -9,7 +9,7 @@ answers and EPSS file come from ``fixture-sources`` (``security-gate-sources``:
 cruxible-provider-web's own ``WebFetch`` and the kit's own OSV and EPSS adapters,
 serving vendored responses), bound to the kit's Blueprint slots; nothing contacts
 cisa.gov, cveawg.mitre.org, api.osv.dev or the EPSS site. Provider installs still
-resolve ``cruxible-provider-web`` 0.2.1 and Python dependencies from PyPI.
+resolve ``cruxible-provider-web`` 0.2.2 and Python dependencies from PyPI.
 
 Needs ``cruxible`` (the daemon and CLI under test; ``CRUXIBLE_BIN``, else the
 one beside this interpreter, else ``PATH``), this interpreter with

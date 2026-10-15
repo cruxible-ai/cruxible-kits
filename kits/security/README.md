@@ -26,7 +26,7 @@ remains is listed at the end of this section.
 1. **Install.** `cruxible kit add security:1.0.1` previews; commit it at the
    coordinate the preview prints: `cruxible kit add security:1.0.1 --commit --at OID`.
    This installs the bundled `security-analysis-provider` and
-   `security-sources-provider` and the default `cruxible-provider-web` 0.2.1
+   `security-sources-provider` and the default `cruxible-provider-web` 0.2.2
    (by name from PyPI, verified against the recorded hashes).
 
 2. **Instantiate the four Blueprints** on the installed Providers
@@ -415,7 +415,7 @@ not change, so their digests and track records carry through.
 | Blueprint | 4 | `security.kev-acquire`, `security.cve-record-acquire` (slot typed `web.fetch`), `security.epss-acquire` (`security.epss-daily`), `security.osv-applicability` (`security.osv-query`). |
 | Procedure | 7 | `security.kev-triage` and `security.epss-triage` (settle terminal; they propose under a propose cap), `security.kev-attention` (inbox), `security.sbom-acquire` and `security.evidence-acquire` (direct), `security.sbom-import` and `security.cve-applicability` (propose). |
 | ProviderInterface | 9 | `web.fetch` (core's), six analysis interfaces, two Source interfaces. |
-| Providers | 3 | Bundled: `security-analysis-provider` 1.0.1 (deterministic parsing and decisions, no network) and `security-sources-provider` 1.0.0 (the OSV.dev and EPSS Sources). Default by name: `cruxible-provider-web` 0.2.1. |
+| Providers | 3 | Bundled: `security-analysis-provider` 1.0.1 (deterministic parsing and decisions, no network) and `security-sources-provider` 1.0.0 (the OSV.dev and EPSS Sources). Default by name: `cruxible-provider-web` 0.2.2. |
 
 ## Operating notes
 
@@ -443,13 +443,13 @@ python source/build_release.py SCRATCH_DIR --providers
 
 with the interpreter of the cruxible build the release targets. It rebuilds both
 bundled providers (registration, tests, wheel), starts a daemon on a fresh state
-root under `SCRATCH_DIR`, installs `cruxible-provider-web` 0.2.1 and the bundled
+root under `SCRATCH_DIR`, installs `cruxible-provider-web` 0.2.2 and the bundled
 wheels, runs `source/authoring/security_definitions.py definitions` and
 `procedures` for 1.0.1, `kit build`s it, authors the 1.1.0 successors on the
 same instance and builds those, then copies 1.0.1 over `cruxible-kit.json`,
 `artifacts/` and `providers/` here and 1.1.0 over `source/variants/1.1.0`. The
 same sources build the same kit digest. After changing a provider, bump its
-version. `source/providers/cruxible-provider-web` holds the published 0.2.1
+version. `source/providers/cruxible-provider-web` holds the published 0.2.2
 wheel, the lock it embeds and the runtime wheel that lock names by path, so
 `kit build` can record the default's hashes; none of those files ship.
 `source/variants/1.1.0` is a release-gate fixture (changes `kev_exposure`, adds

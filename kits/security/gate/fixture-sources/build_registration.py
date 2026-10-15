@@ -1,9 +1,9 @@
 """Write the gate fixture's registration (and vendor the kit's Source adapters).
 
-    uv run --no-project --with cruxible-provider-web==0.2.1 python build_registration.py
+    uv run --no-project --with cruxible-provider-web==0.2.2 python build_registration.py
 
 web.fetch's definition, vocabulary and fixtures are cruxible-provider-web
-0.2.1's, byte for byte, so installing this package binds core's web.fetch
+0.2.2's, byte for byte, so installing this package binds core's web.fetch
 registration. ``security.osv-query`` and ``security.epss-daily`` are the kit's
 security-sources-provider definitions, vocabularies and fixtures, copied here
 with its ``sources.py`` (as ``_sources.py``), so the fixture registers the
@@ -103,7 +103,7 @@ def main() -> None:
         {
             "schema_version": 1,
             "provider_id": "security-gate-sources",
-            "distribution": {"name": "security-gate-sources", "version": "0.2.0"},
+            "distribution": {"name": "security-gate-sources", "version": "0.2.1"},
             "entrypoint_group": "cruxible.providers",
             "supported_protocol_majors": [1],
             "implementations": implementations,
