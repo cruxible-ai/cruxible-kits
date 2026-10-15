@@ -2,9 +2,9 @@
   "artifact_format": "playbill-provider-interface-v2",
   "classifier_code": {
     "entrypoint": "security_analysis_provider.applicability:classify_osv",
-    "source_digest": "sha256:beef5c292e5a00800fe104aa0a32acbc6b958da289203128af621b41505f612f"
+    "source_digest": "sha256:f9e8b9fca11e96bb7dc6534fb92a270f6fb6db03c087d0d33d0b8c9d86a424ac"
   },
-  "classifier_digest": "sha256:73927a509bfcf89d2d9f1e2080752db0a9752953a07f26e62d66e8ced0add5cc",
+  "classifier_digest": "sha256:75767ddc55e55bb5cc07bbc141c34b5c42862eeedabbad916af75383e6e09119",
   "classifier_identity": "security.osv-applicability.input",
   "classifier_version": 1,
   "conformance_fixture_set_digest": "sha256:e33650f8561ea6de16b69398171d566088099dd075659ada32eaa85643734126",

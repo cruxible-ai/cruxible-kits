@@ -73,14 +73,6 @@
   "parameters": [],
   "pins": [
     {
-      "artifact_digest": "sha256:c4d6ec1874c918419e9e25289ded972280079711cd8f216ea05a196a0cebb1b4",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.assessment.judgment"
-      }
-    },
-    {
       "artifact_digest": "sha256:3943580408f5ba36b2d327ff765256478de74163a43928debd3d910d3dae0304",
       "role": "claim-type",
       "target": {
@@ -89,7 +81,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:a0fa1344dfdf5bd34d0ac7636a883b3c9e15e3b421e96b21f96d465a99f73998",
+      "artifact_digest": "sha256:af3ce1531dba3d67329952c3ce2833d90318c3f19e5bedea85b5dbc200fab2aa",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -274,16 +266,6 @@
         }
       },
       {
-        "name": "judgment",
-        "tag": "playbill-query-projection-field-v1",
-        "value": {
-          "binding": "assessment",
-          "kind": "claim_value",
-          "predicate": "security.assessment.judgment",
-          "tag": "playbill-query-claim-value-ref-v1"
-        }
-      },
-      {
         "name": "kev_due_date",
         "tag": "playbill-query-projection-field-v1",
         "value": {
@@ -331,6 +313,17 @@
           "field": "subject_id",
           "kind": "subject_field",
           "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "status_role",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "field": "role",
+          "kind": "claim_field",
+          "predicate": "security.assessment.status",
+          "tag": "playbill-query-claim-field-ref-v1"
         }
       },
       {

@@ -68,7 +68,7 @@
         "next": "watched",
         "node_id": "epss",
         "provider": {
-          "artifact_digest": "sha256:fd6943a4d30ea7405186373907562c756504109c90ad0a2d31e04574dd96e446",
+          "artifact_digest": "sha256:c7c371379c85ad93d822762e15849a94884b300186668548988d98bbbfefe4f3",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -85,7 +85,7 @@
         "node_id": "watched",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:224a21add9cc237499eb07f692422087446c7da2c36dd35c4da9d143fb9d28c8",
+          "artifact_digest": "sha256:26cb0ddaf2c734b4a07174512398c9c799c4b7a9c25d2856e3c7fde60a60e12d",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -113,7 +113,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:6e444a31f696635971185201950d16c60d53ca774885e7ed1badc424e1cdae59",
+        "implementation_digest": "sha256:dcb9cd5246fa16806317cdfaa396951481f8b34ba3bafb150814dbc7fd27f546",
         "input": {
           "daily_base64": "$steps.epss.retrieved.body_base64",
           "watched": "$steps.watched.result.rows"
@@ -131,7 +131,7 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:c4f21fb3d22b82135e926aeccd0ce4d8d572b7d934e74546d8c97c7037f5a4a4",
+          "artifact_digest": "sha256:7cfba4583df4cce05e8d50673d2edb8afa0d61b5bb5057d9814a040058b07b31",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -216,7 +216,7 @@
     "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:b3589c326e061f90b995b386ad3943ec4abfc81b28b69ef709c7c3b8df49935f",
+  "definition_digest": "sha256:d6a410e9a5eadaa4bcedef1e0928b3e15df64c6b509072c8247060e634c0d283",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
@@ -471,7 +471,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:c4f21fb3d22b82135e926aeccd0ce4d8d572b7d934e74546d8c97c7037f5a4a4",
+      "artifact_digest": "sha256:7cfba4583df4cce05e8d50673d2edb8afa0d61b5bb5057d9814a040058b07b31",
       "role": "provider",
       "target": {
         "kind": "Provider",
@@ -479,7 +479,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:fd6943a4d30ea7405186373907562c756504109c90ad0a2d31e04574dd96e446",
+      "artifact_digest": "sha256:c7c371379c85ad93d822762e15849a94884b300186668548988d98bbbfefe4f3",
       "role": "provider",
       "target": {
         "kind": "Provider",
@@ -503,7 +503,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:224a21add9cc237499eb07f692422087446c7da2c36dd35c4da9d143fb9d28c8",
+      "artifact_digest": "sha256:26cb0ddaf2c734b4a07174512398c9c799c4b7a9c25d2856e3c7fde60a60e12d",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

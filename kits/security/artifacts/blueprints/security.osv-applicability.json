@@ -69,7 +69,7 @@
         "node_id": "watched",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:224a21add9cc237499eb07f692422087446c7da2c36dd35c4da9d143fb9d28c8",
+          "artifact_digest": "sha256:26cb0ddaf2c734b4a07174512398c9c799c4b7a9c25d2856e3c7fde60a60e12d",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -86,7 +86,7 @@
         "node_id": "assessments",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:fa5a658396eb21b4f0cbb3346b739da956d94f564d9f267f9d69fbb06c68c194",
+          "artifact_digest": "sha256:0eee96188ab6c97709201da08c0a689bb11820f21809fa4c4cffb4d5a24df989",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -146,7 +146,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:f77ee46060605fac76e139d2fe5725c0d00dfd2f34eefb7c833e47bdd1bf9e85",
+        "implementation_digest": "sha256:483ae15bcd7c72f799685203d8a368e7711b64bba89fafca2adb0924b478038e",
         "input": {
           "assessments": "$steps.assessments.result.rows",
           "osv": "$steps.osv",
@@ -154,7 +154,7 @@
           "watched": "$steps.watched.result.rows"
         },
         "interface": {
-          "artifact_digest": "sha256:03027bb159994716f20e33199be187115d9f632d5d2f25870f05f80cd91fda89",
+          "artifact_digest": "sha256:eed10d825dba8294ef85483ee15a06862a509f1ef430642f190bf25c2d8fa29e",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
@@ -166,7 +166,7 @@
         "next": "summary",
         "node_id": "decide",
         "provider": {
-          "artifact_digest": "sha256:c4f21fb3d22b82135e926aeccd0ce4d8d572b7d934e74546d8c97c7037f5a4a4",
+          "artifact_digest": "sha256:7cfba4583df4cce05e8d50673d2edb8afa0d61b5bb5057d9814a040058b07b31",
           "role": "provider",
           "target": {
             "kind": "Provider",
@@ -261,7 +261,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:a0770e21755058059df414ce39f0e7dc5a646a5591352098805f9157c7ba7f69",
+  "definition_digest": "sha256:85e9b1c9891b0ff44f9fefb80eefb9f7ac23916c3e899509bc7607ff7ab01b2f",
   "identity": {
     "kind": "Blueprint",
     "name": "security.osv-applicability"
@@ -574,7 +574,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:c4f21fb3d22b82135e926aeccd0ce4d8d572b7d934e74546d8c97c7037f5a4a4",
+      "artifact_digest": "sha256:7cfba4583df4cce05e8d50673d2edb8afa0d61b5bb5057d9814a040058b07b31",
       "role": "provider",
       "target": {
         "kind": "Provider",
@@ -582,7 +582,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:03027bb159994716f20e33199be187115d9f632d5d2f25870f05f80cd91fda89",
+      "artifact_digest": "sha256:eed10d825dba8294ef85483ee15a06862a509f1ef430642f190bf25c2d8fa29e",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
@@ -598,7 +598,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:fa5a658396eb21b4f0cbb3346b739da956d94f564d9f267f9d69fbb06c68c194",
+      "artifact_digest": "sha256:0eee96188ab6c97709201da08c0a689bb11820f21809fa4c4cffb4d5a24df989",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -614,7 +614,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:224a21add9cc237499eb07f692422087446c7da2c36dd35c4da9d143fb9d28c8",
+      "artifact_digest": "sha256:26cb0ddaf2c734b4a07174512398c9c799c4b7a9c25d2856e3c7fde60a60e12d",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
