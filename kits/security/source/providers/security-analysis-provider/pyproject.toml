@@ -5,7 +5,7 @@
 # this lock, and `cruxible kit add` installs it before the kit's definitions.
 [project]
 name = "security-analysis-provider"
-version = "1.0.1"
+version = "1.0.2"
 description = "Security kit provider: KEV, EPSS, SBOM and applicability analysis to proposal items."
 requires-python = ">=3.11"
 license = "Apache-2.0"

@@ -22,7 +22,7 @@ from cruxible_provider_runtime.registration import INTERFACE_DOMAIN, load_regist
 
 ROOT = Path(__file__).resolve().parent
 MODULE = ROOT / "src" / "security_analysis_provider"
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 
 def _b64(data: bytes) -> str:

@@ -1,7 +1,7 @@
 """Author the security kit's definitions in a fresh authoring instance.
 
-    python security_definitions.py definitions [--release 1.0.1|1.1.0]
-    python security_definitions.py procedures  [--release 1.0.1|1.1.0]
+    python security_definitions.py definitions [--release 1.0.2|1.1.0]
+    python security_definitions.py procedures  [--release 1.0.2|1.1.0]
 
 ``1.1.0`` is the release gate's upgrade variant; any other release is the base.
 
@@ -63,6 +63,7 @@ from cruxible_client.contracts.procedures.models import (
 from cruxible_client.contracts.query.definitions import QueryDefinitionSpec, QueryEvaluationPolicy
 from cruxible_client.contracts.query.grammar import (
     QueryBudgets,
+    QueryClaimFieldRef,
     QueryClaimPresenceFilter,
     QueryClaimValueRef,
     QueryComparisonFilter,
@@ -91,7 +92,7 @@ EPSS_CONTRACT = "security.epss-daily-v1"
 SBOM_CONTRACT = "security.cyclonedx-sbom-v1"
 OUTPUT_CONTRACT = "security.observation-output-v1"
 POLICY = "security.acquisition"
-RELEASE = "1.0.1"  # the kit release
+RELEASE = "1.0.2"  # the kit release
 VARIANT = "1.1.0"  # the release gate's upgrade variant (not published)
 WEB_PROVIDER = "cruxible-provider-web"
 ANALYSIS_PROVIDER = "security-analysis-provider"
@@ -199,19 +200,15 @@ CLAIM_TYPES: list[ClaimRow] = [
      (CVE_CONTRACT, OSV_CONTRACT, OUTPUT_CONTRACT), (),
      "Whether the release is affected by the vulnerability. An observation is a source's verdict "
      "(OSV, a CVE record) citing its Capture; a normative Claim is an analyst's judgment citing "
-     "their own words or a workspace file, and comes with security.assessment.judgment."),
+     "their own words or a workspace file, with their reasoning in its because. The kit's "
+     "Procedures never revise a normative status; retire it to hand the assessment back to "
+     "them."),
     ("security.assessment.justification", ("security.assessment",), "literal",
      {"enum": sorted(JUSTIFICATIONS), "type": "string"}, "one", "judged",
      (CVE_CONTRACT, OSV_CONTRACT, OUTPUT_CONTRACT), (),
      "Why a not_affected release is not affected (the VEX/CSAF justification): an observation "
      "from a source, or (normative) an analyst's judgment. Required in practice with every "
      "not_affected status; core cannot require it."),
-    ("security.assessment.judgment", ("security.assessment",), "literal", TEXT, "one",
-     "analyst", (), (),
-     "An analyst's reasoning when the assessment's status (and justification) are their own "
-     "judgment rather than a source's verdict. Present means: this status is a judgment. The "
-     "kit's Procedures never revise an assessment that carries one; retire it to hand the "
-     "assessment back to them."),
     ("security.assessment.expected_status", ("security.assessment",), "literal",
      {"enum": ["affected", "not_affected"], "type": "string"}, "one", "normative", (), (),
      "An agent's stated bet on the assessment's status before a source observes it; "
@@ -342,11 +339,9 @@ def _evidence(role: str, contracts: tuple[str, ...]) -> tuple[
 
     ``judged``: a source's verdict (observation, citing a kit Capture) or an analyst's
     judgment (normative, citing their own words or a workspace file); writes default to
-    the judgment. ``analyst``: normative only, judgment evidence. ``sourced``: a
-    normative relationship citing its author's words or the source Capture a Procedure
-    read it from. Otherwise one role:
-    an observation needs a Capture under its contracts, a normative statement is
-    supported by its own origin.
+    the judgment. ``sourced``: a normative relationship citing its author's words or the
+    source Capture a Procedure read it from. Otherwise one role: an observation needs a
+    Capture under its contracts, a normative statement is supported by its own origin.
     """
 
     if role == "judged":
@@ -365,9 +360,6 @@ def _evidence(role: str, contracts: tuple[str, ...]) -> tuple[
              _rule("stated-by-source", "normative", contracts)),
             "self",
         )
-    if role == "analyst":
-        return (("normative",), "normative",
-                (_rule("analyst-judgment", "normative", JUDGMENT_EVIDENCE),), "self")
     if not contracts:
         return (role,), role, (), "none"
     return (role,), role, (_rule("retained-security-evidence", role, contracts),), "captured"
@@ -426,6 +418,15 @@ def _field(name: str, binding: str, predicate: str | None = None) -> QueryProjec
         value=QueryClaimValueRef(binding=binding, predicate=predicate)
         if predicate
         else QuerySubjectFieldRef(binding=binding, field="subject_id"),
+    )
+
+
+def _role(name: str, binding: str, predicate: str) -> QueryProjectionField:
+    """The role of the bound Subject's Claim of ``predicate``: normative marks a judgment."""
+
+    return QueryProjectionField(
+        name=name,
+        value=QueryClaimFieldRef(binding=binding, predicate=predicate, field="role"),
     )
 
 
@@ -572,10 +573,11 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
          _field("components", "release", "security.release.component")],
         max_results=2000,
     ))
-    # Every assessment with its key, status and justification: what applicability
-    # and attention compare with.
+    # Every assessment with its key, status (and its role: normative is an analyst's
+    # judgment) and justification: what applicability and attention compare with.
     q.append(_query(
-        "security.assessment_index", "Every assessment with its key, status and justification",
+        "security.assessment_index", "Every assessment with its key, status, the status's role "
+        "(normative: an analyst's judgment) and justification",
         "assessment", "assessment",
         [_hop("release", "assessment", "security.assessment.release", "release"),
          _hop("vulnerability", "assessment", "security.assessment.vulnerability",
@@ -587,7 +589,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
          _field("status", "assessment", "security.assessment.status"),
          _field("justification", "assessment", "security.assessment.justification"),
          _field("expected_status", "assessment", "security.assessment.expected_status"),
-         _field("judgment", "assessment", "security.assessment.judgment")],
+         _role("status_role", "assessment", "security.assessment.status")],
         max_results=2000,
     ))
     # Applicability for one vulnerability: every installed release with its assessment.
@@ -605,7 +607,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         _field("criticality", "service", "security.service.criticality"),
         _field("status", "assessment", "security.assessment.status"),
         _field("justification", "assessment", "security.assessment.justification"),
-        _field("judgment", "assessment", "security.assessment.judgment"),
+        _role("status_role", "assessment", "security.assessment.status"),
         _field("version", "release", "security.release.version"),
     ]
     q.append(_query(
@@ -654,7 +656,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
            _field("version", "release", "security.release.version"),
            _field("internet_exposed", "asset", "security.asset.internet_exposed"),
            _field("criticality", "service", "security.service.criticality"),
-           _field("judgment", "assessment", "security.assessment.judgment")]
+           _role("status_role", "assessment", "security.assessment.status")]
         + [_field(name, "vulnerability", "security.vulnerability." + name)
            for name in VULNERABILITY_FACTS],
         _cmp("assessment", "security.assessment.status", "affected"),

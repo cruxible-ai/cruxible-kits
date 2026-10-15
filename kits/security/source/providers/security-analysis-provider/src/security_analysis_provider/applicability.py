@@ -8,7 +8,7 @@ per-item rationale. They never settle: a person or agent reviews the proposal.
 A pair whose held assessment already says the same is left alone, so a re-run
 proposes nothing; a pair whose answer changed revises the held Claims (and
 retires a justification an ``affected`` answer no longer has). A pair an analyst
-judged (its assessment carries ``security.assessment.judgment``) is never
+judged (its status Claim is normative: the state tap's ``status_role``) is never
 revised: the run counts it under ``judged``.
 
 ``OsvApplicability`` (``security.osv-applicability``) reads the
@@ -131,7 +131,7 @@ def _held(rows: Iterable[Row]) -> dict[tuple[str, str], Held]:
             justification=row.value("justification"),
             status_claim=row.claim_id(assessment, STATUS),
             justification_claim=row.claim_id(assessment, JUSTIFICATION),
-            judged=row.value("judgment") is not None,
+            judged=row.value("status_role") == "normative",
         )
     return held
 
@@ -148,7 +148,7 @@ def decisions_to_items(
     for decision in decisions:
         prior = held.get((decision.release.subject_id, decision.cve))
         if prior is not None and prior.judged:
-            # An analyst's judgment (security.assessment.judgment) is never revised by a source.
+            # An analyst's judgment (a normative status) is never revised by a source.
             counts["judged"] += 1
             continue
         if (

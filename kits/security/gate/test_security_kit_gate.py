@@ -407,7 +407,7 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 4, "CaptureContract": 7, "ClaimType": 47, "Procedure": 7,
+KIT_COUNTS = {"Blueprint": 4, "CaptureContract": 7, "ClaimType": 46, "Procedure": 7,
               "ProviderInterface": 9, "QueryDefinition": 19, "SourceAcquisitionPolicy": 1,
               "SubjectKind": 11}
 
@@ -677,10 +677,16 @@ PackageLoader only).
 """
 
 
+def _index_row(gate: Gate, assessment: str) -> dict[str, Any]:
+    (row,) = [r for r in gate.rows("security.assessment_index") if r["subject_id"] == assessment]
+    return row
+
+
 def test_09_analyst_judgment(gate: Gate) -> None:
     app = "gate-app--1.0.0"
     assessment = gate.values["assessment_ids"][(app, JUDGED)]
     assert _assessments(gate)[(app, JUDGED)] == ("affected", None)
+    assert _field(_index_row(gate, assessment), "status_role") == "observation"
     (gate.ws / "analysis").mkdir(exist_ok=True)
     (gate.ws / "analysis" / "jinja2-cve-2024-56201.md").write_text(ANALYSIS_NOTE)
     out = gate.out("procedure", "run", "security.evidence-acquire", gate.payload(
@@ -697,21 +703,17 @@ def test_09_analyst_judgment(gate: Gate) -> None:
             {"op": "set", "field": "justification",
              "value": "vulnerable_code_not_in_execute_path", "role": "normative",
              "evidence": cites},
-            {"op": "set", "field": "judgment",
-             "value": "gate-app compiles only its packaged templates; the filename and "
-                      "content an attacker needs are never theirs (analysis note)."},
         ]}))
     assert _assessments(gate)[(app, JUDGED)] == (
         "not_affected", "vulnerable_code_not_in_execute_path")
-    # A judgment is visibly a judgment: its role, its reasoning, its evidence.
+    # A judgment is visibly a judgment: its role (normative), its evidence; the
+    # analyst's reasoning is the write's because.
     rows = gate.json("query", "security.assessment", "--where", f"cve_id={JUDGED}",
-                     "--select", "status,justification,judgment", "--claims")["rows"]
+                     "--select", "status,justification", "--claims")["rows"]
     cells = rows[0]["claims"]
     assert cells["status"][0]["role"] == "normative", cells
     assert cells["justification"][0]["role"] == "normative", cells
-    assert cells["judgment"][0]["value"].startswith("gate-app compiles"), cells
-    index = [r for r in gate.rows("security.assessment_index") if r["subject_id"] == assessment]
-    assert _field(index[0], "judgment"), index
+    assert _field(_index_row(gate, assessment), "status_role") == "normative"
     evidence = gate.out("get", cells["status"][0]["claim"], "--detail", "evidence")
     assert "security.workspace-evidence-v1" in evidence, evidence
     # An observation in someone's own words has no admitted evidence: its verdict is
@@ -727,8 +729,9 @@ def test_09_analyst_judgment(gate: Gate) -> None:
     watched = {_field(r, "cve_id") for r in gate.rows("security.watched_vulnerabilities")}
     assert JUDGED not in watched, watched
     record("09", "OSV said affected; the analyst cited a workspace note (evidence-acquire) and "
-           "wrote normative not_affected + vulnerable_code_not_in_execute_path + judgment; "
-           "query --claims shows role normative, assessment_index shows the judgment; an "
+           "wrote normative not_affected + vulnerable_code_not_in_execute_path; query "
+           "--claims shows role normative, assessment_index status_role observation -> "
+           "normative; an "
            "own-words observation is uncovered (no admitted evidence); OSV re-run halted "
            "no_change, the judgment stands; no longer watched")
 

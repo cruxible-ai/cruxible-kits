@@ -26,7 +26,7 @@ import recipe  # noqa: E402
 
 
 def _cells(instance: Instance) -> list[dict[str, Any]]:
-    out = instance.json("query", "security.assessment", "--select", "status,judgment",
+    out = instance.json("query", "security.assessment", "--select", "status",
                         "--claims", "--all")
     return list(out["rows"])
 
@@ -42,9 +42,9 @@ def snapshot(instance: Instance) -> dict[str, Any]:
         if cells:
             by_status[str(cells[0].get("value"))] += 1
             by_role[str(cells[0].get("role"))] += 1
+            judged += cells[0].get("role") == "normative"  # a normative status is a judgment
         else:
             by_status["none"] += 1
-        judged += bool((row.get("claims") or {}).get("judgment"))
     unread = instance.json("inbox", "list", "--status", "unread", "--limit", "200")
     next_rows = instance.json("next")
     lines = {}
@@ -58,7 +58,7 @@ def snapshot(instance: Instance) -> dict[str, Any]:
                        "elapsed_s": round((card.get("elapsed_us") or 0) / 1e6, 2)}
     urgent = [
         {k: row.get(k) for k in ("cve_id", "kev_listed", "kev_due_date", "epss_score",
-                                  "product_name", "version", "judgment")}
+                                  "product_name", "version", "status_role")}
         for row in instance.rows("security.urgent_exposures")[:5]
     ]
     attention = orient.get("attention") or {}

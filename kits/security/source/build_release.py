@@ -1,4 +1,4 @@
-"""Build the security kit release (1.0.1) and its 1.1.0 gate variant from a fresh instance.
+"""Build the security kit release (1.0.2) and its 1.1.0 gate variant from a fresh instance.
 
     python source/build_release.py SCRATCH_DIR [--providers]
 
@@ -28,7 +28,7 @@ SOURCE = KIT / "source"
 PROVIDERS = SOURCE / "providers"
 BUNDLED = ("security-analysis-provider", "security-sources-provider")
 AUTHORING = SOURCE / "authoring" / "security_definitions.py"
-RELEASE = "1.0.1"  # keep in step with security_definitions.RELEASE
+RELEASE = "1.0.2"  # keep in step with security_definitions.RELEASE
 VARIANT = "1.1.0"
 
 

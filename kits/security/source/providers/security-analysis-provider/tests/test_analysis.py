@@ -483,6 +483,7 @@ def test_a_flipped_answer_revises_status_and_retires_the_stale_justification() -
         release_id="cruxible-core--0.3.2",
         status="not_affected",
         justification="vulnerable_code_not_present",
+        status_role="observation",
     )
     output = _run(
         OsvApplicability(),
@@ -510,7 +511,7 @@ def test_an_analyst_judgment_is_never_revised_by_a_source() -> None:
         release_id="cruxible-core--0.3.2",
         status="not_affected",
         justification="vulnerable_code_not_in_execute_path",
-        judgment="We never call the affected xmlattr filter.",
+        status_role="normative",
     )
     output = _run(
         OsvApplicability(),

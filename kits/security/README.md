@@ -23,8 +23,8 @@ yours to author.
 Nine steps; provider installs take most of the time. Every manual step that
 remains is listed at the end of this section.
 
-1. **Install.** `cruxible kit add security:1.0.1` previews; commit it at the
-   coordinate the preview prints: `cruxible kit add security:1.0.1 --commit --at OID`.
+1. **Install.** `cruxible kit add security:1.0.2` previews; commit it at the
+   coordinate the preview prints: `cruxible kit add security:1.0.2 --commit --at OID`.
    This installs the bundled `security-analysis-provider` and
    `security-sources-provider` and the default `cruxible-provider-web` 0.2.2
    (by name from PyPI, verified against the recorded hashes).
@@ -268,17 +268,20 @@ Claim has:
 
 | Role | Who states it | Evidence | Shown as |
 |---|---|---|---|
-| `observation` | an applicability Procedure (a source's verdict) | the OSV or CVE-record Capture it read | `role: observation`; no `judgment` |
-| `normative` | an analyst (their own judgment) | their own words, or a workspace file retained by `security.evidence-acquire` | `role: normative`, plus the analyst's reasoning in `security.assessment.judgment` |
+| `observation` | an applicability Procedure (a source's verdict) | the OSV or CVE-record Capture it read | `role: observation` |
+| `normative` | an analyst (their own judgment) | their own words, or a workspace file retained by `security.evidence-acquire` | `role: normative`; the analyst's reasoning is the write's `because` |
 
-`cruxible query security.assessment --select status,justification,judgment
---claims` prints each Claim's role; the named worklists (`assessment_index`,
-`triage`, `applicability_coverage`, `coverage_gaps`, `urgent_exposures`) carry a
-`judgment` column, empty for a source's verdict. The Procedures never revise an
-assessment with a `judgment`: their result counts it under `judged`. Retire the
-judgment to hand the assessment back to them. An observation in someone's own
-words has no admitted evidence: core writes it with verdict `uncovered` (and
-warns), and no worklist shows it, since they read supported Claims only.
+The normative role is what marks a judgment. `cruxible query security.assessment
+--select status,justification --claims` prints each Claim's role, and `cruxible
+get CLM-... --detail evidence` its evidence and `because`. The named worklists
+(`assessment_index`, `triage`, `applicability_coverage`, `coverage_gaps`,
+`urgent_exposures`, `change_impact`) carry a `status_role` column
+(`observation` or `normative`). The Procedures never revise an assessment
+whose status is normative: their result counts it under `judged`. Retire the
+normative status (and justification) to hand the assessment back to them. An
+observation in someone's own words has no admitted evidence: core writes it
+with verdict `uncovered` (and warns), and no worklist shows it, since they read
+supported Claims only.
 
 The workflow, for a proposed `affected` or `inconclusive` you have reviewed:
 
@@ -288,23 +291,22 @@ The workflow, for a proposed `affected` or `inconclusive` you have reviewed:
    file in the workspace (code, a config, an analysis note) and
    `echo '{"relative_path": "analysis/jinja2.md"}' > ev.json; cruxible procedure run
    security.evidence-acquire ev.json`; note its `Capture evidence: sha256:...`.
-3. Record the judgment in one write (`cruxible write judgment.json`):
+3. Record the judgment in one write (`cruxible write judgment.json`), with your
+   reasoning as its `because`:
 
    ```json
-   {"because": "Analyst review of the OSV verdict: the vulnerable path is unreachable.",
+   {"because": "We compile only packaged templates; the attacker-controlled filename never reaches Jinja.",
     "subject": "security.assessment/gate-app-1.0.0--cve-2024-56201",
     "changes": [
      {"op": "set", "field": "status", "value": "not_affected", "role": "normative",
       "evidence": {"kind": "capture", "capture": "sha256:..."}},
      {"op": "set", "field": "justification", "value": "vulnerable_code_not_in_execute_path",
-      "role": "normative", "evidence": {"kind": "capture", "capture": "sha256:..."}},
-     {"op": "set", "field": "judgment",
-      "value": "We compile only packaged templates; the attacker-controlled filename never reaches Jinja."}]}
+      "role": "normative", "evidence": {"kind": "capture", "capture": "sha256:..."}}]}
    ```
 
-   Without `evidence` each change cites `because` as your own words. Always set
-   `judgment` with a normative status: it is what marks the assessment as yours
-   and keeps the Procedures from overwriting it.
+   Without `evidence` each change cites `because` as your own words. `role:
+   normative` is the default for these two fields; stating it keeps the write
+   readable.
 
 A `not_affected` assessment no longer keeps its CVE watched; if the CVE should
 stay on the watch list, state a `watch_reason`.
@@ -403,11 +405,11 @@ Procedures only change watched vulnerabilities, so the grant's scope decides.
 The Procedures do
 not change, so their digests and track records carry through.
 
-## What 1.0.1 contains
+## What 1.0.2 contains
 
 | Kind | Count | Notes |
 |---|---:|---|
-| ClaimType | 47 | All v8. Ten identity keys; inventory, applicability (`status` and `justification`: a source's observation or an analyst's normative judgment; `judgment`; `expected_status`), KEV, EPSS, `watch_reason` and remediation-work vocabulary. Observations require a Capture under a kit CaptureContract; a judgment cites the analyst's own words or a workspace file; relationships a Procedure reads from a source (`release.product`, `product.supplied_by`, `assessment.release`, `assessment.vulnerability`) cite that Capture, and their author's own words otherwise; other normative statements are supported by their own origin. |
+| ClaimType | 46 | All v8. Ten identity keys; inventory, applicability (`status` and `justification`: a source's observation or an analyst's normative judgment; `expected_status`), KEV, EPSS, `watch_reason` and remediation-work vocabulary. Observations require a Capture under a kit CaptureContract; a judgment cites the analyst's own words or a workspace file; relationships a Procedure reads from a source (`release.product`, `product.supplied_by`, `assessment.release`, `assessment.vulnerability`) cite that Capture, and their author's own words otherwise; other normative statements are supported by their own origin. |
 | SubjectKind | 11 | See Identity. |
 | CaptureContract | 7 | `security.kev-http-v1`, `security.cve-record-http-v1`, `security.osv-query-v1`, `security.epss-daily-v1`, `security.cyclonedx-sbom-v1` (a workspace file), `security.workspace-evidence-v1` (a workspace file an analyst cites), `security.observation-output-v1` (acquisition terminals). |
 | QueryDefinition | 19 | Worklists (`urgent_exposures`, `kev_exposure`, `triage`, `coverage_gaps`, `remediation_work`, ...), the Procedures' state taps (`watched_vulnerabilities`, `release_inventory`, `assessment_index`), the settle condition and the triage backlog. CVE-scoped ones take `vulnerability` (`Subject:security.vulnerability/<id>`). |
@@ -415,7 +417,7 @@ not change, so their digests and track records carry through.
 | Blueprint | 4 | `security.kev-acquire`, `security.cve-record-acquire` (slot typed `web.fetch`), `security.epss-acquire` (`security.epss-daily`), `security.osv-applicability` (`security.osv-query`). |
 | Procedure | 7 | `security.kev-triage` and `security.epss-triage` (settle terminal; they propose under a propose cap), `security.kev-attention` (inbox), `security.sbom-acquire` and `security.evidence-acquire` (direct), `security.sbom-import` and `security.cve-applicability` (propose). |
 | ProviderInterface | 9 | `web.fetch` (core's), six analysis interfaces, two Source interfaces. |
-| Providers | 3 | Bundled: `security-analysis-provider` 1.0.1 (deterministic parsing and decisions, no network) and `security-sources-provider` 1.0.0 (the OSV.dev and EPSS Sources). Default by name: `cruxible-provider-web` 0.2.2. |
+| Providers | 3 | Bundled: `security-analysis-provider` 1.0.2 (deterministic parsing and decisions, no network) and `security-sources-provider` 1.0.0 (the OSV.dev and EPSS Sources). Default by name: `cruxible-provider-web` 0.2.2. |
 
 ## Operating notes
 
@@ -445,8 +447,8 @@ with the interpreter of the cruxible build the release targets. It rebuilds both
 bundled providers (registration, tests, wheel), starts a daemon on a fresh state
 root under `SCRATCH_DIR`, installs `cruxible-provider-web` 0.2.2 and the bundled
 wheels, runs `source/authoring/security_definitions.py definitions` and
-`procedures` for 1.0.1, `kit build`s it, authors the 1.1.0 successors on the
-same instance and builds those, then copies 1.0.1 over `cruxible-kit.json`,
+`procedures` for 1.0.2, `kit build`s it, authors the 1.1.0 successors on the
+same instance and builds those, then copies 1.0.2 over `cruxible-kit.json`,
 `artifacts/` and `providers/` here and 1.1.0 over `source/variants/1.1.0`. The
 same sources build the same kit digest. After changing a provider, bump its
 version. `source/providers/cruxible-provider-web` holds the published 0.2.2
