@@ -1,0 +1,282 @@
+{
+  "kind": "change_set",
+  "rationale": "Example consumer automation for the security kit; adapt before submitting.",
+  "members": [
+    {
+      "kind": "blueprint_instance",
+      "name": "security.kev-acquire",
+      "blueprint": "security.kev-acquire",
+      "bindings": {
+        "catalog": "cruxible-provider-web"
+      },
+      "acquisition_policy": "security.acquisition"
+    },
+    {
+      "kind": "blueprint_instance",
+      "name": "security.cve-record-acquire",
+      "blueprint": "security.cve-record-acquire",
+      "bindings": {
+        "record": "cruxible-provider-web"
+      },
+      "acquisition_policy": "security.acquisition"
+    },
+    {
+      "kind": "blueprint_instance",
+      "name": "security.epss-acquire",
+      "blueprint": "security.epss-acquire",
+      "bindings": {
+        "epss": "security-sources-provider"
+      },
+      "acquisition_policy": "security.acquisition"
+    },
+    {
+      "kind": "blueprint_instance",
+      "name": "security.osv-applicability",
+      "blueprint": "security.osv-applicability",
+      "bindings": {
+        "osv": "security-sources-provider"
+      },
+      "acquisition_policy": "security.acquisition"
+    },
+    {
+      "kind": "line",
+      "name": "security.kev-daily",
+      "procedure_name": "security.kev-acquire",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "observe"
+    },
+    {
+      "kind": "line",
+      "name": "security.kev-triage",
+      "procedure_name": "security.kev-triage",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "catalog"
+    },
+    {
+      "kind": "line",
+      "name": "security.kev-attention",
+      "procedure_name": "security.kev-attention",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "observe",
+      "trigger_input": "catalog"
+    },
+    {
+      "kind": "line",
+      "name": "security.epss-daily",
+      "procedure_name": "security.epss-acquire",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "observe"
+    },
+    {
+      "kind": "line",
+      "name": "security.epss-triage",
+      "procedure_name": "security.epss-triage",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "epss"
+    },
+    {
+      "kind": "line",
+      "name": "security.sbom-import",
+      "procedure_name": "security.sbom-import",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "sbom"
+    },
+    {
+      "kind": "line",
+      "name": "security.osv-applicability",
+      "procedure_name": "security.osv-applicability",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose"
+    },
+    {
+      "kind": "line",
+      "name": "security.cve-applicability",
+      "procedure_name": "security.cve-applicability",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "record"
+    },
+    {
+      "kind": "trigger",
+      "name": "security.kev-daily",
+      "line_name": "security.kev-daily",
+      "schedule": {
+        "kind": "cron",
+        "expression": "17 14 * * *"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.epss-daily",
+      "line_name": "security.epss-daily",
+      "schedule": {
+        "kind": "cron",
+        "expression": "45 13 * * *"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.osv-daily",
+      "line_name": "security.osv-applicability",
+      "schedule": {
+        "kind": "cron",
+        "expression": "30 15 * * *"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.kev-landed",
+      "line_name": "security.kev-triage",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.kev-http-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.kev-landed-attention",
+      "line_name": "security.kev-attention",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.kev-http-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.epss-landed",
+      "line_name": "security.epss-triage",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.epss-daily-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.sbom-landed",
+      "line_name": "security.sbom-import",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.cyclonedx-sbom-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.cve-landed",
+      "line_name": "security.cve-applicability",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.cve-record-http-v1"
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.kev-triage-propose",
+      "procedure_name": "security.kev-triage",
+      "grants": "propose",
+      "namespace": [
+        "claims"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 300000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 16777216,
+        "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.epss-triage-propose",
+      "procedure_name": "security.epss-triage",
+      "grants": "propose",
+      "namespace": [
+        "claims"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 300000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 33554432,
+        "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.sbom-import-propose",
+      "procedure_name": "security.sbom-import",
+      "grants": "propose",
+      "namespace": [
+        "claims",
+        "subjects/security.product",
+        "subjects/security.release",
+        "subjects/security.supplier"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 300000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 16777216,
+        "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.osv-applicability-propose",
+      "procedure_name": "security.osv-applicability",
+      "grants": "propose",
+      "namespace": [
+        "claims",
+        "subjects/security.assessment",
+        "subjects/security.vulnerability"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 600000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 67108864,
+        "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.cve-applicability-propose",
+      "procedure_name": "security.cve-applicability",
+      "grants": "propose",
+      "namespace": [
+        "claims",
+        "subjects/security.assessment",
+        "subjects/security.vulnerability"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 300000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 16777216,
+        "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    }
+  ]
+}

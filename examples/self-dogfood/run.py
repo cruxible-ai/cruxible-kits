@@ -187,10 +187,8 @@ def main() -> None:
             "kit", "add", str(args.kit), "--commit", "--at", preview["coordinate"]["git_oid"]))
         s.timed("instantiate Blueprints", lambda: s.submit(
             "instances", recipe.instantiate("cruxible-provider-web", "security-sources-provider")))
-        digests = {name: s.json("get", f"CaptureContract:{name}", "--detail", "proof")["proof"][
-            "artifact_digest"] for name in recipe.LANDING_CONTRACTS}
         s.timed("automation change set", lambda: s.submit("automation",
-                                                         recipe.automation(digests)))
+                                                         recipe.automation()))
         s.timed("enable Lines", lambda: [s.cx("line", "enable", n) for n in recipe.LINES])
 
         # 2. SBOM import.

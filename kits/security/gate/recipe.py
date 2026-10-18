@@ -1,13 +1,13 @@
 """The README consumer recipe as payloads, for the release gate and the self-dogfood run.
 
 Every function returns the exact authoring JSON the README shows; nothing here
-talks to a daemon. ``automation`` needs the four CaptureContract digests its
-capture-landing Triggers pin (``cruxible get CaptureContract:NAME --detail
-proof``'s ``artifact_digest``).
+talks to a daemon. Capture-landing Triggers resolve CaptureContracts by name at prepare time.
 """
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -56,18 +56,24 @@ def _stamp(value: datetime) -> str:
 def instantiate(fetch: str, sources: str) -> dict[str, Any]:
     """Step 1: the four acquisition Blueprints, bound to installed Providers."""
 
-    members = [
-        {"kind": "blueprint_instance", "name": name, "blueprint": name,
-         "bindings": {slot: provider}, "acquisition_policy": POLICY}
-        for name, slot, provider in (
-            ("security.kev-acquire", "catalog", fetch),
-            ("security.cve-record-acquire", "record", fetch),
-            ("security.epss-acquire", "epss", sources),
-            ("security.osv-applicability", "osv", sources),
-        )
-    ]
+    members = [member for member in example()["members"]
+               if member["kind"] == "blueprint_instance"]
+    for member in members:
+        member["bindings"] = {slot: fetch if slot in {"catalog", "record"} else sources
+                              for slot in member["bindings"]}
     return {"kind": "change_set", "rationale": "Instantiate the security Blueprints.",
             "members": members}
+
+
+def example() -> dict[str, Any]:
+    """Load the inert documented ChangeSet; fill only the two validity timestamps."""
+    path = Path(__file__).resolve().parents[1] / "examples" / "automation.json"
+    value = json.loads(path.read_text())
+    now = _now()
+    for member in value["members"]:
+        if member["kind"] == "procedure_mandate":
+            member.update(valid_from=_stamp(now), expires_at=_stamp(now + timedelta(days=90)))
+    return value
 
 
 def mandate(procedure: str, grants: str, *, name: str | None = None,
@@ -104,11 +110,9 @@ def line(name: str, *, authority: str | None = None) -> dict[str, Any]:
     return payload
 
 
-def landing(name: str, line_name: str, contract: str, digest: str) -> dict[str, Any]:
+def landing(name: str, line_name: str, contract: str) -> dict[str, Any]:
     return {"kind": "trigger", "name": name, "line_name": line_name,
-            "schedule": {"kind": "capture_landing", "event": {
-                "capture_contract_identity": {"kind": "CaptureContract", "name": contract},
-                "capture_contract_digest": digest}}}
+            "schedule": {"kind": "capture_landing", "capture_contract": contract}}
 
 
 def cron(name: str, line_name: str, expression: str) -> dict[str, Any]:
@@ -116,29 +120,13 @@ def cron(name: str, line_name: str, expression: str) -> dict[str, Any]:
             "schedule": {"kind": "cron", "expression": expression}}
 
 
-def automation(digests: dict[str, str]) -> dict[str, Any]:
+def automation() -> dict[str, Any]:
     """Step 2: every Line, its Triggers, and the propose mandates, in one change set."""
 
-    members: list[dict[str, Any]] = [line(name) for name in LINES]
-    members += [
-        cron("security.kev-daily", "security.kev-daily", "17 14 * * *"),
-        cron("security.epss-daily", "security.epss-daily", "45 13 * * *"),
-        cron("security.osv-daily", "security.osv-applicability", "30 15 * * *"),
-        landing("security.kev-landed", "security.kev-triage", "security.kev-http-v1",
-                digests["security.kev-http-v1"]),
-        landing("security.kev-landed-attention", "security.kev-attention",
-                "security.kev-http-v1", digests["security.kev-http-v1"]),
-        landing("security.epss-landed", "security.epss-triage", "security.epss-daily-v1",
-                digests["security.epss-daily-v1"]),
-        landing("security.sbom-landed", "security.sbom-import", "security.cyclonedx-sbom-v1",
-                digests["security.cyclonedx-sbom-v1"]),
-        landing("security.cve-landed", "security.cve-applicability",
-                "security.cve-record-http-v1", digests["security.cve-record-http-v1"]),
-    ]
-    members += [mandate(procedure, "propose") for procedure in MANDATES]
-    return {"kind": "change_set",
-            "rationale": "Automate KEV, EPSS, SBOM import and applicability (propose-only).",
-            "members": members}
+    value = example()
+    value["members"] = [member for member in value["members"]
+                        if member["kind"] != "blueprint_instance"]
+    return value
 
 
 def graduate() -> dict[str, Any]:
