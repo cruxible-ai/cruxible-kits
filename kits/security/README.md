@@ -44,56 +44,15 @@ remains is listed at the end of this section.
      "bindings": {"osv": "security-sources-provider"}, "acquisition_policy": "security.acquisition"}]}
    ```
 
-3. **Read the four CaptureContract digests** the landing Triggers pin:
+3. **Adapt the [example ChangeSet](examples/automation.json)** using the
+   [walkthrough](examples/README.md): choose instance and Line names, Provider
+   bindings, namespaces, inputs, cron times and mandate expiry. Capture-landing
+   Triggers name their CaptureContract; prepare resolves and pins its digest.
 
-   ```sh
-   for c in security.kev-http-v1 security.epss-daily-v1 security.cyclonedx-sbom-v1 security.cve-record-http-v1; do
-     echo "$c $(cruxible get CaptureContract:$c --detail proof --json | jq -r .proof.artifact_digest)"; done
-   ```
-
-4. **Author the automation** in one change set: eight Lines, their Triggers and
-   five propose mandates. `gate/recipe.py`'s `automation()` builds exactly this;
-   by hand, replace `KEV`, `EPSS`, `SBOM`, `CVE` with step 3's digests and `NOW`
-   with the current UTC time:
-
-   ```json
-   {"kind": "change_set", "rationale": "Automate KEV, EPSS, SBOM import and applicability.", "members": [
-    {"kind": "line", "name": "security.kev-daily", "procedure_name": "security.kev-acquire", "acquisition_policy_name": "security.acquisition", "max_authority": "observe"},
-    {"kind": "line", "name": "security.kev-triage", "procedure_name": "security.kev-triage", "acquisition_policy_name": "security.acquisition", "max_authority": "propose", "trigger_input": "catalog"},
-    {"kind": "line", "name": "security.kev-attention", "procedure_name": "security.kev-attention", "acquisition_policy_name": "security.acquisition", "max_authority": "observe", "trigger_input": "catalog"},
-    {"kind": "line", "name": "security.epss-daily", "procedure_name": "security.epss-acquire", "acquisition_policy_name": "security.acquisition", "max_authority": "observe"},
-    {"kind": "line", "name": "security.epss-triage", "procedure_name": "security.epss-triage", "acquisition_policy_name": "security.acquisition", "max_authority": "propose", "trigger_input": "epss"},
-    {"kind": "line", "name": "security.sbom-import", "procedure_name": "security.sbom-import", "acquisition_policy_name": "security.acquisition", "max_authority": "propose", "trigger_input": "sbom"},
-    {"kind": "line", "name": "security.osv-applicability", "procedure_name": "security.osv-applicability", "acquisition_policy_name": "security.acquisition", "max_authority": "propose"},
-    {"kind": "line", "name": "security.cve-applicability", "procedure_name": "security.cve-applicability", "acquisition_policy_name": "security.acquisition", "max_authority": "propose", "trigger_input": "record"},
-    {"kind": "trigger", "name": "security.kev-daily", "line_name": "security.kev-daily", "schedule": {"kind": "cron", "expression": "17 14 * * *"}},
-    {"kind": "trigger", "name": "security.epss-daily", "line_name": "security.epss-daily", "schedule": {"kind": "cron", "expression": "45 13 * * *"}},
-    {"kind": "trigger", "name": "security.osv-daily", "line_name": "security.osv-applicability", "schedule": {"kind": "cron", "expression": "30 15 * * *"}},
-    {"kind": "trigger", "name": "security.kev-landed", "line_name": "security.kev-triage", "schedule": {"kind": "capture_landing", "event": {"capture_contract_identity": {"kind": "CaptureContract", "name": "security.kev-http-v1"}, "capture_contract_digest": "KEV"}}},
-    {"kind": "trigger", "name": "security.kev-landed-attention", "line_name": "security.kev-attention", "schedule": {"kind": "capture_landing", "event": {"capture_contract_identity": {"kind": "CaptureContract", "name": "security.kev-http-v1"}, "capture_contract_digest": "KEV"}}},
-    {"kind": "trigger", "name": "security.epss-landed", "line_name": "security.epss-triage", "schedule": {"kind": "capture_landing", "event": {"capture_contract_identity": {"kind": "CaptureContract", "name": "security.epss-daily-v1"}, "capture_contract_digest": "EPSS"}}},
-    {"kind": "trigger", "name": "security.sbom-landed", "line_name": "security.sbom-import", "schedule": {"kind": "capture_landing", "event": {"capture_contract_identity": {"kind": "CaptureContract", "name": "security.cyclonedx-sbom-v1"}, "capture_contract_digest": "SBOM"}}},
-    {"kind": "trigger", "name": "security.cve-landed", "line_name": "security.cve-applicability", "schedule": {"kind": "capture_landing", "event": {"capture_contract_identity": {"kind": "CaptureContract", "name": "security.cve-record-http-v1"}, "capture_contract_digest": "CVE"}}},
-    {"kind": "procedure_mandate", "name": "security.kev-triage-propose", "procedure_name": "security.kev-triage", "grants": "propose", "namespace": ["claims"], "valid_from": "NOW", "expires_at": "NOW+90d",
-     "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2, "max_capture_bytes": 16777216, "max_items": 5000, "max_repeat_attempts": 1}},
-    {"kind": "procedure_mandate", "name": "security.epss-triage-propose", "procedure_name": "security.epss-triage", "grants": "propose", "namespace": ["claims"], "valid_from": "NOW", "expires_at": "NOW+90d",
-     "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2, "max_capture_bytes": 33554432, "max_items": 5000, "max_repeat_attempts": 1}},
-    {"kind": "procedure_mandate", "name": "security.sbom-import-propose", "procedure_name": "security.sbom-import", "grants": "propose",
-     "namespace": ["claims", "subjects/security.product", "subjects/security.release", "subjects/security.supplier"], "valid_from": "NOW", "expires_at": "NOW+90d",
-     "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2, "max_capture_bytes": 16777216, "max_items": 5000, "max_repeat_attempts": 1}},
-    {"kind": "procedure_mandate", "name": "security.osv-applicability-propose", "procedure_name": "security.osv-applicability", "grants": "propose",
-     "namespace": ["claims", "subjects/security.assessment", "subjects/security.vulnerability"], "valid_from": "NOW", "expires_at": "NOW+90d",
-     "resource_ceiling": {"max_wall_clock": {"microseconds": 600000000}, "max_provider_calls": 2, "max_capture_bytes": 67108864, "max_items": 5000, "max_repeat_attempts": 1}},
-    {"kind": "procedure_mandate", "name": "security.cve-applicability-propose", "procedure_name": "security.cve-applicability", "grants": "propose",
-     "namespace": ["claims", "subjects/security.assessment", "subjects/security.vulnerability"], "valid_from": "NOW", "expires_at": "NOW+90d",
-     "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2, "max_capture_bytes": 16777216, "max_items": 5000, "max_repeat_attempts": 1}}]}
-   ```
-
-   Cron is UTC. CISA publishes on US business days and FIRST publishes EPSS once a
-   day around 12:00 UTC, so one fetch a day each is enough. A mandate of a
-   Procedure that creates Subjects reaches `claims` and those kinds
-   (`subjects/<kind>`) only: the key Claims a creation writes are covered by the
-   creation itself.
+4. **Submit your adapted ChangeSet** with `cruxible authoring submit automation.json`.
+   Review the proposal and satisfy your instance's approval policy before activation.
+   It instantiates four Blueprints and authors eight disabled Lines, eight Triggers
+   and five propose-only Mandates. The gate and self-dogfood scripts read this exact file.
 
 5. **Enable the Lines**: `for l in kev-daily kev-triage kev-attention epss-daily
    epss-triage sbom-import osv-applicability cve-applicability; do cruxible line
@@ -134,13 +93,9 @@ remains is listed at the end of this section.
    release assessed affected, KEV-listed first, then by EPSS score, with the
    assets that install it.
 
-Manual steps that remain (inputs to the kit-automation-template item): writing
-the change sets of steps 2 and 4 (a Provider per slot, `NOW` timestamps);
-reading four CaptureContract digests for the landing Triggers (step 3);
-enabling eight Lines one by one (step 5); writing an input file and a direct run
-per SBOM (step 6) and per CVE record (below); activating each proposal until a
-Line graduates to settle; renewing the mandates before they expire (90 days);
-re-instantiating the Blueprints after a kit upgrade that changes one.
+Consumers choose the automation and approve its proposal, enable Lines, provide
+SBOM/CVE inputs, review applicability proposals and renew Mandates before expiry.
+Blueprint instances remain consumer-authored; re-instantiate after a changed Blueprint.
 
 ## Identity
 
@@ -407,38 +362,19 @@ not change, so their digests and track records carry through.
 
 ## Upgrading from 1.0.1
 
-1.0.2 drops `security.assessment.judgment` (a normative status is the judgment),
-rebuilds `security-analysis-provider` (1.0.2) and names `cruxible-provider-web`
-0.2.2 as the default. On a 1.0.1 instance `cruxible kit add security:1.0.2`
-blocks on both providers (another build is installed), and `provider install`
-of either refuses (`cruxible.change_set.incomplete_closure`) while live
-definitions pin the 1.0.1 builds. The path that works:
+On a core that supports multiple Provider builds and D8 carry, preview
+`cruxible kit add security:1.0.2`, then commit that one upgrade with
+`cruxible kit add security:1.0.2 --commit --at OID`. It installs the changed
+bundled builds alongside the old builds and re-pins the affected Procedures.
+The preview lists carried Lines (same names, disabled) and Mandates losing settle;
+Triggers retain their exact bytes. No retire/reinstall sequence is needed.
 
-1. In one change set, retire the Blueprint `security.osv-applicability` and the
-   Procedures `security.kev-triage`, `security.kev-attention`,
-   `security.epss-triage`, `security.sbom-import` and `security.cve-applicability`,
-   with every Blueprint instance, Line, Trigger and mandate over them.
-2. `cruxible provider install cruxible-provider-web==0.2.2`, then
-   `cruxible provider install providers/security_analysis_provider-1.0.2-py3-none-any.whl
-   --lock providers/security-analysis-provider-1.0.2.uv.lock` (this kit's files).
-3. `cruxible kit add security:1.0.2 --retire-dependents
-   ClaimType:security.assessment.judgment --keep
-   ProviderInterface:security.osv-applicability --keep
-   ProviderInterface:security.cve-applicability`, then commit it with `--commit
-   --at OID`. It re-adds the retired Blueprint and Procedures, replaces the
-   queries and the status ClaimType, and retires the judgment ClaimType with its
-   live Claims. The two `--keep`s keep this instance's applicability interface
-   registrations: the definitions are the same and only the classifier source
-   digest differs; provider install binds the registration the instance holds,
-   and kit add refuses to replace a ProviderInterface registration.
-4. Author again what step 1 retired (Blueprint instance, Lines, Triggers,
-   mandates) and enable the Lines.
-
-Judgment Claims are retired, not carried into the status Claim's `because`: a
-judged assessment stays judged through its normative status, and the judgment's
-text stays readable on the retired Claim (`cruxible get CLM-...`). An
-assessment whose judgment sat on an observation status is the Procedures'
-again.
+Read `cruxible next`: each carried Line has `line_disabled_by_upgrade` and a
+`cruxible line enable NAME` repair. Enable those Lines to resume proposing.
+Re-author and approve the KEV/EPSS settle grants (step 8's graduation recipe)
+to restore settlement; enable any Line changed by that authoring. Other
+Mandates stay propose-only. Review any retained judgment Claims before retiring
+the dropped vocabulary: the normative status now identifies an analyst judgment.
 
 ## What 1.0.2 contains
 
@@ -531,3 +467,9 @@ applicability propose-only: the review queue), `daemon.sh` starts, stops and
 checks its daemon, `refresh_sboms.py` re-imports the SBOMs whose bytes changed
 after a dependency change, and `snapshot.py` appends one daily metrics line.
 The instance root's `OPERATING.md` says how to run and read it.
+
+Setup and refresh require `--core-repo PATH --core-sha FULL_SHA
+--providers-repo PATH --providers-sha FULL_SHA`; no branch defaults are used.
+Setup prints and retains these exact inputs in `source-pins.json` before
+importing the SBOMs. Choose the actual repositories and reviewed commits; the
+scripts never change those repositories.

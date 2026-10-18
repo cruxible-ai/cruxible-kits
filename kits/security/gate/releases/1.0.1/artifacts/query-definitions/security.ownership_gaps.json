@@ -1,0 +1,148 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "Assets serving a service with no owning team. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "entry": {
+    "binding": "asset",
+    "subject_id": null,
+    "subject_kinds": [
+      "security.asset"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.ownership_gaps"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [],
+  "pins": [
+    {
+      "artifact_digest": "sha256:7a39322364e2e1059c8c73dd4cc0331169550be8aa32d05f40a3e99473fe4aae",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.installs"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ec3456c6a80c2313607ed1a1060293cc6b71bd18cffd449d5eb6c7466b500959",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.serves"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d91ba8d6d651d1632629f945fe6e4ea3f21411bbbbb819855e7521437135f6cb",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.service.owned_by"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "asset",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "asset",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "release",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "service",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "service",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "asset",
+  "result_cardinality": "many",
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "release",
+      "direction": "forward",
+      "from_binding": "asset",
+      "predicate": "security.asset.installs",
+      "required": true,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.release"
+      ],
+      "where": null
+    },
+    {
+      "binding": "service",
+      "direction": "forward",
+      "from_binding": "asset",
+      "predicate": "security.asset.serves",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.service"
+      ],
+      "where": null
+    }
+  ],
+  "where": {
+    "binding": "service",
+    "kind": "claim_presence",
+    "negated": true,
+    "predicate": "security.service.owned_by",
+    "tag": "playbill-query-claim-presence-filter-v1"
+  }
+}

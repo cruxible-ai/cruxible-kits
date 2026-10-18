@@ -1,0 +1,20 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "One version of a product, named by product name and version.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.release"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.release.product_name",
+      "security.release.version"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

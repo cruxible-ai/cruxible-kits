@@ -45,6 +45,8 @@ import recipe  # noqa: E402
 
 KIT = HERE.parent
 RELEASE_1_0 = KIT
+RELEASE_1_0_1 = HERE / "releases" / "1.0.1"
+INITIAL_VERSION = "1.0.1"
 RELEASE_1_1 = KIT / "source" / "variants" / "1.1.0"
 VERSION = json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())["version"]  # 1.0.x
 FIXTURE = HERE / "fixture-sources"
@@ -374,8 +376,8 @@ def gate() -> Iterator[Gate]:
     started = time.monotonic()
     try:
         instance.start_registry()
-        subprocess.run([sys.executable, str(HERE / "publish_kit.py"), str(RELEASE_1_0),
-                        f"{instance.registry}:{VERSION}"], env=instance.env, check=True,
+        subprocess.run([sys.executable, str(HERE / "publish_kit.py"), str(RELEASE_1_0_1),
+                        f"{instance.registry}:{INITIAL_VERSION}"], env=instance.env, check=True,
                        capture_output=True)
         instance.start_daemon()
         subprocess.run(["git", "init", "-q", "-b", "main", "."], cwd=instance.ws, check=True,
@@ -413,22 +415,22 @@ KIT_COUNTS = {"Blueprint": 4, "CaptureContract": 7, "ClaimType": 46, "Procedure"
 
 
 def test_02_kit_add(gate: Gate) -> None:
-    preview = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--dry-run")
+    preview = gate.json("kit", "add", f"{gate.registry}:{INITIAL_VERSION}", "--dry-run")
     assert (preview["status"], preview["transition"]) == ("would_propose", "install")
     counts: dict[str, int] = {}
     for item in preview["plan"]:
         assert item["action"] == "add", item
         kind = item["identity"].split(":", 1)[0]
         counts[kind] = counts.get(kind, 0) + 1
-    assert counts == KIT_COUNTS, counts
+    assert counts == {**KIT_COUNTS, "ClaimType": 47}, counts
     actions = {p["package"]: p["action"] for p in preview["providers"]}
     assert set(actions) == {"cruxible-provider-web", "security-analysis-provider",
                             "security-sources-provider"}, actions
-    committed = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--commit",
+    committed = gate.json("kit", "add", f"{gate.registry}:{INITIAL_VERSION}", "--commit",
                           "--at", preview["coordinate"]["git_oid"])
     assert committed["status"] == "accepted", committed
     status = gate.out("kit", "status")
-    assert f"security {VERSION}" in status and "up to date" in status, status
+    assert f"security {INITIAL_VERSION}" in status and "up to date" in status, status
     (kit,) = gate.json("kit", "status")["kits"]
     delivery = {p["package"]: (p["delivery"], p["state"]) for p in kit["providers"]}
     assert delivery == {"cruxible-provider-web": ("index", "installed"),
@@ -436,7 +438,7 @@ def test_02_kit_add(gate: Gate) -> None:
                         "security-sources-provider": ("bundled", "installed")}, delivery
     kinds = gate.out("get", "SubjectKind:security.assessment")
     assert "security.assessment.release_id" in kinds and "unique" in kinds, kinds
-    record("02", f"preview {counts}; accepted; status {VERSION} up to date; providers {delivery}")
+    record("02", f"preview {counts}; accepted; status {INITIAL_VERSION} up to date; providers {delivery}")
 
 
 def test_03_fixture_sources(gate: Gate) -> None:
@@ -474,7 +476,7 @@ def test_04_instantiate(gate: Gate) -> None:
                         "security.sbom-acquire": "direct"}, runnable
     origin = json.dumps(gate.proof("Procedure:security.kev-acquire"))
     released = {a["path"]: a["artifact_digest"] for a in json.loads(
-        (RELEASE_1_0 / "cruxible-kit.json").read_text())["artifacts"]}
+        (RELEASE_1_0_1 / "cruxible-kit.json").read_text())["artifacts"]}
     gate.values["kev_acquire_blueprint"] = released["blueprints/security.kev-acquire.json"]
     assert gate.values["kev_acquire_blueprint"] in origin
     record("04", f"unbound refused; mismatch refused; runnable {runnable}; Blueprint origin "
@@ -482,17 +484,86 @@ def test_04_instantiate(gate: Gate) -> None:
 
 
 def test_05_automation(gate: Gate) -> None:
-    digests = {name: gate.capture_digest(name) for name in recipe.LANDING_CONTRACTS}
-    gate.submit("automation", recipe.automation(digests))
+    gate.submit("automation", recipe.automation())
     line = gate.card("Line:security.kev-triage")
     assert line["triggers_inactive"] == "not enabled", line["triggers_inactive"]
     rows = gate.json("query", "Trigger", "--where", "target=Line:security.kev-triage")["rows"]
     assert [r["name"] for r in rows] == ["security.kev-landed"], rows
+    # Give the old build live automation, including settle authority, before upgrading.
+    gate.submit("graduate-before-upgrade", recipe.graduate())
     for name in recipe.LINES:
-        if name != "security.kev-daily":  # the cadence step enables it
-            assert "enabled" in gate.out("line", "enable", name), name
-    record("05", f"{len(recipe.LINES)} Lines, Triggers and {len(recipe.MANDATES)} propose "
-           "mandates in one change set; triage Triggers inactive until enabled; 7 Lines enabled")
+        gate.out("line", "enable", name)
+    triggers = {row["name"]: gate.proof(f"Trigger:{row['name']}")
+                for row in gate.json("query", "Trigger")["rows"]}
+    old_lines = {name: gate.proof(f"Line:{name}") for name in recipe.LINES}
+    old_mandates = {f"{name}-{grant}": gate.proof(f"ProcedureMandate:{name}-{grant}")
+                    for name in recipe.MANDATES for grant in
+                    (("propose", "settle") if name in
+                     {"security.kev-triage", "security.epss-triage"} else ("propose",))}
+    subprocess.run([sys.executable, str(HERE / "publish_kit.py"), str(RELEASE_1_0),
+                    f"{gate.registry}:{VERSION}"], env=gate.env, check=True, capture_output=True)
+    preview = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--dry-run")
+    (gate.root / "upgrade-1.0.1-to-1.0.2-preview.json").write_text(
+        json.dumps(preview, indent=2) + "\n")
+    assert (preview["status"], preview["transition"]) == ("would_propose", "upgrade"), preview
+    carries = preview["automation_carries"]
+    lines = {item["identity"]: item for item in carries if item["kind"] == "line"}
+    mandates = {item["identity"]: item for item in carries if item["kind"] == "mandate"}
+    assert {"Line:security.kev-triage", "Line:security.epss-triage"} <= lines.keys(), carries
+    assert all(item["enablement"] == "disabled" for item in lines.values())
+    assert {"ProcedureMandate:security.kev-triage-settle",
+            "ProcedureMandate:security.epss-triage-settle"} <= mandates.keys(), carries
+    assert all(item["new_grant"] == "propose" for item in mandates.values())
+    assert all(mandates[f"ProcedureMandate:{name}-settle"]["loses_settle"]
+               for name in ("security.kev-triage", "security.epss-triage"))
+    assert not preview["stops"], preview["stops"]
+    old_builds = json.loads((RELEASE_1_0_1 / "cruxible-kit.json").read_text())["providers"]
+    new_builds = json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())["providers"]
+    assert old_builds != new_builds, "the upgrade must change bundled builds"
+    committed = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--commit", "--at",
+                          preview["coordinate"]["git_oid"])
+    assert committed["status"] == "accepted", committed
+    for identity, item in lines.items():
+        name = identity.removeprefix("Line:")
+        proof = gate.proof(identity)
+        assert proof["artifact_digest"] != old_lines[name]["artifact_digest"]
+        envelope = proof["envelope"]
+        assert envelope["identity"] == old_lines[name]["envelope"]["identity"]
+        assert envelope["lifecycle"]["predecessor_digest"] == old_lines[name]["artifact_digest"]
+        assert envelope["procedure"]["artifact_digest"] != old_lines[name]["envelope"][
+            "procedure"]["artifact_digest"]
+        assert gate.card(identity)["triggers_inactive"] == "not enabled"
+        assert item["old_artifact_digest"] == old_lines[name]["artifact_digest"]
+    for identity in mandates:
+        name = identity.removeprefix("ProcedureMandate:")
+        envelope = gate.proof(identity)["envelope"]
+        assert envelope["identity"] == old_mandates[name]["envelope"]["identity"]
+        assert envelope["grants"] == "propose"
+        assert not envelope.get("scope") and envelope.get("condition") is None
+        assert not envelope.get("subject_creation") and envelope.get("subject_scope") is None
+        assert envelope["namespace"] == old_mandates[name]["envelope"]["namespace"]
+    for name, old in triggers.items():
+        current = gate.proof(f"Trigger:{name}")
+        assert current["artifact_digest"] == old["artifact_digest"]
+        assert json.dumps(current["envelope"], sort_keys=True) == json.dumps(
+            old["envelope"], sort_keys=True), name
+    findings = [row for row in gate.json("next")["items"]
+                if row["reason"] == "line_disabled_by_upgrade"]
+    assert len(findings) == len(lines), findings
+    assert {row["subject_identity"] for row in findings} == lines.keys()
+    for row in findings:
+        assert row["repair"]["operation"] == "cruxible.line.enable"
+        assert row["repair"]["target"] == row["subject_identity"]
+        assert "disabled by upgrade to" in row["detail"]["detail"]
+    for name in recipe.LINES:
+        gate.out("line", "disable", name)  # stop the two acquisition Lines until their gate steps
+        if name != "security.kev-daily":
+            gate.out("line", "enable", name)
+    gate.values["upgrade_carried_lines"] = sorted(lines)
+    record("05", f"documented example authored on 1.0.1; ONE kit add -> {VERSION}; "
+           f"{len(lines)} same-identity Lines disabled, {len(mandates)} Mandates propose-only; "
+           "Triggers byte-identical; next repairs verified; enabled (KEV waits for cadence); "
+           "settle re-grant waits for step 17")
 
 
 def test_06_sbom_import(gate: Gate) -> None:
@@ -835,7 +906,7 @@ def test_12_kev_cadence(gate: Gate) -> None:
     egress = gate.egress(triage["run"])
     assert egress["kind"] == "settle_change_set"
     assert egress["settle_outcome"] == "proposed", egress
-    assert egress["fallback_reason"] == "cruxible.settle.authority_capped_by_line_max_authority"
+    assert egress["fallback_reason"] == "cruxible.settle.authority_capped_by_mandate_grant"
     gate.values["proposal"] = egress["proposal_id"]
     gate.values["first_triage"] = triage["run"]
     gate.values["kev_paths"] = len(egress["target_paths"])
@@ -846,7 +917,7 @@ def test_12_kev_cadence(gate: Gate) -> None:
     assert NEW_KEV in payload and "zammad--6.0.0" in payload and "not_watched" in payload, item
     gate.values["inbox_item"] = items[0]["item_id"]
     record("12", f"cadence tick -> capture_landing: triage proposed {len(egress['target_paths'])} "
-           "Claims (settle capped by line_max_authority); attention posted 1 inbox item "
+           "Claims (settle capped by carried propose-only mandate_grant); attention posted 1 inbox item "
            f"({NEW_KEV} matches Zammad 6.0.0, not watched)")
 
 
@@ -985,7 +1056,7 @@ def test_17_graduate(gate: Gate) -> None:
         assert gate.proof(f"Procedure:{name}")["artifact_digest"] == digest
         line = gate.card(f"Line:{name}")
         assert line["authority"] == "settle"
-        assert any(e.get("stop_reason") == "line_changed" for e in line["enablements"])
+        assert gate.proof(f"ProcedureMandate:{name}-settle")["envelope"]["grants"] == "settle"
         gate.out("line", "enable", name)
     kev_mandate = gate.proof("ProcedureMandate:security.kev-triage-settle")["artifact_digest"]
     seen = {r["run"] for r in gate.runs("security.kev-triage")}
@@ -1003,8 +1074,8 @@ def test_17_graduate(gate: Gate) -> None:
     assert gate.egress(epss["run"])["settle_outcome"] == "settled"
     assert gate.claims("security.vulnerability",
                        "security.vulnerability.epss_score")["cve-2026-102490"][0] == "0.0055"
-    record("17", "Procedure digests unchanged; authority settle; enablements stopped "
-           f"line_changed; {SETTLES} KEV fields and EPSS scores settled under the mandates "
+    record("17", "D8 carried grants re-authored and approved; Lines enabled; Procedure digests unchanged; "
+           f"authority settle; {SETTLES} KEV fields and EPSS scores settled under the mandates "
            "(condition: a keyed vulnerability; triage only changes watched ones)")
 
 

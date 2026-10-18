@@ -1,0 +1,19 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "A software product, named by its name.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.product"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.product.name"
+    ],
+    "rule": "keys",
+    "uniqueness": "hint"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}
