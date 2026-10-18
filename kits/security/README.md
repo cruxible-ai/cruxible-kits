@@ -352,6 +352,11 @@ not change, so their digests and track records carry through.
 
 ## Upgrading from 1.0.1
 
+Validation on core `6d0e31998` is currently blocked: the exact historical 1.0.1
+bundle previews successfully but its installation is refused with
+`cruxible.change_set.unresolved_pin` (legacy Provider pins). The default gate
+retains this failure. A current-bundle diagnostic run does not prove this upgrade.
+
 On a core that supports multiple Provider builds and D8 carry, preview
 `cruxible kit add security:1.0.2`, then commit that one upgrade with
 `cruxible kit add security:1.0.2 --commit --at OID`. It installs the changed

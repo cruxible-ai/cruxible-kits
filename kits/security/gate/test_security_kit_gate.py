@@ -15,7 +15,9 @@ Needs ``cruxible`` (the daemon and CLI under test; ``CRUXIBLE_BIN``, else the
 one beside this interpreter, else ``PATH``), this interpreter with
 ``cruxible_client``, ``git`` and ``openssl``. Tests run in file order and share
 one gate; a scratch root is kept for inspection when ``SECURITY_KIT_GATE_ROOT``
-names it. ``SECURITY_KIT_GATE_CADENCE`` (seconds, default 30) sets the gate
+names it. ``SECURITY_KIT_GATE_CURRENT_ONLY=1`` diagnoses the rebuilt bundle without claiming
+that the historical 1.0.1 upgrade passed. The default always requires that upgrade.
+``SECURITY_KIT_GATE_CADENCE`` (seconds, default 30) sets the gate
 cadence Trigger. Results are written to ``<root>/gate-results.md``.
 """
 
@@ -49,6 +51,12 @@ RELEASE_1_0_1 = HERE / "releases" / "1.0.1"
 INITIAL_VERSION = "1.0.1"
 RELEASE_1_1 = KIT / "source" / "variants" / "1.1.0"
 VERSION = json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())["version"]  # 1.0.x
+# Diagnostic selection validates the rebuilt bundle while a historical baseline is refused.
+# It does not satisfy the 1.0.1 upgrade gate; the default always exercises that upgrade.
+CURRENT_ONLY = os.environ.get("SECURITY_KIT_GATE_CURRENT_ONLY") == "1"
+if CURRENT_ONLY:
+    INITIAL_VERSION = VERSION
+INITIAL_RELEASE = RELEASE_1_0 if CURRENT_ONLY else RELEASE_1_0_1
 FIXTURE = HERE / "fixture-sources"
 SBOM = HERE / "data" / "gate-app.cdx.json"
 CADENCE = int(os.environ.get("SECURITY_KIT_GATE_CADENCE", "30"))
@@ -376,7 +384,7 @@ def gate() -> Iterator[Gate]:
     started = time.monotonic()
     try:
         instance.start_registry()
-        subprocess.run([sys.executable, str(HERE / "publish_kit.py"), str(RELEASE_1_0_1),
+        subprocess.run([sys.executable, str(HERE / "publish_kit.py"), str(INITIAL_RELEASE),
                         f"{instance.registry}:{INITIAL_VERSION}"], env=instance.env, check=True,
                        capture_output=True)
         instance.start_daemon()
@@ -387,7 +395,9 @@ def gate() -> Iterator[Gate]:
         yield instance
     finally:
         instance.close()
-        lines = ["| Step | Observable | Result | Observed |", "|---|---|---|---|"]
+        lines = (["CURRENT-BUNDLE DIAGNOSTIC ONLY — 1.0.1 upgrade NOT EXERCISED", ""]
+                 if CURRENT_ONLY else [])
+        lines += ["| Step | Observable | Result | Observed |", "|---|---|---|---|"]
         for step, title in STEPS.items():
             result, observed = RESULTS.get(step, ("NOT RUN", ""))
             lines.append(f"| {step} | {title} | {result} | {observed} |")
@@ -422,7 +432,7 @@ def test_02_kit_add(gate: Gate) -> None:
         assert item["action"] == "add", item
         kind = item["identity"].split(":", 1)[0]
         counts[kind] = counts.get(kind, 0) + 1
-    assert counts == {**KIT_COUNTS, "ClaimType": 47}, counts
+    assert counts == (KIT_COUNTS if CURRENT_ONLY else {**KIT_COUNTS, "ClaimType": 47}), counts
     actions = {p["package"]: p["action"] for p in preview["providers"]}
     assert set(actions) == {"cruxible-provider-web", "security-analysis-provider",
                             "security-sources-provider"}, actions
@@ -489,6 +499,13 @@ def test_05_automation(gate: Gate) -> None:
     assert line["triggers_inactive"] == "not enabled", line["triggers_inactive"]
     rows = gate.json("query", "Trigger", "--where", "target=Line:security.kev-triage")["rows"]
     assert [r["name"] for r in rows] == ["security.kev-landed"], rows
+    if CURRENT_ONLY:
+        for name in recipe.LINES:
+            if name != "security.kev-daily":
+                gate.out("line", "enable", name)
+        record("05", "CURRENT-BUNDLE DIAGNOSTIC ONLY: exact example authored and enabled; "
+               "historical 1.0.1 install refused by core; D8 upgrade NOT EXERCISED")
+        return
     # Give the old build live automation, including settle authority, before upgrading.
     gate.submit("graduate-before-upgrade", recipe.graduate())
     for name in recipe.LINES:
@@ -918,7 +935,9 @@ def test_12_kev_cadence(gate: Gate) -> None:
     egress = gate.egress(triage["run"])
     assert egress["kind"] == "settle_change_set"
     assert egress["settle_outcome"] == "proposed", egress
-    assert egress["fallback_reason"] == "cruxible.settle.authority_capped_by_mandate_grant"
+    assert egress["fallback_reason"] == (
+        "cruxible.settle.authority_capped_by_line_max_authority" if CURRENT_ONLY else
+        "cruxible.settle.authority_capped_by_mandate_grant")
     gate.values["proposal"] = egress["proposal_id"]
     gate.values["first_triage"] = triage["run"]
     gate.values["kev_paths"] = len(egress["target_paths"])
@@ -1086,7 +1105,9 @@ def test_17_graduate(gate: Gate) -> None:
     assert gate.egress(epss["run"])["settle_outcome"] == "settled"
     assert gate.claims("security.vulnerability",
                        "security.vulnerability.epss_score")["cve-2026-102490"][0] == "0.0055"
-    record("17", "D8 carried grants re-authored and approved; Lines enabled; Procedure digests unchanged; "
+    record("17", ("Initial grants authored (upgrade NOT EXERCISED); " if CURRENT_ONLY else
+                  "D8 carried grants re-authored and approved; ") +
+           "Lines enabled; Procedure digests unchanged; "
            f"authority settle; {SETTLES} KEV fields and EPSS scores settled under the mandates "
            "(condition: a keyed vulnerability; triage only changes watched ones)")
 
