@@ -9,7 +9,8 @@ state root and workspace; nothing outside it and this kit directory is written.
 wheel; run provider tests separately). Then: start a daemon, ``init``, install
 ``cruxible-provider-web``
 0.2.2 and the bundled wheels, author the release's definitions and Procedures,
-``kit build`` it, author the 1.1.0 successors on the same instance, ``kit
+``kit build`` it, install the patched 1.1.0 analysis wheel (the gate-only patch
+adds the changed KEV field to each Claim rationale), author the 1.1.0 successors, ``kit
 build`` 1.1.0, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
 and ``providers/`` and 1.1.0 over ``source/variants/1.1.0``, and stop the daemon.
 """
@@ -41,17 +42,23 @@ def _bin() -> str:
     return str(beside) if beside.exists() else "cruxible"
 
 
-def _providers(env: dict[str, str]) -> None:
-    for name in BUNDLED:
-        package = PROVIDERS / name
-        for command in (
-            [sys.executable, "build_registration.py"],
-            ["uv", "lock", "--check"],
-        ):
-            subprocess.run(command, cwd=package, env=env, check=True)
-        shutil.rmtree(package / "dist", ignore_errors=True)
-        subprocess.run(["uv", "build", "--wheel", "--out-dir", "dist"], cwd=package, env=env,
-                       check=True)
+def _build_provider(package: Path, env: dict[str, str]) -> None:
+    for command in ([sys.executable, "build_registration.py"], ["uv", "lock", "--check"]):
+        subprocess.run(command, cwd=package, env=env, check=True)
+    shutil.rmtree(package / "dist", ignore_errors=True)
+    subprocess.run(["uv", "build", "--wheel", "--out-dir", "dist"], cwd=package, env=env,
+                   check=True)
+
+
+def _variant_provider(scratch: Path, env: dict[str, str]) -> Path:
+    """Build the gate-only real KEV rationale change from the release provider source."""
+    package = scratch / "analysis-1.1.0"
+    shutil.copytree(PROVIDERS / "security-analysis-provider", package,
+                    ignore=shutil.ignore_patterns("dist", "__pycache__", ".venv", ".ruff_cache"))
+    subprocess.run(["git", "apply", str(SOURCE / "variants" / "analysis-1.1.0.patch")],
+                   cwd=package, env=env, check=True)
+    _build_provider(package, env)
+    return package
 
 
 def main() -> None:
@@ -71,7 +78,9 @@ def main() -> None:
                GIT_AUTHOR_NAME="kit-build", GIT_AUTHOR_EMAIL="kit-build@example.invalid",
                GIT_COMMITTER_NAME="kit-build", GIT_COMMITTER_EMAIL="kit-build@example.invalid")
     if rebuild:
-        _providers(env)
+        for name in BUNDLED:
+            _build_provider(PROVIDERS / name, env)
+    variant_provider = _variant_provider(scratch, env)
     cruxible = _bin()
 
     def cx(*args: str) -> str:
@@ -105,6 +114,9 @@ def main() -> None:
             (wheel,) = (PROVIDERS / name / "dist").glob("*.whl")
             cx("provider", "install", str(wheel), "--lock", str(PROVIDERS / name / "uv.lock"))
         for release in (RELEASE, VARIANT):
+            if release == VARIANT:
+                (wheel,) = (variant_provider / "dist").glob("*.whl")
+                cx("provider", "install", str(wheel), "--lock", str(variant_provider / "uv.lock"))
             for stage in ("definitions", "procedures"):
                 result = subprocess.run([sys.executable, str(AUTHORING), stage, "--release",
                                          release], env=env, cwd=ws, capture_output=True,
@@ -115,7 +127,9 @@ def main() -> None:
             args = ["kit", "build", "--id", "security", "--version", release, "--owns",
                     "security.", "--out", str(out / release)]
             for name in BUNDLED:
-                args += ["--provider", str(PROVIDERS / name)]
+                package = (variant_provider if release == VARIANT and
+                           name == "security-analysis-provider" else PROVIDERS / name)
+                args += ["--provider", str(package)]
             args += ["--default-provider", str(PROVIDERS / "cruxible-provider-web")]
             print(cx(*args), end="")
     finally:

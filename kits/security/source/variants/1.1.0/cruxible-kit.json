@@ -13,7 +13,7 @@
       "path": "blueprints/security.kev-acquire.json"
     },
     {
-      "artifact_digest": "sha256:5d3b3d1e7d29de2dd1ef4055fd1c04b176f3be1c41e2f5c771067c017e111806",
+      "artifact_digest": "sha256:58919ea29324052185d7113f20c27cdb52c13106c1f8b71a8ad851bab0686ded",
       "path": "blueprints/security.osv-applicability.json"
     },
     {
@@ -233,11 +233,11 @@
       "path": "claim-types/security.work/verification.json"
     },
     {
-      "artifact_digest": "sha256:1945e0ad3388c74d07de6bea872adb7342d5bb96535e2c4868e20521cb5f84a7",
+      "artifact_digest": "sha256:29f1fc8d6c144c0d46b85e408fc7a48be7fbdadc4ce68b60e5c098fe81becec2",
       "path": "procedures/security.cve-applicability.json"
     },
     {
-      "artifact_digest": "sha256:c025656c9edd473f2cd048e99b71ae7a8043ffe7f7d40b7835b49390086ad082",
+      "artifact_digest": "sha256:a99100fccc410ec91262ef230f8059f889e401b1209f7145e8c195afa2c7e3a8",
       "path": "procedures/security.epss-triage.json"
     },
     {
@@ -245,11 +245,11 @@
       "path": "procedures/security.evidence-acquire.json"
     },
     {
-      "artifact_digest": "sha256:d8551039f058568ebbf16cb66bc01b9a18c51d805634792646c6926801427a83",
+      "artifact_digest": "sha256:4a7b8cef939f00121cb0c08160a43537c309ed960ad43dab5fe51aabad943b2a",
       "path": "procedures/security.kev-attention.json"
     },
     {
-      "artifact_digest": "sha256:bed29e0178dff7346d2982e21753f460c5e3e8bd4d39183fae0d7acc324313fe",
+      "artifact_digest": "sha256:18c3f330b0e5f66c6fa1659886daffa2f48f8633614f470c53eac5568cf8a9e4",
       "path": "procedures/security.kev-triage.json"
     },
     {
@@ -257,7 +257,7 @@
       "path": "procedures/security.sbom-acquire.json"
     },
     {
-      "artifact_digest": "sha256:e10f39f6c94d8109e9ab72d78e72b489663bc6a63f967582b522e071dcf2d54d",
+      "artifact_digest": "sha256:3546923adae3ec7b6360467a43437e1d8a0e7d19ece1e5b9d52e8567139fce8d",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -428,12 +428,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd",
-      "generation_root": "sha256:f5f408b7ccc00974e6ba8b531d9287e611d9db3dd5159f6537aa2e8293f06416",
-      "git_oid": "3ec2f8e714acc536f0ff1668b9876560c7f75bb6",
-      "semantic_root": "sha256:adeb1d7530d4ac34fe43d658518eea01b8976ab1e27095ed2438b722a35f28ce",
+      "generation_root": "sha256:eb526b46b13a2ecac8416f9fe5badef77a1444dd8584fcb255485fe3e8960afb",
+      "git_oid": "855563c64a1e0502277d1ddf33ef9ec8544dcde7",
+      "semantic_root": "sha256:af8e91a3ad736eae1efedda6ef0cb282437ee90a693aa43ba4575f35f4d9855a",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_2665e450cc04426e",
+    "instance_id": "inst_a894e0ddb2d24107",
     "principal_id": "kit-author"
   },
   "providers": [
@@ -467,15 +467,15 @@
         "security.osv-applicability"
       ],
       "lock": {
-        "filename": "security-analysis-provider-1.0.2.uv.lock",
-        "sha256": "sha256:2626385d9d229f06db68e4a938b43648cc3d3b715f003f5d0e3ea774f13a2628"
+        "filename": "security-analysis-provider-1.1.0.uv.lock",
+        "sha256": "sha256:b4233f68d6617be43700e06c3c69fcffc993c2a817bfd6349b31bfbb03ebeecb"
       },
       "package": "security-analysis-provider",
       "provider_id": "security-analysis-provider",
-      "version": "1.0.2",
+      "version": "1.1.0",
       "wheel": {
-        "filename": "security_analysis_provider-1.0.2-py3-none-any.whl",
-        "sha256": "sha256:82839e8e8dc652157b8cdb7de4cf182ef640bdcc53deaa7a4aebba3cc47aac88"
+        "filename": "security_analysis_provider-1.1.0-py3-none-any.whl",
+        "sha256": "sha256:149ec60c3e3db9abf44ca283d4c7eccc5ddb323890bdaa0fc51f917e5b093127"
       }
     },
     {
