@@ -29,20 +29,10 @@ remains is listed at the end of this section.
    `security-sources-provider` and the default `cruxible-provider-web` 0.2.2
    (by name from PyPI, verified against the recorded hashes).
 
-2. **Instantiate the four Blueprints** on the installed Providers
-   (`cruxible authoring submit instances.json --and-activate`):
-
-   ```json
-   {"kind": "change_set", "rationale": "Instantiate the security Blueprints.", "members": [
-    {"kind": "blueprint_instance", "name": "security.kev-acquire", "blueprint": "security.kev-acquire",
-     "bindings": {"catalog": "cruxible-provider-web"}, "acquisition_policy": "security.acquisition"},
-    {"kind": "blueprint_instance", "name": "security.cve-record-acquire", "blueprint": "security.cve-record-acquire",
-     "bindings": {"record": "cruxible-provider-web"}, "acquisition_policy": "security.acquisition"},
-    {"kind": "blueprint_instance", "name": "security.epss-acquire", "blueprint": "security.epss-acquire",
-     "bindings": {"epss": "security-sources-provider"}, "acquisition_policy": "security.acquisition"},
-    {"kind": "blueprint_instance", "name": "security.osv-applicability", "blueprint": "security.osv-applicability",
-     "bindings": {"osv": "security-sources-provider"}, "acquisition_policy": "security.acquisition"}]}
-   ```
+2. **Choose the four Blueprint bindings.** The example binds KEV and CVE
+   acquisition to `cruxible-provider-web`, and EPSS acquisition and OSV
+   applicability to `security-sources-provider`. Inspect the installed
+   ProviderInterfaces and adapt those bindings to your approved Providers.
 
 3. **Adapt the [example ChangeSet](examples/automation.json)** using the
    [walkthrough](examples/README.md): choose instance and Line names, Provider
@@ -371,7 +361,7 @@ Triggers retain their exact bytes. No retire/reinstall sequence is needed.
 
 Read `cruxible next`: each carried Line has `line_disabled_by_upgrade` and a
 `cruxible line enable NAME` repair. Enable those Lines to resume proposing.
-Re-author and approve the KEV/EPSS settle grants (step 8's graduation recipe)
+Re-author and approve the KEV/EPSS settle grants (the **Measure and graduate** recipe)
 to restore settlement; enable any Line changed by that authoring. Other
 Mandates stay propose-only. Review any retained judgment Claims before retiring
 the dropped vocabulary: the normative status now identifies an analyst judgment.
