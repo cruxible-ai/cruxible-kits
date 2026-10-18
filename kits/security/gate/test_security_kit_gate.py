@@ -475,9 +475,9 @@ def test_04_instantiate(gate: Gate) -> None:
                         "security.epss-acquire": "line", "security.osv-applicability": "line",
                         "security.sbom-acquire": "direct"}, runnable
     origin = json.dumps(gate.proof("Procedure:security.kev-acquire"))
-    released = {a["path"]: a["artifact_digest"] for a in json.loads(
-        (RELEASE_1_0_1 / "cruxible-kit.json").read_text())["artifacts"]}
-    gate.values["kev_acquire_blueprint"] = released["blueprints/security.kev-acquire.json"]
+    # Installation normalizes old releases to build-keyed interface/provider identities.
+    gate.values["kev_acquire_blueprint"] = gate.proof(
+        "Blueprint:security.kev-acquire")["artifact_digest"]
     assert gate.values["kev_acquire_blueprint"] in origin
     record("04", f"unbound refused; mismatch refused; runnable {runnable}; Blueprint origin "
            "recorded")
