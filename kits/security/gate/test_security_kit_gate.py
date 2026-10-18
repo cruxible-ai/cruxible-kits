@@ -496,6 +496,9 @@ def test_05_automation(gate: Gate) -> None:
     triggers = {row["name"]: gate.proof(f"Trigger:{row['name']}")
                 for row in gate.json("query", "Trigger")["rows"]}
     old_lines = {name: gate.proof(f"Line:{name}") for name in recipe.LINES}
+    old_provider_pins = {pin["target"]["name"]: pin
+                         for pin in gate.proof("Procedure:security.kev-triage")["envelope"]["pins"]
+                         if pin["role"] == "provider"}
     old_mandates = {f"{name}-{grant}": gate.proof(f"ProcedureMandate:{name}-{grant}")
                     for name in recipe.MANDATES for grant in
                     (("propose", "settle") if name in
@@ -519,10 +522,19 @@ def test_05_automation(gate: Gate) -> None:
     assert not preview["stops"], preview["stops"]
     old_builds = json.loads((RELEASE_1_0_1 / "cruxible-kit.json").read_text())["providers"]
     new_builds = json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())["providers"]
-    assert old_builds != new_builds, "the upgrade must change bundled builds"
+    old_analysis = next(p for p in old_builds if p["package"] == "security-analysis-provider")
+    new_analysis = next(p for p in new_builds if p["package"] == "security-analysis-provider")
+    assert old_analysis["wheel"]["sha256"] != new_analysis["wheel"]["sha256"], (
+        "the upgrade must change a bundled provider build")
     committed = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--commit", "--at",
                           preview["coordinate"]["git_oid"])
     assert committed["status"] == "accepted", committed
+    new_provider_pins = {pin["artifact_digest"] for pin in gate.proof(
+        "Procedure:security.kev-triage")["envelope"]["pins"] if pin["role"] == "provider"}
+    assert new_provider_pins != {pin["artifact_digest"] for pin in old_provider_pins.values()}
+    for name, pin in old_provider_pins.items():
+        # Multi-build keeps the exact old build available beside the new Procedure's build.
+        assert gate.proof(f"Provider:{name}")["artifact_digest"] == pin["artifact_digest"]
     for identity, item in lines.items():
         name = identity.removeprefix("Line:")
         proof = gate.proof(identity)
