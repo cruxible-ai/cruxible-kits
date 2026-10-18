@@ -424,12 +424,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd",
-      "generation_root": "sha256:525e4880206e93005b81c828479cce776942eec19451cfd45c6e66756662611a",
-      "git_oid": "4922ca239ccb010030bf277ee840ed538a5a2d6b",
-      "semantic_root": "sha256:2880d086e1c8eb9ec8701b9addde75b867ebebc8a969489f830781e88271e8e3",
+      "generation_root": "sha256:56272fe87b32aa2a9fb93b53cbe9e2a9c99d5d05d08e27a8e2b531825a583b53",
+      "git_oid": "186d2e095477ef853ac9224ce7eca73a6c45d3f1",
+      "semantic_root": "sha256:738e4a5db3f88d1e3ba593c8ac996023b97b21d9a90617daeab82a7aabaad025",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_2665e450cc04426e",
+    "instance_id": "inst_a894e0ddb2d24107",
     "principal_id": "kit-author"
   },
   "providers": [
