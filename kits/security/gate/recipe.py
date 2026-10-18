@@ -12,12 +12,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 POLICY = "security.acquisition"
-LANDING_CONTRACTS = (
-    "security.kev-http-v1",
-    "security.epss-daily-v1",
-    "security.cyclonedx-sbom-v1",
-    "security.cve-record-http-v1",
-)
 #: Line -> (Procedure, max_authority, trigger_input)
 LINES: dict[str, tuple[str, str, str | None]] = {
     "security.kev-daily": ("security.kev-acquire", "observe", None),
@@ -108,16 +102,6 @@ def line(name: str, *, authority: str | None = None) -> dict[str, Any]:
     if trigger_input is not None:
         payload["trigger_input"] = trigger_input
     return payload
-
-
-def landing(name: str, line_name: str, contract: str) -> dict[str, Any]:
-    return {"kind": "trigger", "name": name, "line_name": line_name,
-            "schedule": {"kind": "capture_landing", "capture_contract": contract}}
-
-
-def cron(name: str, line_name: str, expression: str) -> dict[str, Any]:
-    return {"kind": "trigger", "name": name, "line_name": line_name,
-            "schedule": {"kind": "cron", "expression": expression}}
 
 
 def automation() -> dict[str, Any]:
