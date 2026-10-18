@@ -1,6 +1,6 @@
 """Set up the persistent self-dogfood instance: the security kit, run daily, over Cruxible's deps.
 
-    python setup_persistent.py [--kit KIT_DIR] [--principal ID]
+    python setup_persistent.py --core-repo PATH --core-sha SHA --providers-repo PATH --providers-sha SHA [--kit KIT_DIR] [--principal ID]
 
 Creates ``SECURITY_DOGFOOD_ROOT`` (default ``~/tmp-workspaces/security-dogfood``)
 fresh -- it refuses a root whose state root is not empty -- and leaves its daemon
@@ -35,7 +35,7 @@ import sys
 import time
 
 from persistent import KIT, ROOT, Instance, daemon
-from refresh_sboms import refresh
+from refresh_sboms import add_source_arguments, refresh, source_pins
 
 sys.path.insert(0, str(KIT / "gate"))
 import recipe  # noqa: E402
@@ -52,12 +52,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--kit", default=str(KIT))
     parser.add_argument("--principal", default="security-dogfood")
+    add_source_arguments(parser)
     args = parser.parse_args()
+    pins = source_pins(args)
+    print(json.dumps({"sbom_sources": pins}, indent=2), flush=True)
     state = ROOT / "state"
     if state.exists() and any(state.iterdir()):
         raise SystemExit(f"{ROOT} already holds an instance; setup only creates a fresh one")
     for name in ("home", "state", "ws", "payloads", "logs", "run"):
         (ROOT / name).mkdir(parents=True, exist_ok=True)
+    (ROOT / "source-pins.json").write_text(json.dumps(pins, indent=2) + "\n")
     ws = ROOT / "ws"
     if not (ws / ".git").exists():
         subprocess.run(["git", "init", "-q", "-b", "main", "."], cwd=ws, check=True)
@@ -73,9 +77,7 @@ def main() -> None:
         "kit", "add", args.kit, "--commit", "--at", preview["coordinate"]["git_oid"]))
     step("instantiate Blueprints", lambda: cx.submit(
         "instances", recipe.instantiate("cruxible-provider-web", "security-sources-provider")))
-    digests = {name: cx.json("get", f"CaptureContract:{name}", "--detail", "proof")["proof"][
-        "artifact_digest"] for name in recipe.LANDING_CONTRACTS}
-    step("automation change set", lambda: cx.submit("automation", recipe.automation(digests)))
+    step("automation change set", lambda: cx.submit("automation", recipe.automation()))
     step("graduate KEV and EPSS triage to settle", lambda: cx.submit(
         "graduate", recipe.graduate()))
     step("enable every Line", lambda: [cx.cx("line", "enable", name) for name in recipe.LINES])
@@ -96,7 +98,7 @@ def main() -> None:
             else:
                 print(f"  {name}: import {run['status']}")
 
-        refresh(cx, "claude/cut-b", "main", after_each=accept)
+        refresh(cx, **pins, after_each=accept)
         return accepted
 
     accepted = step("SBOM import (8 SBOMs) and acceptance", import_sboms)

@@ -1,11 +1,11 @@
 """Regenerate the dogfood SBOMs from the current uv.lock files; re-acquire the changed ones.
 
-    python refresh_sboms.py [--core-ref claude/cut-b] [--providers-ref origin/main] [--dry-run]
+    python refresh_sboms.py --core-repo PATH --core-sha SHA --providers-repo PATH --providers-sha SHA [--dry-run]
 
 Run it when Cruxible's dependencies change (after a deploy, or a lock bump on
 either repository). It reads each lock read-only through git (``git show
-REF:uv.lock``) from ``~/tmp-workspaces/cruxible-cut-b`` (packages ``cruxible``
-and ``cruxible-client``) and ``~/Git/cruxible-providers`` (the six provider
+SHA:uv.lock``) from the explicitly named repositories (packages ``cruxible``
+and ``cruxible-client`` from core, and the six provider
 packages), writes the CycloneDX SBOMs into the instance workspace's
 ``sboms/``, and runs ``security.sbom-acquire`` for every SBOM whose bytes
 changed. Each acquisition's landing runs ``security.sbom-import``, whose
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
+import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -32,10 +32,6 @@ import tomllib
 from persistent import ROOT, Instance
 from sbom_from_uv_lock import sbom
 
-CORE_REPO = Path(os.environ.get("SECURITY_DOGFOOD_CORE_REPO",
-                                Path.home() / "tmp-workspaces" / "cruxible-cut-b"))
-PROVIDERS_REPO = Path(os.environ.get("SECURITY_DOGFOOD_PROVIDERS_REPO",
-                                     Path.home() / "Git" / "cruxible-providers"))
 CORE_PACKAGES = ("cruxible", "cruxible-client")
 PROVIDER_PACKAGES = (
     "cruxible-provider-runtime", "cruxible-provider-web", "cruxible-provider-docs",
@@ -49,12 +45,38 @@ def _lock(repo: Path, ref: str) -> dict[str, object]:
     return tomllib.loads(text)
 
 
-def generate(core_ref: str, providers_ref: str) -> dict[str, bytes]:
-    """file name -> SBOM bytes, for all eight packages."""
+def add_source_arguments(parser: argparse.ArgumentParser) -> None:
+    for name in ("core", "providers"):
+        parser.add_argument(f"--{name}-repo", type=Path, required=True)
+        parser.add_argument(f"--{name}-sha", required=True)
+
+
+def source_pins(args: argparse.Namespace) -> dict[str, str]:
+    """Validate exact commits before any instance mutation; return recorded inputs."""
+    pins: dict[str, str] = {}
+    for name in ("core", "providers"):
+        repo = getattr(args, f"{name}_repo").expanduser().resolve()
+        sha = getattr(args, f"{name}_sha")
+        if re.fullmatch(r"[0-9a-f]{40}", sha) is None:
+            raise ValueError(f"--{name}-sha must be a full 40-character commit SHA")
+        resolved = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--verify", f"{sha}^{{commit}}"],
+            capture_output=True, text=True, check=True).stdout.strip()
+        if resolved != sha:
+            raise ValueError(f"--{name}-sha must name that exact commit")
+        _lock(repo, sha)  # Refuse missing locks before setup starts a daemon.
+        pins[f"{name}_repo"] = str(repo)
+        pins[f"{name}_sha"] = sha
+    return pins
+
+
+def generate(core_repo: str, core_sha: str, providers_repo: str,
+             providers_sha: str) -> dict[str, bytes]:
+    """file name -> SBOM bytes, for all eight packages at the recorded commits."""
 
     out: dict[str, bytes] = {}
-    for repo, ref, packages in ((CORE_REPO, core_ref, CORE_PACKAGES),
-                                (PROVIDERS_REPO, providers_ref, PROVIDER_PACKAGES)):
+    for repo, ref, packages in ((Path(core_repo), core_sha, CORE_PACKAGES),
+                                (Path(providers_repo), providers_sha, PROVIDER_PACKAGES)):
         lock = _lock(repo, ref)
         for package in packages:
             document = sbom(lock, package, "Cruxible")
@@ -62,7 +84,8 @@ def generate(core_ref: str, providers_ref: str) -> dict[str, bytes]:
     return out
 
 
-def refresh(instance: Instance, core_ref: str, providers_ref: str,
+def refresh(instance: Instance, core_repo: str, core_sha: str,
+            providers_repo: str, providers_sha: str,
             dry_run: bool = False, after_each: Callable[[str], None] | None = None) -> list[str]:
     """Write changed SBOMs and acquire each; the names that changed.
 
@@ -73,7 +96,7 @@ def refresh(instance: Instance, core_ref: str, providers_ref: str,
     target = instance.ws / "sboms"
     target.mkdir(parents=True, exist_ok=True)
     changed = []
-    for name, content in sorted(generate(core_ref, providers_ref).items()):
+    for name, content in sorted(generate(core_repo, core_sha, providers_repo, providers_sha).items()):
         path = target / name
         if path.exists() and path.read_bytes() == content:
             continue
@@ -90,11 +113,12 @@ def refresh(instance: Instance, core_ref: str, providers_ref: str,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--core-ref", default="claude/cut-b")
-    parser.add_argument("--providers-ref", default="origin/main")
+    add_source_arguments(parser)
     parser.add_argument("--dry-run", action="store_true", help="list what changed, acquire nothing")
     args = parser.parse_args()
-    changed = refresh(Instance(ROOT), args.core_ref, args.providers_ref, args.dry_run)
+    pins = source_pins(args)
+    print(json.dumps(pins, indent=2), flush=True)
+    changed = refresh(Instance(ROOT), **pins, dry_run=args.dry_run)
     print("unchanged" if not changed else
           ("would acquire: " if args.dry_run else "acquired: ") + ", ".join(changed))
     if changed and not args.dry_run:
