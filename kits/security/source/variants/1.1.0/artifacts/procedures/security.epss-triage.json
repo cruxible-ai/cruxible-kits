@@ -56,11 +56,11 @@
         },
         "implementation_digest": "sha256:d16c309f9beea2b5c8447e3b416a837dce961bde44bbe2361b367d81860d9bbe",
         "interface": {
-          "artifact_digest": "sha256:d0b686ea5f662f499fe0811b2f80018ba4bafabdb41e02fa7348361c73773b79",
+          "artifact_digest": "sha256:6d6b4034fd0f0c87936b7786e4df5152f3dc35efb1fe21f82716637dd5ba67b2",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-daily"
+            "name": "security.epss-daily/5f7b04d392fc9a1264721b96a0f609f8e5a7c8846f9c9673b1dca8766377a9b8"
           }
         },
         "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
@@ -68,11 +68,11 @@
         "next": "watched",
         "node_id": "epss",
         "provider": {
-          "artifact_digest": "sha256:c7c371379c85ad93d822762e15849a94884b300186668548988d98bbbfefe4f3",
+          "artifact_digest": "sha256:d4472a267645b5716279ac1a872f16cba3b6abeedb02d78104d4cd37a11ab777",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-sources-provider"
+            "name": "security-sources-provider/1f9e85b12d908c49c23c970a5dbd84b744ddd9f14feb59c23fcab6d1b9800a99"
           }
         },
         "request": {}
@@ -119,11 +119,11 @@
           "watched": "$steps.watched.result.rows"
         },
         "interface": {
-          "artifact_digest": "sha256:21a01ad2715a95f92139b1424fea82d46d76cc2285b1f6b93f73cc6651d779da",
+          "artifact_digest": "sha256:59dd7f2cffc0c0bcf2e13541885dbe2914844ba7427fa3961d8269f41bd0cfd7",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-scores"
+            "name": "security.epss-scores/449662d06f51954b811871dd37b9bb4494d017388f75bfd257edc672088b660b"
           }
         },
         "interface_digest": "sha256:5d2bb4e2e84aebdfa01f3d1a6800ef8e2c8e8e468f047cc94eeff9cdb69f5b64",
@@ -131,11 +131,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:7cfba4583df4cce05e8d50673d2edb8afa0d61b5bb5057d9814a040058b07b31",
+          "artifact_digest": "sha256:eb1a4d107376e256eb9d494963af4dfda892c9d7a51181284e37e24fe97f076e",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider"
+            "name": "security-analysis-provider/5f277c3db190ac98501356742566ba6690d6edb554e02c0feee4b1a1353ee276"
           }
         }
       },
@@ -216,7 +216,7 @@
     "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:d6a410e9a5eadaa4bcedef1e0928b3e15df64c6b509072c8247060e634c0d283",
+  "definition_digest": "sha256:e277c6ad57e6f9556adacb98b7e62ff02eaec8121ba1c2c0e67d43db47904313",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
@@ -471,35 +471,35 @@
       }
     },
     {
-      "artifact_digest": "sha256:7cfba4583df4cce05e8d50673d2edb8afa0d61b5bb5057d9814a040058b07b31",
+      "artifact_digest": "sha256:eb1a4d107376e256eb9d494963af4dfda892c9d7a51181284e37e24fe97f076e",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider"
+        "name": "security-analysis-provider/5f277c3db190ac98501356742566ba6690d6edb554e02c0feee4b1a1353ee276"
       }
     },
     {
-      "artifact_digest": "sha256:c7c371379c85ad93d822762e15849a94884b300186668548988d98bbbfefe4f3",
+      "artifact_digest": "sha256:d4472a267645b5716279ac1a872f16cba3b6abeedb02d78104d4cd37a11ab777",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-sources-provider"
+        "name": "security-sources-provider/1f9e85b12d908c49c23c970a5dbd84b744ddd9f14feb59c23fcab6d1b9800a99"
       }
     },
     {
-      "artifact_digest": "sha256:d0b686ea5f662f499fe0811b2f80018ba4bafabdb41e02fa7348361c73773b79",
+      "artifact_digest": "sha256:6d6b4034fd0f0c87936b7786e4df5152f3dc35efb1fe21f82716637dd5ba67b2",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "security.epss-daily"
+        "name": "security.epss-daily/5f7b04d392fc9a1264721b96a0f609f8e5a7c8846f9c9673b1dca8766377a9b8"
       }
     },
     {
-      "artifact_digest": "sha256:21a01ad2715a95f92139b1424fea82d46d76cc2285b1f6b93f73cc6651d779da",
+      "artifact_digest": "sha256:59dd7f2cffc0c0bcf2e13541885dbe2914844ba7427fa3961d8269f41bd0cfd7",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "security.epss-scores"
+        "name": "security.epss-scores/449662d06f51954b811871dd37b9bb4494d017388f75bfd257edc672088b660b"
       }
     },
     {

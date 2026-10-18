@@ -56,11 +56,11 @@
         },
         "implementation_digest": null,
         "interface": {
-          "artifact_digest": "sha256:f6302734bbe87d342144d0444e136ca71e9cd899e12a5d6ea121ba4d97d9681c",
+          "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "web.fetch"
+            "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
           }
         },
         "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
@@ -128,7 +128,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:b06cf0c8a4d1129d4ec9895fcad2f58063295f6c452a943b709dd23d9bac60e2",
+  "definition_digest": "sha256:5cd8930eb003e8cf24bb82ecfecfb7ddac5af5a44fbd92772fe2f63e6fc1004d",
   "identity": {
     "kind": "Blueprint",
     "name": "security.kev-acquire"
@@ -231,11 +231,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:f6302734bbe87d342144d0444e136ca71e9cd899e12a5d6ea121ba4d97d9681c",
+      "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "web.fetch"
+        "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
       }
     }
   ]

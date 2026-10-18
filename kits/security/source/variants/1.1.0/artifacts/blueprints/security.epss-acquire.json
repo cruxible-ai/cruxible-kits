@@ -56,11 +56,11 @@
         },
         "implementation_digest": null,
         "interface": {
-          "artifact_digest": "sha256:d0b686ea5f662f499fe0811b2f80018ba4bafabdb41e02fa7348361c73773b79",
+          "artifact_digest": "sha256:6d6b4034fd0f0c87936b7786e4df5152f3dc35efb1fe21f82716637dd5ba67b2",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-daily"
+            "name": "security.epss-daily/5f7b04d392fc9a1264721b96a0f609f8e5a7c8846f9c9673b1dca8766377a9b8"
           }
         },
         "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
@@ -121,7 +121,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:4d5a7470872fb4605b2cf3b505c288fef46af39abe725fce7f17c08899843525",
+  "definition_digest": "sha256:57cdeabc2bf88061899963cfc89d2dff99507ae48c05fcca32d0596164924436",
   "identity": {
     "kind": "Blueprint",
     "name": "security.epss-acquire"
@@ -224,11 +224,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:d0b686ea5f662f499fe0811b2f80018ba4bafabdb41e02fa7348361c73773b79",
+      "artifact_digest": "sha256:6d6b4034fd0f0c87936b7786e4df5152f3dc35efb1fe21f82716637dd5ba67b2",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "security.epss-daily"
+        "name": "security.epss-daily/5f7b04d392fc9a1264721b96a0f609f8e5a7c8846f9c9673b1dca8766377a9b8"
       }
     }
   ]

@@ -5,8 +5,9 @@
 Run with the interpreter of the cruxible build the release targets (its
 ``cruxible`` beside it, or ``CRUXIBLE_BIN``). ``SCRATCH_DIR`` gets a fresh HOME,
 state root and workspace; nothing outside it and this kit directory is written.
-``--providers`` first rebuilds both bundled providers (registration, lock-checked
-tests, wheel). Then: start a daemon, ``init``, install ``cruxible-provider-web``
+``--providers`` first rebuilds both bundled providers (registration, lock check,
+wheel; run provider tests separately). Then: start a daemon, ``init``, install
+``cruxible-provider-web``
 0.2.2 and the bundled wheels, author the release's definitions and Procedures,
 ``kit build`` it, author the 1.1.0 successors on the same instance, ``kit
 build`` 1.1.0, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
@@ -44,9 +45,8 @@ def _providers(env: dict[str, str]) -> None:
     for name in BUNDLED:
         package = PROVIDERS / name
         for command in (
-            ["uv", "run", "--frozen", "python", "build_registration.py"],
+            [sys.executable, "build_registration.py"],
             ["uv", "lock", "--check"],
-            ["uv", "run", "--frozen", "pytest", "-q"],
         ):
             subprocess.run(command, cwd=package, env=env, check=True)
         shutil.rmtree(package / "dist", ignore_errors=True)
@@ -71,7 +71,7 @@ def main() -> None:
                GIT_AUTHOR_NAME="kit-build", GIT_AUTHOR_EMAIL="kit-build@example.invalid",
                GIT_COMMITTER_NAME="kit-build", GIT_COMMITTER_EMAIL="kit-build@example.invalid")
     if rebuild:
-        _providers({**env, "HOME": os.environ["HOME"]})
+        _providers(env)
     cruxible = _bin()
 
     def cx(*args: str) -> str:
