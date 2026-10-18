@@ -332,9 +332,6 @@ class Gate:
         assert found, out
         return found.group(1), out
 
-    def capture_digest(self, contract: str) -> str:
-        return str(self.proof(f"CaptureContract:{contract}")["artifact_digest"])
-
 
 def _wait_for_run(gate: Gate, line: str, after: set[str], timeout: float,
                   status: str | None = None) -> dict[str, Any]:
