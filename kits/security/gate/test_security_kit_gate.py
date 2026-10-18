@@ -948,7 +948,7 @@ def test_12_kev_cadence(gate: Gate) -> None:
     assert NEW_KEV in payload and "zammad--6.0.0" in payload and "not_watched" in payload, item
     gate.values["inbox_item"] = items[0]["item_id"]
     record("12", f"cadence tick -> capture_landing: triage proposed {len(egress['target_paths'])} "
-           "Claims (settle capped by carried propose-only mandate_grant); attention posted 1 inbox item "
+           f"Claims (settle capped: {egress['fallback_reason']}); attention posted 1 inbox item "
            f"({NEW_KEV} matches Zammad 6.0.0, not watched)")
 
 
