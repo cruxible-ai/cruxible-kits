@@ -452,9 +452,11 @@ def test_03_fixture_sources(gate: Gate) -> None:
     for interface, kit_provider in (("web.fetch", "cruxible-provider-web"),
                                     ("security.osv-query", "security-sources-provider"),
                                     ("security.epss-daily", "security-sources-provider")):
-        providers = {p["provider"] for p in gate.card(f"ProviderInterface:{interface}")["providers"]}
-        assert providers == {kit_provider, "security-gate-sources"}, (interface, providers)
-        found[interface] = sorted(providers)
+        builds = {p["provider"] for p in gate.card(f"ProviderInterface:{interface}")["providers"]}
+        assert all(re.fullmatch(r"[^/]+/[0-9a-f]{64}", build) for build in builds), builds
+        assert {build.split("/", 1)[0] for build in builds} == {
+            kit_provider, "security-gate-sources"}, (interface, builds)
+        found[interface] = sorted(builds)
     record("03", f"implementations {found}")
 
 
@@ -1102,7 +1104,7 @@ def test_18_upgrade(gate: Gate) -> None:
                 if row["reason"] == "line_disabled_by_upgrade"]
 
     # Enabling alone restores proposing; only an approved re-grant may restore settle.
-    probe = "CVE-2021-45046"  # fresh watched CVE present in both retained feeds
+    probe = "CVE-2023-4966"  # fresh watched CVE in KEV, not among the OSV assessments
     gate.submit("watch-after-upgrade", recipe.watch(probe))
     seen = {r["run"] for r in gate.runs("security.kev-triage")}
     gate.out("line", "run", "security.kev-daily")
@@ -1124,12 +1126,16 @@ def test_18_upgrade(gate: Gate) -> None:
     assert listed[probe.lower()][0] is True
     assert "Field: security.vulnerability.kev_listed." in gate.out(
         "get", listed[probe.lower()][1], "--detail", "why")
+    # Force a real EPSS write for the existing keyed vulnerability after re-granting.
+    score = gate.claims("security.vulnerability", "security.vulnerability.epss_score")[
+        SETTLES.lower()][1]
+    gate.out("retire", score, "--because", "Gate: verify score restoration after re-grant.")
     seen = {r["run"] for r in gate.runs("security.epss-triage")}
     gate.out("line", "run", "security.epss-daily")
     epss = _wait_for_run(gate, "security.epss-triage", seen, 180, status="succeeded")
     assert gate.egress(epss["run"])["settle_outcome"] == "settled"
     assert gate.claims("security.vulnerability", "security.vulnerability.epss_score")[
-        probe.lower()][0] == "0.99977"
+        SETTLES.lower()][0] == "0.0055"
     # The probe tests the two feeds only; remove its watch before the later OSV fixture run.
     watch = gate.claims("security.vulnerability", "security.vulnerability.watch_reason")[
         probe.lower()][1]
