@@ -350,26 +350,24 @@ Procedures only change watched vulnerabilities, so the grant's scope decides.
 The Procedures do
 not change, so their digests and track records carry through.
 
-## Upgrading from 1.0.1
+## Upgrading
 
-Validation on core `6d0e31998` is currently blocked: the exact historical 1.0.1
-bundle previews successfully but its installation is refused with
-`cruxible.change_set.unresolved_pin` (legacy Provider pins). The default gate
-retains this failure. A current-bundle diagnostic run does not prove this upgrade.
+The unpublished 1.0.1 baseline is retired; its dogfood instances are being
+recreated with the maintainer. The gate starts from the current-core 1.0.2
+bundle and upgrades to a gate-only 1.1.0 variant whose analysis Provider code
+and build differ. It also checks keeping a local query edit and blocking downgrades.
 
-On a core that supports multiple Provider builds and D8 carry, preview
-`cruxible kit add security:1.0.2`, then commit that one upgrade with
-`cruxible kit add security:1.0.2 --commit --at OID`. It installs the changed
-bundled builds alongside the old builds and re-pins the affected Procedures.
+Preview `cruxible kit add security:VERSION`, then commit that one upgrade with
+`cruxible kit add security:VERSION --commit --at OID`. Changed bundled builds
+are installed alongside the old builds and affected Procedures are re-pinned.
 The preview lists carried Lines (same names, disabled) and Mandates losing settle;
-Triggers retain their exact bytes. No retire/reinstall sequence is needed.
+Triggers retain their exact bytes.
 
 Read `cruxible next`: each carried Line has `line_disabled_by_upgrade` and a
 `cruxible line enable NAME` repair. Enable those Lines to resume proposing.
 Re-author and approve the KEV/EPSS settle grants (the **Measure and graduate** recipe)
 to restore settlement; enable any Line changed by that authoring. Other
-Mandates stay propose-only. Review any retained judgment Claims before retiring
-the dropped vocabulary: the normative status now identifies an analyst judgment.
+Mandates stay propose-only.
 
 ## What 1.0.2 contains
 
