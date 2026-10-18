@@ -1024,7 +1024,7 @@ def test_18_upgrade(gate: Gate) -> None:
     triggers = {row["name"]: gate.proof(f"Trigger:{row['name']}")
                 for row in gate.json("query", "Trigger")["rows"]}
     old_provider_pins = {pin["target"]["name"]: pin for pin in gate.proof(
-        "Procedure:security.kev-triage")["envelope"]["pins"] if pin["role"] == "provider"}
+        "Procedure:security.kev-triage")["artifact"]["pins"] if pin["role"] == "provider"}
     old_analysis = next(p for p in json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())[
         "providers"] if p["package"] == "security-analysis-provider")
     new_analysis = next(p for p in json.loads((RELEASE_1_1 / "cruxible-kit.json").read_text())[
@@ -1062,7 +1062,7 @@ def test_18_upgrade(gate: Gate) -> None:
     (gate.root / "upgrade-commit.json").write_text(json.dumps(committed, indent=2) + "\n")
     assert committed["status"] == "accepted", committed
     new_provider_pins = {pin["artifact_digest"] for pin in gate.proof(
-        "Procedure:security.kev-triage")["envelope"]["pins"] if pin["role"] == "provider"}
+        "Procedure:security.kev-triage")["artifact"]["pins"] if pin["role"] == "provider"}
     assert new_provider_pins != {pin["artifact_digest"] for pin in old_provider_pins.values()}
     for name, pin in old_provider_pins.items():
         assert gate.proof(f"Provider:{name}")["artifact_digest"] == pin["artifact_digest"]
