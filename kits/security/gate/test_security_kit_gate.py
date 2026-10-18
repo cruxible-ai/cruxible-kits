@@ -324,7 +324,9 @@ class Gate:
         return self.out("next")
 
     def activate(self, proposal: str) -> None:
-        assert '"failure_code": null' in self.out("proposal", "activate", proposal)
+        receipt = self.json("proposal", "activate", proposal)
+        assert receipt["status"] == "accepted", receipt
+        assert receipt["accepted_coordinate"]["git_oid"], receipt
 
     def run_line(self, line: str) -> tuple[str, str]:
         out = self.out("line", "run", line)
@@ -450,8 +452,10 @@ def test_02_kit_add(gate: Gate) -> None:
 
 def test_03_fixture_sources(gate: Gate) -> None:
     wheel = next((FIXTURE / "dist").glob("security_gate_sources-*.whl"))
-    out = gate.out("provider", "install", str(wheel), "--lock", str(FIXTURE / "uv.lock"))
-    assert "security-gate-sources: ready" in out, out
+    installed = gate.json("provider", "install", str(wheel), "--lock", str(FIXTURE / "uv.lock"))
+    assert installed["status"] == "ready", installed
+    assert installed["installed"] and installed["registered"], installed
+    assert installed["build"].startswith("security-gate-sources/"), installed
     found = {}
     for interface, kit_provider in (("web.fetch", "cruxible-provider-web"),
                                     ("security.osv-query", "security-sources-provider"),
