@@ -1,11 +1,20 @@
 # Consumer automation example
 
 `automation.json` is an inert authoring ChangeSet. Installing the kit does not
-submit it. Copy it into your workspace and let your agent adapt the four
-Blueprint instance names and Provider bindings, eight Line names and inputs,
-Trigger targets and UTC cron times, and five Mandate namespaces. Update all
+submit it. Copy it into your workspace and let your agent adapt the nine
+Blueprint instance names and Provider bindings, fifteen Line names and inputs,
+Trigger targets and UTC cron times, and seven Mandate namespaces. Update all
 references when renaming. Replace `NOW` and `EXPIRES` with UTC timestamps
 (e.g. now and 90 days later). Landing Triggers use CaptureContract names only.
+
+The system model's members name one repository (`cruxible-ai/cruxible`, its
+`main` workflows) and two PyPI projects: replace their Line `parameters` with
+your own sources. Each source is a pull Line (cron) and a parse Line (its
+landing Trigger) with the same source in its parameters; `security.harden`
+takes your default branch and the pull Blueprint instance names it names in gap
+items. Add a pair per further source; a source you pull only once (a tag, a
+commit an HQ5 gap names) needs only its parse Line and landing Trigger, since
+the pull Blueprints run directly (`cruxible procedure run`).
 
 Submit with `cruxible authoring submit automation.json`, inspect the resulting
 proposal, obtain the consumer's required approvals and activate it through the

@@ -1,8 +1,11 @@
 # security kit
 
-Answers one question with evidence: **which of my releases are exposed to a
-vulnerability attackers exploit, and which first?** The kit keeps that answer
-current from five sources:
+Answers two questions with evidence. **Which of my releases are exposed to a
+vulnerability attackers exploit, and which first?** And, from a symbolic model
+of your systems (see [The system model](#the-system-model-what-your-systems-declare-and-serve)):
+**can anything publish my artifacts except the path my policy allows, and does
+what a registry serves match the path that declares it?** The kit keeps the first
+answer current from five sources:
 
 | Source | What it gives | How it arrives |
 |---|---|---|
@@ -23,16 +26,17 @@ yours to author.
 Nine steps; provider installs take most of the time. Every manual step that
 remains is listed at the end of this section.
 
-1. **Install.** `cruxible kit add security:1.0.2` previews; commit it at the
-   coordinate the preview prints: `cruxible kit add security:1.0.2 --commit --at OID`.
+1. **Install.** `cruxible kit add security:1.1.0` previews; commit it at the
+   coordinate the preview prints: `cruxible kit add security:1.1.0 --commit --at OID`.
    This installs the bundled `security-analysis-provider` and
    `security-sources-provider` and the default `cruxible-provider-web` 0.2.2
    (by name from PyPI, verified against the recorded hashes).
 
-2. **Choose the four Blueprint bindings.** The example binds KEV and CVE
-   acquisition to `cruxible-provider-web`, and EPSS acquisition and OSV
-   applicability to `security-sources-provider`. Inspect the installed
-   ProviderInterfaces and adapt those bindings to your approved Providers.
+2. **Choose the nine Blueprint bindings.** The example binds KEV, CVE, GitHub
+   release, asset and history acquisition to `cruxible-provider-web`, and EPSS
+   acquisition, OSV applicability and the repository and PyPI pulls to
+   `security-sources-provider`. Inspect the installed ProviderInterfaces and
+   adapt those bindings to your approved Providers.
 
 3. **Adapt the [example ChangeSet](examples/automation.json)** using the
    [walkthrough](examples/README.md): choose instance and Line names, Provider
@@ -41,12 +45,15 @@ remains is listed at the end of this section.
 
 4. **Submit your adapted ChangeSet** with `cruxible authoring submit automation.json`.
    Review the proposal and satisfy your instance's approval policy before activation.
-   It instantiates four Blueprints and authors eight disabled Lines, eight Triggers
-   and five propose-only Mandates. The gate and self-dogfood scripts read this exact file.
+   It instantiates nine Blueprints and authors fifteen disabled Lines, seventeen
+   Triggers and seven propose-only Mandates (eight Lines, eight Triggers and five
+   Mandates are the vulnerability loop; the rest are the system model's). The gate
+   and self-dogfood scripts read this exact file.
 
 5. **Enable the Lines**: `for l in kev-daily kev-triage kev-attention epss-daily
    epss-triage sbom-import osv-applicability cve-applicability; do cruxible line
-   enable security.$l; done`. A change to a Line or to a Trigger aimed at it stops
+   enable security.$l; done` (the system model's Lines are enabled in its own
+   walkthrough below). A change to a Line or to a Trigger aimed at it stops
    its enablement; `cruxible next` names the `line enable` that restarts it.
 
 6. **Import an SBOM.** Put a CycloneDX JSON SBOM in the attached workspace (its
@@ -279,6 +286,115 @@ does, so a daily re-sighting counts on the same item; an item you acknowledged
 is unread again at the next sighting while the gap stays open. Close the gap
 (assess the release, or state a `watch_reason`) to stop it.
 
+## The system model: what your systems declare and serve
+
+Every fact about your systems is one source's observation, citing the Capture it
+was read from; your policy (a target's publish gate) is the only normative
+statement; and absence is an answer only inside a current **coverage** belief.
+
+| Kind | Key | What it is |
+|---|---|---|
+| `security.repo` | `forge_host` + `full_name` (trim, casefold) | a source repository |
+| `security.workflow` | `source` (`github.com/owner/repo@ref`) + `path` | one CI workflow file, as one source declares it |
+| `security.job` | `workflow_ref` (`source:path`) + `job_key` | holds the permissions, secrets, environment and actions |
+| `security.target` | `registry` (`pypi`, `ghcr`, `github_release`, `github_pages`) + `name` | where artifacts land: the trust boundary a gate guards |
+| `security.artifact` | `target_ref` (`registry/name`) + `name` | one published file (a release asset as `tag/asset`) |
+| `security.change` | `repo_ref` + `commit_sha` | a commit, created when a question needs it |
+| `security.coverage` | `source` + `scope` (`ci.workflows`, `release.manifest`, `registry.files`) | the belief that the source was read in full at a revision |
+| `security.signal` | `detector` + `fingerprint` | an observation an investigation starts from |
+
+A key that names another Subject names it by its locator text, never by an id: a
+parse creates a workflow and its jobs in one terminal, before any id exists. Each
+such key has a Subject-valued twin (`workflow.repo`, `job.workflow`,
+`artifact.target`) the queries traverse. Facts are per source: `main` and a
+`v0.3.2` tag are two sources with their own workflows, jobs and coverage.
+
+**Three states.** `security.harden` answers each question per target and per
+covered source as **found** (the facts answer it, and it is a problem: posted as
+a finding), **none** (a current coverage answers it and nothing matches: it
+names the coverage's source and revision, and stays in the run summary; `none`
+answers are never stored) or **unknown** (no current coverage: it names the
+source and the pull that answers it, posted as one gap item per source).
+"Nobody asked" is a target without a gate; "looked and found nothing" is current
+coverage with no matching row.
+
+| # | Question | found |
+|---|---|---|
+| HQ1 `security.publish_paths` | Every path that can publish to T; does any bypass T's gate? | a job with `publishes_to` T whose workflow has a trigger the gate does not list |
+| HQ2 `security.credentialed_jobs` | Which jobs hold write credentials, and what triggers them? | a write permission or secret in a job `pull_request_target`, `workflow_run` or `issue_comment` can trigger, or `workflow_dispatch` without an environment |
+| HQ3 `security.mutable_actions` | Mutable third-party code inside credentialed jobs? | an action not pinned to a 40-hex SHA in such a job |
+| HQ4 `security.shared_dependencies` | Single points of compromise on T's publish paths? | a mutable action or secret every publishing job of T shares |
+| HQ5 `security.served_vs_declared` | Does what T serves match the path that declares it? | `published_by`/`publish_environment` not among the publishing jobs at `built_from`, or `declared_sha256` differs from `sha256` |
+
+`job.publishes_to` follows the credential a registry accepts: PyPI needs
+`id-token: write` and a publish step, GHCR `packages: write`, a GitHub release
+`contents: write`, Pages `pages: write`. A job holding it can publish to every
+target of that registry whose `source_repo` is the repository, so "can publish"
+leans to over-approximating.
+
+### Walkthrough
+
+1. **Ask.** State each target's gate (and, outside PyPI, its source repository;
+   a PyPI target's comes from its provenance):
+
+   ```json
+   {"kind": "change_set", "rationale": "Ask about our release targets.", "members": [
+    {"kind": "subject", "subject_kind": "security.target", "key": {"registry": "pypi", "name": "cruxible"}, "rationale": "We publish it."},
+    {"kind": "claim", "subject": {"subject_kind": "security.target", "key": {"registry": "pypi", "name": "cruxible"}},
+     "predicate": "security.target.publish_gate", "object": {"kind": "literal", "value": "push:tags:v*"},
+     "role": "normative", "rationale": "Only a v* tag push may publish.",
+     "source": {"kind": "self_source", "body": "gate: push:tags:v*\n"}}]}
+   ```
+
+2. **Harden**: enable `security.harden` and run it (`cruxible line run
+   security.harden`). Every answer starts unknown; `cruxible inbox list --line
+   security.harden` holds one gap item per source, `{source, pull, input}`, however
+   many questions wait on it. Answer one by running its pull with its input:
+   `cruxible procedure run security.registry-acquire input.json`.
+
+3. **Parse.** A parse Line reads one source's pulls (its taps are keyed by its
+   parameters, never by the landed Capture): the example has
+   `security.repo-parse.cruxible-ci` (`main`'s workflows) and
+   `security.registry-parse.cruxible`/`-client`, each with its landing Trigger;
+   every other landing halts `other_source`. For another source, copy a parse Line
+   member with its parameters (`source`, `repo_source`, `forge_host`, `full_name`,
+   `ref`, `scope`, `path`) and its landing Trigger, and enable it. Review and
+   activate the parse proposals, then run `security.harden` again (its landing
+   Triggers fire before you accept, so under propose re-run it after accepting).
+
+4. **Keep it current.** The pull Lines run on cron (the repository every 6 h,
+   PyPI daily). Coverage is restated on every pull: identical bytes are a recorded
+   re-observation (no proposal, no generation) that keeps it fresh; a new
+   revision revises the one `coverage.revision` Claim and only the facts that
+   changed. If pulls stop, coverage goes stale after `stale_after` (12 h, twice
+   the cron), reads absent, and every answer resting on it turns unknown, naming
+   the source. Widen it by revising the ClaimType (installed definitions are
+   yours). Citations of a revision-pinned source (a tag, a SHA) never drift.
+
+5. **Declared vs running** are separate per-source predicates compared by the
+   queries and the classifier, never a contention: HQ5 posts a disagreement with
+   both Claims (the declared digest from the manifest snapshot, the served one
+   from the asset or registry). Contention is reserved for competing explanations.
+
+6. **Investigate a signal** with one pull per hop, each cited:
+
+   | Hop | Pull | Records |
+   |---|---|---|
+   | 0 | none (an HQ5 finding) | `security.signal` by key (`detector` `security.hq5`) with `signal.observed` and an investigation note section, in one write |
+   | 1 | `security.asset-fetch` | `artifact.sha256` (what is served) |
+   | 2 | `security.repo-acquire` at the tag, scope `release.manifest` (its parse Line) | `artifact.declared_sha256`; coverage at that SHA |
+   | 3 | `security.release-acquire` | `artifact.uploaded_by` |
+   | 4 | none if HQ2 already covers the source | the jobs that can write release assets |
+   | 5 | `security.history-acquire` (workflow runs) | run attempts and times, cited in the note |
+   | 6 | none | hypotheses: `signal.explained_by` (one write each; a second with `--contend`); the slot reads contested |
+   | 7 | `security.history-acquire` (commits of a path) | `security.change`; the right hypothesis is revised to it, the other retired `was-wrong`, and the slot resolves |
+   | 8 | none | `security.remediation` with `work.job` |
+
+The parse Lines start at propose. Their facts are verbatim parses, so they can
+graduate to settle like KEV and EPSS (**Measure and graduate**), with a
+condition that holds per target; `signal.explained_by` and `publish_gate` never
+enter a Mandate.
+
 ## Predictions: the applicability bet
 
 State what you expect before a source observes it, and let the observation
@@ -352,10 +468,13 @@ not change, so their digests and track records carry through.
 
 ## Upgrading
 
-The unpublished 1.0.1 baseline is retired; its dogfood instances are being
-recreated with the maintainer. The gate starts from the current-core 1.0.2
-bundle and upgrades to a gate-only 1.1.0 variant whose analysis Provider code
-and build differ. It also checks keeping a local query edit and blocking downgrades.
+From 1.0.2, `kit add security:1.1.0` adds the system model's definitions beside
+the vulnerability loop's, which are unchanged except for the bundled Providers'
+new builds (D8 carries the affected Lines disabled and their Mandates
+propose-only, as below). The gate starts from the 1.1.0 bundle and upgrades to a
+gate-only 1.1.1 variant (`source/variants/1.1.1-gate`) whose analysis Provider
+code and build differ. It also checks keeping a local query edit and blocking
+downgrades.
 
 Preview `cruxible kit add security:VERSION`, then commit that one upgrade with
 `cruxible kit add security:VERSION --commit --at OID`. Changed bundled builds
@@ -369,25 +488,28 @@ Re-author and approve the KEV/EPSS settle grants (the **Measure and graduate** r
 to restore settlement; enable any Line changed by that authoring. Other
 Mandates stay propose-only.
 
-## What 1.0.2 contains
+## What 1.1.0 contains
 
 | Kind | Count | Notes |
 |---|---:|---|
-| ClaimType | 46 | All v8. Ten identity keys; inventory, applicability (`status` and `justification`: a source's observation or an analyst's normative judgment; `expected_status`), KEV, EPSS, `watch_reason` and remediation-work vocabulary. Observations require a Capture under a kit CaptureContract; a judgment cites the analyst's own words or a workspace file; relationships a Procedure reads from a source (`release.product`, `product.supplied_by`, `assessment.release`, `assessment.vulnerability`) cite that Capture, and their author's own words otherwise; other normative statements are supported by their own origin. |
-| SubjectKind | 11 | See Identity. |
-| CaptureContract | 7 | `security.kev-http-v1`, `security.cve-record-http-v1`, `security.osv-query-v1`, `security.epss-daily-v1`, `security.cyclonedx-sbom-v1` (a workspace file), `security.workspace-evidence-v1` (a workspace file an analyst cites), `security.observation-output-v1` (acquisition terminals). |
-| QueryDefinition | 19 | Worklists (`urgent_exposures`, `kev_exposure`, `triage`, `coverage_gaps`, `remediation_work`, ...), the Procedures' state taps (`watched_vulnerabilities`, `release_inventory`, `assessment_index`), the settle condition and the triage backlog. CVE-scoped ones take `vulnerability` (`Subject:security.vulnerability/<id>`). |
-| SourceAcquisitionPolicy | 1 | `security.acquisition`: aliases `catalog`, `record`, `epss`, `osv` (attested), `sbom` and `evidence` (exact); each required, at most 24 h old, refused stale, unavailable or oversized. |
-| Blueprint | 4 | `security.kev-acquire`, `security.cve-record-acquire` (slot typed `web.fetch`), `security.epss-acquire` (`security.epss-daily`), `security.osv-applicability` (`security.osv-query`). |
-| Procedure | 7 | `security.kev-triage` and `security.epss-triage` (settle terminal; they propose under a propose cap), `security.kev-attention` (inbox), `security.sbom-acquire` and `security.evidence-acquire` (direct), `security.sbom-import` and `security.cve-applicability` (propose). |
-| ProviderInterface | 9 | `web.fetch` (core's), six analysis interfaces, two Source interfaces. |
-| Providers | 3 | Bundled: `security-analysis-provider` 1.0.2 (deterministic parsing and decisions, no network) and `security-sources-provider` 1.0.0 (the OSV.dev and EPSS Sources). Default by name: `cruxible-provider-web` 0.2.2. |
+| ClaimType | 87 | All v8. The system model's 41 (sixteen identity keys, their Subject-valued twins, per-source observations of what a repository declares and a registry serves, coverage with a 12 h `stale_after`, the normative `target.publish_gate`, `signal.observed`/`explained_by`, `work.job`) beside the vulnerability loop's 46: ten identity keys; inventory, applicability (`status` and `justification`: a source's observation or an analyst's normative judgment; `expected_status`), KEV, EPSS, `watch_reason` and remediation-work vocabulary. Observations require a Capture under a kit CaptureContract; a judgment cites the analyst's own words or a workspace file; relationships a Procedure reads from a source (`release.product`, `product.supplied_by`, `assessment.release`, `assessment.vulnerability`) cite that Capture, and their author's own words otherwise; other normative statements are supported by their own origin. |
+| SubjectKind | 19 | See Identity and The system model. |
+| CaptureContract | 12 | The system model's `security.repo-snapshot-v1`, `security.pypi-release-v1`, `security.github-release-v1`, `security.github-api-v1`, `security.release-asset-v1`; and `security.kev-http-v1`, `security.cve-record-http-v1`, `security.osv-query-v1`, `security.epss-daily-v1`, `security.cyclonedx-sbom-v1` (a workspace file), `security.workspace-evidence-v1` (a workspace file an analyst cites), `security.observation-output-v1` (acquisition terminals). |
+| QueryDefinition | 28 | HQ1-HQ5 (`publish_paths`, `credentialed_jobs`, `mutable_actions`, `shared_dependencies`, `served_vs_declared`), `coverage_index` and the parse taps (`source_facts`, `repo_targets`, `registry_facts`); worklists (`urgent_exposures`, `kev_exposure`, `triage`, `coverage_gaps`, `remediation_work`, ...), the Procedures' state taps (`watched_vulnerabilities`, `release_inventory`, `assessment_index`), the settle condition and the triage backlog. CVE-scoped ones take `vulnerability` (`Subject:security.vulnerability/<id>`). |
+| SourceAcquisitionPolicy | 1 | `security.acquisition`: aliases `catalog`, `record`, `epss`, `osv`, `snapshot`, `registry`, `release`, `asset`, `history` (attested), `sbom` and `evidence` (exact); each required, at most 24 h old, refused stale, unavailable or oversized. |
+| Blueprint | 9 | `security.kev-acquire`, `security.cve-record-acquire`, `security.release-acquire`, `security.asset-fetch`, `security.history-acquire` (slot typed `web.fetch`), `security.epss-acquire` (`security.epss-daily`), `security.osv-applicability` (`security.osv-query`), `security.repo-acquire` (`security.repo-snapshot`), `security.registry-acquire` (`security.pypi-release`). |
+| Procedure | 10 | `security.kev-triage` and `security.epss-triage` (settle terminal; they propose under a propose cap), `security.kev-attention` and `security.harden` (inbox), `security.sbom-acquire` and `security.evidence-acquire` (direct), `security.sbom-import`, `security.cve-applicability`, `security.repo-parse` and `security.registry-parse` (propose). |
+| ProviderInterface | 14 | `web.fetch` (core's), nine analysis interfaces, four Source interfaces. |
+| Providers | 3 | Bundled: `security-analysis-provider` 1.1.0 (deterministic parsing, decisions and the hardening classifier, no network) and `security-sources-provider` 1.1.0 (the OSV.dev, EPSS, GitHub repository and PyPI Sources). Default by name: `cruxible-provider-web` 0.2.2. |
 
 ## Operating notes
 
-- **Network.** web.fetch reaches cisa.gov and cveawg.mitre.org;
-  `security-sources-provider` reaches api.osv.dev and epss.empiricalsecurity.com
-  (its declared endpoints). The SBOM is read from the attached workspace by
+- **Network.** web.fetch reaches cisa.gov, cveawg.mitre.org and (for the
+  system model's release, asset and history pulls) api.github.com and github.com;
+  `security-sources-provider` reaches api.osv.dev, epss.empiricalsecurity.com,
+  api.github.com, raw.githubusercontent.com and pypi.org (its declared
+  endpoints). No credential is sent: GitHub allows 60 unauthenticated API calls
+  an hour, and a repository pull costs two plus one raw read per file. The SBOM is read from the attached workspace by
   core's built-in `workspace.file`; the Source request is the v2 form, so no
   workspace binding digest is ever authored.
 - **Staleness.** The policy refuses a Capture older than 24 h: triage of a
@@ -411,16 +533,16 @@ with the interpreter of the cruxible build the release targets. It rebuilds both
 bundled providers (registration, tests, wheel), starts a daemon on a fresh state
 root under `SCRATCH_DIR`, installs `cruxible-provider-web` 0.2.2 and the bundled
 wheels, runs `source/authoring/security_definitions.py definitions` and
-`procedures` for 1.0.2, `kit build`s it, authors the 1.1.0 successors on the
-same instance and builds those, then copies 1.0.2 over `cruxible-kit.json`,
-`artifacts/` and `providers/` here and 1.1.0 over `source/variants/1.1.0`. The
+`procedures` for 1.1.0, `kit build`s it, authors the 1.1.1 successors on the
+same instance and builds those, then copies 1.1.0 over `cruxible-kit.json`,
+`artifacts/` and `providers/` here and 1.1.1 over `source/variants/1.1.1-gate`. The
 same sources build the same kit digest. After changing a provider, bump its
 version. `source/providers/cruxible-provider-web` holds the published 0.2.2
 wheel, the lock it embeds and the runtime wheel that lock names by path, so
 `kit build` can record the default's hashes; none of those files ship.
-`source/variants/1.1.0` is a release-gate fixture (changes `kev_exposure`, adds
-`vulnerability.kev_cwes`, changes the kev-acquire Blueprint), not a published
-version.
+`source/variants/1.1.1-gate` is a release-gate fixture (changes `kev_exposure`,
+adds `vulnerability.kev_cwes`, changes the kev-acquire Blueprint and the analysis
+Provider's KEV rationale), not a published version.
 
 ## Release gate
 
@@ -429,13 +551,17 @@ daemon with a scratch state root and HOME: the kit is published to a throwaway
 HTTPS OCI registry on 127.0.0.1, installed, instantiated, automated, fed an
 inventory and an SBOM, run through OSV and CVE-record applicability, applicability
 bets, KEV triage and attention, EPSS, a restart, measurement, graduation to
-settle, the upgrade to `source/variants/1.1.0` and the re-import of a changed
-SBOM and a new release, asserting each step's
-observable. It is offline from every security source: `gate/fixture-sources`
-(package `security-gate-sources`) is cruxible-provider-web's own `WebFetch` and
-the kit's own OSV and EPSS adapters (vendored by its `build_registration.py`)
-answering from `responses/` (recorded once by `record_responses.py`). Provider
-installs still need PyPI.
+settle, the upgrade to `source/variants/1.1.1-gate` and the re-import of a changed
+SBOM and a new release, then the system model: gates asked with every answer
+unknown and one gap per source, pulls and parses, an unchanged re-pull
+(re-observation), a moved `main`, fail-closed freshness, a declared/running
+disagreement and a full investigation, asserting each step's observable. It is
+offline from every security source: `gate/fixture-sources` (package
+`security-gate-sources`) is cruxible-provider-web's own `WebFetch` and the kit's
+own OSV, EPSS, repository and PyPI adapters (vendored by its
+`build_registration.py`) answering from `responses/` (recorded once by
+`record_responses.py` and `record_system_model.py`). Provider installs still
+need PyPI.
 
 The upgrade recovery probe deliberately retires and restores an EPSS score.
 Core correctly reports `line_settled_prior_refusals` for that settlement on the

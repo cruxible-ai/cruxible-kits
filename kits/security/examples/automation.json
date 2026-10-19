@@ -1,6 +1,6 @@
 {
   "kind": "change_set",
-  "rationale": "Example consumer automation for the security kit; adapt before submitting.",
+  "rationale": "Example consumer automation for the security kit (vulnerability loop and system model); adapt before submitting.",
   "members": [
     {
       "kind": "blueprint_instance",
@@ -35,6 +35,51 @@
       "blueprint": "security.osv-applicability",
       "bindings": {
         "osv": "security-sources-provider"
+      },
+      "acquisition_policy": "security.acquisition"
+    },
+    {
+      "kind": "blueprint_instance",
+      "name": "security.repo-acquire",
+      "blueprint": "security.repo-acquire",
+      "bindings": {
+        "snapshot": "security-sources-provider"
+      },
+      "acquisition_policy": "security.acquisition"
+    },
+    {
+      "kind": "blueprint_instance",
+      "name": "security.registry-acquire",
+      "blueprint": "security.registry-acquire",
+      "bindings": {
+        "registry": "security-sources-provider"
+      },
+      "acquisition_policy": "security.acquisition"
+    },
+    {
+      "kind": "blueprint_instance",
+      "name": "security.release-acquire",
+      "blueprint": "security.release-acquire",
+      "bindings": {
+        "release": "cruxible-provider-web"
+      },
+      "acquisition_policy": "security.acquisition"
+    },
+    {
+      "kind": "blueprint_instance",
+      "name": "security.asset-fetch",
+      "blueprint": "security.asset-fetch",
+      "bindings": {
+        "asset": "cruxible-provider-web"
+      },
+      "acquisition_policy": "security.acquisition"
+    },
+    {
+      "kind": "blueprint_instance",
+      "name": "security.history-acquire",
+      "blueprint": "security.history-acquire",
+      "bindings": {
+        "history": "cruxible-provider-web"
       },
       "acquisition_policy": "security.acquisition"
     },
@@ -98,6 +143,98 @@
       "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "record"
+    },
+    {
+      "kind": "line",
+      "name": "security.repo-pull.cruxible-ci",
+      "procedure_name": "security.repo-acquire",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "observe",
+      "parameters": {
+        "forge_host": "github.com",
+        "full_name": "cruxible-ai/cruxible",
+        "ref": "main",
+        "scope": "ci.workflows",
+        "path": ".github/workflows/"
+      }
+    },
+    {
+      "kind": "line",
+      "name": "security.repo-parse.cruxible-ci",
+      "procedure_name": "security.repo-parse",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "snapshot",
+      "parameters": {
+        "source": "github.com/cruxible-ai/cruxible@main:.github/workflows/",
+        "repo_source": "github.com/cruxible-ai/cruxible@main",
+        "forge_host": "github.com",
+        "full_name": "cruxible-ai/cruxible",
+        "ref": "main",
+        "scope": "ci.workflows",
+        "path": ".github/workflows/"
+      }
+    },
+    {
+      "kind": "line",
+      "name": "security.registry-pull.cruxible",
+      "procedure_name": "security.registry-acquire",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "observe",
+      "parameters": {
+        "project": "cruxible",
+        "versions": 3
+      }
+    },
+    {
+      "kind": "line",
+      "name": "security.registry-parse.cruxible",
+      "procedure_name": "security.registry-parse",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "registry",
+      "parameters": {
+        "source": "pypi/cruxible",
+        "project": "cruxible",
+        "versions": 3
+      }
+    },
+    {
+      "kind": "line",
+      "name": "security.registry-pull.cruxible-client",
+      "procedure_name": "security.registry-acquire",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "observe",
+      "parameters": {
+        "project": "cruxible-client",
+        "versions": 3
+      }
+    },
+    {
+      "kind": "line",
+      "name": "security.registry-parse.cruxible-client",
+      "procedure_name": "security.registry-parse",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "registry",
+      "parameters": {
+        "source": "pypi/cruxible-client",
+        "project": "cruxible-client",
+        "versions": 3
+      }
+    },
+    {
+      "kind": "line",
+      "name": "security.harden",
+      "procedure_name": "security.harden",
+      "max_authority": "observe",
+      "parameters": {
+        "default_ref": "main",
+        "repo_pull": "security.repo-acquire",
+        "registry_pull": "security.registry-acquire",
+        "release_pull": "security.release-acquire",
+        "versions": 3
+      }
     },
     {
       "kind": "trigger",
@@ -169,6 +306,87 @@
       "schedule": {
         "kind": "capture_landing",
         "capture_contract": "security.cve-record-http-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.repo-pull.cruxible-ci",
+      "line_name": "security.repo-pull.cruxible-ci",
+      "schedule": {
+        "kind": "cron",
+        "expression": "5 */6 * * *"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.repo-landed.cruxible-ci",
+      "line_name": "security.repo-parse.cruxible-ci",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.repo-snapshot-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.registry-pull.cruxible",
+      "line_name": "security.registry-pull.cruxible",
+      "schedule": {
+        "kind": "cron",
+        "expression": "20 6 * * *"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.registry-landed.cruxible",
+      "line_name": "security.registry-parse.cruxible",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.pypi-release-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.registry-pull.cruxible-client",
+      "line_name": "security.registry-pull.cruxible-client",
+      "schedule": {
+        "kind": "cron",
+        "expression": "25 6 * * *"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.registry-landed.cruxible-client",
+      "line_name": "security.registry-parse.cruxible-client",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.pypi-release-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.harden-daily",
+      "line_name": "security.harden",
+      "schedule": {
+        "kind": "cron",
+        "expression": "40 7 * * *"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.harden-on-snapshot",
+      "line_name": "security.harden",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.repo-snapshot-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.harden-on-registry",
+      "line_name": "security.harden",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.pypi-release-v1"
       }
     },
     {
@@ -265,6 +483,59 @@
         "claims",
         "subjects/security.assessment",
         "subjects/security.vulnerability"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 300000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 16777216,
+        "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.repo-parse-propose",
+      "procedure_name": "security.repo-parse",
+      "grants": "propose",
+      "namespace": [
+        "claims",
+        "subjects/security.artifact",
+        "subjects/security.coverage",
+        "subjects/security.job",
+        "subjects/security.repo",
+        "subjects/security.target",
+        "subjects/security.workflow"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 300000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 16777216,
+        "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.registry-parse-propose",
+      "procedure_name": "security.registry-parse",
+      "grants": "propose",
+      "namespace": [
+        "claims",
+        "subjects/security.artifact",
+        "subjects/security.change",
+        "subjects/security.coverage",
+        "subjects/security.release",
+        "subjects/security.repo",
+        "subjects/security.target",
+        "subjects/security.workflow"
       ],
       "valid_from": "NOW",
       "expires_at": "EXPIRES",
