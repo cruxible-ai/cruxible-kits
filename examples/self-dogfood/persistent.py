@@ -91,9 +91,8 @@ class Instance:
         return path
 
     def submit(self, name: str, value: object) -> None:
-        out = json.loads(self.cx("authoring", "submit", str(self.payload(name, value)),
-                                 "--and-activate"))
-        if "activation" not in out:
+        out = json.loads(self.cx("authoring", "submit", str(self.payload(name, value))))
+        if out["outcome"]["status"] != "landed":
             raise SystemExit(f"{name} not accepted: {json.dumps(out)[-1500:]}")
 
     def runs(self, line: str) -> list[dict[str, Any]]:

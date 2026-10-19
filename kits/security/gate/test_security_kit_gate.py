@@ -263,11 +263,9 @@ class Gate:
         return str(path)
 
     def submit(self, name: str, value: object) -> dict[str, Any]:
-        out = self.out("authoring", "submit", self.payload(name, value), "--and-activate")
+        out = self.out("authoring", "submit", self.payload(name, value))
         result = json.loads(out)
-        assert "activation" in result or result.get("submit", {}).get("status", {}).get(
-            "state"
-        ) == "accepted", out[-600:]
+        assert result["outcome"]["status"] == "landed", out[-600:]
         return result
 
     @staticmethod
@@ -636,7 +634,7 @@ def test_07_inventory_and_watches(gate: Gate) -> None:
     # Creating by a held key reuses it: the same watch again changes nothing.
     head = gate.json("orient")["coordinate"]["git_oid"]
     again = gate.cx("authoring", "submit", gate.payload("watch-again", recipe.watch(LOG4SHELL)),
-                    "--and-activate", check=False)
+                    check=False)
     assert gate.json("orient")["coordinate"]["git_oid"] == head, again.stdout[-400:]
     record("07", f"inventory created by key ({len(INVENTORY)} Subjects, ids rendered from "
            f"keys); watched (derived) {watched}; bare {BARE} Subject not watched; re-watch "

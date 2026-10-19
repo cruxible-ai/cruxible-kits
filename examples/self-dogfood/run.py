@@ -91,8 +91,8 @@ class Session:
     def submit(self, name: str, payload: object) -> None:
         path = self.scratch / "payloads" / f"{name}.json"
         path.write_text(json.dumps(payload, indent=1))
-        out = json.loads(self.cx("authoring", "submit", str(path), "--and-activate"))
-        assert "activation" in out, json.dumps(out)[-1500:]
+        out = json.loads(self.cx("authoring", "submit", str(path)))
+        assert out["outcome"]["status"] == "landed", json.dumps(out)[-1500:]
 
     def timed(self, label: str, action: Any) -> Any:
         started = time.monotonic()

@@ -2,8 +2,8 @@
 
     python edit_kev_exposure.py MAX_RESULTS
 
-Authored through the SDK as a successor of the live QueryDefinition, then
-activated. The gate uses it to give the 1.1.0 upgrade an edit to overwrite.
+Authored through the SDK as a successor of the live QueryDefinition; the submit
+lands it when policy allows. The gate uses it to give the 1.1.0 upgrade an edit to overwrite.
 """
 
 from __future__ import annotations
@@ -44,9 +44,10 @@ def main() -> None:
         intent = draft.prepare()
         if intent.refused:
             raise SystemExit(f"refused: {intent.diagnostics}")
-        status = intent.submit().status()
+        status = intent.submit().status()  # lands in this call when policy allows
         assert status.proposal_id is not None, status
-        cx.activate(status.proposal_id)
+        if status.state == "ready_to_activate":
+            cx.activate(status.proposal_id)
         print(status.proposal_id)
 
 
