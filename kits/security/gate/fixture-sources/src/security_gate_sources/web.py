@@ -1,11 +1,16 @@
 """web.fetch over vendored responses: the real adapter, a fixed transport.
 
-The gate needs KEV catalog and CVE record Captures without contacting cisa.gov
-or cveawg.mitre.org. This reuses cruxible-provider-web's ``WebFetch`` unchanged
-(request validation, byte cap, material shape, Capture result) and swaps only
-the client factory: the KEV feed URL and the CVE record URLs of
-``responses/cve/`` are answered from ``responses/``; anything else is a 404.
-Every run is labelled ``packaged-recording``, never ``network``.
+The gate needs KEV catalog, CVE record and GitHub Captures without contacting
+cisa.gov, cveawg.mitre.org or GitHub. This reuses cruxible-provider-web's
+``WebFetch`` unchanged (request validation, byte cap, material shape, Capture
+result) and swaps only the client factory: the KEV feed URL, the CVE record URLs
+of ``responses/cve/`` and the recorded GitHub release, runs and commits answers
+(``responses/github/api/``) are answered from ``responses/``; anything else is a
+404. Every run is labelled ``packaged-recording``, never ``network``.
+
+The release asset (``responses/github/assets/``) is served ALTERED: the recorded
+bytes plus ``ALTERED_SUFFIX``. That is the gate's injected mismatch: what the
+release serves no longer matches the digest the manifest declares.
 """
 
 from __future__ import annotations
@@ -18,7 +23,17 @@ from cruxible_provider_web.fetch import WebFetch
 from cruxible_provider_web.http import RecordingClient
 
 RESPONSES = Path(__file__).resolve().parent / "responses"
+GITHUB = "https://api.github.com/repos/cruxible-ai/cruxible"
+ASSET_URL = ("https://github.com/cruxible-ai/cruxible/releases/download/v0.3.2/"
+             "agent-release-0.3.2.tar.gz")
+ALTERED_SUFFIX = b"\nreplaced after release\n"
 ROUTES = {
+    f"{GITHUB}/releases/tags/v0.3.2": "github/api/release-v0.3.2.json",
+    f"{GITHUB}/actions/workflows/publish.yml/runs?branch=v0.3.2&per_page=5": (
+        "github/api/runs-publish-v0.3.2.json"),
+    f"{GITHUB}/commits?path=scripts/build_kit_bundles.py&sha=v0.3.2&per_page=5": (
+        "github/api/commits-build_kit_bundles-v0.3.2.json"),
+    ASSET_URL: "github/assets/agent-release-0.3.2.tar.gz",
     "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json": (
         "known_exploited_vulnerabilities.json"
     ),
@@ -37,6 +52,13 @@ def gate_client_factory(
     def handler(request: httpx.Request) -> httpx.Response:
         if name is None:
             return httpx.Response(404, content=b"not a gate fixture", request=request)
+        if url == ASSET_URL:
+            return httpx.Response(
+                200,
+                headers={"content-type": "application/gzip"},
+                content=(RESPONSES / name).read_bytes() + ALTERED_SUFFIX,
+                request=request,
+            )
         return httpx.Response(
             200,
             headers={"content-type": "application/json"},

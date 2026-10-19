@@ -1,0 +1,22 @@
+{
+  "description": "What PyPI serves for one project: its newest versions' files and provenance.",
+  "dimensions": [
+    {
+      "classes": [
+        {
+          "description": "at most 3",
+          "id": "few"
+        },
+        {
+          "description": "4 to 10",
+          "id": "many"
+        }
+      ],
+      "description": "how many of the newest versions the request reads",
+      "name": "versions"
+    }
+  ],
+  "interface_id": "security.pypi-release",
+  "status": "draft",
+  "version": 1
+}

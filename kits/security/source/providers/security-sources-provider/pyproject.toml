@@ -1,13 +1,15 @@
 # The security kit's network Sources: OSV.dev (component advisories by package
-# URL, advisory records) and FIRST's EPSS daily scores file. Each returns the
+# URL, advisory records), FIRST's EPSS daily scores file, one GitHub
+# repository's declared files at a ref, and what PyPI serves for a project
+# (files, digests, provenance). No credentials. Each returns the
 # exact exchanges as Core's acquisition wire; the kit's CaptureContracts grade
 # them. It is not published: it ships inside the security kit as its built
 # wheel plus this lock, and `cruxible kit add` installs it before the kit's
 # definitions. Release gates bind a fixture implementation instead.
 [project]
 name = "security-sources-provider"
-version = "1.0.0"
-description = "Security kit provider: OSV.dev and FIRST EPSS acquisition Sources."
+version = "1.1.0"
+description = "Security kit provider: OSV.dev, FIRST EPSS, GitHub repository and PyPI acquisition Sources."
 requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = [
@@ -18,6 +20,8 @@ dependencies = [
 [project.entry-points."cruxible.providers"]
 "security.osv-query" = "security_sources_provider.sources:OsvQuery"
 "security.epss-daily" = "security_sources_provider.sources:EpssDaily"
+"security.repo-snapshot" = "security_sources_provider.sources:RepoSnapshot"
+"security.pypi-release" = "security_sources_provider.sources:PypiRelease"
 
 [dependency-groups]
 dev = ["pytest>=8.2"]

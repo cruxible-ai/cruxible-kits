@@ -1,7 +1,7 @@
 {
   "distribution": {
     "name": "security-gate-sources",
-    "version": "0.2.1"
+    "version": "0.3.0"
   },
   "entrypoint_group": "cruxible.providers",
   "implementations": [
@@ -71,6 +71,53 @@
       "entrypoint": "security_gate_sources.feeds:GateEpssDaily",
       "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
       "interface_id": "security.epss-daily",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "scope=*": "repo-snapshot-fixture"
+      },
+      "capture_contract_families": [
+        "security.github.snapshot.v1"
+      ],
+      "declared_endpoints": [
+        "https://api.github.com",
+        "https://raw.githubusercontent.com"
+      ],
+      "declared_input_buckets": [
+        "scope=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_gate_sources.feeds:GateRepoSnapshot",
+      "interface_digest": "sha256:0f00171442e6ffd5239a321b026f95998a7a9e17772d0ed04af60c4fb34bc59b",
+      "interface_id": "security.repo-snapshot",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "versions=*": "pypi-release-fixture"
+      },
+      "capture_contract_families": [
+        "security.pypi.release.v1"
+      ],
+      "declared_endpoints": [
+        "https://pypi.org"
+      ],
+      "declared_input_buckets": [
+        "versions=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_gate_sources.feeds:GatePypiRelease",
+      "interface_digest": "sha256:0804f4b5e1b6b08d9e7fcadd63147d72d5ee3f7dcf433003f5a7154534c9cfb7",
+      "interface_id": "security.pypi-release",
       "requires_extras": [],
       "side_effects": false
     }

@@ -1,11 +1,12 @@
 # The security kit gate's offline Sources: cruxible-provider-web's own WebFetch
-# and the kit's own OSV and EPSS adapters, with the socket replaced by a
-# transport serving the vendored KEV catalog, CVE records, OSV answers and EPSS
-# file from this package. Gate fixture only, never published.
+# and the kit's own OSV, EPSS, GitHub repository and PyPI adapters, with the
+# socket replaced by a transport serving the vendored KEV catalog, CVE records,
+# OSV answers, EPSS file and recorded GitHub and PyPI answers from this package.
+# Gate fixture only, never published.
 [project]
 name = "security-gate-sources"
-version = "0.2.1"
-description = "Offline web.fetch, security.osv-query and security.epss-daily for the security kit gate."
+version = "0.3.0"
+description = "Offline web.fetch and the security kit's Sources for the security kit gate."
 requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = [
@@ -18,6 +19,8 @@ dependencies = [
 "web.fetch" = "security_gate_sources.web:GateWebFetch"
 "security.osv-query" = "security_gate_sources.feeds:GateOsvQuery"
 "security.epss-daily" = "security_gate_sources.feeds:GateEpssDaily"
+"security.repo-snapshot" = "security_gate_sources.feeds:GateRepoSnapshot"
+"security.pypi-release" = "security_gate_sources.feeds:GatePypiRelease"
 
 [build-system]
 requires = ["hatchling==1.32.1"]

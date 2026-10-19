@@ -1,0 +1,66 @@
+{
+  "interface_id": "security.repo-snapshot",
+  "version": 1,
+  "effect_class": "external_read",
+  "contracts": {
+    "input": {
+      "fields": {
+        "forge_host": {
+          "type": "string"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": "playbill-provider-result-to-external-capture-v1",
+    "material": {
+      "allow_extra": false,
+      "fields": {
+        "input_bucket": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "forge_host": {
+          "type": "string"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "locator": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "files": {
+          "type": "json"
+        }
+      }
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

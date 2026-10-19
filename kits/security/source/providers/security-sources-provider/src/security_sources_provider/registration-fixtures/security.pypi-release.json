@@ -1,0 +1,10 @@
+[
+  {
+    "canonical_input": {
+      "project": "cruxible",
+      "versions": 3
+    },
+    "fixture_id": "pypi-release-fixture",
+    "measured_bucket_id": "versions=few"
+  }
+]

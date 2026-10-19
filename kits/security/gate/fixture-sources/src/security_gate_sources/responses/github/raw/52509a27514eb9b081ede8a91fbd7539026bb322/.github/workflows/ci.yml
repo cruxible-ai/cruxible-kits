@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --all-packages --all-extras
+
+      - name: Lint
+        run: uv run ruff check src packages/cruxible-client/src tests
+
+      - name: Format check
+        run: uv run ruff format --check src packages/cruxible-client/src tests
+
+      - name: Type check
+        run: uv run mypy src packages/cruxible-client/src
+
+      - name: Test
+        run: uv run pytest --tb=short
+
+  # Fast standalone drift gate: runs in parallel with the test matrix so a
+  # stale kit lock/manifest surfaces immediately, not after ~25 min of tests
+  # (and not hidden behind unrelated lint/test failures).
+  kit-lockfiles:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-packages --all-extras
+
+      - name: Verify kit lockfiles and distribution manifest are current
+        run: uv run python scripts/check_kit_lockfiles.py
+
+      - name: Verify tagged kit release asset URLs are available
+        run: uv run python scripts/check_kit_release_assets.py
+
+  docker-image-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-packages --all-extras
+
+      - name: Verify Docker daemon
+        run: docker info
+
+      - name: Test Docker image
+        env:
+          CRUXIBLE_RUN_DOCKER_TESTS: "1"
+        run: uv run pytest tests/test_image -m docker --tb=short
+
+  wheel-install-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-packages --all-extras
+
+      - name: Build and verify installed wheel console scripts
+        env:
+          CRUXIBLE_RUN_WHEEL_TESTS: "1"
+        run: uv run pytest tests/test_packaging -m wheel --tb=short

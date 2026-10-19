@@ -20,7 +20,7 @@ from cruxible_provider_runtime.registration import INTERFACE_DOMAIN, load_regist
 
 ROOT = Path(__file__).resolve().parent
 MODULE = ROOT / "src" / "security_sources_provider"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 def _dimension(name: str, description: str, classes: dict[str, str]) -> dict[str, Any]:
@@ -75,6 +75,49 @@ INTERFACES: dict[
         "file=daily",
         ["https://epss.empiricalsecurity.com"],
         "security.epss.daily.v1",
+    ),
+    "security.repo-snapshot": (
+        "sources:RepoSnapshot",
+        "sources:classify_repo",
+        "One GitHub repository's declared files at one ref for one scope.",
+        [
+            _dimension(
+                "scope",
+                "what the snapshot reads",
+                {
+                    "ci.workflows": "every workflow file under a directory",
+                    "release.manifest": "one release manifest file",
+                },
+            )
+        ],
+        {
+            "forge_host": "github.com",
+            "full_name": "cruxible-ai/cruxible",
+            "ref": "main",
+            "scope": "ci.workflows",
+            "path": ".github/workflows/",
+        },
+        "scope=ci.workflows",
+        "scope=*",
+        ["https://api.github.com", "https://raw.githubusercontent.com"],
+        "security.github.snapshot.v1",
+    ),
+    "security.pypi-release": (
+        "sources:PypiRelease",
+        "sources:classify_pypi",
+        "What PyPI serves for one project: its newest versions' files and provenance.",
+        [
+            _dimension(
+                "versions",
+                "how many of the newest versions the request reads",
+                {"few": "at most 3", "many": "4 to 10"},
+            )
+        ],
+        {"project": "cruxible", "versions": 3},
+        "versions=few",
+        "versions=*",
+        ["https://pypi.org"],
+        "security.pypi.release.v1",
     ),
 }
 

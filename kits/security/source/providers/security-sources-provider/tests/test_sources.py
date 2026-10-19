@@ -14,7 +14,14 @@ from cruxible_provider_runtime.egress import EgressRecorder
 from cruxible_provider_runtime.protocol import Budgets
 from cruxible_provider_runtime.provider_api import ProviderRunContext
 from cruxible_provider_runtime.registration import load_registration
-from security_sources_provider.sources import EpssDaily, OsvQuery, static_transport
+from security_sources_provider.sources import (
+    EpssDaily,
+    OsvQuery,
+    PypiRelease,
+    RepoSnapshot,
+    git_blob_id,
+    static_transport,
+)
 
 
 def _context(interface: str, payload: dict[str, Any]) -> ProviderRunContext:
@@ -121,6 +128,104 @@ def test_epss_refuses_another_origin() -> None:
         _context("security.epss-daily", {"url": "https://example.org/x.csv.gz"})
     )
     assert result.status == "refused"
+
+
+SHA = "e848cbb6787262db349912c48d9c008d8068ede8"
+PUBLISH = b"on:\n  push:\n    tags: ['v*']\njobs: {}\n"
+
+
+def _repo_routes(publish: bytes = PUBLISH, blob: str | None = None) -> dict[Any, Any]:
+    listing = [
+        {"type": "file", "name": "publish.yml", "path": ".github/workflows/publish.yml",
+         "sha": blob or git_blob_id(publish)},
+        {"type": "file", "name": "README.md", "path": ".github/workflows/README.md",
+         "sha": git_blob_id(b"x")},
+    ]
+    return {
+        ("GET", "/repos/cruxible-ai/cruxible/commits"): (
+            200, json.dumps([{"sha": SHA}]).encode(), {}),
+        ("GET", "/repos/cruxible-ai/cruxible/contents/.github/workflows"): (
+            200, json.dumps(listing).encode(), {}),
+        ("GET", f"/cruxible-ai/cruxible/{SHA}/.github/workflows/publish.yml"): (200, publish, {}),
+    }
+
+
+REPO_INPUT = {"forge_host": "GitHub.com", "full_name": "Cruxible-AI/cruxible", "ref": "main",
+              "scope": "ci.workflows", "path": ".github/workflows/"}
+
+
+def test_repo_snapshot_reads_the_workflows_at_the_revision_as_deterministic_bytes() -> None:
+    wires = []
+    for _ in range(2):
+        context = _context("security.repo-snapshot", REPO_INPUT)
+        result = RepoSnapshot(lambda: static_transport(_repo_routes()))(context)
+        material = _material(result)
+        wires.append(result.output["content_base64"])
+    assert wires[0] == wires[1]  # an unchanged source is the same bytes: a re-observation
+    assert material["locator"] == "github.com/cruxible-ai/cruxible@main:.github/workflows/"
+    assert material["revision"] == SHA
+    (only,) = material["files"]  # README.md is not a workflow file
+    assert only["path"] == ".github/workflows/publish.yml"
+    assert base64.b64decode(only["content_base64"]) == PUBLISH
+    assert context.egress.observed() == [
+        "https://api.github.com", "https://raw.githubusercontent.com"]
+
+
+def test_repo_snapshot_fails_on_a_file_that_is_not_its_listed_blob() -> None:
+    routes = _repo_routes(blob="0" * 40)
+    result = RepoSnapshot(lambda: static_transport(routes))(
+        _context("security.repo-snapshot", REPO_INPUT))
+    assert result.status == "error"
+
+
+def test_repo_snapshot_of_a_missing_path_is_an_empty_answer_at_the_ref_head() -> None:
+    routes = {
+        ("GET", "/repos/cruxible-ai/cruxible/commits"): (200, b"[]", {}),
+        ("GET", "/repos/cruxible-ai/cruxible/commits/main"): (
+            200, json.dumps({"sha": SHA}).encode(), {}),
+    }
+    material = _material(RepoSnapshot(lambda: static_transport(routes))(
+        _context("security.repo-snapshot", REPO_INPUT)))
+    assert (material["revision"], material["files"]) == (SHA, [])
+
+
+def test_repo_snapshot_refuses_what_it_does_not_read() -> None:
+    for change in ({"forge_host": "gitlab.com"}, {"path": ".github/workflows"},
+                   {"scope": "release.manifest"}, {"ref": "../x"}):
+        result = RepoSnapshot(lambda: static_transport({}))(
+            _context("security.repo-snapshot", {**REPO_INPUT, **change}))
+        assert result.status == "refused", change
+
+
+def test_pypi_release_keeps_the_newest_versions_files_and_their_provenance() -> None:
+    def file(name: str, at: str) -> dict[str, Any]:
+        return {"filename": name, "packagetype": "bdist_wheel", "size": 3,
+                "digests": {"sha256": "ab" * 32}, "upload_time_iso_8601": at,
+                "yanked": False, "downloads": -1}
+
+    project = {"info": {"name": "Cruxible"}, "last_serial": 1, "releases": {
+        "0.3.1": [file("cruxible-0.3.1-py3-none-any.whl", "2026-07-01T00:00:00Z")],
+        "0.3.2": [file("cruxible-0.3.2-py3-none-any.whl", "2026-08-07T00:22:34Z"),
+                  file("cruxible-0.3.2.tar.gz", "2026-08-07T00:22:36Z")],
+        "0.1.0": [],
+    }}
+    provenance = {"version": 1, "attestation_bundles": [{"publisher": {
+        "kind": "GitHub", "repository": "cruxible-ai/cruxible", "workflow": "publish.yml",
+        "environment": None}, "attestations": []}]}
+    routes = {
+        ("GET", "/pypi/cruxible/json"): (200, json.dumps(project).encode(), {}),
+        ("GET", "/integrity/cruxible/0.3.2/cruxible-0.3.2-py3-none-any.whl/provenance"): (
+            200, json.dumps(provenance).encode(), {}),
+    }
+    context = _context("security.pypi-release", {"project": "Cruxible", "versions": 2})
+    material = _material(PypiRelease(lambda: static_transport(routes))(context))
+    assert material["project"] == "cruxible"
+    assert [v["version"] for v in material["versions"]] == ["0.3.2", "0.3.1"]
+    wheel, sdist = material["versions"][0]["files"]
+    assert (wheel["provenance_status"], wheel["provenance"]) == (200, provenance)
+    assert (sdist["provenance_status"], sdist["provenance"]) == (404, None)
+    assert "downloads" not in wheel and wheel["sha256"] == "ab" * 32
+    assert context.egress.observed() == ["https://pypi.org"]
 
 
 def test_the_registration_verifies() -> None:

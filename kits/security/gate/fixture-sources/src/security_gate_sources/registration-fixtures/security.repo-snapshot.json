@@ -1,0 +1,13 @@
+[
+  {
+    "canonical_input": {
+      "forge_host": "github.com",
+      "full_name": "cruxible-ai/cruxible",
+      "path": ".github/workflows/",
+      "ref": "main",
+      "scope": "ci.workflows"
+    },
+    "fixture_id": "repo-snapshot-fixture",
+    "measured_bucket_id": "scope=ci.workflows"
+  }
+]

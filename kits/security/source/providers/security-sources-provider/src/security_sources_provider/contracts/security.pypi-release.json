@@ -1,0 +1,41 @@
+{
+  "interface_id": "security.pypi-release",
+  "version": 1,
+  "effect_class": "external_read",
+  "contracts": {
+    "input": {
+      "fields": {
+        "project": {
+          "type": "string"
+        },
+        "versions": {
+          "type": "integer",
+          "optional": true,
+          "default": 3
+        }
+      },
+      "allow_extra": false
+    },
+    "output": "playbill-provider-result-to-external-capture-v1",
+    "material": {
+      "allow_extra": false,
+      "fields": {
+        "input_bucket": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "versions": {
+          "type": "json"
+        }
+      }
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}
