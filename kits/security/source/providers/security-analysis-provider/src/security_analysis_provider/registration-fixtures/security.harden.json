@@ -1,0 +1,15 @@
+[
+  {
+    "canonical_input": {
+      "hq1": [],
+      "hq2": [],
+      "hq3": [],
+      "hq4": [],
+      "hq5": [],
+      "params": {},
+      "truncated": {}
+    },
+    "fixture_id": "harden-fixture",
+    "measured_bucket_id": "rows=small"
+  }
+]

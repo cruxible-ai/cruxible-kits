@@ -1,7 +1,7 @@
 {
   "distribution": {
     "name": "security-analysis-provider",
-    "version": "1.0.2"
+    "version": "1.1.0"
   },
   "entrypoint_group": "cruxible.providers",
   "implementations": [
@@ -116,6 +116,63 @@
       "entrypoint": "security_analysis_provider.applicability:CveApplicability",
       "interface_digest": "sha256:7553d895e064ebf17d1d80cbbce4d92f039aa36bfc80289f135ac1ded4ea3b28",
       "interface_id": "security.cve-applicability",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "scope=*": "workflow-facts-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "scope=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.workflows:WorkflowFacts",
+      "interface_digest": "sha256:c6cd5245a64fecaadebd5cc26cf145aabb8ece53e962e88b8d8b56ec1b95a372",
+      "interface_id": "security.workflow-facts",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "release=present": "registry-facts-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "release=present"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.registry:RegistryFacts",
+      "interface_digest": "sha256:b71e7074a41cb13edcf4715f03b983c8031e3b436f98c6da14b9f9c729be79b8",
+      "interface_id": "security.registry-facts",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "rows=*": "harden-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "rows=*"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.harden:Harden",
+      "interface_digest": "sha256:c65d157397c05199bbe086a9dda32f1c62b7b4a04d72c3e06b20e7fd3afd16e3",
+      "interface_id": "security.harden",
       "requires_extras": [],
       "side_effects": false
     }

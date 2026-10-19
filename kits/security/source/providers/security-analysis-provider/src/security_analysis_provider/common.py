@@ -3,7 +3,9 @@
 A state-tap row is the wire form of one QueryDefinition result row: its
 ``bindings`` (each bound Subject's kind, id and path, exactly as core resolved
 them), its projected ``fields`` (``present`` with a value, ``absent`` or
-``conflict``) and the ``read_claims`` it was read through. Nothing here derives
+``conflict``), the ``read_claims`` it was read through and its ``includes``
+(each Claim of a predicate one hop out, with its object and Claim path: how a
+many-valued fact's values are told apart when one of them goes). Nothing here derives
 or normalizes a Subject id: an existing Subject is named by the path core
 returned, a new one by its kind and key (core assigns the id).
 """
@@ -22,6 +24,7 @@ from typing import Any
 CLAIM_ITEM = "playbill-procedure-claim-proposal-item-v1"
 KEYED_CLAIM_ITEM = "playbill-procedure-claim-proposal-item-v3"
 SUBJECT_ITEM = "playbill-procedure-subject-proposal-item-v1"
+RETIREMENT_ITEM = "playbill-procedure-claim-retirement-item-v1"
 STATEMENT = "playbill-authoring-claim-statement-v1"
 KEYED_STATEMENT = "playbill-procedure-claim-statement-v1"
 ADDRESS = "playbill-semantic-address-v1"
@@ -40,12 +43,25 @@ class Bound:
 
 
 @dataclass(frozen=True)
+class Included:
+    """One Claim an include read: its literal value or object Subject path, and its ID."""
+
+    value: Any
+    object_path: str | None
+    claim_id: str
+
+
+@dataclass(frozen=True)
 class Row:
     """One state-tap row: bound Subjects, projected fields, the Claims behind them."""
 
     bindings: dict[str, Bound]
     fields: dict[str, tuple[str, Any]]
     claims: dict[tuple[str, str], str] = field(default_factory=dict)
+    includes: dict[str, tuple[Included, ...]] = field(default_factory=dict)
+
+    def included(self, name: str) -> tuple[Included, ...]:
+        return self.includes.get(name, ())
 
     def subject(self, binding: str) -> Bound | None:
         return self.bindings.get(binding)
@@ -97,7 +113,23 @@ def parse_rows(rows: object) -> list[Row]:
             path = str(claim.get("claim_path", ""))
             key = (str(claim.get("subject_identity", "")), str(claim.get("predicate", "")))
             claims.setdefault(key, path.rsplit("/", 1)[-1].removesuffix(".json"))
-        parsed.append(Row(bindings=bindings, fields=fields, claims=claims))
+        includes: dict[str, tuple[Included, ...]] = {}
+        for include in raw.get("includes") or ():
+            if not isinstance(include, Mapping):
+                continue
+            items = []
+            for item in include.get("items") or ():
+                obj = item.get("claim_object") or {}
+                path = str((item.get("visibility") or {}).get("claim_path", ""))
+                claim = path.rsplit("/", 1)[-1].removesuffix(".json")
+                if obj.get("kind") == "subject":
+                    target = str((obj.get("address") or {}).get("artifact_path") or "")
+                    items.append(Included(value=None, object_path=target, claim_id=claim))
+                else:
+                    items.append(Included(value=obj.get("value"), object_path=None,
+                                          claim_id=claim))
+            includes[str(include.get("name"))] = tuple(items)
+        parsed.append(Row(bindings=bindings, fields=fields, claims=claims, includes=includes))
     return parsed
 
 
@@ -214,6 +246,12 @@ def claim_item(
     if keyed:
         item["source"] = None
     return item
+
+
+def retirement_item(claim_id: str, rationale: str, reason: str = "superseded") -> dict[str, Any]:
+    """Retire one live Claim by ID: the source no longer states it."""
+
+    return {"tag": RETIREMENT_ITEM, "retires": claim_id, "reason": reason, "rationale": rationale}
 
 
 # --- matching -----------------------------------------------------------------

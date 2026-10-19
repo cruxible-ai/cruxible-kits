@@ -22,7 +22,7 @@ from cruxible_provider_runtime.registration import INTERFACE_DOMAIN, load_regist
 
 ROOT = Path(__file__).resolve().parent
 MODULE = ROOT / "src" / "security_analysis_provider"
-VERSION = "1.0.2"
+VERSION = "1.1.0"
 
 
 def _b64(data: bytes) -> str:
@@ -63,6 +63,20 @@ _RECORD = _b64(
         }
     ).encode()
 )
+
+
+_SNAPSHOT = {
+    "input_bucket": "scope=ci.workflows",
+    "source": "fixture",
+    "forge_host": "github.com",
+    "full_name": "fixture/fixture",
+    "ref": "main",
+    "scope": "ci.workflows",
+    "path": ".github/workflows/",
+    "locator": "github.com/fixture/fixture@main:.github/workflows/",
+    "revision": "0" * 40,
+    "files": [],
+}
 
 
 def _dimension(name: str, description: str, classes: dict[str, str]) -> dict[str, Any]:
@@ -161,6 +175,40 @@ INTERFACES: dict[str, tuple[str, str, str, list[dict[str, Any]], dict[str, Any],
         {"record_base64": _RECORD, "releases": [], "watched": [], "assessments": []},
         "record=present;inventory=small",
         "record=present;inventory=*",
+    ),
+    "security.workflow-facts": (
+        "workflows:WorkflowFacts",
+        "workflows:classify",
+        "A repository snapshot Capture body and what is held for its source.",
+        [
+            _dimension(
+                "scope",
+                "what the snapshot read",
+                {"ci.workflows": "workflow files", "release.manifest": "a release manifest"},
+            )
+        ],
+        {"snapshot": _SNAPSHOT, "coverage": [], "held": [], "targets": [], "releases": []},
+        "scope=ci.workflows",
+        "scope=*",
+    ),
+    "security.registry-facts": (
+        "registry:RegistryFacts",
+        "registry:classify",
+        "A PyPI release Capture body and what is held for the project's target.",
+        [_dimension("release", "whether a release body is present", {"present": "an object"})],
+        {"release": {"project": "fixture", "versions": []}, "coverage": [], "held": []},
+        "release=present",
+        "release=present",
+    ),
+    "security.harden": (
+        "harden:Harden",
+        "harden:classify",
+        "The five hardening queries' rows for the gated targets.",
+        [_dimension("rows", "how many rows the request carries", {
+            "small": "at most 5000 rows", "large": "more than 5000 rows"})],
+        {"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": [], "params": {}, "truncated": {}},
+        "rows=small",
+        "rows=*",
     ),
 }
 

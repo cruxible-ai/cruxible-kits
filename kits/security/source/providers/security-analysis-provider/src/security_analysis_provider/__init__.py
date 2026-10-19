@@ -3,10 +3,13 @@
 Interfaces: ``security.kev-catalog`` (KEV triage), ``security.kev-attention``
 (KEV inbox attention), ``security.epss-scores`` (EPSS triage),
 ``security.cyclonedx-components`` (SBOM import), ``security.osv-applicability``
-and ``security.cve-applicability`` (applicability assessments). No network, no
-clock: every output is a function of the input.
+and ``security.cve-applicability`` (applicability assessments),
+``security.workflow-facts`` and ``security.registry-facts`` (the system model:
+what a repository declares and what a registry serves) and ``security.harden``
+(the hardening questions in three states). No network, no clock: every output
+is a function of the input.
 """
 
 from __future__ import annotations
 
-__version__ = "1.0.2"
+__version__ = "1.1.0"

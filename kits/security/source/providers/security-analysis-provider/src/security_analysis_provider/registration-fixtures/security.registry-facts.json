@@ -1,0 +1,14 @@
+[
+  {
+    "canonical_input": {
+      "coverage": [],
+      "held": [],
+      "release": {
+        "project": "fixture",
+        "versions": []
+      }
+    },
+    "fixture_id": "registry-facts-fixture",
+    "measured_bucket_id": "release=present"
+  }
+]

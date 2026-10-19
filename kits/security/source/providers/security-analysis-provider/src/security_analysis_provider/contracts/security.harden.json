@@ -1,0 +1,65 @@
+{
+  "interface_id": "security.harden",
+  "version": 1,
+  "effect_class": "pure",
+  "contracts": {
+    "input": {
+      "fields": {
+        "hq1": {
+          "type": "json"
+        },
+        "hq2": {
+          "type": "json"
+        },
+        "hq3": {
+          "type": "json"
+        },
+        "hq4": {
+          "type": "json"
+        },
+        "hq5": {
+          "type": "json"
+        },
+        "params": {
+          "type": "json"
+        },
+        "truncated": {
+          "type": "json"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": {
+      "fields": {
+        "items": {
+          "type": "json"
+        },
+        "posted": {
+          "type": "integer"
+        },
+        "answers": {
+          "type": "json"
+        },
+        "targets": {
+          "type": "integer"
+        },
+        "gaps": {
+          "type": "integer"
+        },
+        "found": {
+          "type": "integer"
+        },
+        "none": {
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        }
+      },
+      "allow_extra": false
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

@@ -155,10 +155,88 @@
         "digest": "sha256:8439fb1c913f806b129124a5ce61368bd86e950b26cfd1a50c97850f710d6522",
         "path": "vocab/security.cve-applicability.json"
       }
+    },
+    {
+      "classifier": {
+        "entrypoint": "security_analysis_provider.workflows:classify",
+        "identity": "security.workflow-facts.input",
+        "source": {
+          "digest": "sha256:a2eaec9fb559c70b4d74873a6b950f63771bf3a08c614d39a5a29819f312e6d1",
+          "path": "workflows.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:e1796d79ef7e60d8a22a758408edb8a2852afa78babb36e8ce064c41a5eb7bfe",
+        "path": "contracts/security.workflow-facts.json"
+      },
+      "fixtures": {
+        "digest": "sha256:b2082206c58640aa394c95c64e7e94bf73218b5b41a385e7c602752c87cb739b",
+        "path": "registration-fixtures/security.workflow-facts.json"
+      },
+      "interface_digest": "sha256:c6cd5245a64fecaadebd5cc26cf145aabb8ece53e962e88b8d8b56ec1b95a372",
+      "interface_id": "security.workflow-facts",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:16faae83b9b4ee83e10d00a103d824903f1ec7dbb6d91caa5b76b90c17c4e788",
+        "path": "vocab/security.workflow-facts.json"
+      }
+    },
+    {
+      "classifier": {
+        "entrypoint": "security_analysis_provider.registry:classify",
+        "identity": "security.registry-facts.input",
+        "source": {
+          "digest": "sha256:e45089f74f08492ea732b3bef994203b741439594d0879f382f8768c29884a54",
+          "path": "registry.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:03e5baaf83ace503a76ce256cda8667aca23b3a3d2e8f2ff66a027e657e88f70",
+        "path": "contracts/security.registry-facts.json"
+      },
+      "fixtures": {
+        "digest": "sha256:a9fa39492d19f95b39b2e8786e828af7b5877a50fcb1f9544978afcd5eedb4f5",
+        "path": "registration-fixtures/security.registry-facts.json"
+      },
+      "interface_digest": "sha256:b71e7074a41cb13edcf4715f03b983c8031e3b436f98c6da14b9f9c729be79b8",
+      "interface_id": "security.registry-facts",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:d093ce8029b39f3f904665e2cb4bb81344c7930ec521f334a6fd54173cd1f0a4",
+        "path": "vocab/security.registry-facts.json"
+      }
+    },
+    {
+      "classifier": {
+        "entrypoint": "security_analysis_provider.harden:classify",
+        "identity": "security.harden.input",
+        "source": {
+          "digest": "sha256:eadc8b19dd9511eb1a652493811b3f814333e4f4be14b961cd848cd5526562d0",
+          "path": "harden.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:23e21c6363dcc84a283e1f7cb23415c99780896c5b3c1881b4a50e115c6224b9",
+        "path": "contracts/security.harden.json"
+      },
+      "fixtures": {
+        "digest": "sha256:dbc1e13bc4eea237d43e02add45b6aa40509cdb4e1369d64762e10357e15582a",
+        "path": "registration-fixtures/security.harden.json"
+      },
+      "interface_digest": "sha256:c65d157397c05199bbe086a9dda32f1c62b7b4a04d72c3e06b20e7fd3afd16e3",
+      "interface_id": "security.harden",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:f87f79a1ae59063972b36f89fec971b035d40f3d53f62d14cf48e4e329a87069",
+        "path": "vocab/security.harden.json"
+      }
     }
   ],
   "manifest": {
-    "digest": "sha256:fef622d38042dfc8cccc6810d6a9f4a9f56fe5e2960ffa09386f1300c8364024",
+    "digest": "sha256:5e22bf897ca211d0171285e67637dcb980c2557656938cd4eb725e57b1894213",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

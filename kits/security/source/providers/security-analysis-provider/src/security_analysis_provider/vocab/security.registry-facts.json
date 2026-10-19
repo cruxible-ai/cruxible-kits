@@ -1,0 +1,18 @@
+{
+  "description": "A PyPI release Capture body and what is held for the project's target.",
+  "dimensions": [
+    {
+      "classes": [
+        {
+          "description": "an object",
+          "id": "present"
+        }
+      ],
+      "description": "whether a release body is present",
+      "name": "release"
+    }
+  ],
+  "interface_id": "security.registry-facts",
+  "status": "draft",
+  "version": 1
+}
