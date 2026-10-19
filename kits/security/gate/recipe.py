@@ -22,7 +22,20 @@ LINES: dict[str, tuple[str, str, str | None]] = {
     "security.sbom-import": ("security.sbom-import", "propose", "sbom"),
     "security.osv-applicability": ("security.osv-applicability", "propose", None),
     "security.cve-applicability": ("security.cve-applicability", "propose", "record"),
+    "security.repo-pull.cruxible-ci": ("security.repo-acquire", "observe", None),
+    "security.repo-parse.cruxible-ci": ("security.repo-parse", "propose", "snapshot"),
+    "security.registry-pull.cruxible": ("security.registry-acquire", "observe", None),
+    "security.registry-parse.cruxible": ("security.registry-parse", "propose", "registry"),
+    "security.registry-pull.cruxible-client": ("security.registry-acquire", "observe", None),
+    "security.registry-parse.cruxible-client": ("security.registry-parse", "propose", "registry"),
+    "security.harden": ("security.harden", "observe", None),
 }
+#: Lines the gate drives by hand (`line run`) instead of their clock: its runs must
+#: not race a tick.
+HELD_LINES = {"security.kev-daily", "security.repo-pull.cruxible-ci",
+              "security.registry-pull.cruxible", "security.registry-pull.cruxible-client"}
+#: Blueprint slots bound to a web.fetch implementation; every other slot is a kit Source.
+FETCH_SLOTS = {"catalog", "history", "record", "release"}
 APPLICABILITY_NAMESPACE = [
     "claims", "subjects/security.assessment", "subjects/security.vulnerability"]
 #: Procedure -> (namespace, wall clock s, provider calls, capture bytes, items)
@@ -34,6 +47,14 @@ MANDATES: dict[str, tuple[list[str], int, int, int, int]] = {
          "subjects/security.supplier"], 300, 2, 16_777_216, 5000),
     "security.osv-applicability": (APPLICABILITY_NAMESPACE, 600, 2, 67_108_864, 5000),
     "security.cve-applicability": (APPLICABILITY_NAMESPACE, 300, 2, 16_777_216, 5000),
+    "security.repo-parse": (
+        ["claims", "subjects/security.artifact", "subjects/security.coverage",
+         "subjects/security.job", "subjects/security.repo", "subjects/security.target",
+         "subjects/security.workflow"], 300, 2, 16_777_216, 5000),
+    "security.registry-parse": (
+        ["claims", "subjects/security.artifact", "subjects/security.change",
+         "subjects/security.coverage", "subjects/security.release", "subjects/security.repo",
+         "subjects/security.target", "subjects/security.workflow"], 300, 2, 16_777_216, 5000),
 }
 KEV_FIELDS = ("kev_date_added", "kev_due_date", "kev_listed", "kev_ransomware_use")
 EPSS_FIELDS = ("epss_percentile", "epss_score")
@@ -48,12 +69,12 @@ def _stamp(value: datetime) -> str:
 
 
 def instantiate(fetch: str, sources: str) -> dict[str, Any]:
-    """Step 1: the four acquisition Blueprints, bound to installed Providers."""
+    """Step 1: the acquisition Blueprints, bound to installed Providers."""
 
     members = [member for member in example()["members"]
                if member["kind"] == "blueprint_instance"]
     for member in members:
-        member["bindings"] = {slot: fetch if slot in {"catalog", "record"} else sources
+        member["bindings"] = {slot: fetch if slot in FETCH_SLOTS else sources
                               for slot in member["bindings"]}
     return {"kind": "change_set", "rationale": "Instantiate the security Blueprints.",
             "members": members}

@@ -5,18 +5,20 @@
 One fresh Cruxible daemon on a scratch state root and HOME, one throwaway HTTPS OCI
 registry on 127.0.0.1, the kit installed from that registry, and every step of the
 release gate asserted on what the CLI shows. The KEV catalog, CVE record, OSV
-answers and EPSS file come from ``fixture-sources`` (``security-gate-sources``:
-cruxible-provider-web's own ``WebFetch`` and the kit's own OSV and EPSS adapters,
-serving vendored responses), bound to the kit's Blueprint slots; nothing contacts
-cisa.gov, cveawg.mitre.org, api.osv.dev or the EPSS site. Provider installs still
+answers, EPSS file and the system model's GitHub and PyPI answers come from
+``fixture-sources`` (``security-gate-sources``: cruxible-provider-web's own
+``WebFetch`` and the kit's own Source adapters, serving vendored responses), bound
+to the kit's Blueprint slots; nothing contacts cisa.gov, cveawg.mitre.org,
+api.osv.dev, the EPSS site, GitHub or PyPI. Provider installs still
 resolve ``cruxible-provider-web`` 0.2.2 and Python dependencies from PyPI.
 
 Needs ``cruxible`` (the daemon and CLI under test; ``CRUXIBLE_BIN``, else the
 one beside this interpreter, else ``PATH``), this interpreter with
 ``cruxible_client``, ``git`` and ``openssl``. Tests run in file order and share
 one gate; a scratch root is kept for inspection when ``SECURITY_KIT_GATE_ROOT``
-names it. The gate starts on 1.0.2 and upgrades to the 1.1.0 variant with a
-changed bundled analysis Provider build and live consumer automation.
+names it. The gate starts on 1.1.0 and upgrades to the 1.1.1 gate variant with a
+changed bundled analysis Provider build and live consumer automation, then runs
+the system model's scenarios (steps 21-27) on the upgraded instance.
 ``SECURITY_KIT_GATE_CADENCE`` (seconds, default 30) sets the gate
 cadence Trigger. Results are written to ``<root>/gate-results.md``.
 """
@@ -48,9 +50,9 @@ import recipe  # noqa: E402
 
 KIT = HERE.parent
 RELEASE_1_0 = KIT
-RELEASE_1_1 = KIT / "source" / "variants" / "1.1.0"
+RELEASE_1_1 = KIT / "source" / "variants" / "1.1.1-gate"
 VERSION = json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())["version"]
-UPGRADE_VERSION = "1.1.0"
+UPGRADE_VERSION = json.loads((RELEASE_1_1 / "cruxible-kit.json").read_text())["version"]
 FIXTURE = HERE / "fixture-sources"
 SBOM = HERE / "data" / "gate-app.cdx.json"
 CADENCE = int(os.environ.get("SECURITY_KIT_GATE_CADENCE", "30"))
@@ -84,6 +86,13 @@ STEPS = {
     "18": "changed analysis build: one kit add, D8 carry, enable/re-grant, settles resume; keep/re-add/downgrade",
     "19": "SBOM re-import: a changed SBOM and a new release land; OSV assesses the new one",
     "20": "exit: resolve EPSS prior-refusal warning, next empty, run history",
+    "21": "system model: gates asked; every answer unknown; one gap item per source",
+    "22": "pull each gap's source, parse, accept; answers found/none name their coverage",
+    "23": "unchanged re-pull: re-observation, no proposal, no generation; landing fired",
+    "24": "moved main: one coverage Claim revised plus only the changed workflow's facts",
+    "25": "HQ5 at the publishing commit: a parse Line per source; served matches declared",
+    "26": "fail-closed freshness: past stale_after the coverage reads absent, answers unknown",
+    "27": "declared/running disagreement posted with both Claims; the investigation resolves",
 }
 
 
@@ -408,9 +417,9 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 4, "CaptureContract": 7, "ClaimType": 46, "Procedure": 7,
-              "ProviderInterface": 9, "QueryDefinition": 19, "SourceAcquisitionPolicy": 1,
-              "SubjectKind": 11}
+KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 12, "ClaimType": 87, "Procedure": 10,
+              "ProviderInterface": 15, "QueryDefinition": 28, "SourceAcquisitionPolicy": 1,
+              "SubjectKind": 19}
 
 
 def test_02_kit_add(gate: Gate) -> None:
@@ -449,7 +458,10 @@ def test_03_fixture_sources(gate: Gate) -> None:
     found = {}
     for interface, kit_provider in (("web.fetch", "cruxible-provider-web"),
                                     ("security.osv-query", "security-sources-provider"),
-                                    ("security.epss-daily", "security-sources-provider")):
+                                    ("security.epss-daily", "security-sources-provider"),
+                                    ("security.repo-snapshot", "security-sources-provider"),
+                                    ("security.pypi-release", "security-sources-provider"),
+                                    ("security.release-asset", "security-sources-provider")):
         builds = {p["provider"] for p in gate.card(f"ProviderInterface:{interface}")["providers"]}
         assert all(re.fullmatch(r"[^/]+/[0-9a-f]{64}", build) for build in builds), builds
         assert {build.split("/", 1)[0] for build in builds} == {
@@ -491,11 +503,12 @@ def test_05_automation(gate: Gate) -> None:
     assert line["triggers_inactive"] == "not enabled", line["triggers_inactive"]
     rows = gate.json("query", "Trigger", "--where", "target=Line:security.kev-triage")["rows"]
     assert [r["name"] for r in rows] == ["security.kev-landed"], rows
-    for name in recipe.LINES:
-        if name != "security.kev-daily":
-            gate.out("line", "enable", name)
-    record("05", "documented example authored on 1.0.2; Lines, name-based landing Triggers "
-           "and propose Mandates accepted; 7 Lines enabled (KEV waits for cadence)")
+    enabled = [name for name in recipe.LINES if name not in recipe.HELD_LINES]
+    for name in enabled:
+        gate.out("line", "enable", name)
+    record("05", f"documented example authored on {VERSION}; Lines, name-based landing "
+           f"Triggers and propose Mandates accepted; {len(enabled)} Lines enabled (the pull "
+           "Lines wait for the gate's own runs)")
 
 
 def test_06_sbom_import(gate: Gate) -> None:
@@ -1036,7 +1049,7 @@ def test_18_upgrade(gate: Gate) -> None:
     subprocess.run([sys.executable, str(HERE / "publish_kit.py"), str(RELEASE_1_1),
                     f"{gate.registry}:{UPGRADE_VERSION}"], env=gate.env, check=True,
                    capture_output=True)
-    assert "latest 1.1.0 available" in gate.out("kit", "status")
+    assert f"latest {UPGRADE_VERSION} available" in gate.out("kit", "status")
     preview = gate.json("kit", "add", f"{gate.registry}:{UPGRADE_VERSION}", "--dry-run")
     (gate.root / "upgrade-preview.json").write_text(json.dumps(preview, indent=2) + "\n")
     assert (preview["status"], preview["transition"]) == ("would_propose", "upgrade"), preview
@@ -1139,7 +1152,8 @@ def test_18_upgrade(gate: Gate) -> None:
         probe.lower()][1]
     gate.out("retire", watch, "--because", "Gate: KEV/EPSS upgrade probe completed.")
     status = gate.out("kit", "status")
-    assert "security 1.1.0" in status and "kept: QueryDefinition:security.kev_exposure" in status
+    assert f"security {UPGRADE_VERSION}" in status
+    assert "kept: QueryDefinition:security.kev_exposure" in status
     again = gate.json("kit", "add", f"{gate.registry}:{UPGRADE_VERSION}", "--dry-run")
     assert again["status"] == "unchanged", again
     down = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--dry-run")
@@ -1245,3 +1259,504 @@ def test_20_exit(gate: Gate) -> None:
     record("20", "EPSS prior-refusal receipt inspected; Line successor capped at propose and "
            f"re-enabled; warning resolved; next empty; run history {sorted(kinds)} "
            "plus dispatched backfill")
+
+
+# --- the system model -----------------------------------------------------------
+
+sys.path.insert(0, str(KIT / "source" / "providers" / "security-analysis-provider" / "src"))
+REPO_KEY = {"forge_host": "github.com", "full_name": "cruxible-ai/cruxible"}
+WORKFLOWS = {**REPO_KEY, "ref": "main", "scope": "ci.workflows", "path": ".github/workflows/"}
+MAIN = "github.com/cruxible-ai/cruxible@main:.github/workflows/"
+#: main's two recorded heads' workflow revisions (before and after publish-runtime-image.yml).
+MAIN_OLD = "52509a27514eb9b081ede8a91fbd7539026bb322"
+MAIN_NEW = "4e9b5db950bc66145fc72252be82b40a7826077c"
+RELEASED = "e848cbb6787262db349912c48d9c008d8068ede8"  # v0.3.2: PyPI's provenance names it
+MANIFEST = "src/cruxible_core/kit_distribution/manifest.json"
+ASSET = "agent-release-0.3.2.tar.gz"
+ASSET_URL = f"https://github.com/cruxible-ai/cruxible/releases/download/v0.3.2/{ASSET}"
+GITHUB_API = "https://api.github.com/repos/cruxible-ai/cruxible"
+SM_TARGETS = (("pypi", "cruxible"), ("pypi", "cruxible-client"),
+              ("ghcr", "cruxible-ai/cruxible-runtime"), ("github_release", "cruxible-ai/cruxible"))
+#: gap source -> the parse Line that reads its pull's landing.
+PARSE_LINES = {"pypi/cruxible": "security.registry-parse.cruxible",
+               "pypi/cruxible-client": "security.registry-parse.cruxible-client",
+               MAIN: "security.repo-parse.cruxible-ci"}
+
+
+def _sm_gates() -> dict[str, Any]:
+    """Ask the questions: each release target's gate, and its repository where no
+    registry provenance states one (PyPI's comes from its provenance)."""
+
+    repo = _key("security.repo", REPO_KEY)
+    members: list[dict[str, Any]] = [recipe.subject("security.repo", REPO_KEY,
+                                                    "Our source repository.")]
+    for registry, name in SM_TARGETS:
+        key = {"registry": registry, "name": name}
+        target = _key("security.target", key)
+        members.append(recipe.subject("security.target", key, f"We publish {registry}/{name}."))
+        members.append({"kind": "claim", "subject": target,
+                        "predicate": "security.target.publish_gate",
+                        "object": {"kind": "literal", "value": "push:tags:v*"},
+                        "role": "normative", "rationale": "Only a v* tag push may publish.",
+                        "source": {"kind": "self_source", "body": "gate: push:tags:v*\n"}})
+        if registry != "pypi":
+            members.append({"kind": "claim", "subject": target,
+                            "predicate": "security.target.source_repo",
+                            "object": {"kind": "subject", "subject": repo},
+                            "role": "normative",
+                            "rationale": f"{registry}/{name} is published from our repository.",
+                            "source": {"kind": "self_source", "body": "source repository\n"}})
+    return {"kind": "change_set", "rationale": "Ask the hardening questions.", "members": members}
+
+
+def _harden(gate: Gate) -> tuple[str, dict[str, Any]]:
+    """Run security.harden; its summary (every answer, none included) is the run's result."""
+
+    run, out = gate.run_line("security.harden")
+    assert ": succeeded" in out, out[-1500:]
+    found = re.search(r"^Result: (\{.*\})$", out, re.M)
+    assert found, out[-1500:]
+    return run, json.loads(found.group(1))
+
+
+def _answers(summary: dict[str, Any], question: str) -> dict[str, dict[str, Any]]:
+    return {a["subject"]: a for a in summary["answers"] if a["question"] == question}
+
+
+def _posted(gate: Gate, kind: str) -> list[dict[str, Any]]:
+    """The harden Line's unread inbox payloads of one kind (gap or finding), in full."""
+
+    found = []
+    for entry in gate.json("inbox", "list", "--line", "security.harden", "--status",
+                           "unread")["entries"]:
+        payload = gate.json("inbox", "get", entry["item"]["item_id"])
+        body = json.dumps(payload)
+        if f'"kind": "{kind}"' in body:
+            found.append({"item_id": entry["item"]["item_id"], "payload": _payload(payload)})
+    return found
+
+
+def _payload(value: Any) -> dict[str, Any]:
+    """The posted object inside an ``inbox get`` answer."""
+
+    if isinstance(value, dict):
+        if value.get("kind") in {"gap", "finding"} and ("source" in value or "question" in value):
+            return value
+        for child in value.values():
+            if (found := _payload(child)) is not None:
+                return found
+    if isinstance(value, list):
+        for child in value:
+            if (found := _payload(child)) is not None:
+                return found
+    return None  # type: ignore[return-value]
+
+
+def _pull(gate: Gate, procedure: str, payload: dict[str, Any], line: str, label: str,
+          *, accept: bool = True) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    """Run one pull; wait for the parse Line its landing runs; activate its proposal."""
+
+    before = {r["run"] for r in gate.runs(line)}
+    out = gate.out("procedure", "run", procedure, gate.payload(label, payload))
+    assert ": succeeded" in out, out[-1500:]
+    run = _wait_for_run(gate, line, before, 240)
+    assert run["status"] == "succeeded", gate.out("get", run["run"])[-1500:]
+    egress = gate.egress(run["run"])
+    if accept and egress.get("proposal_id"):
+        gate.activate(egress["proposal_id"])
+    return out, run, egress
+
+
+def _capture(out: str, alias: str) -> str:
+    found = re.search(rf"Capture {alias}: (sha256:[0-9a-f]{{64}})", out)
+    assert found, out[-800:]
+    return found.group(1)
+
+
+def _item_reasons(review: str) -> list[tuple[str, str]]:
+    """(item path, reason) for every item ``proposal review`` lists, all of them."""
+
+    head, _, block = review.partition("Item reasons (")
+    count, _, rest = block.partition(")")
+    shown, _, total = count.partition(" of ")
+    assert shown == total, count  # every item's reason is shown
+    items: list[tuple[str, str]] = []
+    for line in rest.splitlines()[1:]:
+        if line.startswith("    ") and items:
+            items[-1] = (items[-1][0], (items[-1][1] + " " + line.strip()).strip())
+        elif line.startswith("  ") and line.rstrip().endswith(":"):
+            items.append((line.strip().rstrip(":"), ""))
+        elif line.strip() and not line.startswith(" "):
+            break
+    assert len(items) == int(total), (len(items), total)
+    return items
+
+
+def _write(gate: Gate, label: str, payload: dict[str, Any]) -> dict[str, Any]:
+    outcome = gate.json("write", gate.payload(label, payload))
+    assert outcome["status"] == "accepted", json.dumps(outcome)[-1500:]
+    return dict(outcome)
+
+
+def _parse_line(name: str, *, ref: str, scope: str = "ci.workflows",
+                path: str = ".github/workflows/") -> dict[str, Any]:
+    """A parse Line for one more source, and its landing Trigger: kits are not rigid."""
+
+    source = f"github.com/cruxible-ai/cruxible@{ref}"
+    return {"kind": "change_set", "rationale": f"Model {source}:{path} too.", "members": [
+        {"kind": "line", "name": name, "procedure_name": "security.repo-parse",
+         "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+         "trigger_input": "snapshot",
+         "parameters": {"source": f"{source}:{path}", "repo_source": source, **REPO_KEY,
+                        "ref": ref, "scope": scope, "path": path}},
+        {"kind": "trigger", "name": name.replace("repo-parse", "repo-landed"), "line_name": name,
+         "schedule": {"kind": "capture_landing", "capture_contract": "security.repo-snapshot-v1"}},
+    ]}
+
+
+def _claim_ids(gate: Gate) -> dict[str, set[str]]:
+    """Subject id -> the Claim IDs of every workflow and job fact held (live cells)."""
+
+    held: dict[str, set[str]] = {}
+    for kind, fields in (("security.workflow", "trigger,repo,coverage"),
+                         ("security.job", "permission,secret,uses,environment,workflow,needs,"
+                                          "publishes_to")):
+        for row in gate.json("query", kind, "--select", fields, "--claims", "--all")["rows"]:
+            ids = held.setdefault(row["subject_id"], set())
+            for cells in (row.get("claims") or {}).values():
+                ids.update(cell["claim"] for cell in cells or ())
+    return held
+
+
+#: The hardening queries' projected Subject fields, by the kind each binding holds.
+BINDINGS = {"target": "security.target", "repo": "security.repo", "job": "security.job",
+            "workflow": "security.workflow", "artifact": "security.artifact",
+            **{name: "security.coverage" for name in (
+                "coverage", "job_coverage", "workflow_coverage", "registry_coverage")}}
+
+
+def _tap_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A named query's CLI rows in the state-tap row shape the classifier reads."""
+
+    wire = []
+    for row in rows:
+        bindings, fields = [], []
+        for name, value in row.items():
+            if name in {"subject", "subject_id", "flags"}:
+                continue
+            if name in BINDINGS:
+                if value:
+                    kind = BINDINGS[name]
+                    bindings.append({"binding": name, "subject_kind": kind, "subject_id": value,
+                                     "subject_path": f"subjects/{kind}/{value}.json",
+                                     "subject_identity": f"{kind}/{value}"})
+                continue
+            fields.append({"name": name, "state": "absent" if value is None else "present",
+                           "value": value})
+        wire.append({"bindings": bindings, "fields": fields})
+    return wire
+
+
+def test_21_ask_unknown(gate: Gate) -> None:
+    for item in _inbox(gate, "--status", "unread"):
+        gate.out("inbox", "ack", item["item_id"])
+    gate.submit("sm-gates", _sm_gates())
+    _, summary = _harden(gate)
+    states = {a["state"] for a in summary["answers"]}
+    assert states == {"unknown"} and summary["unknown"] >= 18, summary
+    assert all(a["source"] and a["pull"] for a in summary["answers"]), summary["answers"]
+    gaps = _posted(gate, "gap")
+    sources = sorted(g["payload"]["source"] for g in gaps)
+    assert sources == sorted(PARSE_LINES), sources  # one item per source, not per question
+    gate.values["sm_gaps"] = {g["payload"]["source"]: g for g in gaps}
+    for gap in gaps:
+        assert set(gap["payload"]) == {"kind", "source", "pull", "input"}, gap
+    record("21", f"{len(SM_TARGETS)} gated targets: {summary['unknown']} answers, all unknown, "
+           f"each naming a source and its pull; {len(gaps)} gap items = distinct sources "
+           f"{sources}; no Capture yet")
+
+
+def test_22_pull_and_answer(gate: Gate) -> None:
+    pulls = 0
+    # PyPI first: its provenance names the targets' repository, so the repository's
+    # parse then derives its jobs' publish edges against every target (harden counts a
+    # credentialed job either way).
+    for source, gap in sorted(gate.values["sm_gaps"].items(),
+                              key=lambda item: (not item[0].startswith("pypi/"), item[0])):
+        payload = gap["payload"]
+        out, _run, egress = _pull(gate, payload["pull"], payload["input"], PARSE_LINES[source],
+                                  f"gap-{pulls}")
+        assert egress.get("proposal_id"), egress
+        pulls += 1
+        gate.values.setdefault("sm_captures", {})[source] = out
+        gate.out("inbox", "ack", gap["item_id"])
+    _, summary = _harden(gate)
+    hq1 = _answers(summary, "HQ1")
+    pypi = hq1[f"pypi/cruxible @ {MAIN}"]
+    assert (pypi["state"], pypi["source"], pypi["revision"]) == ("none", MAIN, MAIN_OLD), pypi
+    assert hq1[f"ghcr/cruxible-ai/cruxible-runtime @ {MAIN}"]["state"] == "found", hq1
+    found = {f["payload"]["question"]: f["payload"] for f in _posted(gate, "finding")}
+    assert {"HQ1", "HQ2", "HQ3", "HQ4"} <= found.keys(), sorted(found)
+    hq2_jobs = {j["job"] for j in found["HQ2"]["jobs"]}
+    assert "publish-kev-reference-world.yml#publish" in {j.rsplit("/", 1)[-1] for j in hq2_jobs}
+    hq3_jobs = {j["job"].rsplit("/", 1)[-1]: j for j in found["HQ3"]["jobs"]}
+    assert "pkg:githubactions/actions/checkout@v4" in hq3_jobs["publish.yml#publish-client"][
+        "mutable"]
+    assert "pkg:githubactions/actions/checkout@v4" in found["HQ4"]["shared"], found["HQ4"]
+    hq5 = _answers(summary, "HQ5")
+    waiting = {a["source"] for a in hq5.values() if a["state"] == "unknown"}
+    released = f"github.com/cruxible-ai/cruxible@{RELEASED}:.github/workflows/"
+    assert released in waiting, hq5  # what PyPI serves waits on the commit it names
+    gaps = {g["payload"]["source"] for g in _posted(gate, "gap")}
+    assert released in gaps and not gaps & set(PARSE_LINES), gaps
+    record("22", f"{pulls} pulls (one per gap) parsed and accepted; HQ1 pypi/cruxible none at "
+           f"{MAIN_OLD[:12]}, GHCR found; HQ2-HQ4 found; HQ5 waits on "
+           f"{len(waiting)} publishing commit(s), each one gap ({len(gaps)} gaps now)")
+
+
+def test_23_unchanged_repull(gate: Gate) -> None:
+    head = gate.json("orient")["coordinate"]["git_oid"]
+    first = _capture(gate.values["sm_captures"][MAIN], "snapshot")
+    out, run, egress = _pull(gate, "security.repo-acquire", WORKFLOWS, PARSE_LINES[MAIN],
+                             "repull", accept=False)
+    second = _capture(out, "snapshot")
+    assert second != first  # a new observation, its own envelope
+    assert egress.get("proposal_id") is None, egress
+    assert egress["children"] and all(c.get("unchanged") for c in egress["children"]), egress
+    assert gate.json("orient")["coordinate"]["git_oid"] == head  # no generation
+    bodies = [json.loads(gate.out("capture", "read", c, "--max-bytes", "0"))["envelope"][
+        "commitment"] for c in (first, second)]
+    assert bodies[0] == bodies[1], bodies  # the same content: one body
+    record("23", f"identical re-pull: landing ran {run['run'][:16]}; the coverage revision "
+           f"re-observed ({len(egress['children'])} unchanged item), no proposal, head unchanged; "
+           "two Captures share one commitment")
+
+
+def test_24_moved_source(gate: Gate) -> None:
+    before = _claim_ids(gate)
+    (gate.root / "security-gate-fixture.json").write_text(json.dumps(
+        {"heads": {"cruxible-ai/cruxible": {"main": 1}}}))
+    _out, _run, egress = _pull(gate, "security.repo-acquire", WORKFLOWS, PARSE_LINES[MAIN],
+                               "moved", accept=False)
+    proposal = egress["proposal_id"]
+    assert proposal, egress
+    reasons = _item_reasons(gate.out("proposal", "review", proposal))
+    revisions = [path for path, why in reasons if "read every file" in why]
+    others = [(path, why) for path, why in reasons
+              if "read every file" not in why and "publish-runtime-image.yml" not in why]
+    assert len(revisions) == 1 and not others, (revisions, others)  # one revision + the new file
+    changed = reasons
+    gate.activate(proposal)
+    (coverage,) = gate.rows("security.coverage_index", source=MAIN, scope="ci.workflows")
+    assert _field(coverage, "revision") == MAIN_NEW, coverage
+    after = _claim_ids(gate)
+    for subject, claims in before.items():
+        assert after.get(subject) == claims, subject  # unchanged facts keep their Claims
+    added = sorted(set(after) - set(before))
+    assert added and all("publish-runtime-image" in subject for subject in added), added
+    _, summary = _harden(gate)
+    ghcr = _answers(summary, "HQ1")[f"ghcr/cruxible-ai/cruxible-runtime @ {MAIN}"]
+    assert (ghcr["state"], ghcr["revision"]) == ("found", MAIN_NEW), ghcr
+    finding = next(f["payload"] for f in _posted(gate, "finding")
+                   if f["payload"]["question"] == "HQ1" and f["payload"]["revision"] == MAIN_NEW
+                   and "ghcr" in f["payload"]["subject"])
+    assert any(b["job"].endswith("publish-runtime-image.yml#build")
+               and "workflow_dispatch" in b["triggers"] for b in finding["bypass"]), finding
+    record("24", f"main moved {MAIN_OLD[:12]} -> {MAIN_NEW[:12]}: one coverage.revision revised, "
+           f"{len(changed) - 1} other items all in publish-runtime-image.yml ({len(added)} new "
+           f"Subjects); {len(before)} held workflows and jobs kept their Claims; HQ1 GHCR finds "
+           "the dispatch bypass")
+
+
+def test_25_publishing_commit(gate: Gate) -> None:
+    name = "security.repo-parse.cruxible-released"
+    gate.submit("released-line", _parse_line(name, ref=RELEASED))
+    gate.out("line", "enable", name)
+    released = f"github.com/cruxible-ai/cruxible@{RELEASED}:.github/workflows/"
+    gap = next(g for g in _posted(gate, "gap") if g["payload"]["source"] == released)
+    _pull(gate, gap["payload"]["pull"], gap["payload"]["input"], name, "released")
+    gate.out("inbox", "ack", gap["item_id"])
+    _, summary = _harden(gate)
+    hq5 = _answers(summary, "HQ5")
+    built = {s: a for s, a in hq5.items() if "0.3.2" in s and s.startswith("pypi/")}
+    assert built and all(a["state"] == "none" and a["source"] == released
+                         for s, a in built.items() if a.get("jobs")), built
+    wheel = built["pypi/cruxible-client:cruxible_client-0.3.2-py3-none-any.whl"]
+    assert wheel["jobs"] == ["publish-client"], wheel  # published from its environment's job
+    record("25", f"parse Line authored for {RELEASED[:12]} (one write); its pull answered HQ5 "
+           f"for {len(built)} 0.3.2 files: none, each naming {RELEASED[:12]}; cruxible-client's "
+           "wheel matches publish-client (environment pypi-cruxible-client)")
+
+
+def test_26_fail_closed(gate: Gate) -> None:
+    from security_analysis_provider.harden import harden
+
+    later = (datetime.now(UTC) + timedelta(hours=13)).isoformat().replace("+00:00", "Z")
+    params = ["--param", f"source={MAIN}", "--param", "scope=ci.workflows"]
+    held = gate.json("query", "--name", "security.coverage_index", *params,
+                     "--evaluation-time", later)["rows"]
+    assert held, held  # the parse still sees it (stale), to revise it
+    rows = {name: _tap_rows(gate.json("query", "--name", query, "--all", "--evaluation-time",
+                                      later)["rows"])
+            for name, query in (("hq1", "security.publish_paths"),
+                                ("hq2", "security.credentialed_jobs"),
+                                ("hq3", "security.mutable_actions"),
+                                ("hq4", "security.shared_dependencies"),
+                                ("hq5", "security.served_vs_declared"))}
+    # The coverage Subjects still join; their revision, re-read on every pull, is stale.
+    assert rows["hq1"] and all(not any(f["name"] == "coverage_revision" and f["state"] == "present"
+                                       for f in r["fields"]) for r in rows["hq1"]), rows["hq1"][:1]
+    stale = harden({**rows, "params": {}})
+    states = {(a["question"], a["state"]) for a in stale["answers"]
+              if a["question"] in {"HQ1", "HQ2", "HQ3", "HQ4"}}
+    assert {state for _q, state in states} == {"unknown"}, states
+    assert MAIN in {g["source"] for g in stale["items"] if g["kind"] == "gap"}
+    _, now = _harden(gate)
+    assert now["none"] and now["found"], now  # still current now
+    record("26", f"at +13 h (stale_after 12 h) coverage reads absent in every hardening row; "
+           f"the classifier answers HQ1-HQ4 unknown and names {MAIN} again; current now")
+
+
+def test_27_investigation(gate: Gate) -> None:
+    import hashlib
+
+    pulls = 0
+    # Hop 1: what the release serves.
+    out = gate.out("procedure", "run", "security.asset-fetch", gate.payload(
+        "asset", {"url": ASSET_URL}))
+    pulls += 1
+    served = re.search(r'"body_digest": "(sha256:[0-9a-f]{64})"', out).group(1)
+    asset_capture = _capture(out, "asset")
+    # Hop 2: what the release declared, at the tag: one more source, one parse Line.
+    name = "security.repo-parse.cruxible-v0.3.2-manifest"
+    gate.submit("manifest-line", _parse_line(name, ref="v0.3.2", scope="release.manifest",
+                                             path=MANIFEST))
+    gate.out("line", "enable", name)
+    _pull(gate, "security.repo-acquire", {**REPO_KEY, "ref": "v0.3.2",
+                                          "scope": "release.manifest", "path": MANIFEST},
+          name, "manifest")
+    pulls += 1
+    rows = gate.json("query", "--name", "security.registry_facts", "--param",
+                     "registry=github_release", "--param", "name=cruxible-ai/cruxible",
+                     "--all")["rows"]
+    (row,) = [r for r in rows if _field(r, "artifact_name") == f"v0.3.2/{ASSET}"]
+    artifact = _field(row, "artifact")
+    declared = _field(row, "declared_sha256")
+    assert declared and declared != served, (declared, served)
+    _write(gate, "served", {
+        "because": "The release serves these bytes (security.asset-fetch).",
+        "subject": f"security.artifact/{artifact}",
+        "changes": [{"op": "set", "field": "security.artifact.sha256", "value": served,
+                     "evidence": {"kind": "capture",
+                                                         "capture": asset_capture}}]})
+    # The disagreement posts first, with both Claims.
+    _, summary = _harden(gate)
+    disagreement = next(f["payload"] for f in _posted(gate, "finding")
+                        if f["payload"].get("disagreement") == "digest")
+    for side, contract in (("declared", "security.repo-snapshot-v1"),
+                           ("served", "security.release-asset-v1")):
+        assert disagreement[side]["value"] == (declared if side == "declared" else served)
+        assert contract in gate.out("get", disagreement[side]["claim"], "--detail", "evidence")
+    # Hop 0: the signal, its observation and the note, in one write.
+    fingerprint = "sha256:" + hashlib.sha256(
+        f"{artifact}|{declared}|{served}".encode()).hexdigest()
+    note = f"investigations/{fingerprint.removeprefix('sha256:')[:16]}.md"
+    signal = _write(gate, "signal", {
+        "because": "HQ5: the served agent-release asset does not match the v0.3.2 manifest.",
+        "changes": [
+            {"op": "create", "label": "signal", "subject_kind": "security.signal",
+             "key": [{"predicate": "security.signal.detector", "value": "security.hq5"},
+                     {"predicate": "security.signal.fingerprint", "value": fingerprint}]},
+            {"op": "add", "subject": {"created": "signal"}, "field": "security.signal.observed",
+             "value": f"security.artifact/{artifact}", "role": "normative",
+             "evidence": {"kind": "section", "file": note, "section": ["Observation"],
+                          "own_words": True}}],
+        "docs": [{"op": "append", "file": note, "text": (
+            f"# Observation\n\nv0.3.2 declares {ASSET} as {declared}; the release serves "
+            f"{served} (Capture {asset_capture}).\n")}]})
+    signal_id = next(c["subject"] for c in signal["changes"] if c["op"] == "create")
+    # Hops 3 and 5: who uploaded it, and whether the path ran again.
+    release_out = gate.out("procedure", "run", "security.release-acquire", gate.payload(
+        "release", {"url": f"{GITHUB_API}/releases/tags/v0.3.2"}))
+    runs_out = gate.out("procedure", "run", "security.history-acquire", gate.payload(
+        "runs", {"url": f"{GITHUB_API}/actions/workflows/publish.yml/runs?branch=v0.3.2"
+                        "&per_page=5"}))
+    pulls += 2
+    _write(gate, "uploaded", {
+        "because": "The release API names the uploader.",
+        "subject": f"security.artifact/{artifact}",
+        "changes": [{"op": "set", "field": "security.artifact.uploaded_by",
+                     "value": "github-actions[bot]",
+                     "evidence": {"kind": "capture",
+                                  "capture": _capture(release_out, "release")}}]})
+    # Hop 6: two hypotheses contend for one slot.
+    jobs = gate.rows("security.source_facts", source="github.com/cruxible-ai/cruxible@main")
+    (bundles,) = {_field(r, "job") for r in jobs if _field(r, "job_key") == "publish-kit-bundles"}
+    target = _field(rows[0], "target")
+    for label, value, contend, text in (
+        ("h1", f"security.job/{bundles}", False,
+         "# H1\n\nA re-run of publish-kit-bundles rebuilt the asset and replaced it with "
+         f"--clobber (runs: Capture {_capture(runs_out, 'history')}).\n"),
+        ("h2", f"security.target/{target}", True,
+         "# H2\n\nA repository writer uploaded the asset by hand.\n"),
+    ):
+        _write(gate, label, {
+            "because": f"Hypothesis {label.upper()}.",
+            "subject": f"security.signal/{signal_id.rsplit('/', 1)[-1]}",
+            "changes": [{"op": "set", "field": "security.signal.explained_by", "value": value,
+                         "contend": contend,
+                         "evidence": {"kind": "section", "file": note,
+                                      "section": [label.upper()], "own_words": True}}],
+            "docs": [{"op": "append", "file": note, "text": text}]})
+    assert "claim_conflicted" in {row["reason"] for row in gate.json("next")["items"]}
+    # Hop 7: the code responsible; the right hypothesis is revised, the other retired.
+    commits = gate.out("procedure", "run", "security.history-acquire", gate.payload(
+        "commits", {"url": f"{GITHUB_API}/commits?path=scripts/build_kit_bundles.py"
+                           "&sha=v0.3.2&per_page=5"}))
+    pulls += 1
+    hypotheses = gate.json("query", "security.signal", "--select", "explained_by",
+                           "--claims")["rows"][0]["claims"]["explained_by"]
+    h2 = next(c["claim"] for c in hypotheses if "security.target" in json.dumps(c["value"]))
+    gate.out("retire", h2, "--reason", "was-wrong", "--because",
+             "The uploader is the release bot and the run times match: not a hand upload.")
+    change = {"op": "create", "label": "change", "subject_kind": "security.change",
+              "key": [{"predicate": "security.change.repo_ref",
+                       "value": "github.com/cruxible-ai/cruxible"},
+                      {"predicate": "security.change.commit_sha",
+                       "value": _commit(gate, commits)}]}
+    _write(gate, "h1-revised", {
+        "because": "build_kit_bundles.py last changed in this commit before v0.3.2.",
+        "subject": f"security.signal/{signal_id.rsplit('/', 1)[-1]}",
+        "changes": [change, {"op": "set", "field": "security.signal.explained_by",
+                             "value": {"created": "change"},
+                             "evidence": {"kind": "capture",
+                                          "capture": _capture(commits, "history")}}]})
+    resolved = gate.json("query", "security.signal", "--select", "explained_by",
+                         "--claims")["rows"][0]["claims"]["explained_by"]
+    assert len(resolved) == 1 and "security.change" in json.dumps(resolved[0]["value"]), resolved
+    # Hop 8: the remediation.
+    _write(gate, "remediation", {
+        "because": "Verify the bundles before replacing a release asset.",
+        "changes": [
+            {"op": "create", "label": "fix", "subject_kind": "security.remediation"},
+            {"op": "set", "subject": {"created": "fix"}, "field": "security.work.job",
+             "value": f"security.job/{bundles}"},
+            {"op": "set", "subject": {"created": "fix"}, "field": "security.work.rationale",
+             "value": "Verify before --clobber: refuse to replace an asset whose digest differs."},
+        ]})
+    assert pulls <= 7
+    record("27", f"HQ5 posted the digest disagreement citing the manifest (repo-snapshot) and "
+           f"served (release-asset) Claims; signal + observation + note in one write; H1/H2 "
+           f"contended, H2 retired was-wrong, H1 revised to the change: resolved; remediation "
+           f"on publish-kit-bundles; {pulls} pulls")
+
+
+def _commit(gate: Gate, out: str) -> str:
+    """The newest commit a history Capture (GitHub's commits answer) names."""
+
+    import base64
+
+    read = json.loads(gate.out("capture", "read", _capture(out, "history")))
+    material = json.loads(base64.b64decode(read["material"]["body_access"]["body_base64"]))
+    commits = json.loads(base64.b64decode(material["retrieved"]["body_base64"]))
+    return str(commits[0]["sha"])
