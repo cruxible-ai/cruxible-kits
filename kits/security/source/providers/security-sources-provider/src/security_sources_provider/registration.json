@@ -5,7 +5,7 @@
         "entrypoint": "security_sources_provider.sources:classify_osv",
         "identity": "security.osv-query.input",
         "source": {
-          "digest": "sha256:4d4bba4c13313ada2b572554d11151b2b45a42e82dee82049c1199349b0e6919",
+          "digest": "sha256:d6a8cbfeb6916c638b049dd07ba7a1d1f567aaeb6270eba8a8cb96aa8ec78a23",
           "path": "sources.py"
         },
         "version": 1
@@ -31,7 +31,7 @@
         "entrypoint": "security_sources_provider.sources:classify_epss",
         "identity": "security.epss-daily.input",
         "source": {
-          "digest": "sha256:4d4bba4c13313ada2b572554d11151b2b45a42e82dee82049c1199349b0e6919",
+          "digest": "sha256:d6a8cbfeb6916c638b049dd07ba7a1d1f567aaeb6270eba8a8cb96aa8ec78a23",
           "path": "sources.py"
         },
         "version": 1
@@ -57,7 +57,7 @@
         "entrypoint": "security_sources_provider.sources:classify_repo",
         "identity": "security.repo-snapshot.input",
         "source": {
-          "digest": "sha256:4d4bba4c13313ada2b572554d11151b2b45a42e82dee82049c1199349b0e6919",
+          "digest": "sha256:d6a8cbfeb6916c638b049dd07ba7a1d1f567aaeb6270eba8a8cb96aa8ec78a23",
           "path": "sources.py"
         },
         "version": 1
@@ -83,7 +83,7 @@
         "entrypoint": "security_sources_provider.sources:classify_pypi",
         "identity": "security.pypi-release.input",
         "source": {
-          "digest": "sha256:4d4bba4c13313ada2b572554d11151b2b45a42e82dee82049c1199349b0e6919",
+          "digest": "sha256:d6a8cbfeb6916c638b049dd07ba7a1d1f567aaeb6270eba8a8cb96aa8ec78a23",
           "path": "sources.py"
         },
         "version": 1
@@ -103,10 +103,36 @@
         "digest": "sha256:98bcb2893206497fd313aa4ac1f4ec0df4971447b4d9fda5b8dcd895dd5767a3",
         "path": "vocab/security.pypi-release.json"
       }
+    },
+    {
+      "classifier": {
+        "entrypoint": "security_sources_provider.sources:classify_asset",
+        "identity": "security.release-asset.input",
+        "source": {
+          "digest": "sha256:d6a8cbfeb6916c638b049dd07ba7a1d1f567aaeb6270eba8a8cb96aa8ec78a23",
+          "path": "sources.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:303b03aef718b95c93fdc8c8a00297c8dcd867c37505421854e508bc5068f317",
+        "path": "contracts/security.release-asset.json"
+      },
+      "fixtures": {
+        "digest": "sha256:f3ad8c9b21f96647d327728f4f31310fbfdcdeabbe9a44e198cab4d5e150f42a",
+        "path": "registration-fixtures/security.release-asset.json"
+      },
+      "interface_digest": "sha256:9f856f117a2b700118092a8bd1e50d0436ba429b3615b73e7083c9b3d9a6827e",
+      "interface_id": "security.release-asset",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:1708a0a714859505a6da5dde0b2c8d085144d9a9e97d26333d7778e2169b27f2",
+        "path": "vocab/security.release-asset.json"
+      }
     }
   ],
   "manifest": {
-    "digest": "sha256:dce46bfe07a5bfecedaee1b4e9b85127b85b2ebdb4166290957dc134b2e7c973",
+    "digest": "sha256:b189f65579551c72cfd70638fcfee4953686696e5e1b916b75cdd5db36042534",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

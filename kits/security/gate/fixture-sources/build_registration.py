@@ -5,8 +5,9 @@
 web.fetch's definition, vocabulary and fixtures are cruxible-provider-web
 0.2.2's, byte for byte, so installing this package binds core's web.fetch
 registration. ``security.osv-query``, ``security.epss-daily``,
-``security.repo-snapshot`` and ``security.pypi-release`` are the kit's
-security-sources-provider definitions, vocabularies and fixtures, copied here
+``security.repo-snapshot``, ``security.pypi-release`` and
+``security.release-asset`` are the kit's security-sources-provider definitions,
+vocabularies and fixtures, copied here
 with its ``sources.py`` (as ``_sources.py``), so the fixture registers the
 interfaces the kit carries and runs the kit's adapter code.
 """
@@ -44,7 +45,7 @@ def _vendor() -> dict[str, dict[str, object]]:
     kit = json.loads((SOURCES / "manifest.json").read_text())
     implementations = {item["interface_id"]: item for item in kit["implementations"]}
     for interface in ("security.osv-query", "security.epss-daily", "security.repo-snapshot",
-                      "security.pypi-release"):
+                      "security.pypi-release", "security.release-asset"):
         for folder in ("contracts", "vocab", "registration-fixtures"):
             shutil.copyfile(SOURCES / folder / f"{interface}.json",
                             MODULE / folder / f"{interface}.json")
@@ -72,6 +73,8 @@ def main() -> None:
          "_sources.py", "vocab/security.repo-snapshot.json", kit["security.repo-snapshot"]),
         ("security.pypi-release", "feeds:GatePypiRelease", "_sources:classify_pypi",
          "_sources.py", "vocab/security.pypi-release.json", kit["security.pypi-release"]),
+        ("security.release-asset", "feeds:GateReleaseAsset", "_sources:classify_asset",
+         "_sources.py", "vocab/security.release-asset.json", kit["security.release-asset"]),
     ]
     for interface, entry, classifier, source, vocabulary, declared in specs:
         definition = json.loads((MODULE / f"contracts/{interface}.json").read_bytes())

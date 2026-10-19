@@ -119,6 +119,19 @@ INTERFACES: dict[
         ["https://pypi.org"],
         "security.pypi.release.v1",
     ),
+    "security.release-asset": (
+        "sources:ReleaseAsset",
+        "sources:classify_asset",
+        "One GitHub release asset's served bytes.",
+        [_dimension("asset", "what is read", {"release": "a release download URL"})],
+        {"url": "https://github.com/cruxible-ai/cruxible/releases/download/v0.3.2/"
+                "agent-release-0.3.2.tar.gz"},
+        "asset=release",
+        "asset=release",
+        ["https://github.com", "https://objects.githubusercontent.com",
+         "https://release-assets.githubusercontent.com"],
+        "security.github.asset.v1",
+    ),
 }
 
 

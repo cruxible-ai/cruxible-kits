@@ -7,7 +7,10 @@ SBOM's purls from ``responses/osv/querybatch.json`` and serves the records in
 ``responses/epss_scores.csv.gz``. ``security.repo-snapshot`` answers GitHub's
 commits, contents and raw-file requests from ``responses/github/`` (recorded by
 ``record_system_model.py``), and ``security.pypi-release`` PyPI's project JSON and
-provenance from ``responses/pypi/``. Every Capture says ``packaged-recording``.
+provenance from ``responses/pypi/``, and ``security.release-asset`` the recorded
+asset of ``responses/github/assets/`` ALTERED: its bytes plus ``ALTERED_SUFFIX``.
+That is the gate's injected mismatch: what the release serves no longer matches
+the digest the manifest declares. Every Capture says ``packaged-recording``.
 
 A recorded ref can name several heads (``refs.json``: ``main`` before and after the
 runtime-image workflow landed). It names the first, unless a
@@ -23,10 +26,18 @@ from pathlib import Path
 
 import httpx
 
-from ._sources import EpssDaily, OsvQuery, PypiRelease, RepoSnapshot, static_transport
+from ._sources import (
+    EpssDaily,
+    OsvQuery,
+    PypiRelease,
+    ReleaseAsset,
+    RepoSnapshot,
+    static_transport,
+)
 
 RESPONSES = Path(__file__).resolve().parent / "responses"
 MARKER = "security-gate-fixture.json"
+ALTERED_SUFFIX = b"\nreplaced after release\n"
 
 
 def _osv_transport() -> httpx.BaseTransport:
@@ -152,3 +163,25 @@ class GatePypiRelease(PypiRelease):
 
     def __init__(self) -> None:
         super().__init__(_pypi_transport)
+
+
+def _asset_transport() -> httpx.BaseTransport:
+    assets = RESPONSES / "github" / "assets"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        parts = request.url.path.strip("/").split("/")
+        file = assets / parts[-1] if len(parts) == 6 and parts[2:4] == [
+            "releases", "download"] else None
+        if file is None or not file.is_file():
+            return httpx.Response(404, content=b"Not Found", request=request)
+        return httpx.Response(200, headers={"content-type": "application/octet-stream"},
+                              content=file.read_bytes() + ALTERED_SUFFIX, request=request)
+
+    return httpx.MockTransport(handler)
+
+
+class GateReleaseAsset(ReleaseAsset):
+    """``security.release-asset`` serving the gate's recorded asset, altered."""
+
+    def __init__(self) -> None:
+        super().__init__(_asset_transport)

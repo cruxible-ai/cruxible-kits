@@ -97,6 +97,31 @@
       "interface_id": "security.pypi-release",
       "requires_extras": [],
       "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "asset=release": "release-asset-fixture"
+      },
+      "capture_contract_families": [
+        "security.github.asset.v1"
+      ],
+      "declared_endpoints": [
+        "https://github.com",
+        "https://objects.githubusercontent.com",
+        "https://release-assets.githubusercontent.com"
+      ],
+      "declared_input_buckets": [
+        "asset=release"
+      ],
+      "deterministic": false,
+      "entrypoint": "security_sources_provider.sources:ReleaseAsset",
+      "interface_digest": "sha256:9f856f117a2b700118092a8bd1e50d0436ba429b3615b73e7083c9b3d9a6827e",
+      "interface_id": "security.release-asset",
+      "requires_extras": [],
+      "side_effects": false
     }
   ],
   "provider_id": "security-sources-provider",

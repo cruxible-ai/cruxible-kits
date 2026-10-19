@@ -21,6 +21,7 @@ dependencies = [
 "security.epss-daily" = "security_gate_sources.feeds:GateEpssDaily"
 "security.repo-snapshot" = "security_gate_sources.feeds:GateRepoSnapshot"
 "security.pypi-release" = "security_gate_sources.feeds:GatePypiRelease"
+"security.release-asset" = "security_gate_sources.feeds:GateReleaseAsset"
 
 [build-system]
 requires = ["hatchling==1.32.1"]

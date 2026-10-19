@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import gzip
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ from security_sources_provider.sources import (
     EpssDaily,
     OsvQuery,
     PypiRelease,
+    ReleaseAsset,
     RepoSnapshot,
     git_blob_id,
     static_transport,
@@ -226,6 +228,22 @@ def test_pypi_release_keeps_the_newest_versions_files_and_their_provenance() -> 
     assert (sdist["provenance_status"], sdist["provenance"]) == (404, None)
     assert "downloads" not in wheel and wheel["sha256"] == "ab" * 32
     assert context.egress.observed() == ["https://pypi.org"]
+
+
+def test_release_asset_follows_github_redirect_and_keeps_the_served_bytes() -> None:
+    url = "https://github.com/cruxible-ai/cruxible/releases/download/v0.3.2/a.tar.gz"
+    routes = {
+        ("GET", "/cruxible-ai/cruxible/releases/download/v0.3.2/a.tar.gz"): (
+            302, b"", {"location": "https://release-assets.githubusercontent.com/x/a?sig=1"}),
+        ("GET", "/x/a"): (200, b"bytes", {"content-type": "application/octet-stream"}),
+    }
+    context = _context("security.release-asset", {"url": url})
+    retrieved = _material(ReleaseAsset(lambda: static_transport(routes))(context))["retrieved"]
+    assert retrieved["body_sha256"] == "sha256:" + hashlib.sha256(b"bytes").hexdigest()
+    assert retrieved["final_url"] == "https://release-assets.githubusercontent.com/x/a"
+    refused = ReleaseAsset(lambda: static_transport(routes))(
+        _context("security.release-asset", {"url": "https://example.org/a.tar.gz"}))
+    assert refused.status == "refused"
 
 
 def test_the_registration_verifies() -> None:

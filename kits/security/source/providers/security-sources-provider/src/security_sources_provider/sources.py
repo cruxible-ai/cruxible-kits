@@ -33,6 +33,12 @@ JSON (``GET /pypi/{project}/json``) and, for each file of the newest N
 versions, its provenance (``GET /integrity/{project}/{version}/{file}/provenance``;
 a 404 is retained as an answer). The bundle keeps each file's name, digest,
 size, upload time and provenance, not the volatile counters around them.
+
+``security.release-asset`` reads the bytes one GitHub release asset's download
+URL serves (``https://github.com/OWNER/REPO/releases/download/TAG/NAME``,
+following GitHub's redirect to its asset host) and retains them with their
+digest: what the release really serves. (web.fetch leaves archives to the
+document plane, so the kit reads them here.)
 """
 
 from __future__ import annotations
@@ -79,6 +85,14 @@ MAX_VERSIONS = 10
 _NAME = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _REF = re.compile(r"^[A-Za-z0-9_./-]{1,255}$")
 _PROJECT = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$")
+GITHUB = "https://github.com"
+#: Where GitHub redirects a release download.
+ASSET_HOSTS = ("https://github.com/", "https://objects.githubusercontent.com/",
+               "https://release-assets.githubusercontent.com/")
+ASSET_SOURCE = "github.release.asset"
+MAX_ASSET_BYTES = 33_554_432
+_ASSET_URL = re.compile(
+    r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/releases/download/[^/?#]+/[^/?#]+$")
 
 #: Builds the client a run uses. Tests and the release gate pass a transport.
 TransportFactory = Callable[[], httpx.BaseTransport | None]
@@ -636,6 +650,82 @@ class PypiRelease:
                 observed_at=datetime.now(UTC),
             ),
             metrics={"versions": float(len(versions))},
+        )
+
+
+def classify_asset(payload: Mapping[str, Any]) -> Mapping[str, str] | None:
+    url = payload.get("url")
+    if not isinstance(url, str) or not _ASSET_URL.fullmatch(url):
+        return None
+    return {"asset": "release"}
+
+
+class ReleaseAsset:
+    """The ``security.release-asset`` implementation (external read, Source)."""
+
+    interface_id = "security.release-asset"
+
+    def __init__(self, transport_factory: TransportFactory | None = None) -> None:
+        self._transport_factory = transport_factory or (lambda: None)
+        self._source = "network" if transport_factory is None else "packaged-recording"
+
+    def __call__(self, context: ProviderRunContext) -> ProviderResult:
+        url = str(context.input.get("url") or "")
+        if not _ASSET_URL.fullmatch(url):
+            return ProviderResult.refused(
+                RefusalCode.PROVIDER_DECLINED,
+                "url must be a GitHub release download URL "
+                "(https://github.com/OWNER/REPO/releases/download/TAG/NAME)",
+            )
+        timeout = max(5.0, context.budgets.wall_clock_seconds * 0.8)
+        try:
+            with _client(context.egress, base_url=GITHUB, timeout=timeout,
+                         transport=self._transport_factory()) as client:
+                final = url
+                response = client.get(url)
+                for _ in range(5):
+                    if response.status_code not in {301, 302, 303, 307, 308}:
+                        break
+                    final = str(httpx.URL(final).join(response.headers.get("location", "")))
+                    if not final.startswith(ASSET_HOSTS):
+                        return ProviderResult.refused(
+                            RefusalCode.PROVIDER_DECLINED, "the download redirect left GitHub")
+                    response = client.get(final)
+        except httpx.HTTPError as error:
+            return ProviderResult.failed("HttpError", f"{type(error).__name__}: {error}")
+        if response.status_code != 200:
+            return ProviderResult.failed("HttpStatus", f"the asset answered {response.status_code}")
+        body = response.content
+        if len(body) > MAX_ASSET_BYTES:
+            return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, "the asset is too large")
+        material = {
+            "input_bucket": context.input_bucket,
+            "retrieved": {
+                "url": url,
+                "final_url": final.split("?", 1)[0],
+                "status_code": response.status_code,
+                "content_type": response.headers.get("content-type", ""),
+                "byte_count": len(body),
+                "body_sha256": _sha256(body),
+                "body_base64": base64.b64encode(body).decode("ascii"),
+                "source": self._source,
+            },
+        }
+        return ProviderResult.ok(
+            external_capture_result(
+                canonical_json(material),
+                source_identity=ASSET_SOURCE,
+                coordinate_type="http-response-v1",
+                selector_type="whole-response-v1",
+                coordinate={
+                    "request_digest": _sha256(url.encode()),
+                    "status": response.status_code,
+                    "body_sha256": _sha256(body),
+                    "source": self._source,
+                },
+                observed_at=datetime.now(UTC),
+            ),
+            metrics={"byte_count": float(len(body))},
         )
 
 

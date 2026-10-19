@@ -1,0 +1,18 @@
+{
+  "description": "One GitHub release asset's served bytes.",
+  "dimensions": [
+    {
+      "classes": [
+        {
+          "description": "a release download URL",
+          "id": "release"
+        }
+      ],
+      "description": "what is read",
+      "name": "asset"
+    }
+  ],
+  "interface_id": "security.release-asset",
+  "status": "draft",
+  "version": 1
+}
