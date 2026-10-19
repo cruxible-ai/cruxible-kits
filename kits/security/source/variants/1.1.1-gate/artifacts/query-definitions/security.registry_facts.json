@@ -1,0 +1,416 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "One target (by registry and name) with every artifact it serves and what each was published by and built from: the parse Procedures' tap. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "entry": {
+    "binding": "target",
+    "subject_id": null,
+    "subject_kinds": [
+      "security.target"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.registry_facts"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [
+    {
+      "default": null,
+      "name": "name",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "string"
+    },
+    {
+      "default": null,
+      "name": "registry",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "string"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:33adcea5d16a2e4aebaa313e7e2af2b46873250e5a76bc0f66c91602dde176c9",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.artifact.built_from"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f6fec93280a318e9d1f43db80b79f344c9eb34c1ba5a0626809b752bc4be1bfd",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.artifact.declared_sha256"
+      }
+    },
+    {
+      "artifact_digest": "sha256:380bd13e23ed8f0f70f29471b9651608dbe1efb30a7cc37245f0005008d05886",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.artifact.name"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d7d062aeb8cbe871edb8b0e158feb03ee5ae1292f7517388271618567ae63c28",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.artifact.publish_environment"
+      }
+    },
+    {
+      "artifact_digest": "sha256:39d60d723a1bab48f1a66b7d3d87146e3669cca4738bcd467059b8f4e87b17f7",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.artifact.published_by"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f1aaef4d7fc04e08f5f9d3888e61dad241e3b12485bb9793bf149e091816e68b",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.artifact.release"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ffa56935ebeec1e7597a2738ffc705714e29a58b018ad6924c57a705eb45fe5f",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.artifact.sha256"
+      }
+    },
+    {
+      "artifact_digest": "sha256:55d32de621428fc02ea467f506405ce281401be8fd6cb965dc4070114e4db024",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.artifact.target"
+      }
+    },
+    {
+      "artifact_digest": "sha256:00a12f229de9618dc5a5d22384bf467b9a2fb56f423904f6e2165bb5c5eebe1e",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.change.commit_sha"
+      }
+    },
+    {
+      "artifact_digest": "sha256:4f00800056fb9c2af1d558a2ebdc688148172e319f5fdf9bcf8aaf121305a283",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.release.version"
+      }
+    },
+    {
+      "artifact_digest": "sha256:de2369769823e07700c961d7ffe1174c2a12b37d1ffde5f7ccc0eb4b3a04cac2",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.repo.full_name"
+      }
+    },
+    {
+      "artifact_digest": "sha256:0ca0e36aacfd1050f35d9eca5d0533b3150d0fbb53ec0f92dbb9a0737b4dfe5f",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.target.name"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d2f9babf7661e03eff75d50df0f1371ecdf9d9292197ba05c8c3f1a7b953ea4d",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.target.registry"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d5c1130aa1c7ad6a51a5888303e8e4ae6ce43db6afb96cb5b32d92fbbfccddb7",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.target.source_repo"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ca957a2cca04ef30b9fb70c0bf91c9d2133b3c84dca0cb8237c1c5617f459890",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.workflow.path"
+      }
+    },
+    {
+      "artifact_digest": "sha256:5912a400500c1c5b77edfbabb5649f486b6b7437dc21a33ba76ef0175a5ee352",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.workflow.source"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "artifact",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "artifact",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "artifact_name",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "artifact",
+          "kind": "claim_value",
+          "predicate": "security.artifact.name",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "built_from_sha",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "change",
+          "kind": "claim_value",
+          "predicate": "security.change.commit_sha",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "declared_sha256",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "artifact",
+          "kind": "claim_value",
+          "predicate": "security.artifact.declared_sha256",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "publish_environment",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "artifact",
+          "kind": "claim_value",
+          "predicate": "security.artifact.publish_environment",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "release_version",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "kind": "claim_value",
+          "predicate": "security.release.version",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "repo_full_name",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "repo",
+          "kind": "claim_value",
+          "predicate": "security.repo.full_name",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "sha256",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "artifact",
+          "kind": "claim_value",
+          "predicate": "security.artifact.sha256",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "target",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "target",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "workflow_path",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "workflow",
+          "kind": "claim_value",
+          "predicate": "security.workflow.path",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "workflow_source",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "workflow",
+          "kind": "claim_value",
+          "predicate": "security.workflow.source",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "target",
+  "result_cardinality": "many",
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "artifact",
+      "direction": "reverse",
+      "from_binding": "target",
+      "predicate": "security.artifact.target",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.artifact"
+      ],
+      "where": null
+    },
+    {
+      "binding": "workflow",
+      "direction": "forward",
+      "from_binding": "artifact",
+      "predicate": "security.artifact.published_by",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.workflow"
+      ],
+      "where": null
+    },
+    {
+      "binding": "change",
+      "direction": "forward",
+      "from_binding": "artifact",
+      "predicate": "security.artifact.built_from",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.change"
+      ],
+      "where": null
+    },
+    {
+      "binding": "release",
+      "direction": "forward",
+      "from_binding": "artifact",
+      "predicate": "security.artifact.release",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.release"
+      ],
+      "where": null
+    },
+    {
+      "binding": "repo",
+      "direction": "forward",
+      "from_binding": "target",
+      "predicate": "security.target.source_repo",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.repo"
+      ],
+      "where": null
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "target",
+          "kind": "claim_value",
+          "predicate": "security.target.name",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "name",
+          "tag": "playbill-query-parameter-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "target",
+          "kind": "claim_value",
+          "predicate": "security.target.registry",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "registry",
+          "tag": "playbill-query-parameter-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of",
+    "tag": "playbill-query-conjunction-filter-v1"
+  }
+}

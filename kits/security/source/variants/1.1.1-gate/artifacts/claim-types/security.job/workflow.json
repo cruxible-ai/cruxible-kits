@@ -1,0 +1,79 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [
+    "security.workflow"
+  ],
+  "allowed_subject_kinds": [
+    "security.job"
+  ],
+  "artifact_format": "playbill-claim-type-v8",
+  "attestation_consequence_policy": null,
+  "canonical_form": [],
+  "cardinality": "one",
+  "default_role": "observation",
+  "description": "The workflow the job is declared in.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.repo-snapshot-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "evidence_kinds": [
+          "http_response"
+        ],
+        "rule_id": "retained-security-evidence",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      }
+    ],
+    "tag": "playbill-claim-evidence-admission-policy-v3"
+  },
+  "evidence_freshness": null,
+  "evidence_requirement": "captured",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "security.job.workflow"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": null,
+  "member_descriptions": [],
+  "object_kind": "subject",
+  "permitted_roles": [
+    "observation"
+  ],
+  "pins": [],
+  "predicate": "security.job.workflow",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "slot_policy": null,
+  "subject_scope": null
+}

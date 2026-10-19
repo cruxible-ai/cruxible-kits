@@ -1,0 +1,811 @@
+{
+  "artifacts": [
+    {
+      "artifact_digest": "sha256:02ecc56dcae006105106b07365ffc6b04debe3a1d6a3320e0cc0fe1b2fb93c9e",
+      "path": "blueprints/security.asset-fetch.json"
+    },
+    {
+      "artifact_digest": "sha256:fe1bed96cbae0baa050f1eb5e826e3c13ceb017743743ed1ea45ce99c7939b8b",
+      "path": "blueprints/security.cve-record-acquire.json"
+    },
+    {
+      "artifact_digest": "sha256:05f0ed7da7e6e29eee4ac46fffc86fcb65daa90a112415ecbea3baf20abc4b2a",
+      "path": "blueprints/security.epss-acquire.json"
+    },
+    {
+      "artifact_digest": "sha256:99231fcf28dd542463b0a581be9f318432c4c1f8a2ece499c983f62283a9073a",
+      "path": "blueprints/security.history-acquire.json"
+    },
+    {
+      "artifact_digest": "sha256:c46ca96c3f5b7b14b64550a6a8f614bc0786b52e7f2b5fe147c9b19e20b6e81d",
+      "path": "blueprints/security.kev-acquire.json"
+    },
+    {
+      "artifact_digest": "sha256:ee273ad2138525f17c50ae5fbdf06bf329b90bf58c2245c0252951a70f96333d",
+      "path": "blueprints/security.osv-applicability.json"
+    },
+    {
+      "artifact_digest": "sha256:ce7e61bdc6d47ea04a4cb098f4925173d1caabdac188ea367d18ea45b2123007",
+      "path": "blueprints/security.registry-acquire.json"
+    },
+    {
+      "artifact_digest": "sha256:81026416be1ece539bd6ea8445adbf4976b6cc7a675e07604e33bb16f1b2182f",
+      "path": "blueprints/security.release-acquire.json"
+    },
+    {
+      "artifact_digest": "sha256:67029b0c76c3fe72e979425fee9e23a6e82d638695058f6632df38a6eaff5d10",
+      "path": "blueprints/security.repo-acquire.json"
+    },
+    {
+      "artifact_digest": "sha256:e87a15358ef33484e29f58bfbc27c6d4a0d01cc375819b36a596786abb4b70f2",
+      "path": "capture-contracts/security.cve-record-http-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:26391ef005ecab1dbedf0b68849b5aea1cab2e35161c3a52bcd1e0a626332eef",
+      "path": "capture-contracts/security.cyclonedx-sbom-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:1cf4b39dae1713d2675fd138b5589f36219e9085d1c9354c564fa24934cca7bb",
+      "path": "capture-contracts/security.epss-daily-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:39773002ba38b01e058f7e2c552dd226e820987e7923c7af47bc77a7349b6c80",
+      "path": "capture-contracts/security.github-api-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:448914b7c29fb3c95c1a6550ae0d0302b032bdf273ad7875177a8393f17a9c7a",
+      "path": "capture-contracts/security.github-release-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:3515cb2a04e6e17a3343968e325cc7eec97a9617b8eb419a879a9df845de8bfc",
+      "path": "capture-contracts/security.kev-http-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:204609ce92af2744651e9dd40ac2073b74b0129cba3e44511266e6bbc0ea0c3f",
+      "path": "capture-contracts/security.observation-output-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:675cf750e2f9a8ca72e79685016692827846cbe0e8c2b5a4ece41a17eb483ef8",
+      "path": "capture-contracts/security.osv-query-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:a4172c526e76abc4e19d94856a66bad01304b293bb6358c578b0d9ca58897d08",
+      "path": "capture-contracts/security.pypi-release-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:ea3d02e630c634b4c630d3f87e600e9d4421de3ba2ae35d7bd75576fad869fc7",
+      "path": "capture-contracts/security.release-asset-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:f0d545a2ef769690442ff7b48c936e04fdf6630437deac995349e11b533faf02",
+      "path": "capture-contracts/security.repo-snapshot-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:81b3a9f16874728f586c394a7f5af852004ffb9debbe0b77bfd9750f2076cc7c",
+      "path": "capture-contracts/security.workspace-evidence-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:33adcea5d16a2e4aebaa313e7e2af2b46873250e5a76bc0f66c91602dde176c9",
+      "path": "claim-types/security.artifact/built_from.json"
+    },
+    {
+      "artifact_digest": "sha256:f6fec93280a318e9d1f43db80b79f344c9eb34c1ba5a0626809b752bc4be1bfd",
+      "path": "claim-types/security.artifact/declared_sha256.json"
+    },
+    {
+      "artifact_digest": "sha256:380bd13e23ed8f0f70f29471b9651608dbe1efb30a7cc37245f0005008d05886",
+      "path": "claim-types/security.artifact/name.json"
+    },
+    {
+      "artifact_digest": "sha256:d7d062aeb8cbe871edb8b0e158feb03ee5ae1292f7517388271618567ae63c28",
+      "path": "claim-types/security.artifact/publish_environment.json"
+    },
+    {
+      "artifact_digest": "sha256:39d60d723a1bab48f1a66b7d3d87146e3669cca4738bcd467059b8f4e87b17f7",
+      "path": "claim-types/security.artifact/published_by.json"
+    },
+    {
+      "artifact_digest": "sha256:f1aaef4d7fc04e08f5f9d3888e61dad241e3b12485bb9793bf149e091816e68b",
+      "path": "claim-types/security.artifact/release.json"
+    },
+    {
+      "artifact_digest": "sha256:ffa56935ebeec1e7597a2738ffc705714e29a58b018ad6924c57a705eb45fe5f",
+      "path": "claim-types/security.artifact/sha256.json"
+    },
+    {
+      "artifact_digest": "sha256:55d32de621428fc02ea467f506405ce281401be8fd6cb965dc4070114e4db024",
+      "path": "claim-types/security.artifact/target.json"
+    },
+    {
+      "artifact_digest": "sha256:5b6106c0f59a53152e99656a955096a4f6edbf09c08f163d72a6490bfd1bb0a7",
+      "path": "claim-types/security.artifact/target_ref.json"
+    },
+    {
+      "artifact_digest": "sha256:983dcd655eb33fb3fd4f73331ba724018cf1f2a4069ff48af2ded06d00b4e10c",
+      "path": "claim-types/security.artifact/uploaded_by.json"
+    },
+    {
+      "artifact_digest": "sha256:0b62bdc6ed1ef9c6f669fc5f7c52f232a53bb6ef7a33e1ce5275901d460644f2",
+      "path": "claim-types/security.assessment/cve_id.json"
+    },
+    {
+      "artifact_digest": "sha256:8a26385285d9070cf4bbe6cd668ab1552085ccda821002ae5501d438ada1781b",
+      "path": "claim-types/security.assessment/expected_status.json"
+    },
+    {
+      "artifact_digest": "sha256:a1a832258aad077603d902135e14777300e7e33b29e2547761c41b4f762eeec8",
+      "path": "claim-types/security.assessment/justification.json"
+    },
+    {
+      "artifact_digest": "sha256:3943580408f5ba36b2d327ff765256478de74163a43928debd3d910d3dae0304",
+      "path": "claim-types/security.assessment/release.json"
+    },
+    {
+      "artifact_digest": "sha256:a24aa7d4af2dcd216ec99481a708e1961888815dace147c5a0f6eb3a0074eb64",
+      "path": "claim-types/security.assessment/release_id.json"
+    },
+    {
+      "artifact_digest": "sha256:af3ce1531dba3d67329952c3ce2833d90318c3f19e5bedea85b5dbc200fab2aa",
+      "path": "claim-types/security.assessment/status.json"
+    },
+    {
+      "artifact_digest": "sha256:97b3d2b4c70eca2f81cf880ef40a18312af4fccf801f2d51b283d6125df02538",
+      "path": "claim-types/security.assessment/vulnerability.json"
+    },
+    {
+      "artifact_digest": "sha256:6ba2024e6826b5454642b7ca6339b1ff197678c0d9521aaea9e9352fabd13150",
+      "path": "claim-types/security.asset/environment.json"
+    },
+    {
+      "artifact_digest": "sha256:4d548f680c60d3f91a65877188d9aafe9d174783dcb932cdd4793bb200b06f49",
+      "path": "claim-types/security.asset/hostname.json"
+    },
+    {
+      "artifact_digest": "sha256:7a39322364e2e1059c8c73dd4cc0331169550be8aa32d05f40a3e99473fe4aae",
+      "path": "claim-types/security.asset/installs.json"
+    },
+    {
+      "artifact_digest": "sha256:3c41f5f9c98a498dfc23382838af60685e59e22c9186ef5d9d9bca6aff29d9c9",
+      "path": "claim-types/security.asset/internet_exposed.json"
+    },
+    {
+      "artifact_digest": "sha256:ec3456c6a80c2313607ed1a1060293cc6b71bd18cffd449d5eb6c7466b500959",
+      "path": "claim-types/security.asset/serves.json"
+    },
+    {
+      "artifact_digest": "sha256:00a12f229de9618dc5a5d22384bf467b9a2fb56f423904f6e2165bb5c5eebe1e",
+      "path": "claim-types/security.change/commit_sha.json"
+    },
+    {
+      "artifact_digest": "sha256:9744ca1a66242f8f224b0153ae51411c2f291c2fd4d04088a2b546047808c8ba",
+      "path": "claim-types/security.change/repo_ref.json"
+    },
+    {
+      "artifact_digest": "sha256:581d2f4dec7b9ab977ec6d5b528bc943e68cd294a28c70c52e3e922fb9c2a3dd",
+      "path": "claim-types/security.control/activation.json"
+    },
+    {
+      "artifact_digest": "sha256:e12d219f64e8c7d32294d1dc62d307aedc78ea10240eb3fe68240ca412b7822a",
+      "path": "claim-types/security.control/kind.json"
+    },
+    {
+      "artifact_digest": "sha256:29369118b382cd73648056fa6e98ae4ea88cf89a35c8bfd0d186a23bff797230",
+      "path": "claim-types/security.coverage/of.json"
+    },
+    {
+      "artifact_digest": "sha256:479ded5c3109e262167ee9095cce67174e9deb487c8f911ac97ffc00f6f0c3c2",
+      "path": "claim-types/security.coverage/revision.json"
+    },
+    {
+      "artifact_digest": "sha256:b307d0a375b6a266d2f18119911789c493c2a480cac5af84ebc0ad76af1cd3cd",
+      "path": "claim-types/security.coverage/scope.json"
+    },
+    {
+      "artifact_digest": "sha256:a6846a46b26a75d602958b58d4d881d7866ff6cf4175131275f973959d39a4f1",
+      "path": "claim-types/security.coverage/source.json"
+    },
+    {
+      "artifact_digest": "sha256:50a489ce0116180bd1ea088ce3a791521a3a0179c61646fd784189d11ae1a644",
+      "path": "claim-types/security.exception/approval.json"
+    },
+    {
+      "artifact_digest": "sha256:12174a74ba83dcd47fe896a5ea8d6c6109ec657682f1f4249907fddc7c93c9c0",
+      "path": "claim-types/security.exception/expires_at.json"
+    },
+    {
+      "artifact_digest": "sha256:f1bbdbfa2df81778d8e71d4eabc167b216c7fa32b89d47508c5a64ae150b8100",
+      "path": "claim-types/security.job/environment.json"
+    },
+    {
+      "artifact_digest": "sha256:081118527535ab25a8f79f48bcfccb8ebc7b6c7b1c3c76657e74776621fbca18",
+      "path": "claim-types/security.job/job_key.json"
+    },
+    {
+      "artifact_digest": "sha256:dbc7a07285969928748e182fd1730f354fd0e443e6814a9bec904794930cd332",
+      "path": "claim-types/security.job/needs.json"
+    },
+    {
+      "artifact_digest": "sha256:eaf3554965a0a46f147605f599cf901bc4240f4f32f4614d1042fb06564e414c",
+      "path": "claim-types/security.job/permission.json"
+    },
+    {
+      "artifact_digest": "sha256:fc1fc7efff273c5867937aa137612da6b8b8b0f95e4c39cc8c3865ea8124cc85",
+      "path": "claim-types/security.job/publishes_to.json"
+    },
+    {
+      "artifact_digest": "sha256:936c2c537d53a1273d469508ca22a85c2c626a57894265ace917837a3c6be23a",
+      "path": "claim-types/security.job/secret.json"
+    },
+    {
+      "artifact_digest": "sha256:96de63dafda0341b0e984560fb40ea9c224dccd535aa5785067ec8667c0a899c",
+      "path": "claim-types/security.job/uses.json"
+    },
+    {
+      "artifact_digest": "sha256:79e29a86c903a369abf7019e67e6664bd7810b0ec7e8d8b6a1f36aa8ce221d67",
+      "path": "claim-types/security.job/workflow.json"
+    },
+    {
+      "artifact_digest": "sha256:2d6ba47783b831b48ea389cd41e62c128e32a1b59be0a953beac34dbb454c7ae",
+      "path": "claim-types/security.job/workflow_ref.json"
+    },
+    {
+      "artifact_digest": "sha256:dc3e4b23c56bd8dc26d9d89773e483b0d2be2a5a2bf30120f951dbdd28196d84",
+      "path": "claim-types/security.product/name.json"
+    },
+    {
+      "artifact_digest": "sha256:bdf132d406f6cb60826db49c6dc7c7df67a155b7e680da0fe09aaef555f64dee",
+      "path": "claim-types/security.product/supplied_by.json"
+    },
+    {
+      "artifact_digest": "sha256:4e8b57900ef2aad2287cb7c836f49f9c241c31e6aa88c505ef13debae7ae0a29",
+      "path": "claim-types/security.release/component.json"
+    },
+    {
+      "artifact_digest": "sha256:be90dfcb4fc01f54a01f86f95ac00141c3cd769c5c833a4d9a68a9189ac60e11",
+      "path": "claim-types/security.release/product.json"
+    },
+    {
+      "artifact_digest": "sha256:59db3d9aefaaabe5c1d2f72cdcaaf9f302cb07ab7aacb7ee86223bb5441c1050",
+      "path": "claim-types/security.release/product_name.json"
+    },
+    {
+      "artifact_digest": "sha256:4f00800056fb9c2af1d558a2ebdc688148172e319f5fdf9bcf8aaf121305a283",
+      "path": "claim-types/security.release/version.json"
+    },
+    {
+      "artifact_digest": "sha256:f52be32f6a2997c6d1672ce52f2b6afb41f76430adf76a2520311308e99886c6",
+      "path": "claim-types/security.remediation/due_at.json"
+    },
+    {
+      "artifact_digest": "sha256:cb22ba0b3584b93bd221f7d07ed776c57422f37c67279eb3e2b8296396a738d5",
+      "path": "claim-types/security.remediation/progress.json"
+    },
+    {
+      "artifact_digest": "sha256:506d6d673a397aee7fb9a43114a1c51d5196abc454c927ccb48dedabc1d66edd",
+      "path": "claim-types/security.remediation/target_release.json"
+    },
+    {
+      "artifact_digest": "sha256:f001db1be300047b8c216d36510db92f910ebb3a11d874341ce660e2a89645bf",
+      "path": "claim-types/security.repo/forge_host.json"
+    },
+    {
+      "artifact_digest": "sha256:de2369769823e07700c961d7ffe1174c2a12b37d1ffde5f7ccc0eb4b3a04cac2",
+      "path": "claim-types/security.repo/full_name.json"
+    },
+    {
+      "artifact_digest": "sha256:d6a354160e5eff130a244fcfbd6015d7f771a7dcfe511978d34d0b00eab5e196",
+      "path": "claim-types/security.service/criticality.json"
+    },
+    {
+      "artifact_digest": "sha256:8c764d43db001b7ffb2a7534394394792b82253a10ab57f372263e959f3a4926",
+      "path": "claim-types/security.service/name.json"
+    },
+    {
+      "artifact_digest": "sha256:d91ba8d6d651d1632629f945fe6e4ea3f21411bbbbb819855e7521437135f6cb",
+      "path": "claim-types/security.service/owned_by.json"
+    },
+    {
+      "artifact_digest": "sha256:51205c48a9f4d9615b4e95c918fd91d095a1550dab14d282853300eae8f0c005",
+      "path": "claim-types/security.signal/detector.json"
+    },
+    {
+      "artifact_digest": "sha256:459ee8ff7dc998182d591150b06875e4ea5c7ae3e71d5158ddf14c3a87fbedec",
+      "path": "claim-types/security.signal/explained_by.json"
+    },
+    {
+      "artifact_digest": "sha256:cac52ba6bd1e15f0e7b1b49568e652568fa46711ffbfed192815bc7360fa8945",
+      "path": "claim-types/security.signal/fingerprint.json"
+    },
+    {
+      "artifact_digest": "sha256:d38e0b191e3dcdaaaf6a251a71fb0ffbccff6435cda7631819e919ac9b993e40",
+      "path": "claim-types/security.signal/observed.json"
+    },
+    {
+      "artifact_digest": "sha256:447410ca6e35eb4882db331c1691c4fa82eccd9ac2a11f19cee7eb1f9d73a196",
+      "path": "claim-types/security.supplier/name.json"
+    },
+    {
+      "artifact_digest": "sha256:0ca0e36aacfd1050f35d9eca5d0533b3150d0fbb53ec0f92dbb9a0737b4dfe5f",
+      "path": "claim-types/security.target/name.json"
+    },
+    {
+      "artifact_digest": "sha256:55258561099684e65cf64d202d050409b684897a8178db5c853b9fbe8093a4b0",
+      "path": "claim-types/security.target/publish_gate.json"
+    },
+    {
+      "artifact_digest": "sha256:d2f9babf7661e03eff75d50df0f1371ecdf9d9292197ba05c8c3f1a7b953ea4d",
+      "path": "claim-types/security.target/registry.json"
+    },
+    {
+      "artifact_digest": "sha256:d5c1130aa1c7ad6a51a5888303e8e4ae6ce43db6afb96cb5b32d92fbbfccddb7",
+      "path": "claim-types/security.target/source_repo.json"
+    },
+    {
+      "artifact_digest": "sha256:0317ac173fb6005bfbee1f6ee35dda966bdaa4e09e2cdecb81b97959dd29062c",
+      "path": "claim-types/security.team/name.json"
+    },
+    {
+      "artifact_digest": "sha256:71d273d960c85450760acab13b526712916c7a62125ff08d0837999a4c358ea9",
+      "path": "claim-types/security.vulnerability/cve_id.json"
+    },
+    {
+      "artifact_digest": "sha256:675416196623443fab7368f0324dd0b7091385940c62bcdaf04394923176c054",
+      "path": "claim-types/security.vulnerability/epss_percentile.json"
+    },
+    {
+      "artifact_digest": "sha256:f247297a4958490cf976a06f8ce1bb40081a9e15c57acf1a8eb8759bf35a0d40",
+      "path": "claim-types/security.vulnerability/epss_score.json"
+    },
+    {
+      "artifact_digest": "sha256:98cfc6c29b973dc8f5d1c8bf5507d989fc3f4a894ee7eff2ec023f82084c4e05",
+      "path": "claim-types/security.vulnerability/kev_cwes.json"
+    },
+    {
+      "artifact_digest": "sha256:4d7063ebe228e51f59707c89315683e4c814a904fb154d17ac9ec938b8dbb8c4",
+      "path": "claim-types/security.vulnerability/kev_date_added.json"
+    },
+    {
+      "artifact_digest": "sha256:7b7f1fa9a3325314b526e3fdbb8f665b57c56e2d2d5b4f3c19d4d73f9c5e5d67",
+      "path": "claim-types/security.vulnerability/kev_due_date.json"
+    },
+    {
+      "artifact_digest": "sha256:c66e54c640a4702b326e907f4686499ef792bd3785c53974441785d825e853d3",
+      "path": "claim-types/security.vulnerability/kev_listed.json"
+    },
+    {
+      "artifact_digest": "sha256:1a865ab32f408e30aba6e6919a3fffceaf36620dcbedee139ea830b810feab79",
+      "path": "claim-types/security.vulnerability/kev_ransomware_use.json"
+    },
+    {
+      "artifact_digest": "sha256:d47c864002cc5237c7e50ba606976ccb864b2a172cd78ca58680f25fe6152dac",
+      "path": "claim-types/security.vulnerability/title.json"
+    },
+    {
+      "artifact_digest": "sha256:065793923a3e20a849d4625bc4857c8cc99b9654bae0df89388052218c5f3857",
+      "path": "claim-types/security.vulnerability/vendor_product.json"
+    },
+    {
+      "artifact_digest": "sha256:dc74690486e48f688416ee120a2a8e0107ee0d8f27f02a2274efbf7fe4f96e32",
+      "path": "claim-types/security.vulnerability/watch_reason.json"
+    },
+    {
+      "artifact_digest": "sha256:2a29f2494840a6dea9e7da0c7d0bf458b6022a1e45cdefc78476c95c29239857",
+      "path": "claim-types/security.work/assessment.json"
+    },
+    {
+      "artifact_digest": "sha256:62ff1936036ef6b36a7223c478fc31bbae2076450f1e524b5296cf18781320fe",
+      "path": "claim-types/security.work/asset.json"
+    },
+    {
+      "artifact_digest": "sha256:38d5107f717487bee66e27e153e6d2b4ed9b47bc32d125132e21ac4b0eb1daf7",
+      "path": "claim-types/security.work/job.json"
+    },
+    {
+      "artifact_digest": "sha256:abb8f39dc629f6ae6f50d876b396740e3cced99d65d22c8e9da0bb5b6b9b75c7",
+      "path": "claim-types/security.work/owner.json"
+    },
+    {
+      "artifact_digest": "sha256:0954f2ac7a329507371c62a37de294cd171f5e7fb5ebb02d85d77031cda3379c",
+      "path": "claim-types/security.work/rationale.json"
+    },
+    {
+      "artifact_digest": "sha256:8fe9f54a64e2876aa1d71365b70635e9d808f2e2ea36b23cbfe061b5b96e3f41",
+      "path": "claim-types/security.work/review_at.json"
+    },
+    {
+      "artifact_digest": "sha256:f766b99bb745df3a1f9f98842f00d173d2b116cd8d3d0f18d9cbb33d7205b27f",
+      "path": "claim-types/security.work/verification.json"
+    },
+    {
+      "artifact_digest": "sha256:4bc4b2ee7de83953a0f99792d97118c56ce0d73f5395f172620dcbf46ed2dcf9",
+      "path": "claim-types/security.workflow/coverage.json"
+    },
+    {
+      "artifact_digest": "sha256:ca957a2cca04ef30b9fb70c0bf91c9d2133b3c84dca0cb8237c1c5617f459890",
+      "path": "claim-types/security.workflow/path.json"
+    },
+    {
+      "artifact_digest": "sha256:fcafe8ec8337d6166edc760c9169ae40ba20c08a44476f8fff8ce10aa0a49f5b",
+      "path": "claim-types/security.workflow/repo.json"
+    },
+    {
+      "artifact_digest": "sha256:5912a400500c1c5b77edfbabb5649f486b6b7437dc21a33ba76ef0175a5ee352",
+      "path": "claim-types/security.workflow/source.json"
+    },
+    {
+      "artifact_digest": "sha256:83fdbafc2053880a4df5acf636eaaf85a2cf0b4e2cfd1072fe3f465600697ddd",
+      "path": "claim-types/security.workflow/trigger.json"
+    },
+    {
+      "artifact_digest": "sha256:0973da820fe37cb35f3951b02420d1536a1516d96c91c88768cc5b778384b784",
+      "path": "procedures/security.cve-applicability.json"
+    },
+    {
+      "artifact_digest": "sha256:47b8cfbdbbbd4b502b9c26fc26fce01a30ff5e1fcdfeba804f3cbcb18e6c64c4",
+      "path": "procedures/security.epss-triage.json"
+    },
+    {
+      "artifact_digest": "sha256:b6db4a8b58ae9e5074679045d96955d4d6c4d2b923f43a98fc0a73467da0d3c4",
+      "path": "procedures/security.evidence-acquire.json"
+    },
+    {
+      "artifact_digest": "sha256:3020dc21a5eaf6b08c0abc9a7629ea4be082df39c19ff80f792a49559d1cbbfd",
+      "path": "procedures/security.harden.json"
+    },
+    {
+      "artifact_digest": "sha256:0b0aa832ff53f9eed3bba6f0c94ae12b877b6899aca1de37281cf7e52a1a3a97",
+      "path": "procedures/security.kev-attention.json"
+    },
+    {
+      "artifact_digest": "sha256:75fc00a9bd2aac47d24620bd5690b55d735cc18793ed0d35bbd118bd0c2ba5b1",
+      "path": "procedures/security.kev-triage.json"
+    },
+    {
+      "artifact_digest": "sha256:d74be2132cd3c25e3d102bf084b2da1a1268fcc0c35e386593876c2155affeba",
+      "path": "procedures/security.registry-parse.json"
+    },
+    {
+      "artifact_digest": "sha256:42b0aa97f23a17b4785b5259fd2e0ddf88bb38584231fdbc892b3aca753055ff",
+      "path": "procedures/security.repo-parse.json"
+    },
+    {
+      "artifact_digest": "sha256:6caf4173bd0023c1c4bfa5e941e2d197d6a1e9122628d2654ba28122fab589a9",
+      "path": "procedures/security.sbom-acquire.json"
+    },
+    {
+      "artifact_digest": "sha256:1db1a2d346390bfc6ed77761b5788ba26eaec75f2388d133ce4d7d6b3f3f4456",
+      "path": "procedures/security.sbom-import.json"
+    },
+    {
+      "artifact_digest": "sha256:4ae58ed19fc0df0e1ac157d4933b78e9326dd5ea49e3f9682a71a35df3832fdf",
+      "path": "provider-interfaces/security.cve-applicability/fa65ba8a159a3fedd4114b3cfe0d61f02e950f71dc7cd22f54d9139fc0b6b7ab.json"
+    },
+    {
+      "artifact_digest": "sha256:9929d23a19f0348c30e35832c8f966258a10018905f00344184aaffdab059895",
+      "path": "provider-interfaces/security.cyclonedx-components/c711c19cc83515ce9bf5f2b3c2f6bb649fee93af71aea655438dd82474ea638e.json"
+    },
+    {
+      "artifact_digest": "sha256:6d6b4034fd0f0c87936b7786e4df5152f3dc35efb1fe21f82716637dd5ba67b2",
+      "path": "provider-interfaces/security.epss-daily/5f7b04d392fc9a1264721b96a0f609f8e5a7c8846f9c9673b1dca8766377a9b8.json"
+    },
+    {
+      "artifact_digest": "sha256:59dd7f2cffc0c0bcf2e13541885dbe2914844ba7427fa3961d8269f41bd0cfd7",
+      "path": "provider-interfaces/security.epss-scores/449662d06f51954b811871dd37b9bb4494d017388f75bfd257edc672088b660b.json"
+    },
+    {
+      "artifact_digest": "sha256:6ee3b5755aa95298a40bd7c65c1f30b2ab33f903ad3ffe5ef3e804d5d52d2a7d",
+      "path": "provider-interfaces/security.harden/4c1c3e516a05da470950d1ac86de580ab36e9b22cb5efaa00cc25f2c426c09b3.json"
+    },
+    {
+      "artifact_digest": "sha256:822c2b97da5883eef2024c9bb3231a4fca2a7d1bc42681bf5564423a097054f1",
+      "path": "provider-interfaces/security.kev-attention/d08d48a4915284f7ddc3c5be4693ec15a439563d56610c93a1145090be15d0fa.json"
+    },
+    {
+      "artifact_digest": "sha256:eba00ef81a68d5bcac4ec4cc92c9c3f83e2843f00f6fdf04a73675455fe6ed76",
+      "path": "provider-interfaces/security.kev-catalog/dcccdc811dca2b383a9c3a32c7d5ba107db7c8703deb461925b942c67eb4b4ac.json"
+    },
+    {
+      "artifact_digest": "sha256:317dadefe00e69348b4994f0fac60a22192ea20dc13685a6fc25779699718e80",
+      "path": "provider-interfaces/security.osv-applicability/cd02d7da5e83f085dd2b337c570b2bc0fda31c708d0021e5e9af3ac897b5fa75.json"
+    },
+    {
+      "artifact_digest": "sha256:251acceec4f0960e8dd6fac9488ba145fc5e963717ec6accf919616d832a46ce",
+      "path": "provider-interfaces/security.osv-query/942851e225e944306cf5f223754a26f4fd6c84acbc26cc34ef118382ef3e9312.json"
+    },
+    {
+      "artifact_digest": "sha256:e83e25f7d196718e3fb86db6a7ceee39485b50c55566bc8763cfb955a861ba5c",
+      "path": "provider-interfaces/security.pypi-release/ec5ddc209b8f1dd632230bd2c45a7f51ca87c5085154d6c6164981d2b808c009.json"
+    },
+    {
+      "artifact_digest": "sha256:d7449c993ae5721f93e18ea84d095e448322285bc7df63792538cdd43490c137",
+      "path": "provider-interfaces/security.registry-facts/f6b4c74b65bc775bccd87d205e0f391f76c1c5a74d085b79062f27f2dc3f5238.json"
+    },
+    {
+      "artifact_digest": "sha256:d36742e86ee6c452416b8f7b51f168df199e578f4adb565a02d9091c89dac8a4",
+      "path": "provider-interfaces/security.repo-snapshot/dbcd6c261d8edb31cd3850fc457a02cf88f1d48607eace54a2b63e441b8dcaf0.json"
+    },
+    {
+      "artifact_digest": "sha256:3840a013711fafa9cffa1b6f63b476fd8fdcbf3d2bfef0af36e32305f16f1760",
+      "path": "provider-interfaces/security.workflow-facts/e3200100ece5ebb6c4278201a00b17df146ac15504be8745cbc472bc526f558f.json"
+    },
+    {
+      "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
+      "path": "provider-interfaces/web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c.json"
+    },
+    {
+      "artifact_digest": "sha256:90f3cd86bee820983d5d8225ece87aaddb81c7f2f40c1d596e1048b884688d0e",
+      "path": "query-definitions/security.applicability_coverage.json"
+    },
+    {
+      "artifact_digest": "sha256:0eee96188ab6c97709201da08c0a689bb11820f21809fa4c4cffb4d5a24df989",
+      "path": "query-definitions/security.assessment_index.json"
+    },
+    {
+      "artifact_digest": "sha256:5018602d7faad8bfe2c9f07ad802d204f3b512c0e3d27768f270b7d843397539",
+      "path": "query-definitions/security.change_impact.json"
+    },
+    {
+      "artifact_digest": "sha256:663abc8295f2ea574677f4e5bd0bb3cf58b28e82aa31e29b5afaaeb3efb201e4",
+      "path": "query-definitions/security.controls.json"
+    },
+    {
+      "artifact_digest": "sha256:8b0f08857eeb984059c16745678b476f34b199ec9c15bfc2c1bce01fec9c12b2",
+      "path": "query-definitions/security.coverage_gaps.json"
+    },
+    {
+      "artifact_digest": "sha256:1373bae878d0087abe6d9aefda0ec5cf3133304f2d4687bce288beb929615c83",
+      "path": "query-definitions/security.coverage_index.json"
+    },
+    {
+      "artifact_digest": "sha256:61e928f01b17600416891b95a779ca5d5a3ac070a83ecc13ec962de619b33e59",
+      "path": "query-definitions/security.credentialed_jobs.json"
+    },
+    {
+      "artifact_digest": "sha256:25246980b9703bd85014e44601883aa5d0b1ac509e215d4b074d85f456283e97",
+      "path": "query-definitions/security.exceptions.json"
+    },
+    {
+      "artifact_digest": "sha256:ac563d9e52b288593efed85eb4a8035a4a553f14a8119eb3a2bc85ba6e6f6045",
+      "path": "query-definitions/security.expired_exceptions.json"
+    },
+    {
+      "artifact_digest": "sha256:5ef879126bef652c5301df17dd3a4721ca851a38efe88517da4f7c18a5cda0ee",
+      "path": "query-definitions/security.incomplete_work.json"
+    },
+    {
+      "artifact_digest": "sha256:381cd10eab56965e90242a022109e09541ab3ae75cbff130b00c5998737f879c",
+      "path": "query-definitions/security.inventory_context.json"
+    },
+    {
+      "artifact_digest": "sha256:bf40fcce351fe149731108a1faa02ff393044cb062ab71232de1852355634938",
+      "path": "query-definitions/security.kev_exposure.json"
+    },
+    {
+      "artifact_digest": "sha256:21229b5e046fe9eacbf71e5d7719ce5488074b439ea3050babce9083a656827d",
+      "path": "query-definitions/security.kev_triage_backlog.json"
+    },
+    {
+      "artifact_digest": "sha256:e732f82eb5f40e6193beb87b0838ac3ce09aea9018728f312a908449de4c8235",
+      "path": "query-definitions/security.mutable_actions.json"
+    },
+    {
+      "artifact_digest": "sha256:8c574564e019a8caa09cb01d80d0f98748c039f0bc9825a2414871483439a99a",
+      "path": "query-definitions/security.ownership_gaps.json"
+    },
+    {
+      "artifact_digest": "sha256:456dc1dfa4d2ba850eba3bcab89e706426d52be2f452a5754806eaa26a05b18a",
+      "path": "query-definitions/security.publish_paths.json"
+    },
+    {
+      "artifact_digest": "sha256:9bceccc97ff29217a2efafb4b76f30f822e01a762cf232b6831cfc404590004f",
+      "path": "query-definitions/security.registry_facts.json"
+    },
+    {
+      "artifact_digest": "sha256:3085282fb5583edb323f4f651770a31ab3dcb197d31ae0838b3bf3c8fa7ae7a7",
+      "path": "query-definitions/security.release_inventory.json"
+    },
+    {
+      "artifact_digest": "sha256:099ace2c16d881c0851469618d6af9909b0b1b60f0000f7dad30b88cc16403b5",
+      "path": "query-definitions/security.remediation_work.json"
+    },
+    {
+      "artifact_digest": "sha256:0a9e61179d62a22e71eb472aeedae6289244383bc6bdb42332b3ea80a3cb9343",
+      "path": "query-definitions/security.repo_targets.json"
+    },
+    {
+      "artifact_digest": "sha256:e44733d9e850860781f27ef8cd35d140cf4b48711bfec1b0c8c54fb1c8efc7df",
+      "path": "query-definitions/security.served_vs_declared.json"
+    },
+    {
+      "artifact_digest": "sha256:5c6e717c80a043e5d23c341d5495bca4db43ad764a5dd9089a6545e2c4947032",
+      "path": "query-definitions/security.settle_condition.json"
+    },
+    {
+      "artifact_digest": "sha256:2ac77f3b48f9189832ba760969e1d45d8590bb5212ae590509ddf7f2364bb9ac",
+      "path": "query-definitions/security.shared_dependencies.json"
+    },
+    {
+      "artifact_digest": "sha256:07ec35c7a7d55b904e8be59f984bf428ab8e29569cca87a5a1eedef055f60329",
+      "path": "query-definitions/security.source_facts.json"
+    },
+    {
+      "artifact_digest": "sha256:215352626e340361543ec4a3812f450ee8f396e99779e10e20fe44b7cec49872",
+      "path": "query-definitions/security.supplier_concentration.json"
+    },
+    {
+      "artifact_digest": "sha256:3944efb6c80badc7693957289dd02ecb4ef5ad9b088c5d63d1eb5c7ff2f4413a",
+      "path": "query-definitions/security.triage.json"
+    },
+    {
+      "artifact_digest": "sha256:7b45d8a3322fa5b1f383e825d725fd42776fa08a468089f3a54471560c8e9ae4",
+      "path": "query-definitions/security.urgent_exposures.json"
+    },
+    {
+      "artifact_digest": "sha256:26cb0ddaf2c734b4a07174512398c9c799c4b7a9c25d2856e3c7fde60a60e12d",
+      "path": "query-definitions/security.watched_vulnerabilities.json"
+    },
+    {
+      "artifact_digest": "sha256:a0ae3a70065690318057f95af938f4ca567bdb1f2baf487389fe7c69939af1e6",
+      "path": "source-acquisition-policies/security.acquisition.json"
+    },
+    {
+      "artifact_digest": "sha256:155152d022f4c3d76cff11ffde2df572445c906fc1fce506d3022207a4705fd9",
+      "path": "subject-kinds/security.artifact.json"
+    },
+    {
+      "artifact_digest": "sha256:10329c894b2cc721d28b29211697f4257a595b26aaf4dd50a2179bd761d7b02a",
+      "path": "subject-kinds/security.assessment.json"
+    },
+    {
+      "artifact_digest": "sha256:f49ff4eb3626658e5162d8b8ef24c6fbfc85089d016759e05ea80f4a0231273e",
+      "path": "subject-kinds/security.asset.json"
+    },
+    {
+      "artifact_digest": "sha256:2eb722cc23c18cefe0b45c6bfd1e2d2497a08c654a70f41976c75f7cd9c18154",
+      "path": "subject-kinds/security.change.json"
+    },
+    {
+      "artifact_digest": "sha256:9e300f7202aebb56b7078260a2284c3ade07f0605453eb9f57dcaaf8300e976d",
+      "path": "subject-kinds/security.control.json"
+    },
+    {
+      "artifact_digest": "sha256:5ae87299ad892dc393995ac783d75fa4a6bab8accf3acc6caf1ff518992cde18",
+      "path": "subject-kinds/security.coverage.json"
+    },
+    {
+      "artifact_digest": "sha256:92c2bae1db85d18b0cb7d2a8f89731a4778afa252e55b228d711d4720b5f20b6",
+      "path": "subject-kinds/security.exception.json"
+    },
+    {
+      "artifact_digest": "sha256:ec3b05b208b2a0e898f1ef95b7b3f1e492b72694c0f9284cb53ab13719d13862",
+      "path": "subject-kinds/security.job.json"
+    },
+    {
+      "artifact_digest": "sha256:e4c3695e03787bf178750272df64695f4d5df10f61b798859f20e198a8ad4707",
+      "path": "subject-kinds/security.product.json"
+    },
+    {
+      "artifact_digest": "sha256:72a7c307861789a2134209306db974045652537dc0ce17a23e60b4b23996c94b",
+      "path": "subject-kinds/security.release.json"
+    },
+    {
+      "artifact_digest": "sha256:10f07c61b8bb73b0ee3624f37e02e0399a53e6946b3a474823c5f7b9393f279a",
+      "path": "subject-kinds/security.remediation.json"
+    },
+    {
+      "artifact_digest": "sha256:54a5c52022a18c4f9d4389f9a1618ae7cd7a4e2173c7890e721d78f161d88024",
+      "path": "subject-kinds/security.repo.json"
+    },
+    {
+      "artifact_digest": "sha256:811a861be9ab648852669fe8ed406655744973649bcf80c2de36b3d274953507",
+      "path": "subject-kinds/security.service.json"
+    },
+    {
+      "artifact_digest": "sha256:0885f83a6b5df9b7297ff6799bc9d9034acc4a729a553af1d4684e687f595819",
+      "path": "subject-kinds/security.signal.json"
+    },
+    {
+      "artifact_digest": "sha256:4877fe8a061c4dafd117cf9342f5f3f99766e6e35785dbfa9348d5e02851a150",
+      "path": "subject-kinds/security.supplier.json"
+    },
+    {
+      "artifact_digest": "sha256:0ee664bdb68913497bb23d2ff02159ec0397bac6472823d7ccbee1c78be68a84",
+      "path": "subject-kinds/security.target.json"
+    },
+    {
+      "artifact_digest": "sha256:9da9c059ab9680253e6901dc505b79405412069a15bdd47af0b51263cfef011e",
+      "path": "subject-kinds/security.team.json"
+    },
+    {
+      "artifact_digest": "sha256:a6cd914f89e98e1a4d958e2a0f0264d50932c6afd57b167ee27839881778e9b4",
+      "path": "subject-kinds/security.vulnerability.json"
+    },
+    {
+      "artifact_digest": "sha256:b4cb3ad30ab9f9d4704f0f9b848440aa0e2e6256d3be794f089d0b4532f92d6e",
+      "path": "subject-kinds/security.workflow.json"
+    }
+  ],
+  "kit_id": "security",
+  "owns": [
+    "security."
+  ],
+  "provenance": {
+    "coordinate": {
+      "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd",
+      "generation_root": "sha256:16f3cc4c89a646adf9c28ed57d4e6d417509700a58303ad978a016e93f1d29f6",
+      "git_oid": "6bbc6212924d074d7b20b7ea255863840fb48fa8",
+      "semantic_root": "sha256:02decf60cdabc5fb04516135ed661c3e69ff4e57727fae21abc52b77fee828b9",
+      "tag": "playbill-accepted-coordinate-v1"
+    },
+    "instance_id": "inst_cdadddb1e18b426b",
+    "principal_id": "kit-author"
+  },
+  "providers": [
+    {
+      "delivery": "index",
+      "dependencies": [],
+      "interfaces": [
+        "search.web",
+        "web.fetch"
+      ],
+      "lock": {
+        "filename": "cruxible-provider-web-0.2.2.uv.lock",
+        "sha256": "sha256:75c96265c1f995063abfe73865757a3c0dcc6f4a733503bea567ff56a9545810"
+      },
+      "package": "cruxible-provider-web",
+      "provider_id": "cruxible-provider-web",
+      "version": "0.2.2",
+      "wheel": {
+        "filename": "cruxible_provider_web-0.2.2-py3-none-any.whl",
+        "sha256": "sha256:1340f1b7b75c51405fa771282e288d985cfe9ef0a0be76682ef66f10bb02f736"
+      }
+    },
+    {
+      "dependencies": [],
+      "interfaces": [
+        "security.cve-applicability",
+        "security.cyclonedx-components",
+        "security.epss-scores",
+        "security.harden",
+        "security.kev-attention",
+        "security.kev-catalog",
+        "security.osv-applicability",
+        "security.registry-facts",
+        "security.workflow-facts"
+      ],
+      "lock": {
+        "filename": "security-analysis-provider-1.1.1.uv.lock",
+        "sha256": "sha256:933f1bad3383facd379b9b04e3ae120a9bd3e41f167bd2e9069e5b00228a35f3"
+      },
+      "package": "security-analysis-provider",
+      "provider_id": "security-analysis-provider",
+      "version": "1.1.1",
+      "wheel": {
+        "filename": "security_analysis_provider-1.1.1-py3-none-any.whl",
+        "sha256": "sha256:8bea8e61b04dd412dbc3d9aedbd29e9878c4c7c93e124624c453dd0ab1b55bc8"
+      }
+    },
+    {
+      "dependencies": [],
+      "interfaces": [
+        "security.epss-daily",
+        "security.osv-query",
+        "security.pypi-release",
+        "security.repo-snapshot"
+      ],
+      "lock": {
+        "filename": "security-sources-provider-1.1.0.uv.lock",
+        "sha256": "sha256:c77a1d612c48a035fa447e06cc52ac37a0a8c0e201c6fa6e05e0045ccd0f5788"
+      },
+      "package": "security-sources-provider",
+      "provider_id": "security-sources-provider",
+      "version": "1.1.0",
+      "wheel": {
+        "filename": "security_sources_provider-1.1.0-py3-none-any.whl",
+        "sha256": "sha256:7ba4f9fbb13077b174b6d4784f085748bc44be7b0010466cc1e18a4c6159cb9b"
+      }
+    }
+  ],
+  "tag": "playbill-kit-manifest-v1",
+  "version": "1.1.1"
+}

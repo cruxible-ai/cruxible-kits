@@ -1,0 +1,20 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "A commit of a repository, created when an investigation needs it.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.change"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.change.repo_ref",
+      "security.change.commit_sha"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

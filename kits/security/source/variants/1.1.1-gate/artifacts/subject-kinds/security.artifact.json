@@ -1,0 +1,20 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "One published file of a target, named by target and file name.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.artifact"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.artifact.target_ref",
+      "security.artifact.name"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

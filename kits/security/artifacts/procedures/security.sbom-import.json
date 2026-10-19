@@ -126,7 +126,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:7b6580872c87f32acd062a0f178ca7b8e97128a4c99f10ed53bffe4561cdb596",
+        "implementation_digest": "sha256:02e059546a174f2fbd785c220143d3528619c3f140e37e2d1a438d74337de794",
         "input": {
           "releases": "$steps.releases.result.rows",
           "sbom_text": "$steps.sbom.content.text"
@@ -144,11 +144,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:eb1a4d107376e256eb9d494963af4dfda892c9d7a51181284e37e24fe97f076e",
+          "artifact_digest": "sha256:51ddfcf74ba75d8a2a080e7bc8c44bb55ec02aaa317d1739ac1c57f031ff7ffa",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/5f277c3db190ac98501356742566ba6690d6edb554e02c0feee4b1a1353ee276"
+            "name": "security-analysis-provider/1517e5be48b30ea9e5f337a5089ca11d1b3182a916127e8dffd8b7f77eca3fd3"
           }
         }
       },
@@ -230,7 +230,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:d50d9f138447af04fa5788ea4507be3cc8fefec83bfeb3ffce604baf0a5e6d39",
+  "definition_digest": "sha256:df2ef15d10536ae5a5bafc87dfd10e070998e313f217dda4335ed13390978b06",
   "identity": {
     "kind": "Procedure",
     "name": "security.sbom-import"
@@ -459,7 +459,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:12296e6e40831381574137e1fffc7c63639fd5234e98ead411d3a842409763d3",
+      "artifact_digest": "sha256:a0ae3a70065690318057f95af938f4ca567bdb1f2baf487389fe7c69939af1e6",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",
@@ -515,11 +515,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:eb1a4d107376e256eb9d494963af4dfda892c9d7a51181284e37e24fe97f076e",
+      "artifact_digest": "sha256:51ddfcf74ba75d8a2a080e7bc8c44bb55ec02aaa317d1739ac1c57f031ff7ffa",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/5f277c3db190ac98501356742566ba6690d6edb554e02c0feee4b1a1353ee276"
+        "name": "security-analysis-provider/1517e5be48b30ea9e5f337a5089ca11d1b3182a916127e8dffd8b7f77eca3fd3"
       }
     },
     {

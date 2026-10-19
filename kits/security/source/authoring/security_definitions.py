@@ -1,16 +1,18 @@
 """Author the security kit's definitions in a fresh authoring instance.
 
-    python security_definitions.py definitions [--release 1.0.2|1.1.0]
-    python security_definitions.py procedures  [--release 1.0.2|1.1.0]
+    python security_definitions.py definitions [--release 1.1.0|1.1.1]
+    python security_definitions.py procedures  [--release 1.1.0|1.1.1]
 
-``1.1.0`` is the release gate's upgrade variant; any other release is the base.
+``1.1.1`` is the release gate's upgrade variant (``source/variants/1.1.1-gate``,
+never published); any other release is the base.
 
 ``definitions`` proposes and activates the CaptureContracts, ClaimTypes, the
 SubjectKinds that name every security Subject, the QueryDefinitions and the
 acquisition policy. ``procedures`` (after ``cruxible-provider-web`` and the
 bundled ``security-analysis-provider`` and ``security-sources-provider`` are
 installed) proposes the acquisition Blueprints and the triage, attention,
-import and applicability Procedures. Then ``cruxible kit build`` exports the
+import and applicability Procedures, and the system model's pull Blueprints,
+parse Procedures and the hardening Procedure. Then ``cruxible kit build`` exports the
 release (the kit README's "Building a release").
 
 The connection comes from the CLI context (``cruxible init`` remembered it).
@@ -46,7 +48,12 @@ from cruxible_client.contracts.artifacts import ArtifactIdentity, ArtifactLifecy
 from cruxible_client.contracts.authoring.inputs import BlueprintInput, QueryDefinitionInput
 from cruxible_client.contracts.canonical import canonical_bytes
 from cruxible_client.contracts.captures import CanonicalDuration, CaptureContract
-from cruxible_client.contracts.claim_types import ClaimType, ClaimTypeMemberDescription
+from cruxible_client.contracts.claim_types import (
+    ClaimEvidenceFreshness,
+    ClaimFreshnessDuration,
+    ClaimType,
+    ClaimTypeMemberDescription,
+)
 from cruxible_client.contracts.policies import (
     ClaimAdmissionPolicy,
     ClaimEvidenceAdmissionPolicy,
@@ -71,6 +78,7 @@ from cruxible_client.contracts.query.grammar import (
     QueryDisjunctionFilter,
     QueryEntry,
     QueryEvaluationTimeRef,
+    QueryInclude,
     QueryLiteralRef,
     QueryOrdering,
     QueryParameterDeclaration,
@@ -91,15 +99,26 @@ OSV_CONTRACT = "security.osv-query-v1"
 EPSS_CONTRACT = "security.epss-daily-v1"
 SBOM_CONTRACT = "security.cyclonedx-sbom-v1"
 OUTPUT_CONTRACT = "security.observation-output-v1"
+REPO_CONTRACT = "security.repo-snapshot-v1"
+PYPI_CONTRACT = "security.pypi-release-v1"
+GH_RELEASE_CONTRACT = "security.github-release-v1"
+GH_API_CONTRACT = "security.github-api-v1"
+ASSET_CONTRACT = "security.release-asset-v1"
+#: The system model's pull contracts: every fact about the organization's systems
+#: cites a Capture under one of them.
+SYSTEM_CONTRACTS = (REPO_CONTRACT, PYPI_CONTRACT, GH_RELEASE_CONTRACT, GH_API_CONTRACT,
+                    ASSET_CONTRACT)
 POLICY = "security.acquisition"
-RELEASE = "1.0.2"  # the kit release
-VARIANT = "1.1.0"  # the release gate's upgrade variant (not published)
+RELEASE = "1.1.0"  # the kit release
+VARIANT = "1.1.1"  # the release gate's upgrade variant (not published)
 WEB_PROVIDER = "cruxible-provider-web"
 ANALYSIS_PROVIDER = "security-analysis-provider"
 SOURCES_PROVIDER = "security-sources-provider"
 BUILTIN_PROVIDER = "cruxible-builtin"
 KEV_MAX_BYTES = 4_194_304  # the catalog is ~1.7 MB; web.fetch defaults to 256 KiB
 CVE_MAX_BYTES = 1_048_576
+GITHUB_MAX_BYTES = 4_194_304
+ASSET_MAX_BYTES = 33_554_432  # web.fetch's ceiling
 DATE = {"type": "string", "pattern": r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"}
 DATETIME = {
     "format": "date-time",
@@ -112,6 +131,14 @@ CVE_ID = {"type": "string", "pattern": r"^CVE-[0-9]{4}-[0-9]{4,}$"}
 TEXT = {"minLength": 1, "type": "string"}
 PROBABILITY = {"type": "string", "pattern": r"^(0(\.[0-9]+)?|1(\.0+)?)$"}
 PURL = {"type": "string", "pattern": r"^pkg:[a-z0-9.+-]+/.+@.+$"}
+SHA256 = {"type": "string", "pattern": r"^sha256:[0-9a-f]{64}$"}
+COMMIT = {"type": "string", "pattern": r"^[0-9a-f]{40}$"}
+FULL_NAME = {"type": "string", "pattern": r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"}
+PERMISSION = {"type": "string", "pattern": r"^[A-Za-z*_-]+:[A-Za-z_-]+$"}
+REGISTRIES = ("ghcr", "github_pages", "github_release", "pypi")
+COVERAGE_SCOPES = ("ci.workflows", "registry.files", "release.manifest")
+#: Coverage reads unknown unless re-read within twice the pull cadence (6 h cron).
+COVERAGE_STALE_AFTER_HOURS = 12
 #: The canonical form of every name key: two spellings of one name are one key.
 NAME_FORM = ("nfkc", "trim", "collapse_whitespace", "casefold")
 STATUS = ("affected", "inconclusive", "not_affected")
@@ -284,6 +311,141 @@ CLAIM_TYPES_1_1: list[ClaimRow] = [
      "A CWE identifier the KEV catalog lists for the vulnerability (cwes)."),
 ]
 
+# The system model (1.1.0): a symbolic model of the organization's systems. Every
+# fact is a per-source observation citing the Capture it was read from; policy
+# (a target's publish gate) is the only normative statement; absence is an answer
+# only inside a current coverage belief. Keys are literal, so each hop also has a
+# Subject-valued twin. A key that names another Subject names it by its locator
+# text (``github.com/owner/repo@ref``), never by an id: a Procedure creates the
+# workflow and its jobs in one terminal, before any id exists.
+REPO_FACT = (REPO_CONTRACT,)
+SYSTEM: list[ClaimRow] = [
+    # Identity.
+    ("security.repo.forge_host", ("security.repo",), "literal", TEXT, "one", "normative", (),
+     ("trim", "casefold"), "The forge host (github.com); with full_name, the repository's key."),
+    ("security.repo.full_name", ("security.repo",), "literal", FULL_NAME, "one", "normative", (),
+     ("trim", "casefold"), "owner/repository; with forge_host, the repository's key."),
+    ("security.workflow.source", ("security.workflow",), "literal", TEXT, "one", "normative",
+     (), ("trim",), "The source the workflow was read from (host/owner/repo@ref); with path, "
+     "the workflow's key."),
+    ("security.workflow.path", ("security.workflow",), "literal", TEXT, "one", "normative", (),
+     ("trim",), "The workflow file's path in the repository; with source, the workflow's key."),
+    ("security.job.workflow_ref", ("security.job",), "literal", TEXT, "one", "normative", (),
+     ("trim",), "The job's workflow as source:path; with job_key, the job's key."),
+    ("security.job.job_key", ("security.job",), "literal", TEXT, "one", "normative", (),
+     ("trim",), "The job's key in its workflow file; with workflow_ref, the job's key."),
+    ("security.target.registry", ("security.target",), "literal",
+     {"enum": list(REGISTRIES), "type": "string"}, "one", "normative", (), (),
+     "Where artifacts land (pypi, ghcr, github_release, github_pages); with name, the "
+     "target's key."),
+    ("security.target.name", ("security.target",), "literal", TEXT, "one", "normative", (),
+     ("trim", "casefold"), "The target's name in its registry (a PyPI project, an image, "
+     "owner/repo for a release or Pages site); with registry, the target's key."),
+    ("security.artifact.target_ref", ("security.artifact",), "literal", TEXT, "one",
+     "normative", (), ("trim",), "The artifact's target as registry/name; with name, the "
+     "artifact's key."),
+    ("security.artifact.name", ("security.artifact",), "literal", TEXT, "one", "normative", (),
+     ("trim",), "The published file's name (a release asset as tag/asset); with target_ref, "
+     "the artifact's key."),
+    ("security.change.repo_ref", ("security.change",), "literal", TEXT, "one", "normative", (),
+     ("trim",), "The change's repository as host/owner/repo; with commit_sha, its key."),
+    ("security.change.commit_sha", ("security.change",), "literal", COMMIT, "one", "normative",
+     (), ("trim", "casefold"), "The commit SHA; with repo_ref, the change's key."),
+    ("security.coverage.source", ("security.coverage",), "literal", TEXT, "one", "normative",
+     (), ("trim",), "The fully read source (host/owner/repo@ref:path, or registry/name); with "
+     "scope, the coverage's key."),
+    ("security.coverage.scope", ("security.coverage",), "literal",
+     {"enum": list(COVERAGE_SCOPES), "type": "string"}, "one", "normative", (), (),
+     "What was read in full: ci.workflows, release.manifest or registry.files."),
+    ("security.signal.detector", ("security.signal",), "literal", TEXT, "one", "normative", (),
+     ("trim",), "What observed the signal (a question such as security.hq5, or manual); with "
+     "fingerprint, the signal's key."),
+    ("security.signal.fingerprint", ("security.signal",), "literal", TEXT, "one", "normative",
+     (), ("trim",), "What identifies the observation; with detector, the signal's key."),
+    # What a repository declares, per source (observations of a repo snapshot).
+    ("security.workflow.repo", ("security.workflow",), "subject", ("security.repo",), "one",
+     "observation", REPO_FACT, (), "The repository the workflow file is in."),
+    ("security.workflow.coverage", ("security.workflow",), "subject", ("security.coverage",),
+     "one", "observation", REPO_FACT, (), "The coverage (source at a revision) the workflow "
+     "was read under."),
+    ("security.workflow.trigger", ("security.workflow",), "literal", TEXT, "many",
+     "observation", REPO_FACT, ("trim",), "An event that triggers the workflow, as "
+     "event[:filter:pattern] (push:tags:v*, workflow_dispatch, schedule:cron:0 6 * * *)."),
+    ("security.job.workflow", ("security.job",), "subject", ("security.workflow",), "one",
+     "observation", REPO_FACT, (), "The workflow the job is declared in."),
+    ("security.job.permission", ("security.job",), "literal", PERMISSION, "many",
+     "observation", REPO_FACT, ("trim",), "An effective token permission as scope:level (the "
+     "workflow default applied; token:repository-default when none is declared)."),
+    ("security.job.secret", ("security.job",), "literal", TEXT, "many", "observation",
+     REPO_FACT, ("trim",), "A secret the job references (GITHUB_TOKEN included; *inherit for "
+     "secrets: inherit)."),
+    ("security.job.environment", ("security.job",), "literal", TEXT, "one", "observation",
+     REPO_FACT, ("trim",), "The deployment environment the job runs in, or none."),
+    ("security.job.uses", ("security.job",), "literal", PURL, "many", "observation", REPO_FACT,
+     ("trim",), "An action or reusable workflow the job runs, as "
+     "pkg:githubactions/owner/repo[/path]@ref."),
+    ("security.job.needs", ("security.job",), "subject", ("security.job",), "many",
+     "observation", REPO_FACT, (), "A job this job waits for."),
+    ("security.job.publishes_to", ("security.job",), "subject", ("security.target",), "many",
+     "observation", REPO_FACT, (), "A target the job can publish to: it holds the credential "
+     "the registry accepts (the analysis provider's publish rule table)."),
+    # What a registry serves (observations of a registry pull, a release, an asset).
+    ("security.artifact.target", ("security.artifact",), "subject", ("security.target",),
+     "one", "observation", (REPO_CONTRACT, PYPI_CONTRACT, GH_RELEASE_CONTRACT), (),
+     "The target the artifact is published to."),
+    ("security.artifact.declared_sha256", ("security.artifact",), "literal", SHA256, "one",
+     "observation", REPO_FACT, ("trim", "casefold"),
+     "The digest a release manifest in the repository declares for the artifact."),
+    ("security.artifact.sha256", ("security.artifact",), "literal", SHA256, "one",
+     "observation", (ASSET_CONTRACT, GH_RELEASE_CONTRACT, PYPI_CONTRACT), ("trim", "casefold"),
+     "The digest of the bytes the target serves (PyPI's digest, or a fetched asset's)."),
+    ("security.artifact.published_by", ("security.artifact",), "subject",
+     ("security.workflow",), "one", "observation", (GH_RELEASE_CONTRACT, PYPI_CONTRACT), (),
+     "The workflow (at the commit it ran from) that published the artifact, as its provenance "
+     "states."),
+    ("security.artifact.publish_environment", ("security.artifact",), "literal", TEXT, "one",
+     "observation", (PYPI_CONTRACT,), ("trim",),
+     "The deployment environment the publishing run used, as provenance states it, or none."),
+    ("security.artifact.built_from", ("security.artifact",), "subject", ("security.change",),
+     "one", "observation", (GH_API_CONTRACT, GH_RELEASE_CONTRACT, PYPI_CONTRACT), (),
+     "The commit the artifact was built from."),
+    ("security.artifact.uploaded_by", ("security.artifact",), "literal", TEXT, "one",
+     "observation", (GH_RELEASE_CONTRACT,), ("trim",), "Who uploaded the release asset (login)."),
+    ("security.artifact.release", ("security.artifact",), "subject", ("security.release",),
+     "one", "sourced", (GH_RELEASE_CONTRACT, PYPI_CONTRACT), (),
+     "The release the artifact is a file of: joins the SBOM, OSV and KEV path."),
+    ("security.target.source_repo", ("security.target",), "subject", ("security.repo",), "one",
+     "sourced", (PYPI_CONTRACT, REPO_CONTRACT), (), "The repository the target is published "
+     "from: its provenance's, or the owner's words."),
+    # Coverage: the fully-read-source belief. Stale coverage reads absent, so every
+    # answer resting on it reads unknown.
+    ("security.coverage.of", ("security.coverage",), "subject",
+     ("security.repo", "security.target"), "one", "observation",
+     (PYPI_CONTRACT, REPO_CONTRACT), (), "What the source belongs to: a repository, or a "
+     "registry target."),
+    ("security.coverage.revision", ("security.coverage",), "literal", TEXT, "one",
+     "observation", (PYPI_CONTRACT, REPO_CONTRACT), ("trim",),
+     "The revision every file was read at: a commit SHA, or the digest of a registry's served "
+     "file set. Absence inside it is an answer; outside it, unknown."),
+    # Policy and investigation.
+    ("security.target.publish_gate", ("security.target",), "literal", TEXT, "many",
+     "normative", (), ("trim",), "A trigger the organization allows to publish to the target "
+     "(push:tags:v*). Stating a gate is what asks the hardening questions about the target."),
+    ("security.signal.observed", ("security.signal",), "subject",
+     ("security.artifact", "security.job", "security.target", "security.workflow"), "many",
+     "judged", SYSTEM_CONTRACTS + (OUTPUT_CONTRACT,), (),
+     "What the signal was observed on: a source's observation, or someone's own words."),
+    ("security.signal.explained_by", ("security.signal",), "subject",
+     ("security.change", "security.job", "security.target", "security.workflow"), "one",
+     "sourced", SYSTEM_CONTRACTS, (), "A hypothesis for the signal: what is responsible. "
+     "Competing hypotheses contend (set --contend); the slot resolves when one remains."),
+    ("security.work.job", WORK, "subject", ("security.job",), "one", "normative", (), (),
+     "The job this work item changes."),
+]
+#: predicate -> evidence freshness horizon in hours.
+FRESHNESS = {"security.coverage.of": COVERAGE_STALE_AFTER_HOURS,
+             "security.coverage.revision": COVERAGE_STALE_AFTER_HOURS}
+
 #: kind -> (key predicates in key order, uniqueness) or None for a minted kind.
 SUBJECT_KINDS: dict[str, tuple[tuple[str, ...], str] | None] = {
     "security.vulnerability": (("security.vulnerability.cve_id",), "unique"),
@@ -298,6 +460,14 @@ SUBJECT_KINDS: dict[str, tuple[tuple[str, ...], str] | None] = {
     "security.remediation": None,
     "security.exception": None,
     "security.control": None,
+    "security.repo": (("security.repo.forge_host", "security.repo.full_name"), "unique"),
+    "security.workflow": (("security.workflow.source", "security.workflow.path"), "unique"),
+    "security.job": (("security.job.workflow_ref", "security.job.job_key"), "unique"),
+    "security.target": (("security.target.registry", "security.target.name"), "unique"),
+    "security.artifact": (("security.artifact.target_ref", "security.artifact.name"), "unique"),
+    "security.change": (("security.change.repo_ref", "security.change.commit_sha"), "unique"),
+    "security.coverage": (("security.coverage.source", "security.coverage.scope"), "unique"),
+    "security.signal": (("security.signal.detector", "security.signal.fingerprint"), "unique"),
 }
 SUBJECT_KIND_DESCRIPTIONS = {
     "security.vulnerability": "A CVE, named by its id. Tracked when it has a watch_reason or an "
@@ -312,6 +482,19 @@ SUBJECT_KIND_DESCRIPTIONS = {
     "security.remediation": "A remediation work item (minted id).",
     "security.exception": "A risk exception (minted id).",
     "security.control": "A compensating control (minted id).",
+    "security.repo": "A source repository, named by forge host and owner/repository.",
+    "security.workflow": "One CI workflow file, named by the source it was read from "
+    "(host/owner/repo@ref) and its path.",
+    "security.job": "One job of a workflow, named by its workflow (source:path) and job key: "
+    "it holds the permissions, secrets, environment and actions.",
+    "security.target": "Where artifacts land (a PyPI project, a GHCR image, a GitHub release or "
+    "Pages site): the trust boundary a publish gate guards.",
+    "security.artifact": "One published file of a target, named by target and file name.",
+    "security.change": "A commit of a repository, created when an investigation needs it.",
+    "security.coverage": "The belief that a source was read in full at a revision: absence "
+    "is an answer only inside current coverage.",
+    "security.signal": "An observation an investigation starts from, named by its detector "
+    "and fingerprint.",
 }
 
 
@@ -366,7 +549,7 @@ def _evidence(role: str, contracts: tuple[str, ...]) -> tuple[
 
 
 def claim_types(release: str) -> list[ClaimType]:
-    rows = CLAIM_TYPES + (CLAIM_TYPES_1_1 if release == VARIANT else [])
+    rows = CLAIM_TYPES + SYSTEM + (CLAIM_TYPES_1_1 if release == VARIANT else [])
     result = []
     for predicate, kinds, obj, shape, cardinality, role, contracts, form, description in rows:
         roles, default_role, rules, requirement = _evidence(role, contracts)
@@ -400,6 +583,9 @@ def claim_types(release: str) -> list[ClaimType]:
                 evidence_requirement=requirement,  # type: ignore[arg-type]
                 revision_evidence="replace",
                 canonical_form=tuple(form) if obj == "literal" else (),
+                evidence_freshness=ClaimEvidenceFreshness(stale_after=ClaimFreshnessDuration(
+                    microseconds=FRESHNESS[predicate] * 3_600_000_000))
+                if predicate in FRESHNESS else None,
             )
         )
     return result
@@ -474,7 +660,8 @@ def _query(
     name: str, description: str, entry: str, kind: str, hops: list[Any], fields: list[Any],
     where: Any = None, *, parameters: tuple[QueryParameterDeclaration, ...] = (),
     shape: str = "path", max_results: int = 200, orderings: tuple[QueryOrdering, ...] = (),
-    dedupe: str | None = None,
+    dedupe: str | None = None, includes: tuple[QueryInclude, ...] = (),
+    paths_per_result: int = 100, evaluation: QueryEvaluationPolicy | None = None,
 ) -> QueryDefinitionSpec:
     return QueryDefinitionSpec(
         identity=ArtifactIdentity(kind="QueryDefinition", name=name),
@@ -490,14 +677,15 @@ def _query(
         projection=QueryProjection(fields=tuple(sorted(fields, key=lambda x: x.name))),
         parameters=parameters,
         orderings=orderings,
-        evaluation_policy=QueryEvaluationPolicy(
+        includes=tuple(sorted(includes, key=lambda item: item.name)),
+        evaluation_policy=evaluation or QueryEvaluationPolicy(
             visible_verdicts=("supported",),
             visible_currency=("current",),
             conflict_behavior="surface_conflicts",
         ),
         default_budgets=QueryBudgets(
             max_results=max_results, max_traversal_depth=10, max_paths=20000,
-            max_paths_per_result=100,
+            max_paths_per_result=paths_per_result,
         )
         if shape == "path"
         else QueryBudgets(max_results=max_results, max_traversal_depth=1),
@@ -808,6 +996,195 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         _all(_cmp("vulnerability", "security.vulnerability.kev_listed", True, "boolean"),
              _any(_missing("assessment", "security.assessment.status"),
                   _cmp("assessment", "security.assessment.status", "inconclusive")))))
+    return q + system_queries()
+
+
+# --- the system model's queries ------------------------------------------------
+
+
+def _param(name: str) -> QueryParameterDeclaration:
+    return QueryParameterDeclaration(name=name, value_type="string")
+
+
+def _is(binding: str, predicate: str, parameter: str) -> QueryComparisonFilter:
+    """The bound Subject's ``predicate`` equals the query parameter ``parameter``."""
+
+    return QueryComparisonFilter(
+        left=QueryClaimValueRef(binding=binding, predicate=predicate), operator="eq",
+        right=QueryParameterRef(parameter=parameter), value_type="string")
+
+
+def _include(name: str, source: str, predicate: str) -> QueryInclude:
+    return QueryInclude(name=name, binding="included_" + name, from_binding=source,
+                        predicate=predicate, direction="forward", many=True, max_items=500)
+
+
+#: The parse Procedures read held state for one source, so they see a held coverage
+#: even when it went stale (to revise it); the hardening questions never do.
+HELD = QueryEvaluationPolicy(visible_verdicts=("stale", "supported"),
+                             visible_currency=("current", "stale"),
+                             conflict_behavior="surface_conflicts")
+GATED = QueryClaimPresenceFilter(binding="target", predicate="security.target.publish_gate")
+TARGET_FIELDS = [_field("target", "target"), _field("repo", "repo"),
+                 _field("coverage", "coverage"),
+                 _field("target_registry", "target", "security.target.registry"),
+                 _field("target_name", "target", "security.target.name"),
+                 _field("gate", "target", "security.target.publish_gate"),
+                 _field("repo_host", "repo", "security.repo.forge_host"),
+                 _field("repo_name", "repo", "security.repo.full_name"),
+                 _field("coverage_source", "coverage", "security.coverage.source"),
+                 _field("coverage_revision", "coverage", "security.coverage.revision")]
+
+
+def _target_hops(*, coverage: bool = True) -> list[QueryTraversalStep]:
+    hops = [_hop("repo", "target", "security.target.source_repo", "repo")]
+    if coverage:
+        hops.append(_hop("coverage", "repo", "security.coverage.of", "coverage", reverse=True,
+                         where=_cmp("coverage", "security.coverage.scope", "ci.workflows")))
+    return hops
+
+
+def _job_fields(*names: str) -> list[QueryProjectionField]:
+    predicates = {"permissions": "security.job.permission", "secrets": "security.job.secret",
+                  "environment": "security.job.environment", "uses": "security.job.uses"}
+    return [_field("job", "job"), _field("job_key", "job", "security.job.job_key"),
+            _field("workflow_path", "workflow", "security.workflow.path"),
+            _field("triggers", "workflow", "security.workflow.trigger")] + [
+        _field(name, "job", predicates[name]) for name in names]
+
+
+def system_queries() -> list[QueryDefinitionSpec]:
+    q: list[QueryDefinitionSpec] = []
+    q.append(_query(
+        "security.coverage_index", "One source's coverage (source, scope) with the revision it "
+        "was read at and what it belongs to, stale or current: the parse Procedures' tap",
+        "coverage", "coverage", [],
+        [_field("coverage", "coverage"),
+         _field("source", "coverage", "security.coverage.source"),
+         _field("scope", "coverage", "security.coverage.scope"),
+         _field("revision", "coverage", "security.coverage.revision"),
+         _field("of", "coverage", "security.coverage.of")],
+        _all(_is("coverage", "security.coverage.source", "source"),
+             _is("coverage", "security.coverage.scope", "scope")),
+        parameters=(_param("scope"), _param("source")), shape="subject", max_results=10,
+        evaluation=HELD))
+    q.append(_query(
+        "security.source_facts", "Every workflow read from one source (host/owner/repo@ref) "
+        "and its jobs, with each many-valued fact's Claims: the repo parse's tap",
+        "workflow", "workflow",
+        [_hop("job", "workflow", "security.job.workflow", "job", reverse=True)],
+        [_field("workflow", "workflow"), _field("job", "job"),
+         _field("path", "workflow", "security.workflow.path"),
+         _field("repo", "workflow", "security.workflow.repo"),
+         _field("coverage", "workflow", "security.workflow.coverage"),
+         _field("job_key", "job", "security.job.job_key"),
+         _field("environment", "job", "security.job.environment")],
+        _is("workflow", "security.workflow.source", "source"),
+        parameters=(_param("source"),), max_results=2000,
+        includes=(_include("trigger", "workflow", "security.workflow.trigger"),
+                  _include("permission", "job", "security.job.permission"),
+                  _include("secret", "job", "security.job.secret"),
+                  _include("uses", "job", "security.job.uses"),
+                  _include("needs", "job", "security.job.needs"),
+                  _include("publishes_to", "job", "security.job.publishes_to"))))
+    q.append(_query(
+        "security.repo_targets", "One repository (by forge host and owner/repository) and the "
+        "targets published from it: the repo parse's tap", "repo", "repo",
+        [_hop("target", "repo", "security.target.source_repo", "target", reverse=True)],
+        [_field("repo", "repo"), _field("target", "target"),
+         _field("forge_host", "repo", "security.repo.forge_host"),
+         _field("full_name", "repo", "security.repo.full_name"),
+         _field("registry", "target", "security.target.registry"),
+         _field("name", "target", "security.target.name")],
+        _all(_is("repo", "security.repo.forge_host", "forge_host"),
+             _is("repo", "security.repo.full_name", "full_name")),
+        parameters=(_param("forge_host"), _param("full_name")), max_results=500))
+    q.append(_query(
+        "security.registry_facts", "One target (by registry and name) with every artifact it "
+        "serves and what each was published by and built from: the parse Procedures' tap",
+        "target", "target",
+        [_hop("artifact", "target", "security.artifact.target", "artifact", reverse=True),
+         _hop("workflow", "artifact", "security.artifact.published_by", "workflow"),
+         _hop("change", "artifact", "security.artifact.built_from", "change"),
+         _hop("release", "artifact", "security.artifact.release", "release"),
+         _hop("repo", "target", "security.target.source_repo", "repo")],
+        [_field("target", "target"), _field("artifact", "artifact"),
+         _field("artifact_name", "artifact", "security.artifact.name"),
+         _field("sha256", "artifact", "security.artifact.sha256"),
+         _field("declared_sha256", "artifact", "security.artifact.declared_sha256"),
+         _field("publish_environment", "artifact", "security.artifact.publish_environment"),
+         _field("workflow_source", "workflow", "security.workflow.source"),
+         _field("workflow_path", "workflow", "security.workflow.path"),
+         _field("built_from_sha", "change", "security.change.commit_sha"),
+         _field("release_version", "release", "security.release.version"),
+         _field("repo_full_name", "repo", "security.repo.full_name")],
+        _all(_is("target", "security.target.registry", "registry"),
+             _is("target", "security.target.name", "name")),
+        parameters=(_param("name"), _param("registry")), max_results=2000,
+        paths_per_result=1000))
+    # The five hardening questions, each over the gated targets only (stating a
+    # publish gate is what asks them), each row carrying its coverage's state.
+    publish_path = _target_hops() + [
+        _hop("job", "target", "security.job.publishes_to", "job", reverse=True),
+        _hop("workflow", "job", "security.job.workflow", "workflow"),
+        _hop("job_coverage", "workflow", "security.workflow.coverage", "coverage")]
+    per_job = _target_hops() + [
+        _hop("workflow", "coverage", "security.workflow.coverage", "workflow", reverse=True),
+        _hop("job", "workflow", "security.job.workflow", "job", reverse=True)]
+    hq = dict(max_results=2000, paths_per_result=1000)
+    q.append(_query(
+        "security.publish_paths", "HQ1: every job that can publish to a gated target, with "
+        "its workflow's triggers, beside the coverage of the target's repository",
+        "target", "target", publish_path,
+        TARGET_FIELDS + _job_fields() + [_field("job_coverage", "job_coverage")], GATED, **hq))
+    q.append(_query(
+        "security.credentialed_jobs", "HQ2: every job of a covered source of a gated target's "
+        "repository, with its permissions, secrets, environment and triggers",
+        "target", "target", per_job,
+        TARGET_FIELDS + _job_fields("permissions", "secrets", "environment"), GATED, **hq))
+    q.append(_query(
+        "security.mutable_actions", "HQ3: every job of a covered source of a gated target's "
+        "repository, with the actions it runs and the credentials it holds",
+        "target", "target", per_job,
+        TARGET_FIELDS + _job_fields("uses", "permissions", "secrets"), GATED, **hq))
+    q.append(_query(
+        "security.shared_dependencies", "HQ4: every publishing job of a gated target, with the "
+        "actions and secrets it runs on", "target", "target", publish_path,
+        TARGET_FIELDS + _job_fields("uses", "secrets") + [_field("job_coverage", "job_coverage")],
+        GATED, **hq))
+    q.append(_query(
+        "security.served_vs_declared", "HQ5: every artifact a gated target serves, its served "
+        "and declared digests, and the workflow and jobs that published it at the commit it "
+        "was built from", "target", "target",
+        _target_hops(coverage=False) + [
+            _hop("registry_coverage", "target", "security.coverage.of", "coverage",
+                 reverse=True,
+                 where=_cmp("registry_coverage", "security.coverage.scope", "registry.files")),
+            _hop("artifact", "target", "security.artifact.target", "artifact", reverse=True),
+            _hop("workflow", "artifact", "security.artifact.published_by", "workflow"),
+            _hop("workflow_coverage", "workflow", "security.workflow.coverage", "coverage"),
+            _hop("job", "workflow", "security.job.workflow", "job", reverse=True)],
+        TARGET_FIELDS[:2] + TARGET_FIELDS[3:6] + TARGET_FIELDS[6:8] + [
+            _field("registry_coverage", "registry_coverage"),
+            _field("registry_coverage_source", "registry_coverage", "security.coverage.source"),
+            _field("registry_coverage_revision", "registry_coverage",
+                   "security.coverage.revision"),
+            _field("artifact", "artifact"),
+            _field("artifact_name", "artifact", "security.artifact.name"),
+            _field("sha256", "artifact", "security.artifact.sha256"),
+            _field("declared_sha256", "artifact", "security.artifact.declared_sha256"),
+            _field("publish_environment", "artifact", "security.artifact.publish_environment"),
+            _field("workflow", "workflow"),
+            _field("workflow_source", "workflow", "security.workflow.source"),
+            _field("workflow_path", "workflow", "security.workflow.path"),
+            _field("workflow_coverage", "workflow_coverage"),
+            _field("workflow_coverage_source", "workflow_coverage", "security.coverage.source"),
+            _field("workflow_coverage_revision", "workflow_coverage",
+                   "security.coverage.revision"),
+            _field("job", "job"), _field("job_key", "job", "security.job.job_key"),
+            _field("job_environment", "job", "security.job.environment"),
+            _field("job_publishes", "job", "security.job.publishes_to")],
+        GATED, **hq))
     return q
 
 
@@ -832,14 +1209,24 @@ def capture_contracts() -> list[CaptureContract]:
         derived(SBOM_CONTRACT, "cyclonedx.sbom", ["external"], "sbom_document"),
         derived(WORKSPACE_EVIDENCE_CONTRACT, "security.analysis.evidence", ["external"],
                 "workspace_file"),
+        # The system model's pulls: what a repository declares, what a registry serves.
+        derived(REPO_CONTRACT, "github.repo.snapshot", ["external"], "http_response"),
+        derived(PYPI_CONTRACT, "pypi.release", ["external"], "http_response"),
+        derived(GH_RELEASE_CONTRACT, "github.release", ["external"], "http_response"),
+        derived(GH_API_CONTRACT, "github.api", ["external"], "http_response"),
+        derived(ASSET_CONTRACT, "github.release.asset", ["external"], "http_response"),
     ]
+    for item in raw:
+        if item["identity"]["name"] == ASSET_CONTRACT:
+            item["selection_budget"]["max_bytes"] = ASSET_MAX_BYTES
     return [CaptureContract.model_validate(item) for item in raw]
 
 
 def acquisition_policy() -> SourceAcquisitionPolicy:
     """`security.acquisition` covers every Source alias the kit uses: `catalog` (KEV),
     `record` (CVE record), `epss`, `osv`, `sbom` and `evidence` (an analyst's
-    workspace file). Each is required, at most 24 h
+    workspace file), and the system model's `snapshot` (a repository), `registry`
+    (PyPI), `release`, `asset` and `history` (GitHub). Each is required, at most 24 h
     old, refused when stale, unavailable or oversized. Network Captures replay as
     attested; the SBOM, a workspace file, replays exactly."""
 
@@ -862,8 +1249,9 @@ def acquisition_policy() -> SourceAcquisitionPolicy:
         {
             "coherence": {"kind": "independent"},
             "identity": {"kind": "SourceAcquisitionPolicy", "name": POLICY},
-            "inputs": [rule("catalog"), rule("epss"), rule("evidence", "exact"), rule("osv"),
-                       rule("record"), rule("sbom", "exact")],
+            "inputs": [rule("asset"), rule("catalog"), rule("epss"), rule("evidence", "exact"),
+                       rule("history"), rule("osv"), rule("record"), rule("registry"),
+                       rule("release"), rule("sbom", "exact"), rule("snapshot")],
         }
     )
 
@@ -1005,6 +1393,51 @@ EPSS_ACQUIRE_SUMMARY = _contract(
     status=PropertySchema(type="int"),
     body_digest=PropertySchema(type="string"),
 )
+
+
+_S = PropertySchema(type="string")
+_J = PropertySchema(type="json")
+_I = PropertySchema(type="integer")
+REPO_INPUT = _contract("security-repo-input", forge_host=_S, full_name=_S, ref=_S, scope=_S,
+                       path=_S)
+SNAPSHOT_SUMMARY = _contract("security-repo-snapshot-summary", locator=_S, revision=_S)
+REGISTRY_INPUT = _contract("security-registry-input", project=_S, versions=_I)
+REGISTRY_SUMMARY = _contract("security-registry-summary", project=_S, versions=_J)
+REPO_PARSE_INPUT = _contract("security-repo-parse-input", source=_S, repo_source=_S,
+                             forge_host=_S, full_name=_S, ref=_S, scope=_S, path=_S)
+_FACT_COUNTS = _ints("changed", "added", "revised", "retired", "restated")
+WORKFLOW_FACTS_REQUEST = _contract("security-workflow-facts-request", snapshot=_J, coverage=_J,
+                                   held=_J, targets=_J, releases=_J)
+WORKFLOW_FACTS_RESULT = _contract("security-workflow-facts-result", items=_J, locator=_S,
+                                  revision=_S, scope=_S, unparsed=_J, **_FACT_COUNTS,
+                                  **_ints("workflows", "jobs"))
+REPO_PARSE_SUMMARY = _contract("security-repo-parse-summary", locator=_S, revision=_S,
+                               scope=_S, unparsed=_J, **_FACT_COUNTS,
+                               **_ints("workflows", "jobs"))
+REGISTRY_PARSE_INPUT = _contract("security-registry-parse-input", source=_S, project=_S,
+                                 versions=_I)
+REGISTRY_FACTS_REQUEST = _contract("security-registry-facts-request", release=_J, coverage=_J,
+                                   held=_J)
+REGISTRY_FACTS_RESULT = _contract("security-registry-facts-result", items=_J, locator=_S,
+                                  revision=_S, **_FACT_COUNTS, **_ints("files"))
+REGISTRY_PARSE_SUMMARY = _contract("security-registry-parse-summary", locator=_S, revision=_S,
+                                   **_FACT_COUNTS, **_ints("files"))
+HARDEN_INPUT = _contract("security-harden-input", default_ref=_S, repo_pull=_S,
+                         registry_pull=_S, release_pull=_S, versions=_I)
+HARDEN_REQUEST = _contract("security-harden-request", hq1=_J, hq2=_J, hq3=_J, hq4=_J, hq5=_J,
+                           params=_J, truncated=_J)
+HARDEN_RESULT = _contract("security-harden-result", items=_J, answers=_J,
+                          **_ints("posted", "targets", "gaps", "found", "none", "unknown"))
+HARDEN_SUMMARY = _contract("security-harden-summary", answers=_J,
+                           **_ints("posted", "targets", "gaps", "found", "none", "unknown"))
+#: Hardening question -> the QueryDefinition the harden Procedure taps for it.
+HARDEN_QUERIES = {
+    "hq1": "security.publish_paths",
+    "hq2": "security.credentialed_jobs",
+    "hq3": "security.mutable_actions",
+    "hq4": "security.shared_dependencies",
+    "hq5": "security.served_vs_declared",
+}
 
 
 def _seconds(value: int) -> CanonicalDuration:
@@ -1494,6 +1927,266 @@ def cve_applicability(cx: Cruxible) -> Any:
     return sequence.build()
 
 
+# --- the system model: pull, parse, harden -------------------------------------
+
+
+def repo_acquire(cx: Cruxible) -> BlueprintInput:
+    snapshot = cx.provider_interface("security.repo-snapshot", provider=SOURCES_PROVIDER)
+    sequence = Sequence(
+        [
+            Source("snapshot", capture_contract=REPO_CONTRACT, next="summary", request={
+                name: f"$input.{name}" for name in ("forge_host", "full_name", "ref", "scope",
+                                                    "path")}),
+            Project("summary", contract_out=SNAPSHOT_SUMMARY, fields={
+                "locator": "$steps.snapshot.locator",
+                "revision": "$steps.snapshot.revision"}),
+        ],
+        name="security.repo-acquire",
+        description=(
+            "Read what one GitHub repository declares at one ref for one scope (input: "
+            "forge_host, full_name, ref, scope ci.workflows or release.manifest, path) and "
+            "retain it under security.repo-snapshot-v1: the revision R and every file at R. "
+            "An unchanged source is the same bytes. A parse Line for that source reads it "
+            "when it lands."
+        ),
+        contract_in=REPO_INPUT,
+        contract_out=SNAPSHOT_SUMMARY,
+        returns="summary",
+        acquisition_policy=POLICY,
+        budget=_budget(120, 1, 16_777_216),
+        hard_caps=_caps(300, 1, 16_777_216, 1),
+    ).bind(snapshot=snapshot)
+    return _blueprint(sequence, _interface(cx, "security.repo-snapshot"), "snapshot")
+
+
+def registry_acquire(cx: Cruxible) -> BlueprintInput:
+    registry = cx.provider_interface("security.pypi-release", provider=SOURCES_PROVIDER)
+    sequence = Sequence(
+        [
+            Source("registry", capture_contract=PYPI_CONTRACT, next="summary", request={
+                "project": "$input.project", "versions": "$input.versions"}),
+            Project("summary", contract_out=REGISTRY_SUMMARY, fields={
+                "project": "$steps.registry.project",
+                "versions": "$steps.registry.versions"}),
+        ],
+        name="security.registry-acquire",
+        description=(
+            "Read what PyPI serves for one project (input: project, versions = the newest N, "
+            "default 3): each file's digest and provenance, retained under "
+            "security.pypi-release-v1. A parse Line for that project reads it when it lands."
+        ),
+        contract_in=REGISTRY_INPUT,
+        contract_out=REGISTRY_SUMMARY,
+        returns="summary",
+        acquisition_policy=POLICY,
+        budget=_budget(120, 1, 16_777_216),
+        hard_caps=_caps(300, 1, 16_777_216, 1),
+    ).bind(registry=registry)
+    return _blueprint(sequence, _interface(cx, "security.pypi-release"), "registry")
+
+
+def _github_fetch(cx: Cruxible, name: str, slot: str, contract: str, logical_source: str,
+                  description: str, *, max_bytes: int, expected_format: str = "json"
+                  ) -> BlueprintInput:
+    web = cx.provider_interface("web.fetch", provider=WEB_PROVIDER)
+    request = _fetch("$input.url", logical_source, max_bytes)
+    request["expected_format"] = expected_format
+    sequence = Sequence(
+        [
+            Source(slot, capture_contract=contract, next="summary", request=request),
+            _summary(slot),
+        ],
+        name=name,
+        description=description,
+        contract_in=URL_INPUT,
+        contract_out=HTTP_SUMMARY,
+        returns="summary",
+        acquisition_policy=POLICY,
+        budget=_budget(120, 1, max_bytes),
+        hard_caps=_caps(300, 1, max_bytes, 1),
+    ).bind(**{slot: web})
+    return _blueprint(sequence, _interface(cx, "web.fetch"), slot)
+
+
+def release_acquire(cx: Cruxible) -> BlueprintInput:
+    return _github_fetch(
+        cx, "security.release-acquire", "release", GH_RELEASE_CONTRACT, "github.release",
+        "Fetch one GitHub release (input.url: https://api.github.com/repos/OWNER/REPO/"
+        f"releases/tags/TAG) and retain it under {GH_RELEASE_CONTRACT}: its assets, their "
+        "digests, uploader and update times. Cite the Capture for artifact facts.",
+        max_bytes=GITHUB_MAX_BYTES)
+
+
+def asset_fetch(cx: Cruxible) -> BlueprintInput:
+    return _github_fetch(
+        cx, "security.asset-fetch", "asset", ASSET_CONTRACT, "github.release.asset",
+        "Fetch one release asset's served bytes (input.url: its download URL) and retain "
+        f"them under {ASSET_CONTRACT}; the summary's body_digest is the served digest "
+        "(security.artifact.sha256).",
+        max_bytes=ASSET_MAX_BYTES, expected_format="bytes")
+
+
+def history_acquire(cx: Cruxible) -> BlueprintInput:
+    return _github_fetch(
+        cx, "security.history-acquire", "history", GH_API_CONTRACT, "github.api",
+        "Fetch one GitHub API answer about history (input.url: commits?path=...&sha=..., or "
+        "actions/workflows/W/runs?branch=...) and retain it under "
+        f"{GH_API_CONTRACT}: which commit changed a path, which runs ran.",
+        max_bytes=GITHUB_MAX_BYTES)
+
+
+def _mine(alias: str, field: str, parameter: str) -> GuardPredicate:
+    """The landed Capture is the one this Line's source names."""
+
+    return GuardPredicate(
+        left=PredicateOperand(kind="step", alias=alias, path=(field,)),
+        operator="eq",
+        right=PredicateOperand(kind="input", input_name=parameter),
+    )
+
+
+def repo_parse(cx: Cruxible) -> Any:
+    """One Line per (repository, ref, scope), bound by its parameters: every tap is keyed by
+    them (a tap cannot depend on the landed Capture), so a landing for another source
+    halts other_source before reading anything."""
+
+    snapshot = cx.provider_interface("security.repo-snapshot", provider=SOURCES_PROVIDER)
+    facts = cx.provider_interface("security.workflow-facts", provider=ANALYSIS_PROVIDER)
+    sequence = Sequence(
+        [
+            Source("snapshot", capture_contract=REPO_CONTRACT, next="mine", request={
+                name: f"$input.{name}" for name in ("forge_host", "full_name", "ref", "scope",
+                                                    "path")}),
+            Guard("mine", predicate=_mine("snapshot", "locator", "source"), on_true="coverage",
+                  on_false="other", refusal_code="other_source",
+                  message="The landed snapshot is another source's."),
+            StateTap("coverage", query="security.coverage_index", next="held", parameters={
+                "source": "$input.source", "scope": "$input.scope"}),
+            StateTap("held", query="security.source_facts", next="targets",
+                     parameters={"source": "$input.repo_source"}),
+            StateTap("targets", query="security.repo_targets", next="releases", parameters={
+                "forge_host": "$input.forge_host", "full_name": "$input.full_name"}),
+            StateTap("releases", query="security.registry_facts", next="parse", parameters={
+                "registry": "github_release", "name": "$input.full_name"}),
+            Call("parse", contract_in=WORKFLOW_FACTS_REQUEST, contract_out=WORKFLOW_FACTS_RESULT,
+                 next="summary", input={
+                     "snapshot": "$steps.snapshot",
+                     "coverage": "$steps.coverage.result.rows",
+                     "held": "$steps.held.result.rows",
+                     "targets": "$steps.targets.result.rows",
+                     "releases": "$steps.releases.result.rows"}),
+            _project(REPO_PARSE_SUMMARY, "parse", "propose"),
+            ProposeChangeSet("propose", candidate_templates={"items": "$steps.parse.items"},
+                             result=Output("summary")),
+            Halt("other", reason="other_source"),
+        ],
+        name="security.repo-parse",
+        description=(
+            "Read the repository snapshot that triggered the Line (security.repo-snapshot-v1) "
+            "for the Line's source (parameters: source, repo_source, forge_host, full_name, "
+            "ref, scope, path) and propose what changed: workflows, jobs and their triggers, "
+            "permissions, secrets, environment, actions and publish targets, or a manifest's "
+            "declared digests, plus the source's coverage restated (an unchanged snapshot "
+            "re-observes it; a new revision revises it). Halts other_source for another "
+            "source's snapshot. Runs as a Line with trigger_input snapshot."
+        ),
+        contract_in=REPO_PARSE_INPUT,
+        contract_out=REPO_PARSE_SUMMARY,
+        returns="summary",
+        activation_policy="drain",
+        acquisition_policy=POLICY,
+        budget=_budget(120, 2, 16_777_216),
+        hard_caps=_caps(300, 2, 16_777_216, 5000),
+    ).bind(snapshot=snapshot, parse=facts)
+    return sequence.build()
+
+
+def registry_parse(cx: Cruxible) -> Any:
+    registry = cx.provider_interface("security.pypi-release", provider=SOURCES_PROVIDER)
+    facts = cx.provider_interface("security.registry-facts", provider=ANALYSIS_PROVIDER)
+    sequence = Sequence(
+        [
+            Source("registry", capture_contract=PYPI_CONTRACT, next="mine", request={
+                "project": "$input.project", "versions": "$input.versions"}),
+            Guard("mine", predicate=_mine("registry", "project", "project"), on_true="coverage",
+                  on_false="other", refusal_code="other_source",
+                  message="The landed release is another project's."),
+            StateTap("coverage", query="security.coverage_index", next="held", parameters={
+                "source": "$input.source", "scope": "registry.files"}),
+            StateTap("held", query="security.registry_facts", next="parse", parameters={
+                "registry": "pypi", "name": "$input.project"}),
+            Call("parse", contract_in=REGISTRY_FACTS_REQUEST,
+                 contract_out=REGISTRY_FACTS_RESULT, next="summary", input={
+                     "release": "$steps.registry",
+                     "coverage": "$steps.coverage.result.rows",
+                     "held": "$steps.held.result.rows"}),
+            _project(REGISTRY_PARSE_SUMMARY, "parse", "propose"),
+            ProposeChangeSet("propose", candidate_templates={"items": "$steps.parse.items"},
+                             result=Output("summary")),
+            Halt("other", reason="other_source"),
+        ],
+        name="security.registry-parse",
+        description=(
+            "Read the PyPI release Capture that triggered the Line (security.pypi-release-v1) "
+            "for the Line's project (parameters: source pypi/PROJECT, project, versions) and "
+            "propose what changed: each served file as an artifact with its digest, release, "
+            "and (from provenance) the workflow at the commit that published it, its "
+            "environment and the commit; the target's source repository; the coverage "
+            "restated. Halts other_source for another project. Runs as a Line with "
+            "trigger_input registry."
+        ),
+        contract_in=REGISTRY_PARSE_INPUT,
+        contract_out=REGISTRY_PARSE_SUMMARY,
+        returns="summary",
+        activation_policy="drain",
+        acquisition_policy=POLICY,
+        budget=_budget(120, 2, 16_777_216),
+        hard_caps=_caps(300, 2, 16_777_216, 5000),
+    ).bind(registry=registry, parse=facts)
+    return sequence.build()
+
+
+def harden_procedure(cx: Cruxible) -> Any:
+    classify = cx.provider_interface("security.harden", provider=ANALYSIS_PROVIDER)
+    taps: list[Any] = []
+    names = list(HARDEN_QUERIES)
+    for index, alias in enumerate(names):
+        taps.append(StateTap(alias, query=HARDEN_QUERIES[alias],
+                             next=names[index + 1] if index + 1 < len(names) else "classify"))
+    sequence = Sequence(
+        [
+            *taps,
+            Call("classify", contract_in=HARDEN_REQUEST, contract_out=HARDEN_RESULT,
+                 next="summary", input={
+                     **{alias: f"$steps.{alias}.result.rows" for alias in names},
+                     "params": "$input",
+                     "truncated": {alias: f"$steps.{alias}.truncated" for alias in names}}),
+            _project(HARDEN_SUMMARY, "classify", "posted"),
+            Guard("posted", predicate=_changed("classify", "posted"), on_true="post",
+                  on_false="quiet", refusal_code="nothing_to_post",
+                  message="Every hardening answer is none: nothing to post."),
+            PostInbox("post", input={"items": Output("classify", "items")}, max_items=200),
+            Halt("quiet", reason="nothing_to_post"),
+        ],
+        name="security.harden",
+        description=(
+            "Ask the five hardening questions (HQ1-HQ5) about every gated target (a target "
+            "with a security.target.publish_gate) and answer each in three states: found "
+            "(posted as a finding), none (a current coverage answers it; run summary only) or "
+            "unknown (posted as one gap item per source, naming the pull: {source, pull, "
+            "input}). Observe-only. Runs as a Line (parameters: default_ref, repo_pull, "
+            "registry_pull, release_pull, versions): daily, on a pull landing, or line run."
+        ),
+        contract_in=HARDEN_INPUT,
+        contract_out=HARDEN_SUMMARY,
+        returns="summary",
+        activation_policy="drain",
+        budget=_budget(120, 1, 1_048_576),
+        hard_caps=_caps(300, 1, 1_048_576, 200),
+    ).bind(classify=classify)
+    return sequence.build()
+
+
 def _backlog_measurement() -> dict[str, Any]:
     return {
         "name": "kev-backlog-cleared",
@@ -1600,7 +2293,8 @@ def _held_query(cx: Cruxible, name: str) -> tuple[dict[str, Any], str] | None:
 
 def procedures(cx: Cruxible, release: str) -> None:
     draft = cx.changes(rationale=f"security kit {release}: acquisition Blueprints, triage, "
-                       "attention, SBOM import and applicability Procedures.")
+                       "attention, SBOM import and applicability Procedures; the system "
+                       "model's pull Blueprints, parse Procedures and hardening Procedure.")
     draft.procedure(definition=kev_acquire(cx, release))
     draft.procedure(definition=cve_record_acquire(cx))
     draft.procedure(definition=epss_acquire(cx))
@@ -1612,6 +2306,14 @@ def procedures(cx: Cruxible, release: str) -> None:
     draft.procedure(definition=sbom_import(cx))
     draft.procedure(definition=osv_applicability(cx))
     draft.procedure(definition=cve_applicability(cx))
+    draft.procedure(definition=repo_acquire(cx))
+    draft.procedure(definition=registry_acquire(cx))
+    draft.procedure(definition=release_acquire(cx))
+    draft.procedure(definition=asset_fetch(cx))
+    draft.procedure(definition=history_acquire(cx))
+    draft.procedure(definition=repo_parse(cx))
+    draft.procedure(definition=registry_parse(cx))
+    draft.procedure(definition=harden_procedure(cx))
     submit(cx, draft, "procedures")
 
 

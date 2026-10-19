@@ -1,0 +1,20 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "An observation an investigation starts from, named by its detector and fingerprint.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.signal"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.signal.detector",
+      "security.signal.fingerprint"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

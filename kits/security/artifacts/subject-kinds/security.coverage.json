@@ -1,0 +1,20 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "The belief that a source was read in full at a revision: absence is an answer only inside current coverage.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.coverage"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.coverage.source",
+      "security.coverage.scope"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

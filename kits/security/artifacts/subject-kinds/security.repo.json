@@ -1,0 +1,20 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "A source repository, named by forge host and owner/repository.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.repo"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.repo.forge_host",
+      "security.repo.full_name"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

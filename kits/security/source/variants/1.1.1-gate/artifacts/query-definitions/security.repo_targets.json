@@ -1,0 +1,230 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 500,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "One repository (by forge host and owner/repository) and the targets published from it: the repo parse's tap. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "entry": {
+    "binding": "repo",
+    "subject_id": null,
+    "subject_kinds": [
+      "security.repo"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.repo_targets"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [
+    {
+      "default": null,
+      "name": "forge_host",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "string"
+    },
+    {
+      "default": null,
+      "name": "full_name",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "string"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:f001db1be300047b8c216d36510db92f910ebb3a11d874341ce660e2a89645bf",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.repo.forge_host"
+      }
+    },
+    {
+      "artifact_digest": "sha256:de2369769823e07700c961d7ffe1174c2a12b37d1ffde5f7ccc0eb4b3a04cac2",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.repo.full_name"
+      }
+    },
+    {
+      "artifact_digest": "sha256:0ca0e36aacfd1050f35d9eca5d0533b3150d0fbb53ec0f92dbb9a0737b4dfe5f",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.target.name"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d2f9babf7661e03eff75d50df0f1371ecdf9d9292197ba05c8c3f1a7b953ea4d",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.target.registry"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d5c1130aa1c7ad6a51a5888303e8e4ae6ce43db6afb96cb5b32d92fbbfccddb7",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.target.source_repo"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "forge_host",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "repo",
+          "kind": "claim_value",
+          "predicate": "security.repo.forge_host",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "full_name",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "repo",
+          "kind": "claim_value",
+          "predicate": "security.repo.full_name",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "name",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "target",
+          "kind": "claim_value",
+          "predicate": "security.target.name",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "registry",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "target",
+          "kind": "claim_value",
+          "predicate": "security.target.registry",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "repo",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "repo",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "target",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "target",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "repo",
+  "result_cardinality": "many",
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "target",
+      "direction": "reverse",
+      "from_binding": "repo",
+      "predicate": "security.target.source_repo",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.target"
+      ],
+      "where": null
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "repo",
+          "kind": "claim_value",
+          "predicate": "security.repo.forge_host",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "forge_host",
+          "tag": "playbill-query-parameter-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "repo",
+          "kind": "claim_value",
+          "predicate": "security.repo.full_name",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "full_name",
+          "tag": "playbill-query-parameter-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of",
+    "tag": "playbill-query-conjunction-filter-v1"
+  }
+}

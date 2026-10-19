@@ -1,0 +1,201 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_paths": null,
+    "max_paths_per_result": null,
+    "max_results": 10,
+    "max_traversal_depth": 1,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "One source's coverage (source, scope) with the revision it was read at and what it belongs to, stale or current: the parse Procedures' tap. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "entry": {
+    "binding": "coverage",
+    "subject_id": null,
+    "subject_kinds": [
+      "security.coverage"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current",
+      "stale"
+    ],
+    "visible_verdicts": [
+      "stale",
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.coverage_index"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": null,
+    "max_paths_per_result": null,
+    "max_results": 2000,
+    "max_traversal_depth": 1,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [
+    {
+      "default": null,
+      "name": "scope",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "string"
+    },
+    {
+      "default": null,
+      "name": "source",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "string"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:29369118b382cd73648056fa6e98ae4ea88cf89a35c8bfd0d186a23bff797230",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.coverage.of"
+      }
+    },
+    {
+      "artifact_digest": "sha256:479ded5c3109e262167ee9095cce67174e9deb487c8f911ac97ffc00f6f0c3c2",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.coverage.revision"
+      }
+    },
+    {
+      "artifact_digest": "sha256:b307d0a375b6a266d2f18119911789c493c2a480cac5af84ebc0ad76af1cd3cd",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.coverage.scope"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a6846a46b26a75d602958b58d4d881d7866ff6cf4175131275f973959d39a4f1",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.coverage.source"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "coverage",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "coverage",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "of",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "coverage",
+          "kind": "claim_value",
+          "predicate": "security.coverage.of",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "revision",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "coverage",
+          "kind": "claim_value",
+          "predicate": "security.coverage.revision",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "scope",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "coverage",
+          "kind": "claim_value",
+          "predicate": "security.coverage.scope",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "source",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "coverage",
+          "kind": "claim_value",
+          "predicate": "security.coverage.source",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "coverage",
+  "result_cardinality": "many",
+  "result_shape": "subject",
+  "traversal": [],
+  "where": {
+    "filters": [
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "coverage",
+          "kind": "claim_value",
+          "predicate": "security.coverage.scope",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "scope",
+          "tag": "playbill-query-parameter-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "coverage",
+          "kind": "claim_value",
+          "predicate": "security.coverage.source",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "source",
+          "tag": "playbill-query-parameter-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of",
+    "tag": "playbill-query-conjunction-filter-v1"
+  }
+}

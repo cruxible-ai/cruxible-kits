@@ -1,4 +1,4 @@
-"""Build the security kit release (1.0.2) and its 1.1.0 gate variant from a fresh instance.
+"""Build the security kit release (1.1.0) and its 1.1.1 gate variant from a fresh instance.
 
     python source/build_release.py SCRATCH_DIR [--providers]
 
@@ -9,10 +9,10 @@ state root and workspace; nothing outside it and this kit directory is written.
 wheel; run provider tests separately). Then: start a daemon, ``init``, install
 ``cruxible-provider-web``
 0.2.2 and the bundled wheels, author the release's definitions and Procedures,
-``kit build`` it, install the patched 1.1.0 analysis wheel (the gate-only patch
-adds the changed KEV field to each Claim rationale), author the 1.1.0 successors, ``kit
-build`` 1.1.0, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
-and ``providers/`` and 1.1.0 over ``source/variants/1.1.0``, and stop the daemon.
+``kit build`` it, install the patched 1.1.1 analysis wheel (the gate-only patch
+adds the changed KEV field to each Claim rationale), author the 1.1.1 successors, ``kit
+build`` 1.1.1, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
+and ``providers/`` and 1.1.1 over ``source/variants/1.1.1-gate``, and stop the daemon.
 """
 
 from __future__ import annotations
@@ -30,8 +30,9 @@ SOURCE = KIT / "source"
 PROVIDERS = SOURCE / "providers"
 BUNDLED = ("security-analysis-provider", "security-sources-provider")
 AUTHORING = SOURCE / "authoring" / "security_definitions.py"
-RELEASE = "1.0.2"  # keep in step with security_definitions.RELEASE
-VARIANT = "1.1.0"
+RELEASE = "1.1.0"  # keep in step with security_definitions.RELEASE
+VARIANT = "1.1.1"  # the gate-only upgrade variant (source/variants/1.1.1-gate)
+VARIANT_DIR = SOURCE / "variants" / f"{VARIANT}-gate"
 
 
 def _bin() -> str:
@@ -52,10 +53,10 @@ def _build_provider(package: Path, env: dict[str, str]) -> None:
 
 def _variant_provider(scratch: Path, env: dict[str, str]) -> Path:
     """Build the gate-only real KEV rationale change from the release provider source."""
-    package = scratch / "analysis-1.1.0"
+    package = scratch / f"analysis-{VARIANT}"
     shutil.copytree(PROVIDERS / "security-analysis-provider", package,
                     ignore=shutil.ignore_patterns("dist", "__pycache__", ".venv", ".ruff_cache"))
-    subprocess.run(["git", "apply", str(SOURCE / "variants" / "analysis-1.1.0.patch")],
+    subprocess.run(["git", "apply", str(SOURCE / "variants" / f"analysis-{VARIANT}.patch")],
                    cwd=package, env=env, check=True)
     _build_provider(package, env)
     return package
@@ -140,12 +141,12 @@ def main() -> None:
             daemon.terminate()
             daemon.wait(timeout=30)
         shutil.rmtree(run_dir, ignore_errors=True)
-    for release, target in ((RELEASE, KIT), (VARIANT, SOURCE / "variants" / VARIANT)):
+    for release, target in ((RELEASE, KIT), (VARIANT, VARIANT_DIR)):
         for name in ("artifacts", "providers"):
             shutil.rmtree(target / name, ignore_errors=True)
             shutil.copytree(out / release / name, target / name)
         shutil.copyfile(out / release / "cruxible-kit.json", target / "cruxible-kit.json")
-    print(f"copied {RELEASE} to {KIT} and {VARIANT} to {SOURCE / 'variants' / VARIANT}")
+    print(f"copied {RELEASE} to {KIT} and {VARIANT} to {VARIANT_DIR}")
 
 
 if __name__ == "__main__":

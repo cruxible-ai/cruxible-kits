@@ -1,0 +1,97 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [],
+  "allowed_subject_kinds": [
+    "security.artifact"
+  ],
+  "artifact_format": "playbill-claim-type-v8",
+  "attestation_consequence_policy": null,
+  "canonical_form": [
+    "trim",
+    "casefold"
+  ],
+  "cardinality": "one",
+  "default_role": "observation",
+  "description": "The digest of the bytes the target serves (PyPI's digest, or a fetched asset's).",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.github-release-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.pypi-release-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.release-asset-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "evidence_kinds": [
+          "http_response"
+        ],
+        "rule_id": "retained-security-evidence",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      }
+    ],
+    "tag": "playbill-claim-evidence-admission-policy-v3"
+  },
+  "evidence_freshness": null,
+  "evidence_requirement": "captured",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "security.artifact.sha256"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": {
+    "pattern": "^sha256:[0-9a-f]{64}$",
+    "type": "string"
+  },
+  "member_descriptions": [],
+  "object_kind": "literal",
+  "permitted_roles": [
+    "observation"
+  ],
+  "pins": [],
+  "predicate": "security.artifact.sha256",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "slot_policy": null,
+  "subject_scope": null
+}

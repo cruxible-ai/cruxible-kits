@@ -1,0 +1,548 @@
+{
+  "activation_policy": "drain",
+  "artifact_format": "playbill-procedure-v2",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 16777216,
+      "max_provider_calls": 2,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 120000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:9c2936bd13fd04e56450798fe281faac5ae2d67b36ac1369c9c47574d7a77364",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-kev-attention-summary"
+      }
+    },
+    "description": "Read the KEV catalog Capture that triggered the Line and post one inbox item per CVE added in the catalog's last 7 days whose vendor/product matches a release in inventory that nobody watches the CVE for or nobody has assessed: possibly exposed, nobody has looked. Never changes accepted state. Runs as a Line with trigger_input catalog.",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 16777216,
+      "max_items": 1000,
+      "max_provider_calls": 2,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [],
+    "name": "security.kev-attention",
+    "nodes": [
+      {
+        "as": "catalog",
+        "capture_contract": {
+          "artifact_digest": "sha256:3515cb2a04e6e17a3343968e325cc7eec97a9617b8eb419a879a9df845de8bfc",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.kev-http-v1"
+          }
+        },
+        "implementation_digest": "sha256:9be8cdbae7544278b5d489bc9d48ef2c8d4cd3c9c1827d83669fb9d4f0d2b153",
+        "interface": {
+          "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
+          }
+        },
+        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
+        "kind": "source",
+        "next": "releases",
+        "node_id": "catalog",
+        "provider": {
+          "artifact_digest": "sha256:75f19062850133aa30ca5c2845d590a0025c8a3121a2b518080751e34ceca44c",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "cruxible-provider-web/ddc99c153ce3ca4226d991f11ab40f1d96fa0ad4364c8918f8aa82b0c840218b"
+          }
+        },
+        "request": {
+          "expected_format": "json",
+          "extract": false,
+          "logical_source": "cisa.kev.catalog",
+          "max_bytes": 4194304,
+          "render": false,
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      },
+      {
+        "as": "releases",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "watched",
+        "node_id": "releases",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:3085282fb5583edb323f4f651770a31ab3dcb197d31ae0838b3bf3c8fa7ae7a7",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.release_inventory"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "watched",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "assessments",
+        "node_id": "watched",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:26cb0ddaf2c734b4a07174512398c9c799c4b7a9c25d2856e3c7fde60a60e12d",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.watched_vulnerabilities"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "assessments",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "match",
+        "node_id": "assessments",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:0eee96188ab6c97709201da08c0a689bb11820f21809fa4c4cffb4d5a24df989",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.assessment_index"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "match",
+        "contract_in": {
+          "artifact_digest": "sha256:ef5cc9cfc9704844779ed92c720fd251c5f723b02ed5dc2f11f645e7908849bb",
+          "role": "contract-in",
+          "target": {
+            "kind": "Contract",
+            "name": "security-kev-attention-request"
+          }
+        },
+        "contract_out": {
+          "artifact_digest": "sha256:d18a46ffc033eabdf6250ff3dc9c11d456bc5cc0321a1ef9003f54ae18d6ea72",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-kev-attention-result"
+          }
+        },
+        "effect_policy": null,
+        "implementation_digest": "sha256:894bb43ef6062f8c99be9b493790399bedd0258eeabb6179262397850698da78",
+        "input": {
+          "assessments": "$steps.assessments.result.rows",
+          "catalog_base64": "$steps.catalog.retrieved.body_base64",
+          "releases": "$steps.releases.result.rows",
+          "watched": "$steps.watched.result.rows"
+        },
+        "interface": {
+          "artifact_digest": "sha256:822c2b97da5883eef2024c9bb3231a4fca2a7d1bc42681bf5564423a097054f1",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.kev-attention/d08d48a4915284f7ddc3c5be4693ec15a439563d56610c93a1145090be15d0fa"
+          }
+        },
+        "interface_digest": "sha256:0badd0d8c3547816db58b0964ca4584c13b54aa8e98210fb97c645f5c0d3f141",
+        "kind": "call",
+        "next": "summary",
+        "node_id": "match",
+        "provider": {
+          "artifact_digest": "sha256:46e563c2a90328c62d1c080654ff7f26c51a8b53c8ea6047c70f3d2b55197d62",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "security-analysis-provider/b7cc87e14b1bda8121833f3639a88e7c0df02a47c532f37cdcae80f8687a2618"
+          }
+        }
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:9c2936bd13fd04e56450798fe281faac5ae2d67b36ac1369c9c47574d7a77364",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-kev-attention-summary"
+          }
+        },
+        "fields": {
+          "catalog_version": "$steps.match.catalog_version",
+          "newly_listed": "$steps.match.newly_listed",
+          "posted": "$steps.match.posted"
+        },
+        "kind": "project",
+        "next": "posted",
+        "node_id": "summary"
+      },
+      {
+        "kind": "guard",
+        "message": "No newly listed CVE matches unwatched or unassessed inventory.",
+        "node_id": "posted",
+        "on_false": "quiet",
+        "on_true": "post",
+        "predicate": {
+          "all_of": null,
+          "any_of": null,
+          "left": {
+            "alias": "match",
+            "input_name": null,
+            "kind": "step",
+            "parameter_name": null,
+            "path": [
+              "posted"
+            ],
+            "tag": "playbill-predicate-operand-v1",
+            "value": null
+          },
+          "not_of": null,
+          "operator": "gt",
+          "right": {
+            "alias": null,
+            "input_name": null,
+            "kind": "literal",
+            "parameter_name": null,
+            "path": [],
+            "tag": "playbill-predicate-operand-v1",
+            "value": 0
+          },
+          "tag": "playbill-guard-predicate-v1"
+        },
+        "refusal_code": "nothing_to_post"
+      },
+      {
+        "input": {
+          "items": "$steps.match.items"
+        },
+        "kind": "post_inbox",
+        "max_items": 1000,
+        "node_id": "post"
+      },
+      {
+        "kind": "halt",
+        "node_id": "quiet",
+        "reason": "nothing_to_post"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:618e402e7b9ca7e258922cb48ad489f885ec02b74bfa21cc8daeb91566f43b6e",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.kev-attention"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {}
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-kev-attention-request"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "assessments": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "catalog_base64": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "releases": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "watched": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-kev-attention-result"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "catalog_version": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "items": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "newly_listed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "posted": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-kev-attention-summary"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "catalog_version": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "newly_listed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "posted": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:a0ae3a70065690318057f95af938f4ca567bdb1f2baf487389fe7c69939af1e6",
+      "role": "acquisition-policy",
+      "target": {
+        "kind": "SourceAcquisitionPolicy",
+        "name": "security.acquisition"
+      }
+    },
+    {
+      "artifact_digest": "sha256:3515cb2a04e6e17a3343968e325cc7eec97a9617b8eb419a879a9df845de8bfc",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.kev-http-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-empty-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ef5cc9cfc9704844779ed92c720fd251c5f723b02ed5dc2f11f645e7908849bb",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-kev-attention-request"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d18a46ffc033eabdf6250ff3dc9c11d456bc5cc0321a1ef9003f54ae18d6ea72",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-kev-attention-result"
+      }
+    },
+    {
+      "artifact_digest": "sha256:9c2936bd13fd04e56450798fe281faac5ae2d67b36ac1369c9c47574d7a77364",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-kev-attention-summary"
+      }
+    },
+    {
+      "artifact_digest": "sha256:75f19062850133aa30ca5c2845d590a0025c8a3121a2b518080751e34ceca44c",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "cruxible-provider-web/ddc99c153ce3ca4226d991f11ab40f1d96fa0ad4364c8918f8aa82b0c840218b"
+      }
+    },
+    {
+      "artifact_digest": "sha256:46e563c2a90328c62d1c080654ff7f26c51a8b53c8ea6047c70f3d2b55197d62",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "security-analysis-provider/b7cc87e14b1bda8121833f3639a88e7c0df02a47c532f37cdcae80f8687a2618"
+      }
+    },
+    {
+      "artifact_digest": "sha256:822c2b97da5883eef2024c9bb3231a4fca2a7d1bc42681bf5564423a097054f1",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.kev-attention/d08d48a4915284f7ddc3c5be4693ec15a439563d56610c93a1145090be15d0fa"
+      }
+    },
+    {
+      "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
+      }
+    },
+    {
+      "artifact_digest": "sha256:0eee96188ab6c97709201da08c0a689bb11820f21809fa4c4cffb4d5a24df989",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.assessment_index"
+      }
+    },
+    {
+      "artifact_digest": "sha256:3085282fb5583edb323f4f651770a31ab3dcb197d31ae0838b3bf3c8fa7ae7a7",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.release_inventory"
+      }
+    },
+    {
+      "artifact_digest": "sha256:26cb0ddaf2c734b4a07174512398c9c799c4b7a9c25d2856e3c7fde60a60e12d",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.watched_vulnerabilities"
+      }
+    }
+  ]
+}
