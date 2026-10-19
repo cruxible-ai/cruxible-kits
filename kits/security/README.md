@@ -437,6 +437,13 @@ the kit's own OSV and EPSS adapters (vendored by its `build_registration.py`)
 answering from `responses/` (recorded once by `record_responses.py`). Provider
 installs still need PyPI.
 
+The upgrade recovery probe deliberately retires and restores an EPSS score.
+Core correctly reports `line_settled_prior_refusals` for that settlement on the
+same evidence. The gate inspects its retirement receipt, authors an EPSS Line
+successor capped at `propose`, and re-enables it before checking that `next` is
+empty. `cruxible authoring example line` supplies an authoring template; the
+resolution requires submitting and activating the successor.
+
 ```sh
 CRUXIBLE_BIN=$(command -v cruxible) python -m pytest kits/security/gate -x -q
 ```

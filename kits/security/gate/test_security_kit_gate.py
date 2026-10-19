@@ -83,7 +83,7 @@ STEPS = {
     "17": "graduate KEV and EPSS triage to settle by max_authority",
     "18": "changed analysis build: one kit add, D8 carry, enable/re-grant, settles resume; keep/re-add/downgrade",
     "19": "SBOM re-import: a changed SBOM and a new release land; OSV assesses the new one",
-    "20": "exit: next empty, run history",
+    "20": "exit: resolve EPSS prior-refusal warning, next empty, run history",
 }
 
 
@@ -1198,6 +1198,43 @@ def test_19_sbom_reimport(gate: Gate) -> None:
 def test_20_exit(gate: Gate) -> None:
     for item in _inbox(gate, "--status", "unread"):
         gate.out("inbox", "ack", item["item_id"])
+    # Retiring and restoring the EPSS score intentionally resurfaces a refusal.
+    # Core's documented repair is a Line successor, not waiting for it to age out.
+    findings: list[dict[str, Any]] = []
+
+    def restoration_warning() -> bool:
+        findings[:] = gate.json("next")["items"]
+        return any(row["reason"] == "line_settled_prior_refusals" for row in findings)
+
+    gate.wait(restoration_warning, 120, "EPSS restoration warning not observed")
+    (warning,) = findings  # Do not hide unrelated repair work.
+    (gate.root / "epss-restoration-warning.json").write_text(
+        json.dumps(warning, indent=2) + "\n")
+    identity = "Line:security.epss-triage"
+    assert warning["severity"] == "warning" and warning["subject_identity"] == identity
+    assert warning["repair"]["target"] == identity
+    assert warning["repair"]["operation"] == "cruxible.authoring.example"
+    assert warning["repair"]["arguments"] == {"example": "line"}
+    assert warning["repair"]["required_change"] == (
+        "read_the_runs_then_demote_the_line_or_fix_its_procedure")
+    egress = gate.egress(warning["detail"]["latest_run_id"])
+    assert egress["settle_outcome"] == "settled", egress
+    receipts = [receipt for child in egress["children"] for receipt in child["prior_refusals"]]
+    assert any(receipt["kind"] == "claim_retired" and receipt["rationale"] ==
+               "Gate: verify score restoration after re-grant." for receipt in receipts), receipts
+    old = gate.proof(identity)
+    assert warning["detail"]["line_spec_digest"] == old["artifact_digest"]
+    gate.submit("review-epss-restoration", {
+        "kind": "change_set",
+        "rationale": "Review EPSS results after the deliberate retirement/restoration probe.",
+        "members": [recipe.line("security.epss-triage", authority="propose")],
+    })
+    successor = gate.proof(identity)["envelope"]
+    assert successor["identity"] == old["envelope"]["identity"]
+    assert successor["lifecycle"]["predecessor_digest"] == old["artifact_digest"]
+    assert successor["max_authority"] == "propose"
+    assert successor["procedure"] == old["envelope"]["procedure"]
+    gate.out("line", "enable", "security.epss-triage")
     gate.wait(lambda: "No repair work" in gate.next_text(), 120, "next not empty")
     kinds = set()
     for line in recipe.LINES:
@@ -1207,4 +1244,6 @@ def test_20_exit(gate: Gate) -> None:
             if '"enablement"' not in json.dumps(gate.card(run["run"]).get("triggered_by")):
                 kinds.add("manual")
     assert {"manual", "cadence", "capture_landing"} <= kinds, kinds
-    record("20", f"next empty; run history {sorted(kinds)} plus dispatched backfill")
+    record("20", "EPSS prior-refusal receipt inspected; Line successor capped at propose and "
+           f"re-enabled; warning resolved; next empty; run history {sorted(kinds)} "
+           "plus dispatched backfill")
