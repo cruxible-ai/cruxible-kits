@@ -1225,10 +1225,14 @@ def test_20_exit(gate: Gate) -> None:
     identity = "Line:security.epss-triage"
     assert warning["severity"] == "warning" and warning["subject_identity"] == identity
     assert warning["repair"]["target"] == identity
-    assert warning["repair"]["operation"] == "cruxible.authoring.example"
-    assert warning["repair"]["arguments"] == {"example": "line"}
+    # Core's repair is the ready successor: the same Line capped at propose.
+    assert warning["repair"]["operation"] == "cruxible.authoring.submit"
     assert warning["repair"]["required_change"] == (
-        "read_the_runs_then_demote_the_line_or_fix_its_procedure")
+        "demote_the_line_to_propose_or_bind_a_fixed_procedure")
+    successor_payload = warning["repair"]["arguments"]["payload"]
+    assert warning["repair"]["arguments"]["line"] == "security.epss-triage"
+    assert (successor_payload["kind"], successor_payload["name"],
+            successor_payload["max_authority"]) == ("line", "security.epss-triage", "propose")
     egress = gate.egress(warning["detail"]["latest_run_id"])
     assert egress["settle_outcome"] == "settled", egress
     receipts = [receipt for child in egress["children"] for receipt in child["prior_refusals"]]
@@ -1239,7 +1243,7 @@ def test_20_exit(gate: Gate) -> None:
     gate.submit("review-epss-restoration", {
         "kind": "change_set",
         "rationale": "Review EPSS results after the deliberate retirement/restoration probe.",
-        "members": [recipe.line("security.epss-triage", authority="propose")],
+        "members": [successor_payload],
     })
     successor = gate.proof(identity)["envelope"]
     assert successor["identity"] == old["envelope"]["identity"]
@@ -1256,9 +1260,9 @@ def test_20_exit(gate: Gate) -> None:
             if '"enablement"' not in json.dumps(gate.card(run["run"]).get("triggered_by")):
                 kinds.add("manual")
     assert {"manual", "cadence", "capture_landing"} <= kinds, kinds
-    record("20", "EPSS prior-refusal receipt inspected; Line successor capped at propose and "
-           f"re-enabled; warning resolved; next empty; run history {sorted(kinds)} "
-           "plus dispatched backfill")
+    record("20", "EPSS prior-refusal receipt inspected; core's ready Line successor (capped at "
+           f"propose) submitted and re-enabled; warning resolved; next empty; run history "
+           f"{sorted(kinds)} plus dispatched backfill")
 
 
 # --- the system model -----------------------------------------------------------

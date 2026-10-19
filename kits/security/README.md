@@ -567,10 +567,10 @@ need PyPI.
 
 The upgrade recovery probe deliberately retires and restores an EPSS score.
 Core correctly reports `line_settled_prior_refusals` for that settlement on the
-same evidence. The gate inspects its retirement receipt, authors an EPSS Line
-successor capped at `propose`, and re-enables it before checking that `next` is
-empty. `cruxible authoring example line` supplies an authoring template; the
-resolution requires submitting and activating the successor.
+same evidence. The gate inspects its retirement receipt, submits the repair's
+ready payload (the same EPSS Line capped at `propose`; `cruxible next` prints it
+as a `cruxible authoring submit` command), and re-enables the Line before
+checking that `next` is empty.
 
 ```sh
 CRUXIBLE_BIN=$(command -v cruxible) python -m pytest kits/security/gate -x -q
