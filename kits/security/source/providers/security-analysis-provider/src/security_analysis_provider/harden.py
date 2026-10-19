@@ -20,7 +20,12 @@ on it turns unknown. Each unknown source is one gap item ``{kind, source, pull,
 input}`` however many questions or facts wait on it; the inbox dedupes repeats.
 
 HQ1 every path that can publish to T, and does any bypass T's gate: a job with
-``publishes_to`` T whose workflow has a trigger the gate does not list. HQ2 jobs
+``publishes_to`` T whose workflow has a trigger the gate does not list. A job's
+publish edges are derived when its source is parsed, against the targets known
+then; a target stated later would have none until the next pull. So a publishing
+job is also any job of a covered source holding T's registry credential, read
+from its held permissions and actions (``can_publish``), and the answer never
+waits on the parse order. HQ2 jobs
 holding a write credential (a ``:write`` permission, ``*:write``, the
 repository-default token, or a secret besides ``GITHUB_TOKEN``) that
 ``pull_request_target``, ``workflow_run`` or ``issue_comment`` can trigger, or
@@ -65,25 +70,32 @@ def _list(value: Any) -> list[Any]:
     return list(value) if isinstance(value, (list, tuple)) else [value]
 
 
+def _subject(ref: str) -> str:
+    """``kind/id`` of a Subject reference: a qualified identity, a path or ``kind/id``."""
+
+    text = ref.removeprefix("subjects/").removesuffix(".json")
+    return text.rsplit(":", 1)[-1] if ":" in text.split("/", 1)[0] else text
+
+
 def _refs(value: Any) -> set[str]:
-    """Subject references a projected Subject-valued field holds, as ids and paths."""
+    """The Subjects a projected Subject-valued field names, as ``kind/id``."""
 
     found: set[str] = set()
     for item in _list(value):
         if isinstance(item, str):
-            found.add(item)
+            found.add(_subject(item))
         elif isinstance(item, Mapping):
-            for key in ("subject_id", "subject_path", "path", "artifact_path", "id"):
+            for key in ("subject_path", "path", "artifact_path", "identity"):
                 if isinstance(item.get(key), str):
-                    found.add(str(item[key]))
+                    found.add(_subject(str(item[key])))
             address = item.get("address")
             if isinstance(address, Mapping) and isinstance(address.get("artifact_path"), str):
-                found.add(str(address["artifact_path"]))
+                found.add(_subject(str(address["artifact_path"])))
     return found
 
 
 def _names(bound: Bound) -> set[str]:
-    return {bound.subject_id, bound.path, bound.identity} - {""}
+    return {f"{bound.kind}/{bound.subject_id}", _subject(bound.path)}
 
 
 def _event(trigger: str) -> str:
@@ -251,6 +263,42 @@ def _jobs(rows: Iterable[Row], coverage_binding: str) -> dict[str, JobRow]:
     return jobs
 
 
+def can_publish(job: JobRow, registry: str) -> bool:
+    """Whether the job holds the credential ``registry`` accepts (the parse's rule table,
+    on held facts: a PyPI publish step is read from the actions the job uses)."""
+
+    held = job.permissions
+    write_all = "*:write" in held
+    if registry == "pypi":
+        return (write_all or "id-token:write" in held) and any(
+            use.split("@", 1)[0] == "pkg:githubactions/pypa/gh-action-pypi-publish"
+            for use in job.uses)
+    scope = {"ghcr": "packages", "github_release": "contents", "github_pages": "pages"}.get(
+        registry)
+    return scope is not None and (write_all or f"{scope}:write" in held)
+
+
+def _publishing(target: Target, coverage: Coverage, edges: dict[str, JobRow],
+                credentialed: dict[str, dict[str, JobRow]]) -> list[JobRow]:
+    """T's publishing jobs at one coverage: its publish edges, and every job there that
+    holds T's registry credential."""
+
+    found = {path: job for path, job in edges.items() if job.coverage == coverage.bound.path}
+    for path, job in credentialed.get(coverage.bound.path, {}).items():
+        if can_publish(job, target.registry):
+            found.setdefault(path, job)
+    return sorted(found.values(), key=lambda j: (j.workflow_path, j.key))
+
+
+def _jobs_by_coverage(rows: list[Row]) -> dict[str, dict[str, JobRow]]:
+    jobs: dict[str, dict[str, JobRow]] = {}
+    for job_rows in _by_target(rows).values():
+        for path, job in _jobs(job_rows, "coverage").items():
+            if job.coverage is not None:
+                jobs.setdefault(job.coverage, {})[path] = job
+    return jobs
+
+
 def _credentials(job: JobRow) -> list[str]:
     held = sorted(p for p in job.permissions
                   if p.endswith(":write") or p == "token:repository-default")
@@ -270,15 +318,16 @@ def _by_target(rows: list[Row]) -> dict[str, list[Row]]:
     return grouped
 
 
-def hq1(answers: _Answers, targets: dict[str, Target], rows: list[Row]) -> None:
+def hq1(answers: _Answers, targets: dict[str, Target], rows: list[Row],
+        credentialed: dict[str, dict[str, JobRow]]) -> None:
     grouped = _by_target(rows)
     for path, target in sorted(targets.items()):
         jobs = _jobs(grouped.get(path, ()), "job_coverage")
         for coverage in _repo_answers(answers, "HQ1", target):
-            publishing = [j for j in jobs.values() if j.coverage == coverage.bound.path]
+            publishing = _publishing(target, coverage, jobs, credentialed)
             subject = f"{target.locator} @ {coverage.source}"
             bypasses = []
-            for job in sorted(publishing, key=lambda j: (j.workflow_path, j.key)):
+            for job in publishing:
                 outside = sorted(job.triggers - target.gate)
                 if outside:
                     bypasses.append({"job": f"{job.workflow_path}#{job.key}",
@@ -297,12 +346,7 @@ def _per_source(
 ) -> None:
     """HQ2 and HQ3: per covered source of every gated target's repository."""
 
-    grouped = _by_target(rows)
-    jobs_by_coverage: dict[str, dict[str, JobRow]] = {}
-    for job_rows in grouped.values():
-        for job_path, job in _jobs(job_rows, "coverage").items():
-            if job.coverage is not None:
-                jobs_by_coverage.setdefault(job.coverage, {})[job_path] = job
+    jobs_by_coverage = _jobs_by_coverage(rows)
     seen: set[str] = set()
     for _path, target in sorted(targets.items()):
         for coverage in _repo_answers(answers, question, target,
@@ -339,12 +383,13 @@ def _hq3_judge(job: JobRow) -> dict[str, Any] | None:
     return None
 
 
-def hq4(answers: _Answers, targets: dict[str, Target], rows: list[Row]) -> None:
+def hq4(answers: _Answers, targets: dict[str, Target], rows: list[Row],
+        credentialed: dict[str, dict[str, JobRow]]) -> None:
     grouped = _by_target(rows)
     for path, target in sorted(targets.items()):
         jobs = _jobs(grouped.get(path, ()), "job_coverage")
         for coverage in _repo_answers(answers, "HQ4", target):
-            publishing = [j for j in jobs.values() if j.coverage == coverage.bound.path]
+            publishing = _publishing(target, coverage, jobs, credentialed)
             subject = f"{target.locator} @ {coverage.source}"
             if not publishing:
                 answers.none("HQ4", subject, coverage)
@@ -482,10 +527,12 @@ def harden(payload: Mapping[str, Any]) -> dict[str, Any]:
     rows = {name: parse_rows(payload.get(name)) for name in QUERIES}
     answers = _Answers(_params(payload.get("params")))
     targets = _targets([*rows["hq1"], *rows["hq2"], *rows["hq4"], *rows["hq5"]])
-    hq1(answers, targets, rows["hq1"])
+    # HQ3's rows hold every covered job's permissions and actions: the credential view.
+    credentialed = _jobs_by_coverage(rows["hq3"])
+    hq1(answers, targets, rows["hq1"], credentialed)
     _per_source(answers, "HQ2", targets, rows["hq2"], _hq2_judge)
     _per_source(answers, "HQ3", targets, rows["hq3"], _hq3_judge)
-    hq4(answers, targets, rows["hq4"])
+    hq4(answers, targets, rows["hq4"], credentialed)
     hq5(answers, targets, rows["hq5"])
     items = sorted_items(answers.findings) + sorted_items(answers.gaps.values())
     counts = {state: sum(1 for a in answers.answers if a["state"] == state)

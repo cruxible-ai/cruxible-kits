@@ -6,9 +6,10 @@ provenance) beside what is held for the project's target (rows of
 ``security.coverage_index`` and ``security.registry_facts``), and returns proposal
 items for what changed:
 
-- the target ``pypi/<project>`` and its coverage (``registry.files``), restated
-  every time: ``security.coverage.of`` the target and ``security.coverage.revision``,
-  the digest of the served file set (an unchanged set re-observes it);
+- the target ``pypi/<project>`` and its coverage (``registry.files``):
+  ``security.coverage.of`` the target, and ``security.coverage.revision``, the
+  digest of the served file set, restated every time (an unchanged set
+  re-observes it);
 - ``security.target.source_repo``: the repository every provenance names, when they
   name one;
 - per served file: the artifact ``pypi/<project>`` + file name, its
@@ -198,7 +199,8 @@ def _facts(
         items.add(cover, "security.coverage.revision", revision, why, revises=revision_id)
     else:
         items.restate(cover, "security.coverage.revision", revision, why)
-    items.restate(cover, "security.coverage.of", target, why)
+    if held_coverage is None or held_coverage.value("of") is None:
+        items.add(cover, "security.coverage.of", target, why)
     publishers = {name: publisher(f.get("provenance")) for _v, f in files
                   if (name := str(f.get("filename")))}
     repositories = {p["repository"] for p in publishers.values() if p}
@@ -212,7 +214,8 @@ def _facts(
             items.add(target, "security.target.source_repo", repo,
                       f"{at}: every file's provenance names github.com/{repository}.",
                       revises=held_repo.claim_id(target_bound, "security.target.source_repo")
-                      if held_repo is not None and target_bound is not None else None)
+                      if held_repo is not None and target_bound is not None else None,
+                      role="normative")
     by_name: dict[str, Row] = {}
     for row in held:
         name = row.value("artifact_name")
@@ -255,7 +258,8 @@ def _artifact(items: _Items, project: str, target: Any, version: str,
         items.add(artifact, "security.artifact.release",
                   key_ref(RELEASE, product_name=project, version=version),
                   f"{said} as part of release {version}.",
-                  revises=claim("security.artifact.release") if held("release_version") else None)
+                  revises=claim("security.artifact.release") if held("release_version") else None,
+                  role="normative")
     if who is None:
         return
     environment = who["environment"]

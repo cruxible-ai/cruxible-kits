@@ -9,12 +9,13 @@ the repository and the targets that name it as their source
 (``security.release_artifacts``). It returns proposal items for exactly what
 changed, plus the coverage restated every time.
 
-Coverage is the fully-read-source belief: ``security.coverage.of`` (the repository)
-and ``security.coverage.revision`` (R), restated on every snapshot. Restating
-them on an unchanged snapshot is a recorded re-observation, so their freshness
-moves without a revision; a new R revises the one revision Claim. Every other
-fact is stated once and changed only when the snapshot changes it: a value the
-snapshot no longer has is retired (``superseded``), a new one added.
+Coverage is the fully-read-source belief: ``security.coverage.of`` (the
+repository, stated once) and ``security.coverage.revision`` (R), restated on
+every snapshot. Restating it on an unchanged snapshot is a recorded
+re-observation, so its freshness moves without a revision; a new R revises the
+one revision Claim. Every other fact is stated once and changed only when the
+snapshot changes it: a value the snapshot no longer has is retired
+(``superseded``), a new one added.
 
 ``ci.workflows`` facts, per workflow file (YAML 1.1: an unquoted ``on`` key reads
 as ``True``; both spellings are read):
@@ -407,8 +408,11 @@ class _Items:
             self.subjects.append(subject_item(kind, key, why))
 
     def add(self, subject: Any, predicate: str, value: Any, why: str,
-            revises: str | None = None) -> None:
-        self.claims.append(claim_item(subject, predicate, value, why, revises=revises))
+            revises: str | None = None, *, role: str = "observation") -> None:
+        """A relationship the source states (``sourced`` ClaimTypes) is ``normative``."""
+
+        self.claims.append(claim_item(subject, predicate, value, why, revises=revises,
+                                      role=role))
         self.counts["revised" if revises else "added"] += 1
 
     def restate(self, subject: Any, predicate: str, value: Any, why: str) -> None:
@@ -476,7 +480,7 @@ def _facts(
     if coverage_bound is None:
         items.subject(COVERAGE, {"source": locator, "scope": scope},
                       f"{at}: every file of {scope} at the source was read.")
-    # Coverage is restated on every snapshot: an unchanged one re-observes it.
+    # The revision is restated on every snapshot: an unchanged one re-observes it.
     held_revision = held_coverage.value("revision") if held_coverage else None
     revision_id = (held_coverage.claim_id(coverage_bound, "security.coverage.revision")
                    if held_coverage and coverage_bound else None)
@@ -485,7 +489,8 @@ def _facts(
         items.add(cover, "security.coverage.revision", revision, why, revises=revision_id)
     else:
         items.restate(cover, "security.coverage.revision", revision, why)
-    items.restate(cover, "security.coverage.of", repo, why)
+    if held_coverage is None or held_coverage.value("of") is None:
+        items.add(cover, "security.coverage.of", repo, why)
     summary: dict[str, Any] = {"locator": locator, "revision": revision, "scope": scope,
                                "workflows": 0, "jobs": 0, "unparsed": []}
     if scope == "ci.workflows":
@@ -614,7 +619,7 @@ def _manifest_facts(
         items.subject(TARGET, {"registry": "github_release", "name": name},
                       f"{at}: the manifest declares assets of this repository's releases.")
         items.add(target, "security.target.source_repo", repo,
-                  f"{at}: a GitHub release target belongs to its repository.")
+                  f"{at}: a GitHub release target belongs to its repository.", role="normative")
     target_ref = f"github_release/{name}"
     held: dict[str, tuple[Bound, Any, str | None, bool]] = {}
     for row in release_rows:

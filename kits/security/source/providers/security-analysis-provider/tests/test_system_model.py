@@ -168,7 +168,8 @@ def test_a_first_snapshot_creates_the_source_model_and_restates_its_coverage() -
     assert sorted(v["artifact_path"] for v in publishes if "pypi" in v["artifact_path"]) == sorted(
         [PYPI_TARGET, CLIENT_TARGET, PYPI_TARGET, CLIENT_TARGET])
     assert ("security.workflow.trigger", "push:tags:v*") in claims
-    assert output["restated"] == 2 and output["changed"] == len(claims) - 2
+    assert "security.coverage.of" in [p for p, _ in claims]  # stated once, when new
+    assert output["restated"] == 1 and output["changed"] == len(claims) - 1
 
 
 def _held_rows(output: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -179,7 +180,8 @@ def _held_rows(output: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[
     revision = next(v for p, v in _claims(output["items"]) if p == "security.coverage.revision")
     cover = _bind("coverage", "security.coverage", coverage_path)
     coverage_rows = [_row([cover], {"source": f"{source}:.github/workflows/",
-                                    "scope": "ci.workflows", "revision": revision},
+                                    "scope": "ci.workflows", "revision": revision,
+                                    "of": "security.repo/github.com--cruxible-ai-cruxible"},
                           {("security.coverage/main-workflows", "security.coverage.revision"):
                            _claim("rev")})]
     by_subject: dict[str, dict[str, list[Any]]] = {}
@@ -223,14 +225,13 @@ def _held_rows(output: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[
     return coverage_rows, rows
 
 
-def test_an_unchanged_snapshot_restates_only_its_coverage() -> None:
+def test_an_unchanged_snapshot_restates_only_its_coverage_revision() -> None:
     snapshot = _snapshot(OLD, ["publish.yml"])
     first, _ = workflow_facts(snapshot, [], [], _targets(), [])
     coverage, held = _held_rows(first)
     again, _ = workflow_facts(snapshot, coverage, held, _targets(), [])
-    assert again["changed"] == 0 and again["restated"] == 2
-    assert sorted(p for p, _ in _claims(again["items"])) == [
-        "security.coverage.of", "security.coverage.revision"]
+    assert again["changed"] == 0 and again["restated"] == 1
+    assert [p for p, _ in _claims(again["items"])] == ["security.coverage.revision"]
 
 
 def test_a_moved_source_revises_its_one_coverage_claim_and_only_what_changed() -> None:
@@ -244,7 +245,7 @@ def test_a_moved_source_revises_its_one_coverage_claim_and_only_what_changed() -
     assert revision[0]["statement"]["object"]["value"] == NEW
     for item in moved["items"]:
         predicate = item.get("statement", {}).get("predicate")
-        if predicate in {"security.coverage.revision", "security.coverage.of"}:
+        if predicate == "security.coverage.revision":
             continue
         assert "publish-runtime-image" in json.dumps(item), item  # nothing else changed
     assert moved["retired"] == 0 and moved["revised"] == 1
@@ -318,7 +319,7 @@ def test_registry_facts_state_what_pypi_serves_and_who_published_it() -> None:
     # The sdist has no provenance: nothing states a publisher for it.
     assert len([p for p, _ in _claims(output["items"])
                 if p == "security.artifact.published_by"]) == 1
-    assert output["revision"].startswith("sha256:") and output["restated"] == 2
+    assert output["revision"].startswith("sha256:") and output["restated"] == 1
 
 
 # --- the questions -----------------------------------------------------------------
@@ -419,6 +420,20 @@ def test_hq2_hq3_hq4_judge_credentials_triggers_and_pins() -> None:
     assert findings["HQ4"]["shared"] == ["pkg:githubactions/actions/checkout@v4"]
 
 
+def test_hq1_counts_a_credentialed_job_before_its_publish_edge_is_parsed() -> None:
+    # The target was stated after the source was parsed: no publish edge yet, but the
+    # job holds the GHCR credential, so it is a publishing path now.
+    build = _job("build", "publish-runtime-image.yml", ["push:tags:v*", "workflow_dispatch"],
+                 permissions=["packages:write"], uses=[])
+    build["_bind"] = {"job": build["_bind"]["job"], "coverage": ("security.coverage", MAIN[0])}
+    result = harden({"hq1": [_hq_row(GHCR, ["push:tags:v*"], coverage=MAIN)], "hq2": [],
+                     "hq3": [_hq_row(GHCR, ["push:tags:v*"], coverage=MAIN, **build)],
+                     "hq4": [], "hq5": [], "params": {}})
+    (finding,) = [i for i in result["items"] if i["question"] == "HQ1"]
+    assert finding["bypass"] == [{"job": "publish-runtime-image.yml#build",
+                                  "triggers": ["workflow_dispatch"]}]
+
+
 def test_hq5_posts_a_digest_disagreement_citing_both_claims() -> None:
     release = ("subjects/security.target/github_release--cruxible.json", "github_release",
                "cruxible-ai/cruxible")
@@ -438,6 +453,30 @@ def test_hq5_posts_a_digest_disagreement_citing_both_claims() -> None:
     assert finding["disagreement"] == "digest"
     assert finding["declared"] == {"value": "sha256:" + "b2" * 32, "claim": _claim("d")}
     assert finding["served"] == {"value": "sha256:" + "ff" * 32, "claim": _claim("s")}
+
+
+def test_hq5_is_none_when_a_publishing_job_of_the_commit_matches_its_environment() -> None:
+    sha = "e848cbb6787262db349912c48d9c008d8068ede8"
+    rows = []
+    for job, environment in (("publish-client", "pypi-cruxible-client"),
+                             ("publish-cruxible", "none")):
+        rows.append(_hq_row(
+            PYPI, ["push:tags:v*"],
+            _bind={"artifact": ("security.artifact", "subjects/security.artifact/w.json"),
+                   "registry_coverage": ("security.coverage", "subjects/security.coverage/p.json"),
+                   "workflow_coverage": ("security.coverage", "subjects/security.coverage/s.json"),
+                   "job": ("security.job", f"subjects/security.job/{job}.json")},
+            registry_coverage_source="pypi/cruxible", registry_coverage_revision="sha256:1",
+            workflow_coverage_source=f"github.com/cruxible-ai/cruxible@{sha}:.github/workflows/",
+            workflow_coverage_revision=sha, artifact_name="cruxible-0.3.2.tar.gz",
+            sha256="sha256:2", workflow_source=f"github.com/cruxible-ai/cruxible@{sha}",
+            workflow_path=".github/workflows/publish.yml", publish_environment="none",
+            job_key=job, job_environment=environment,
+            # The projected value of a Subject-valued fact is the Subject's identity.
+            job_publishes=["Subject:security.target/pypi--cruxible"]))
+    result = harden({"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": rows, "params": {}})
+    (hq5,) = [a for a in result["answers"] if a["question"] == "HQ5"]
+    assert (hq5["state"], hq5["jobs"], hq5["revision"]) == ("none", ["publish-cruxible"], sha)
 
 
 def test_hq5_unknown_until_the_publishing_commit_is_covered() -> None:

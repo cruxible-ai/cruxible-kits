@@ -161,7 +161,7 @@
         "entrypoint": "security_analysis_provider.workflows:classify",
         "identity": "security.workflow-facts.input",
         "source": {
-          "digest": "sha256:a2eaec9fb559c70b4d74873a6b950f63771bf3a08c614d39a5a29819f312e6d1",
+          "digest": "sha256:406c12c001f370c2c646cc2f8ee9035ff48f62e1e7375a58987857dc8c37a162",
           "path": "workflows.py"
         },
         "version": 1
@@ -187,7 +187,7 @@
         "entrypoint": "security_analysis_provider.registry:classify",
         "identity": "security.registry-facts.input",
         "source": {
-          "digest": "sha256:e45089f74f08492ea732b3bef994203b741439594d0879f382f8768c29884a54",
+          "digest": "sha256:ab604bb4c9f9bcea4a3e502ade3cc762ba294743cb08e390278a82b04e4ab470",
           "path": "registry.py"
         },
         "version": 1
@@ -213,7 +213,7 @@
         "entrypoint": "security_analysis_provider.harden:classify",
         "identity": "security.harden.input",
         "source": {
-          "digest": "sha256:eadc8b19dd9511eb1a652493811b3f814333e4f4be14b961cd848cd5526562d0",
+          "digest": "sha256:c8c76c6b483da5751d46a1cbc7dac036f7f3706af295729c034d8c758d62dbfb",
           "path": "harden.py"
         },
         "version": 1
