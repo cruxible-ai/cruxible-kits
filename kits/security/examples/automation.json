@@ -70,7 +70,7 @@
       "name": "security.asset-fetch",
       "blueprint": "security.asset-fetch",
       "bindings": {
-        "asset": "cruxible-provider-web"
+        "asset": "security-sources-provider"
       },
       "acquisition_policy": "security.acquisition"
     },

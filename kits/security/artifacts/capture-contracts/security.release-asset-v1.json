@@ -79,7 +79,7 @@
     "tag": "playbill-capture-retention-erasure-policy-v1"
   },
   "selection_budget": {
-    "max_bytes": 33554432,
+    "max_bytes": 67108864,
     "max_items": 1,
     "max_rows": 1,
     "tag": "playbill-capture-selection-budget-v1"

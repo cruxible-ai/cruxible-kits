@@ -4,7 +4,7 @@
   "definition": {
     "annotations": {},
     "budget": {
-      "max_capture_bytes": 33554432,
+      "max_capture_bytes": 67108864,
       "max_provider_calls": 1,
       "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
@@ -28,10 +28,10 @@
         "name": "security-http-evidence"
       }
     },
-    "description": "Fetch one release asset's served bytes (input.url: its download URL) and retain them under security.release-asset-v1; the summary's body_digest is the served digest (security.artifact.sha256).",
+    "description": "Read the bytes one GitHub release asset serves (input.url: its download URL, https://github.com/OWNER/REPO/releases/download/TAG/NAME) and retain them under security.release-asset-v1; the summary's body_digest is the served digest (security.artifact.sha256).",
     "graph_format": 6,
     "hard_caps": {
-      "max_capture_bytes": 33554432,
+      "max_capture_bytes": 67108864,
       "max_items": 1,
       "max_provider_calls": 1,
       "max_repeat_attempts": 1,
@@ -47,7 +47,7 @@
       {
         "as": "asset",
         "capture_contract": {
-          "artifact_digest": "sha256:ea3d02e630c634b4c630d3f87e600e9d4421de3ba2ae35d7bd75576fad869fc7",
+          "artifact_digest": "sha256:18b69778e037aa061492f60101645755c5e393fba7ead9358c17e8637b5874c0",
           "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
@@ -56,14 +56,14 @@
         },
         "implementation_digest": null,
         "interface": {
-          "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
+          "artifact_digest": "sha256:4db53e7ee851c45920bc70fd51d84878ee5daf0ad9412fa6cec1b2934b263771",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
+            "name": "security.release-asset/fdcda711577e95b772d90ae005197baf6dbb396afac97e0dd2adda06fe459798"
           }
         },
-        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
+        "interface_digest": "sha256:9f856f117a2b700118092a8bd1e50d0436ba429b3615b73e7083c9b3d9a6827e",
         "kind": "source",
         "next": "summary",
         "node_id": "asset",
@@ -72,11 +72,6 @@
           "tag": "playbill-procedure-pin-slot-ref-v1"
         },
         "request": {
-          "expected_format": "bytes",
-          "extract": false,
-          "logical_source": "github.release.asset",
-          "max_bytes": 33554432,
-          "render": false,
           "url": "$input.url"
         }
       },
@@ -104,7 +99,7 @@
     "pin_slots": [
       {
         "artifact_kind": "Provider",
-        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
+        "interface_digest": "sha256:9f856f117a2b700118092a8bd1e50d0436ba429b3615b73e7083c9b3d9a6827e",
         "pin_role": "provider",
         "slot_name": "asset",
         "tag": "playbill-procedure-pin-slot-v1"
@@ -114,7 +109,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:b7eae68c40a46da3855cce9a6cb01d1092fe302704ee5c1213888ee64cb31cd3",
+  "definition_digest": "sha256:15c144929a92504fb0636b80a59c93ff87fff592c103c3d84c6bad3c035c313c",
   "identity": {
     "kind": "Blueprint",
     "name": "security.asset-fetch"
@@ -197,7 +192,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:ea3d02e630c634b4c630d3f87e600e9d4421de3ba2ae35d7bd75576fad869fc7",
+      "artifact_digest": "sha256:18b69778e037aa061492f60101645755c5e393fba7ead9358c17e8637b5874c0",
       "role": "capture-contract",
       "target": {
         "kind": "CaptureContract",
@@ -221,11 +216,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
+      "artifact_digest": "sha256:4db53e7ee851c45920bc70fd51d84878ee5daf0ad9412fa6cec1b2934b263771",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
+        "name": "security.release-asset/fdcda711577e95b772d90ae005197baf6dbb396afac97e0dd2adda06fe459798"
       }
     }
   ]

@@ -49,6 +49,8 @@ def _build_provider(package: Path, env: dict[str, str]) -> None:
     shutil.rmtree(package / "dist", ignore_errors=True)
     subprocess.run(["uv", "build", "--wheel", "--out-dir", "dist"], cwd=package, env=env,
                    check=True)
+    # uv ignores its out-dir; the built wheel is tracked beside its source.
+    (package / "dist" / ".gitignore").unlink(missing_ok=True)
 
 
 def _variant_provider(scratch: Path, env: dict[str, str]) -> Path:

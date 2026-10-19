@@ -54,7 +54,7 @@
             "name": "security.pypi-release-v1"
           }
         },
-        "implementation_digest": "sha256:dd73a8f2aed6b4e9b1c117a67f9a093063300e7dd21c64c765792db1b66a1311",
+        "implementation_digest": "sha256:b8f3f56c07d1da20369951a8d01cd37a1eeff3776c2f181a503afdd58fd81571",
         "interface": {
           "artifact_digest": "sha256:e83e25f7d196718e3fb86db6a7ceee39485b50c55566bc8763cfb955a861ba5c",
           "role": "provider-interface",
@@ -68,11 +68,11 @@
         "next": "mine",
         "node_id": "registry",
         "provider": {
-          "artifact_digest": "sha256:bc779b71beeb23a836eadebfa2d8156fc707b9201346aed0ae4e594682437167",
+          "artifact_digest": "sha256:059585beea056c72036451160cb291de3e0337451defa15270c6ae1e3d9ecfd7",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-sources-provider/1a25fff929257995a7ac99dd91b7367dd98200d855ac04cddcb52cd6dbac0247"
+            "name": "security-sources-provider/13f44e81a4ae125b6334934d1068d55577add9b3009f498647433e0fea0b5a25"
           }
         },
         "request": {
@@ -126,7 +126,7 @@
           "source": "$input.source"
         },
         "query": {
-          "artifact_digest": "sha256:1373bae878d0087abe6d9aefda0ec5cf3133304f2d4687bce288beb929615c83",
+          "artifact_digest": "sha256:f839b343f3089f59f829b6130530a58dc4187c5645014756f3b81505e3b70fc6",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -174,7 +174,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:9308534115dafb15a924144c0fdc4992fa4f9dbd65a3111d6af2df67693b555d",
+        "implementation_digest": "sha256:92e937c8269be6b89ef5ffa26b1076071cc61faf8ac6aec34bef7195cc48900a",
         "input": {
           "coverage": "$steps.coverage.result.rows",
           "held": "$steps.held.result.rows",
@@ -193,11 +193,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:51ddfcf74ba75d8a2a080e7bc8c44bb55ec02aaa317d1739ac1c57f031ff7ffa",
+          "artifact_digest": "sha256:25beb8d75f2c4f3491d26dcc33da3a938e0395446464e8254a2505f284589544",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/1517e5be48b30ea9e5f337a5089ca11d1b3182a916127e8dffd8b7f77eca3fd3"
+            "name": "security-analysis-provider/9fb12d60e44c593af586d1bc836b99868ec201018aed88fe3b3bb38dadced167"
           }
         }
       },
@@ -246,7 +246,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:b6b06e19e5a156900b3944adbd30b635677b816c54413bb8970b1eb6f3e6ba62",
+  "definition_digest": "sha256:5b41697a64b41d8b11e9b5c847274e7fc54d232dee57673aa4148f15f00f6de3",
   "identity": {
     "kind": "Procedure",
     "name": "security.registry-parse"
@@ -612,19 +612,19 @@
       }
     },
     {
-      "artifact_digest": "sha256:51ddfcf74ba75d8a2a080e7bc8c44bb55ec02aaa317d1739ac1c57f031ff7ffa",
+      "artifact_digest": "sha256:25beb8d75f2c4f3491d26dcc33da3a938e0395446464e8254a2505f284589544",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/1517e5be48b30ea9e5f337a5089ca11d1b3182a916127e8dffd8b7f77eca3fd3"
+        "name": "security-analysis-provider/9fb12d60e44c593af586d1bc836b99868ec201018aed88fe3b3bb38dadced167"
       }
     },
     {
-      "artifact_digest": "sha256:bc779b71beeb23a836eadebfa2d8156fc707b9201346aed0ae4e594682437167",
+      "artifact_digest": "sha256:059585beea056c72036451160cb291de3e0337451defa15270c6ae1e3d9ecfd7",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-sources-provider/1a25fff929257995a7ac99dd91b7367dd98200d855ac04cddcb52cd6dbac0247"
+        "name": "security-sources-provider/13f44e81a4ae125b6334934d1068d55577add9b3009f498647433e0fea0b5a25"
       }
     },
     {
@@ -644,7 +644,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:1373bae878d0087abe6d9aefda0ec5cf3133304f2d4687bce288beb929615c83",
+      "artifact_digest": "sha256:f839b343f3089f59f829b6130530a58dc4187c5645014756f3b81505e3b70fc6",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

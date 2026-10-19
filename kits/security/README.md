@@ -33,9 +33,9 @@ remains is listed at the end of this section.
    (by name from PyPI, verified against the recorded hashes).
 
 2. **Choose the nine Blueprint bindings.** The example binds KEV, CVE, GitHub
-   release, asset and history acquisition to `cruxible-provider-web`, and EPSS
-   acquisition, OSV applicability and the repository and PyPI pulls to
-   `security-sources-provider`. Inspect the installed ProviderInterfaces and
+   release and history acquisition to `cruxible-provider-web`, and EPSS
+   acquisition, OSV applicability and the repository, PyPI and release-asset
+   pulls to `security-sources-provider`. Inspect the installed ProviderInterfaces and
    adapt those bindings to your approved Providers.
 
 3. **Adapt the [example ChangeSet](examples/automation.json)** using the
@@ -330,7 +330,9 @@ coverage with no matching row.
 `id-token: write` and a publish step, GHCR `packages: write`, a GitHub release
 `contents: write`, Pages `pages: write`. A job holding it can publish to every
 target of that registry whose `source_repo` is the repository, so "can publish"
-leans to over-approximating.
+leans to over-approximating. The parse derives those edges against the targets it
+knows; `security.harden` also counts every job of a covered source that holds the
+credential, so a target stated after the last pull is answered at once.
 
 ### Walkthrough
 
@@ -363,10 +365,10 @@ leans to over-approximating.
    Triggers fire before you accept, so under propose re-run it after accepting).
 
 4. **Keep it current.** The pull Lines run on cron (the repository every 6 h,
-   PyPI daily). Coverage is restated on every pull: identical bytes are a recorded
-   re-observation (no proposal, no generation) that keeps it fresh; a new
-   revision revises the one `coverage.revision` Claim and only the facts that
-   changed. If pulls stop, coverage goes stale after `stale_after` (12 h, twice
+   PyPI daily). The coverage revision is restated on every pull: identical bytes
+   are a recorded re-observation (no proposal, no generation) that keeps it fresh;
+   a new revision revises that one `coverage.revision` Claim, and only the facts
+   that changed change. If pulls stop, coverage goes stale after `stale_after` (12 h, twice
    the cron), reads absent, and every answer resting on it turns unknown, naming
    the source. Widen it by revising the ClaimType (installed definitions are
    yours). Citations of a revision-pinned source (a tag, a SHA) never drift.
@@ -497,18 +499,18 @@ Mandates stay propose-only.
 | CaptureContract | 12 | The system model's `security.repo-snapshot-v1`, `security.pypi-release-v1`, `security.github-release-v1`, `security.github-api-v1`, `security.release-asset-v1`; and `security.kev-http-v1`, `security.cve-record-http-v1`, `security.osv-query-v1`, `security.epss-daily-v1`, `security.cyclonedx-sbom-v1` (a workspace file), `security.workspace-evidence-v1` (a workspace file an analyst cites), `security.observation-output-v1` (acquisition terminals). |
 | QueryDefinition | 28 | HQ1-HQ5 (`publish_paths`, `credentialed_jobs`, `mutable_actions`, `shared_dependencies`, `served_vs_declared`), `coverage_index` and the parse taps (`source_facts`, `repo_targets`, `registry_facts`); worklists (`urgent_exposures`, `kev_exposure`, `triage`, `coverage_gaps`, `remediation_work`, ...), the Procedures' state taps (`watched_vulnerabilities`, `release_inventory`, `assessment_index`), the settle condition and the triage backlog. CVE-scoped ones take `vulnerability` (`Subject:security.vulnerability/<id>`). |
 | SourceAcquisitionPolicy | 1 | `security.acquisition`: aliases `catalog`, `record`, `epss`, `osv`, `snapshot`, `registry`, `release`, `asset`, `history` (attested), `sbom` and `evidence` (exact); each required, at most 24 h old, refused stale, unavailable or oversized. |
-| Blueprint | 9 | `security.kev-acquire`, `security.cve-record-acquire`, `security.release-acquire`, `security.asset-fetch`, `security.history-acquire` (slot typed `web.fetch`), `security.epss-acquire` (`security.epss-daily`), `security.osv-applicability` (`security.osv-query`), `security.repo-acquire` (`security.repo-snapshot`), `security.registry-acquire` (`security.pypi-release`). |
+| Blueprint | 9 | `security.kev-acquire`, `security.cve-record-acquire`, `security.release-acquire`, `security.history-acquire` (slot typed `web.fetch`), `security.epss-acquire` (`security.epss-daily`), `security.osv-applicability` (`security.osv-query`), `security.repo-acquire` (`security.repo-snapshot`), `security.registry-acquire` (`security.pypi-release`), `security.asset-fetch` (`security.release-asset`: web.fetch leaves archives to the document plane). |
 | Procedure | 10 | `security.kev-triage` and `security.epss-triage` (settle terminal; they propose under a propose cap), `security.kev-attention` and `security.harden` (inbox), `security.sbom-acquire` and `security.evidence-acquire` (direct), `security.sbom-import`, `security.cve-applicability`, `security.repo-parse` and `security.registry-parse` (propose). |
-| ProviderInterface | 14 | `web.fetch` (core's), nine analysis interfaces, four Source interfaces. |
-| Providers | 3 | Bundled: `security-analysis-provider` 1.1.0 (deterministic parsing, decisions and the hardening classifier, no network) and `security-sources-provider` 1.1.0 (the OSV.dev, EPSS, GitHub repository and PyPI Sources). Default by name: `cruxible-provider-web` 0.2.2. |
+| ProviderInterface | 15 | `web.fetch` (core's), nine analysis interfaces, five Source interfaces. |
+| Providers | 3 | Bundled: `security-analysis-provider` 1.1.0 (deterministic parsing, decisions and the hardening classifier, no network) and `security-sources-provider` 1.1.0 (the OSV.dev, EPSS, GitHub repository, PyPI and release-asset Sources). Default by name: `cruxible-provider-web` 0.2.2. |
 
 ## Operating notes
 
 - **Network.** web.fetch reaches cisa.gov, cveawg.mitre.org and (for the
-  system model's release, asset and history pulls) api.github.com and github.com;
+  system model's release and history pulls) api.github.com;
   `security-sources-provider` reaches api.osv.dev, epss.empiricalsecurity.com,
-  api.github.com, raw.githubusercontent.com and pypi.org (its declared
-  endpoints). No credential is sent: GitHub allows 60 unauthenticated API calls
+  api.github.com, raw.githubusercontent.com, pypi.org, and github.com with its
+  asset hosts (its declared endpoints). No credential is sent: GitHub allows 60 unauthenticated API calls
   an hour, and a repository pull costs two plus one raw read per file. The SBOM is read from the attached workspace by
   core's built-in `workspace.file`; the Source request is the v2 form, so no
   workspace binding digest is ever authored.

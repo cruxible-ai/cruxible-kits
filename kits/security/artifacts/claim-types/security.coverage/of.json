@@ -51,13 +51,7 @@
     ],
     "tag": "playbill-claim-evidence-admission-policy-v3"
   },
-  "evidence_freshness": {
-    "stale_after": {
-      "microseconds": 43200000000,
-      "tag": "playbill-duration-v1"
-    },
-    "tag": "playbill-claim-evidence-freshness-v1"
-  },
+  "evidence_freshness": null,
   "evidence_requirement": "captured",
   "identity": {
     "kind": "ClaimType",

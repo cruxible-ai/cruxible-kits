@@ -118,7 +118,7 @@ BUILTIN_PROVIDER = "cruxible-builtin"
 KEV_MAX_BYTES = 4_194_304  # the catalog is ~1.7 MB; web.fetch defaults to 256 KiB
 CVE_MAX_BYTES = 1_048_576
 GITHUB_MAX_BYTES = 4_194_304
-ASSET_MAX_BYTES = 33_554_432  # web.fetch's ceiling
+ASSET_MAX_BYTES = 33_554_432  # security.release-asset's ceiling
 DATE = {"type": "string", "pattern": r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"}
 DATETIME = {
     "format": "date-time",
@@ -417,7 +417,7 @@ SYSTEM: list[ClaimRow] = [
     ("security.target.source_repo", ("security.target",), "subject", ("security.repo",), "one",
      "sourced", (PYPI_CONTRACT, REPO_CONTRACT), (), "The repository the target is published "
      "from: its provenance's, or the owner's words."),
-    # Coverage: the fully-read-source belief. Stale coverage reads absent, so every
+    # Coverage: the fully-read-source belief. A stale revision reads absent, so every
     # answer resting on it reads unknown.
     ("security.coverage.of", ("security.coverage",), "subject",
      ("security.repo", "security.target"), "one", "observation",
@@ -426,7 +426,8 @@ SYSTEM: list[ClaimRow] = [
     ("security.coverage.revision", ("security.coverage",), "literal", TEXT, "one",
      "observation", (PYPI_CONTRACT, REPO_CONTRACT), ("trim",),
      "The revision every file was read at: a commit SHA, or the digest of a registry's served "
-     "file set. Absence inside it is an answer; outside it, unknown."),
+     "file set, re-read on every pull and stale 12 h after the last. Absence inside current "
+     "coverage is an answer; outside it, unknown."),
     # Policy and investigation.
     ("security.target.publish_gate", ("security.target",), "literal", TEXT, "many",
      "normative", (), ("trim",), "A trigger the organization allows to publish to the target "
@@ -443,8 +444,11 @@ SYSTEM: list[ClaimRow] = [
      "The job this work item changes."),
 ]
 #: predicate -> evidence freshness horizon in hours.
-FRESHNESS = {"security.coverage.of": COVERAGE_STALE_AFTER_HOURS,
-             "security.coverage.revision": COVERAGE_STALE_AFTER_HOURS}
+#: Only the revision carries freshness: it is restated on every pull (an unchanged
+#: source re-observes it), and every answer reads it, so a stale revision reads
+#: absent and the answer unknown. ``coverage.of`` is stated once, like any fact; a
+#: moved source revises the one revision Claim.
+FRESHNESS = {"security.coverage.revision": COVERAGE_STALE_AFTER_HOURS}
 
 #: kind -> (key predicates in key order, uniqueness) or None for a minted kind.
 SUBJECT_KINDS: dict[str, tuple[tuple[str, ...], str] | None] = {
@@ -1218,7 +1222,8 @@ def capture_contracts() -> list[CaptureContract]:
     ]
     for item in raw:
         if item["identity"]["name"] == ASSET_CONTRACT:
-            item["selection_budget"]["max_bytes"] = ASSET_MAX_BYTES
+            # The retained bundle is the asset base64-encoded inside canonical JSON.
+            item["selection_budget"]["max_bytes"] = ASSET_MAX_BYTES * 2
     return [CaptureContract.model_validate(item) for item in raw]
 
 
@@ -1986,11 +1991,9 @@ def registry_acquire(cx: Cruxible) -> BlueprintInput:
 
 
 def _github_fetch(cx: Cruxible, name: str, slot: str, contract: str, logical_source: str,
-                  description: str, *, max_bytes: int, expected_format: str = "json"
-                  ) -> BlueprintInput:
+                  description: str, *, max_bytes: int) -> BlueprintInput:
     web = cx.provider_interface("web.fetch", provider=WEB_PROVIDER)
     request = _fetch("$input.url", logical_source, max_bytes)
-    request["expected_format"] = expected_format
     sequence = Sequence(
         [
             Source(slot, capture_contract=contract, next="summary", request=request),
@@ -2018,12 +2021,30 @@ def release_acquire(cx: Cruxible) -> BlueprintInput:
 
 
 def asset_fetch(cx: Cruxible) -> BlueprintInput:
-    return _github_fetch(
-        cx, "security.asset-fetch", "asset", ASSET_CONTRACT, "github.release.asset",
-        "Fetch one release asset's served bytes (input.url: its download URL) and retain "
-        f"them under {ASSET_CONTRACT}; the summary's body_digest is the served digest "
-        "(security.artifact.sha256).",
-        max_bytes=ASSET_MAX_BYTES, expected_format="bytes")
+    """A kit Source, not web.fetch: web.fetch leaves archives to the document plane."""
+
+    asset = cx.provider_interface("security.release-asset", provider=SOURCES_PROVIDER)
+    sequence = Sequence(
+        [
+            Source("asset", capture_contract=ASSET_CONTRACT, next="summary",
+                   request={"url": "$input.url"}),
+            _summary("asset"),
+        ],
+        name="security.asset-fetch",
+        description=(
+            "Read the bytes one GitHub release asset serves (input.url: its download URL, "
+            "https://github.com/OWNER/REPO/releases/download/TAG/NAME) and retain them under "
+            f"{ASSET_CONTRACT}; the summary's body_digest is the served digest "
+            "(security.artifact.sha256)."
+        ),
+        contract_in=URL_INPUT,
+        contract_out=HTTP_SUMMARY,
+        returns="summary",
+        acquisition_policy=POLICY,
+        budget=_budget(120, 1, ASSET_MAX_BYTES * 2),
+        hard_caps=_caps(300, 1, ASSET_MAX_BYTES * 2, 1),
+    ).bind(asset=asset)
+    return _blueprint(sequence, _interface(cx, "security.release-asset"), "asset")
 
 
 def history_acquire(cx: Cruxible) -> BlueprintInput:
