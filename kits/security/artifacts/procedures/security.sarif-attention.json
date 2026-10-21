@@ -1,0 +1,845 @@
+{
+  "activation_policy": "drain",
+  "artifact_format": "playbill-procedure-v2",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 16777216,
+      "max_provider_calls": 2,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 120000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:10a7cc7473e2bb36822460e3b62ca920186f274210910784987a0cf386551c80",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sarif-import-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:cec8657d2c1737fcefc9329c675afac6c509d8dd84246def4d7bcfa6e9758bd5",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sarif-summary"
+      }
+    },
+    "description": "Read the SARIF log Capture that triggered the Line for the Line's repository (parameter repo_ref) and post one inbox item per location gap (a result with no repository-relative path or no stable locus: one per tool, rule and path) and per regression (a fixed finding a full scan reports again). Never changes accepted state. Runs as a Line with trigger_input sarif, beside security.sarif-import.",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 16777216,
+      "max_items": 1000,
+      "max_provider_calls": 2,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [],
+    "name": "security.sarif-attention",
+    "nodes": [
+      {
+        "as": "sarif",
+        "capture_contract": {
+          "artifact_digest": "sha256:b49e4a488084fa60598456e45d759a9743965e37e3b5136422c74b77e2a9bb28",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.sarif-v1"
+          }
+        },
+        "implementation_digest": "sha256:67c337ac0a87cfe8ee42da30a21c4cce658a0ad6bb3944b39a81e921aaba843c",
+        "interface": {
+          "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "interface_digest": "sha256:faa92552bd6032d3280753881ce991501013b2eaa2005e0f974820f01248d866",
+        "kind": "source",
+        "next": "held",
+        "node_id": "sarif",
+        "provider": {
+          "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "cruxible-builtin"
+          }
+        },
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "sarif.log",
+          "relative_path": "scan.sarif",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "as": "held",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "parse",
+        "node_id": "held",
+        "parameters": {
+          "repo_ref": "$input.repo_ref"
+        },
+        "query": {
+          "artifact_digest": "sha256:b805e58006d535037224cc5e3a2acfb82c4b8ae0f31742854c52f4e5a0cd2046",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.finding_index"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "parse",
+        "contract_in": {
+          "artifact_digest": "sha256:ec4be2778ec84e0aacc98fc9d6a4abb493fcae73fa3fa8e2b4e798e282119c3b",
+          "role": "contract-in",
+          "target": {
+            "kind": "Contract",
+            "name": "security-sarif-request"
+          }
+        },
+        "contract_out": {
+          "artifact_digest": "sha256:adacf717607e863a48f05cda57e6a90cc67ee2c683255595dc8127f0bdeb6a27",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-sarif-result"
+          }
+        },
+        "effect_policy": null,
+        "implementation_digest": "sha256:cb40cce2486fb230843c927fde117131b270ebfdab3ee14a15d0b61b3ab7c382",
+        "input": {
+          "held": "$steps.held.result.rows",
+          "repo_ref": "$input.repo_ref",
+          "sarif_text": "$steps.sarif.content.text",
+          "truncated": "$steps.held.truncated"
+        },
+        "interface": {
+          "artifact_digest": "sha256:225872cc04e89d488d67d5ba6c5b196b07ba3134f00f33aabd1654bf3092fbe8",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.sarif-findings/b9161d9145b565f105b37d6b62ffd7fb16e96a4dc327e761c0f0fbd91bb9745f"
+          }
+        },
+        "interface_digest": "sha256:7a6b08a9b4e8e98801aab89619b41a6af960ddd0f5654ea732b3b20f8cc406db",
+        "kind": "call",
+        "next": "summary",
+        "node_id": "parse",
+        "provider": {
+          "artifact_digest": "sha256:cee0225ad93f7ce26902314c152c1e00194678b813b46b7209f262c649f9e80a",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "security-analysis-provider/9f506b6433f37d480f7f0e161e304d9efe0171fbb2afec5e5fa10e132497f727"
+          }
+        }
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:cec8657d2c1737fcefc9329c675afac6c509d8dd84246def4d7bcfa6e9758bd5",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-sarif-summary"
+          }
+        },
+        "fields": {
+          "added": "$steps.parse.added",
+          "changed": "$steps.parse.changed",
+          "findings": "$steps.parse.findings",
+          "fixed": "$steps.parse.fixed",
+          "full": "$steps.parse.full",
+          "gaps": "$steps.parse.gaps",
+          "mine": "$steps.parse.mine",
+          "new": "$steps.parse.new",
+          "posted": "$steps.parse.posted",
+          "regressed": "$steps.parse.regressed",
+          "repo_ref": "$steps.parse.repo_ref",
+          "results": "$steps.parse.results",
+          "revisions": "$steps.parse.revisions",
+          "routed_to_assessment": "$steps.parse.routed_to_assessment",
+          "tools": "$steps.parse.tools"
+        },
+        "kind": "project",
+        "next": "mine",
+        "node_id": "summary"
+      },
+      {
+        "kind": "guard",
+        "message": "The landed SARIF log has no run of the Line's repository.",
+        "node_id": "mine",
+        "on_false": "other",
+        "on_true": "posted",
+        "predicate": {
+          "all_of": null,
+          "any_of": null,
+          "left": {
+            "alias": "parse",
+            "input_name": null,
+            "kind": "step",
+            "parameter_name": null,
+            "path": [
+              "mine"
+            ],
+            "tag": "playbill-predicate-operand-v1",
+            "value": null
+          },
+          "not_of": null,
+          "operator": "gt",
+          "right": {
+            "alias": null,
+            "input_name": null,
+            "kind": "literal",
+            "parameter_name": null,
+            "path": [],
+            "tag": "playbill-predicate-operand-v1",
+            "value": 0
+          },
+          "tag": "playbill-guard-predicate-v1"
+        },
+        "refusal_code": "wrong_repo"
+      },
+      {
+        "kind": "guard",
+        "message": "The scan has no location gap and no regression.",
+        "node_id": "posted",
+        "on_false": "quiet",
+        "on_true": "post",
+        "predicate": {
+          "all_of": null,
+          "any_of": null,
+          "left": {
+            "alias": "parse",
+            "input_name": null,
+            "kind": "step",
+            "parameter_name": null,
+            "path": [
+              "posted"
+            ],
+            "tag": "playbill-predicate-operand-v1",
+            "value": null
+          },
+          "not_of": null,
+          "operator": "gt",
+          "right": {
+            "alias": null,
+            "input_name": null,
+            "kind": "literal",
+            "parameter_name": null,
+            "path": [],
+            "tag": "playbill-predicate-operand-v1",
+            "value": 0
+          },
+          "tag": "playbill-guard-predicate-v1"
+        },
+        "refusal_code": "nothing_to_post"
+      },
+      {
+        "input": {
+          "items": "$steps.parse.inbox"
+        },
+        "kind": "post_inbox",
+        "max_items": 1000,
+        "node_id": "post"
+      },
+      {
+        "kind": "halt",
+        "node_id": "quiet",
+        "reason": "nothing_to_post"
+      },
+      {
+        "kind": "halt",
+        "node_id": "other",
+        "reason": "wrong_repo"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:f368188ab3b527ca06d8c986a7bf76c5d94867d6bb75f2cdaa2de487be3727a8",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.sarif-attention"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-sarif-import-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "repo_ref": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-sarif-request"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "held": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "repo_ref": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "sarif_text": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "truncated": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-sarif-result"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "added": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "findings": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "fixed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "full": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "gaps": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "inbox": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "items": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "mine": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "new": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "posted": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "regressed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "repo_ref": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "results": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "revisions": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "routed_to_assessment": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "tools": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-sarif-summary"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "added": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "findings": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "fixed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "full": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "gaps": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "mine": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "new": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "posted": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "regressed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "repo_ref": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "results": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "revisions": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "routed_to_assessment": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "tools": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:33e5cfcf87f117af6e27dccb740749c852df43d3677700c359de016672800739",
+      "role": "acquisition-policy",
+      "target": {
+        "kind": "SourceAcquisitionPolicy",
+        "name": "security.acquisition"
+      }
+    },
+    {
+      "artifact_digest": "sha256:b49e4a488084fa60598456e45d759a9743965e37e3b5136422c74b77e2a9bb28",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.sarif-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:10a7cc7473e2bb36822460e3b62ca920186f274210910784987a0cf386551c80",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sarif-import-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ec4be2778ec84e0aacc98fc9d6a4abb493fcae73fa3fa8e2b4e798e282119c3b",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sarif-request"
+      }
+    },
+    {
+      "artifact_digest": "sha256:adacf717607e863a48f05cda57e6a90cc67ee2c683255595dc8127f0bdeb6a27",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sarif-result"
+      }
+    },
+    {
+      "artifact_digest": "sha256:cec8657d2c1737fcefc9329c675afac6c509d8dd84246def4d7bcfa6e9758bd5",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-sarif-summary"
+      }
+    },
+    {
+      "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "cruxible-builtin"
+      }
+    },
+    {
+      "artifact_digest": "sha256:cee0225ad93f7ce26902314c152c1e00194678b813b46b7209f262c649f9e80a",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "security-analysis-provider/9f506b6433f37d480f7f0e161e304d9efe0171fbb2afec5e5fa10e132497f727"
+      }
+    },
+    {
+      "artifact_digest": "sha256:225872cc04e89d488d67d5ba6c5b196b07ba3134f00f33aabd1654bf3092fbe8",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.sarif-findings/b9161d9145b565f105b37d6b62ffd7fb16e96a4dc327e761c0f0fbd91bb9745f"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "workspace.file"
+      }
+    },
+    {
+      "artifact_digest": "sha256:b805e58006d535037224cc5e3a2acfb82c4b8ae0f31742854c52f4e5a0cd2046",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.finding_index"
+      }
+    }
+  ]
+}

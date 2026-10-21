@@ -1,0 +1,21 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "One weakness of one kind at one place in one repository's code, named by repository, weakness (CWE) and locus (path#symbol, snippet or line hash): every finder that reports it meets on the key.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.finding"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.finding.repo_ref",
+      "security.finding.weakness",
+      "security.finding.locus"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

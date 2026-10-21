@@ -187,7 +187,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:a0ae3a70065690318057f95af938f4ca567bdb1f2baf487389fe7c69939af1e6",
+      "artifact_digest": "sha256:33e5cfcf87f117af6e27dccb740749c852df43d3677700c359de016672800739",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",

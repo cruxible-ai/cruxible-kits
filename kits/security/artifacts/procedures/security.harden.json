@@ -28,7 +28,7 @@
         "name": "security-harden-summary"
       }
     },
-    "description": "Ask the five hardening questions (HQ1-HQ5) about every gated target (a target with a security.target.publish_gate) and answer each in three states: found (posted as a finding), none (a current coverage answers it; run summary only) or unknown (posted as one gap item per source, naming the pull: {source, pull, input}). Observe-only. Runs as a Line (parameters: default_ref, repo_pull, registry_pull, release_pull, versions): daily, on a pull landing, or line run.",
+    "description": "Ask the six hardening questions (HQ1-HQ6) about every gated target (a target with a security.target.publish_gate) and answer each in three states: found (posted as a finding), none (a current coverage answers it; run summary only) or unknown (posted as one gap item per source, naming the pull: {source, pull, input}). HQ6 (an open confirmed code finding in a release the target serves) is found or not recorded, never none. Observe-only. Runs as a Line (parameters: default_ref, repo_pull, registry_pull, release_pull, versions): daily, on a pull landing, or line run.",
     "graph_format": 6,
     "hard_caps": {
       "max_capture_bytes": 1048576,
@@ -116,7 +116,7 @@
         "as": "hq5",
         "budgets": null,
         "kind": "state_tap",
-        "next": "classify",
+        "next": "hq6",
         "node_id": "hq5",
         "parameters": {},
         "query": {
@@ -130,9 +130,26 @@
         "view": "typed_query"
       },
       {
+        "as": "hq6",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "classify",
+        "node_id": "hq6",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:9bff0ea496803849cbc585c93ccce404752e22e3173c0aefc37531b85c0e17f8",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.published_findings"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
         "as": "classify",
         "contract_in": {
-          "artifact_digest": "sha256:7b0797330b7120551f60d3b16e2ecb97add1ec5e66969a2e65a97dbd82a75d3f",
+          "artifact_digest": "sha256:3f721e5db6396be6bc8392d9a5929928fd6cc0f60aa534ca550948a3cd016dea",
           "role": "contract-in",
           "target": {
             "kind": "Contract",
@@ -148,40 +165,42 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:04ed4715362f137731c2c10828f3d55e8b0d51b2c48270d4edba67c0835d7cb3",
+        "implementation_digest": "sha256:14d374ab8deb66f01fb86a47a218d8ff32b8e8a17fe946e1c83a5a95057153a3",
         "input": {
           "hq1": "$steps.hq1.result.rows",
           "hq2": "$steps.hq2.result.rows",
           "hq3": "$steps.hq3.result.rows",
           "hq4": "$steps.hq4.result.rows",
           "hq5": "$steps.hq5.result.rows",
+          "hq6": "$steps.hq6.result.rows",
           "params": "$input",
           "truncated": {
             "hq1": "$steps.hq1.truncated",
             "hq2": "$steps.hq2.truncated",
             "hq3": "$steps.hq3.truncated",
             "hq4": "$steps.hq4.truncated",
-            "hq5": "$steps.hq5.truncated"
+            "hq5": "$steps.hq5.truncated",
+            "hq6": "$steps.hq6.truncated"
           }
         },
         "interface": {
-          "artifact_digest": "sha256:6ee3b5755aa95298a40bd7c65c1f30b2ab33f903ad3ffe5ef3e804d5d52d2a7d",
+          "artifact_digest": "sha256:317b10f9281d9ad500a8e86ad218051ce2b8059feb0bc8ed500e9ea10234e341",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.harden/4c1c3e516a05da470950d1ac86de580ab36e9b22cb5efaa00cc25f2c426c09b3"
+            "name": "security.harden/347d8213dd7265610dcd6b3a5397246573f6dd061974f366343aff2dafb0b408"
           }
         },
-        "interface_digest": "sha256:c65d157397c05199bbe086a9dda32f1c62b7b4a04d72c3e06b20e7fd3afd16e3",
+        "interface_digest": "sha256:d2b3c15122019eec4cb0a284bc4e71a0eb1742a7cb379c2fb209362846c9c709",
         "kind": "call",
         "next": "summary",
         "node_id": "classify",
         "provider": {
-          "artifact_digest": "sha256:25beb8d75f2c4f3491d26dcc33da3a938e0395446464e8254a2505f284589544",
+          "artifact_digest": "sha256:cee0225ad93f7ce26902314c152c1e00194678b813b46b7209f262c649f9e80a",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/9fb12d60e44c593af586d1bc836b99868ec201018aed88fe3b3bb38dadced167"
+            "name": "security-analysis-provider/9f506b6433f37d480f7f0e161e304d9efe0171fbb2afec5e5fa10e132497f727"
           }
         }
       },
@@ -263,7 +282,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:bc8b442144d8cd9e24dc57ea30d6f83774f420dcb12e8939b9366ae13e0122d1",
+  "definition_digest": "sha256:52bb2656def73403bbcef032c57f721352b78034469bbd8cdda7b14faab803c1",
   "identity": {
     "kind": "Procedure",
     "name": "security.harden"
@@ -395,6 +414,17 @@
             "type": "json"
           },
           "hq5": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "hq6": {
             "default": null,
             "description": null,
             "enum": null,
@@ -633,7 +663,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:7b0797330b7120551f60d3b16e2ecb97add1ec5e66969a2e65a97dbd82a75d3f",
+      "artifact_digest": "sha256:3f721e5db6396be6bc8392d9a5929928fd6cc0f60aa534ca550948a3cd016dea",
       "role": "contract-in",
       "target": {
         "kind": "Contract",
@@ -657,19 +687,19 @@
       }
     },
     {
-      "artifact_digest": "sha256:25beb8d75f2c4f3491d26dcc33da3a938e0395446464e8254a2505f284589544",
+      "artifact_digest": "sha256:cee0225ad93f7ce26902314c152c1e00194678b813b46b7209f262c649f9e80a",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/9fb12d60e44c593af586d1bc836b99868ec201018aed88fe3b3bb38dadced167"
+        "name": "security-analysis-provider/9f506b6433f37d480f7f0e161e304d9efe0171fbb2afec5e5fa10e132497f727"
       }
     },
     {
-      "artifact_digest": "sha256:6ee3b5755aa95298a40bd7c65c1f30b2ab33f903ad3ffe5ef3e804d5d52d2a7d",
+      "artifact_digest": "sha256:317b10f9281d9ad500a8e86ad218051ce2b8059feb0bc8ed500e9ea10234e341",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "security.harden/4c1c3e516a05da470950d1ac86de580ab36e9b22cb5efaa00cc25f2c426c09b3"
+        "name": "security.harden/347d8213dd7265610dcd6b3a5397246573f6dd061974f366343aff2dafb0b408"
       }
     },
     {
@@ -694,6 +724,14 @@
       "target": {
         "kind": "QueryDefinition",
         "name": "security.publish_paths"
+      }
+    },
+    {
+      "artifact_digest": "sha256:9bff0ea496803849cbc585c93ccce404752e22e3173c0aefc37531b85c0e17f8",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.published_findings"
       }
     },
     {

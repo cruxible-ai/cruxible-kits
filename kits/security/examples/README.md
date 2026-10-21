@@ -2,8 +2,8 @@
 
 `automation.json` is an inert authoring ChangeSet. Installing the kit does not
 submit it. Copy it into your workspace and let your agent adapt the nine
-Blueprint instance names and Provider bindings, fifteen Line names and inputs,
-Trigger targets and UTC cron times, and seven Mandate namespaces. Update all
+Blueprint instance names and Provider bindings, seventeen Line names and inputs,
+Trigger targets and UTC cron times, and eight Mandate namespaces. Update all
 references when renaming. Replace `NOW` and `EXPIRES` with UTC timestamps
 (e.g. now and 90 days later). Landing Triggers use CaptureContract names only.
 
@@ -15,6 +15,15 @@ takes your default branch and the pull Blueprint instance names it names in gap
 items. Add a pair per further source; a source you pull only once (a tag, a
 commit an HQ5 gap names) needs only its parse Line and landing Trigger, since
 the pull Blueprints run directly (`cruxible procedure run`).
+
+The code findings' members are one repository's pair of Lines,
+`security.sarif-import.cruxible` and `security.sarif-attention.cruxible` (parameter
+`repo_ref`, `github.com/owner/repo`), each with a `security.sarif-v1` landing Trigger,
+and the import's propose Mandate. Add a pair per repository you scan; every other
+repository's log halts `wrong_repo`. Let the principal that runs your scans enable
+the import Line: its runs act as that principal, so under
+`independent_approval_required` its proposals need another reviewer. No Mandate covers
+a verdict.
 
 Submit with `cruxible authoring submit automation.json`, inspect the resulting
 proposal, obtain the consumer's required approvals and activate it through the

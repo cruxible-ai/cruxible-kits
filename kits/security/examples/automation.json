@@ -1,6 +1,6 @@
 {
   "kind": "change_set",
-  "rationale": "Example consumer automation for the security kit (vulnerability loop and system model); adapt before submitting.",
+  "rationale": "Example consumer automation for the security kit (vulnerability loop, system model and code findings); adapt before submitting.",
   "members": [
     {
       "kind": "blueprint_instance",
@@ -237,6 +237,28 @@
       }
     },
     {
+      "kind": "line",
+      "name": "security.sarif-import.cruxible",
+      "procedure_name": "security.sarif-import",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "sarif",
+      "parameters": {
+        "repo_ref": "github.com/cruxible-ai/cruxible"
+      }
+    },
+    {
+      "kind": "line",
+      "name": "security.sarif-attention.cruxible",
+      "procedure_name": "security.sarif-attention",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "observe",
+      "trigger_input": "sarif",
+      "parameters": {
+        "repo_ref": "github.com/cruxible-ai/cruxible"
+      }
+    },
+    {
       "kind": "trigger",
       "name": "security.kev-daily",
       "line_name": "security.kev-daily",
@@ -390,6 +412,24 @@
       }
     },
     {
+      "kind": "trigger",
+      "name": "security.sarif-landed.cruxible",
+      "line_name": "security.sarif-import.cruxible",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.sarif-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.sarif-landed-attention.cruxible",
+      "line_name": "security.sarif-attention.cruxible",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.sarif-v1"
+      }
+    },
+    {
       "kind": "procedure_mandate",
       "name": "security.kev-triage-propose",
       "procedure_name": "security.kev-triage",
@@ -536,6 +576,28 @@
         "subjects/security.repo",
         "subjects/security.target",
         "subjects/security.workflow"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 300000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 16777216,
+        "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.sarif-import-propose",
+      "procedure_name": "security.sarif-import",
+      "grants": "propose",
+      "namespace": [
+        "claims",
+        "subjects/security.finding",
+        "subjects/security.repo"
       ],
       "valid_from": "NOW",
       "expires_at": "EXPIRES",

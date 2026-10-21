@@ -174,7 +174,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:3402d8c3999a7d4c5ea4e2b19162bc84893b5ae1a723be312bedcac8143f0d75",
+        "implementation_digest": "sha256:c0078af1f14a4813f80421ea0c3ab3e9da8fadb817df3ab4c9e055153f0564e4",
         "input": {
           "coverage": "$steps.coverage.result.rows",
           "held": "$steps.held.result.rows",
@@ -193,11 +193,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:f52bd3718ce82cadcc0358be89d23e9a828bc2b3b4b3e2a04535c4d37933f6e0",
+          "artifact_digest": "sha256:a49e57a4b586ee712fc07b475bbe0d94f54c82abb83dbbe3a68ae022617a30a3",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/fb8ab30a1e1a97bb9ab91dddf4d39453edfd25be2c7df0dd6826d4a2b7fa3ef5"
+            "name": "security-analysis-provider/65573812bc9b5d3d552943ddb9953b9cfb000f70b1e45b529b10a18972431d97"
           }
         }
       },
@@ -246,7 +246,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:1eacd1d32454d8c80176a90027613bb9d624d40a1f3eed2c74a19024f3a45f7b",
+  "definition_digest": "sha256:d0f8a3dd4962c940df40446a240811e50e7cf6b1460bef07b836e8e3921093eb",
   "identity": {
     "kind": "Procedure",
     "name": "security.registry-parse"
@@ -564,7 +564,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:a0ae3a70065690318057f95af938f4ca567bdb1f2baf487389fe7c69939af1e6",
+      "artifact_digest": "sha256:33e5cfcf87f117af6e27dccb740749c852df43d3677700c359de016672800739",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",
@@ -612,11 +612,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:f52bd3718ce82cadcc0358be89d23e9a828bc2b3b4b3e2a04535c4d37933f6e0",
+      "artifact_digest": "sha256:a49e57a4b586ee712fc07b475bbe0d94f54c82abb83dbbe3a68ae022617a30a3",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/fb8ab30a1e1a97bb9ab91dddf4d39453edfd25be2c7df0dd6826d4a2b7fa3ef5"
+        "name": "security-analysis-provider/65573812bc9b5d3d552943ddb9953b9cfb000f70b1e45b529b10a18972431d97"
       }
     },
     {

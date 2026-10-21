@@ -1,0 +1,370 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "Every finding of one repository not verified fixed, with its verdict (conflict while disputed), justification, severity, location, finders and remediation. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "entry": {
+    "binding": "finding",
+    "subject_id": null,
+    "subject_kinds": [
+      "security.finding"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.open_findings"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [
+    {
+      "default": null,
+      "name": "repo_ref",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "string"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:e1c241f993c29ee7b1320c3ac1056d83ed1cf54a93ae20e1ae1389984659b9dd",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.justification"
+      }
+    },
+    {
+      "artifact_digest": "sha256:9ec7cd0d223f45cd8070a1b32686843670aa0e5af5372906b97cbcc1ea1d049b",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.location"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f4093fd858ea79c489cd5bff27cd0ed6867f22e0c6fec97b2049e153cd10c452",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.locus"
+      }
+    },
+    {
+      "artifact_digest": "sha256:79b412af310df8ae0fee14f5594be5bc562c24aa7a67b342ee05c2fbbd0e5596",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.repo_ref"
+      }
+    },
+    {
+      "artifact_digest": "sha256:9cb3504359cfeb287b4feb0ead5f54568d690c446f91e7291f35d01ec137429c",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.reported_by"
+      }
+    },
+    {
+      "artifact_digest": "sha256:b088eb8fdbff1d97e482f943294124d29ce1ca5bc8db406d6eb995dd331cadf3",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.reproduction"
+      }
+    },
+    {
+      "artifact_digest": "sha256:3846c23b3bf20b48f924185a6072059ab1676c7fc602a2a12af93f9b9b8c1100",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.rule"
+      }
+    },
+    {
+      "artifact_digest": "sha256:49b5a482a7c2b501061286051861a9d29511933b632636e03c60528a1311fcd6",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.severity"
+      }
+    },
+    {
+      "artifact_digest": "sha256:72a53b8116001cf536df247f61ce1d6e2cd7c212ab2e8794618678274d652306",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.verdict"
+      }
+    },
+    {
+      "artifact_digest": "sha256:24bf8899cfe19c34957ff805c1e85536acc20b25075305a728faf70e4ad93deb",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.verification"
+      }
+    },
+    {
+      "artifact_digest": "sha256:2ee9047cde1c6db6e0f67071d119d3f1f38e89bfaed940d772559b64a8283d64",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.finding.weakness"
+      }
+    },
+    {
+      "artifact_digest": "sha256:cb22ba0b3584b93bd221f7d07ed776c57422f37c67279eb3e2b8296396a738d5",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.remediation.progress"
+      }
+    },
+    {
+      "artifact_digest": "sha256:5e6c8c27c68950b0cb863b39cdc8eb4d448d30305300a2bea5ddf1fa857d9d12",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.finding"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "finding",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "justification",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.justification",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "location",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.location",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "locus",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.locus",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "progress",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "remediation",
+          "kind": "claim_value",
+          "predicate": "security.remediation.progress",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "remediation",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "remediation",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "reported_by",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.reported_by",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "reproduction",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.reproduction",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "rules",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.rule",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "severity",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.severity",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "verdict",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.verdict",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "verification",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.verification",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "weakness",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.weakness",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "finding",
+  "result_cardinality": "many",
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "remediation",
+      "direction": "reverse",
+      "from_binding": "finding",
+      "predicate": "security.work.finding",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.remediation"
+      ],
+      "where": null
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "filters": [
+          {
+            "binding": "finding",
+            "kind": "claim_presence",
+            "negated": true,
+            "predicate": "security.finding.verification",
+            "tag": "playbill-query-claim-presence-filter-v1"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "finding",
+              "kind": "claim_value",
+              "predicate": "security.finding.verification",
+              "tag": "playbill-query-claim-value-ref-v1"
+            },
+            "operator": "ne",
+            "right": {
+              "kind": "literal",
+              "tag": "playbill-query-literal-ref-v1",
+              "value": "fixed"
+            },
+            "tag": "playbill-query-comparison-filter-v1",
+            "value_type": "string"
+          }
+        ],
+        "kind": "any_of",
+        "tag": "playbill-query-disjunction-filter-v1"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "finding",
+          "kind": "claim_value",
+          "predicate": "security.finding.repo_ref",
+          "tag": "playbill-query-claim-value-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "repo_ref",
+          "tag": "playbill-query-parameter-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of",
+    "tag": "playbill-query-conjunction-filter-v1"
+  }
+}

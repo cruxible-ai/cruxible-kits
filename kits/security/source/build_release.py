@@ -1,4 +1,4 @@
-"""Build the security kit release (1.1.0) and its 1.1.1 gate variant from a fresh instance.
+"""Build the security kit release (1.2.0) and its 1.2.1 gate variant from a fresh instance.
 
     python source/build_release.py SCRATCH_DIR [--providers]
 
@@ -9,10 +9,10 @@ state root and workspace; nothing outside it and this kit directory is written.
 wheel; run provider tests separately). Then: start a daemon, ``init``, install
 ``cruxible-provider-web``
 0.2.2 and the bundled wheels, author the release's definitions and Procedures,
-``kit build`` it, install the patched 1.1.1 analysis wheel (the gate-only patch
-adds the changed KEV field to each Claim rationale), author the 1.1.1 successors, ``kit
-build`` 1.1.1, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
-and ``providers/`` and 1.1.1 over ``source/variants/1.1.1-gate``, stop the daemon, and regenerate
+``kit build`` it, install the patched 1.2.1 analysis wheel (the gate-only patch
+adds the changed KEV field to each Claim rationale), author the 1.2.1 successors, ``kit
+build`` 1.2.1, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
+and ``providers/`` and 1.2.1 over ``source/variants/1.2.1-gate``, stop the daemon, and regenerate
 the release's reference (``source/reference.py``: the README's generated sections
 and ``reference.md``).
 """
@@ -35,8 +35,8 @@ SOURCE = KIT / "source"
 PROVIDERS = SOURCE / "providers"
 BUNDLED = ("security-analysis-provider", "security-sources-provider")
 AUTHORING = SOURCE / "authoring" / "security_definitions.py"
-RELEASE = "1.1.0"  # keep in step with security_definitions.RELEASE
-VARIANT = "1.1.1"  # the gate-only upgrade variant (source/variants/1.1.1-gate)
+RELEASE = "1.2.0"  # keep in step with security_definitions.RELEASE
+VARIANT = "1.2.1"  # the gate-only upgrade variant (source/variants/1.2.1-gate)
 VARIANT_DIR = SOURCE / "variants" / f"{VARIANT}-gate"
 
 

@@ -1,0 +1,138 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [],
+  "allowed_subject_kinds": [
+    "security.finding"
+  ],
+  "artifact_format": "playbill-claim-type-v8",
+  "attestation_consequence_policy": null,
+  "canonical_form": [],
+  "cardinality": "one",
+  "default_role": "normative",
+  "description": "Why a finding is not_exploitable or a false_positive: an analyst's judgment (normative), or a scan's stated suppression.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.workspace-evidence-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted",
+          "workspace_file"
+        ],
+        "rule_id": "analyst-judgment",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      },
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.sarif-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "evidence_kinds": [
+          "sarif_log"
+        ],
+        "rule_id": "source-verdict",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      }
+    ],
+    "tag": "playbill-claim-evidence-admission-policy-v3"
+  },
+  "evidence_freshness": null,
+  "evidence_requirement": "self",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "security.finding.justification"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": {
+    "enum": [
+      "not_attacker_controlled",
+      "not_reachable",
+      "rule_misfire",
+      "sanitized",
+      "test_or_dead_code"
+    ],
+    "type": "string"
+  },
+  "member_descriptions": [
+    {
+      "description": "The input reaching the sink is not attacker-controlled.",
+      "member": "not_attacker_controlled"
+    },
+    {
+      "description": "No path from an entry point reaches the code.",
+      "member": "not_reachable"
+    },
+    {
+      "description": "The rule matched code that is not the pattern it describes.",
+      "member": "rule_misfire"
+    },
+    {
+      "description": "The input is sanitized or validated before the sink.",
+      "member": "sanitized"
+    },
+    {
+      "description": "The code is a test, an example or never shipped.",
+      "member": "test_or_dead_code"
+    }
+  ],
+  "object_kind": "literal",
+  "permitted_roles": [
+    "normative",
+    "observation"
+  ],
+  "pins": [],
+  "predicate": "security.finding.justification",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "slot_policy": null,
+  "subject_scope": null
+}

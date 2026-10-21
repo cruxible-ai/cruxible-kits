@@ -6,6 +6,7 @@
   },
   "allowed_object_subject_kinds": [
     "security.change",
+    "security.finding",
     "security.job",
     "security.target",
     "security.workflow"
@@ -18,7 +19,7 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "A hypothesis for the signal: what is responsible. Competing hypotheses contend (set --contend); the slot resolves when one remains.",
+  "description": "A hypothesis for the signal: what is responsible (a finding: the anomaly is exploitation of that weakness). Competing hypotheses contend (set --contend); the slot resolves when one remains.",
   "evidence_admission_policy": {
     "rules": [
       {

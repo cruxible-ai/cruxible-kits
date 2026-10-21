@@ -521,6 +521,8 @@ _EVIDENCE_GROUPS = {
     "http_response": "Fetched from a source (HTTP)",
     "sbom_document": "SBOM documents",
     "workspace_file": "Workspace files an analyst cites",
+    "sarif_log": "Scan results (SARIF)",
+    "test_report": "Reproductions (PoC runs)",
 }
 
 

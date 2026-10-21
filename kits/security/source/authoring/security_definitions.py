@@ -11,8 +11,9 @@ SubjectKinds that name every security Subject, the QueryDefinitions and the
 acquisition policy. ``procedures`` (after ``cruxible-provider-web`` and the
 bundled ``security-analysis-provider`` and ``security-sources-provider`` are
 installed) proposes the acquisition Blueprints and the triage, attention,
-import and applicability Procedures, and the system model's pull Blueprints,
-parse Procedures and the hardening Procedure. Then ``cruxible kit build`` exports the
+import and applicability Procedures, the system model's pull Blueprints, parse
+Procedures and the hardening Procedure, and the code findings' acquisition, import
+and attention Procedures. Then ``cruxible kit build`` exports the
 release (the kit README's "Building a release").
 
 The connection comes from the CLI context (``cruxible init`` remembered it).
@@ -1641,7 +1642,7 @@ REGISTRY_PARSE_SUMMARY = _contract("security-registry-parse-summary", locator=_S
 HARDEN_INPUT = _contract("security-harden-input", default_ref=_S, repo_pull=_S,
                          registry_pull=_S, release_pull=_S, versions=_I)
 HARDEN_REQUEST = _contract("security-harden-request", hq1=_J, hq2=_J, hq3=_J, hq4=_J, hq5=_J,
-                           params=_J, truncated=_J)
+                           hq6=_J, params=_J, truncated=_J)
 HARDEN_RESULT = _contract("security-harden-result", items=_J, answers=_J,
                           **_ints("posted", "targets", "gaps", "found", "none", "unknown"))
 HARDEN_SUMMARY = _contract("security-harden-summary", answers=_J,
@@ -1653,7 +1654,17 @@ HARDEN_QUERIES = {
     "hq3": "security.mutable_actions",
     "hq4": "security.shared_dependencies",
     "hq5": "security.served_vs_declared",
+    "hq6": "security.published_findings",
 }
+SARIF_INPUT = _contract("security-sarif-import-input", repo_ref=_S)
+_SARIF_COUNTS = _ints("mine", "results", "findings", "gaps", "routed_to_assessment", "new",
+                      "added", "fixed", "regressed", "changed", "posted")
+SARIF_REQUEST = _contract("security-sarif-request", sarif_text=_S, held=_J, repo_ref=_S,
+                          truncated=_J)
+SARIF_RESULT = _contract("security-sarif-result", items=_J, inbox=_J, repo_ref=_S, tools=_J,
+                         revisions=_J, full=_J, **_SARIF_COUNTS)
+SARIF_SUMMARY = _contract("security-sarif-summary", repo_ref=_S, tools=_J, revisions=_J,
+                          full=_J, **_SARIF_COUNTS)
 
 
 def _seconds(value: int) -> CanonicalDuration:
@@ -1815,6 +1826,45 @@ def epss_acquire(cx: Cruxible) -> BlueprintInput:
     return _blueprint(sequence, _interface(cx, "security.epss-daily"), "epss")
 
 
+def _workspace_file(logical_source: str, relative_path: str) -> dict[str, Any]:
+    return {
+        "tag": "playbill-workspace-file-source-request-v2",
+        "logical_source": logical_source,
+        "relative_path": relative_path,
+        "coordinate_type": "http-response-v1",
+        "coordinate": {"revision": "working"},
+        "selector_type": "whole-response-v1",
+        "selector": {"whole": True},
+        "replayability": "exact",
+    }
+
+
+def _file_acquire(cx: Cruxible, name: str, alias: str, contract: str, logical_source: str,
+                  description: str) -> Any:
+    """Read one workspace file (input.relative_path) and retain it under ``contract``."""
+
+    builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
+    sequence = Sequence(
+        [
+            Source(alias, capture_contract=contract, next="summary",
+                   request=_workspace_file(logical_source, "$input.relative_path")),
+            Project("summary", contract_out=FILE_SUMMARY, fields={
+                "bytes_digest": f"$steps.{alias}.source.bytes_digest",
+                "byte_length": f"$steps.{alias}.source.byte_length",
+            }),
+        ],
+        name=name,
+        description=description,
+        contract_in=PATH_INPUT,
+        contract_out=FILE_SUMMARY,
+        returns="summary",
+        acquisition_policy=POLICY,
+        budget=_budget(60, 1, 16_777_216),
+        hard_caps=_caps(120, 1, 16_777_216, 1),
+    ).bind(**{alias: builtin})
+    return sequence.build()
+
+
 def sbom_acquire(cx: Cruxible) -> Any:
     builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
     sequence = Sequence(
@@ -1883,6 +1933,111 @@ def evidence_acquire(cx: Cruxible) -> Any:
         budget=_budget(60, 1, 16_777_216),
         hard_caps=_caps(120, 1, 16_777_216, 1),
     ).bind(evidence=builtin)
+    return sequence.build()
+
+
+def sarif_acquire(cx: Cruxible) -> Any:
+    return _file_acquire(
+        cx, "security.sarif-acquire", "sarif", SARIF_CONTRACT, "sarif.log",
+        "Read one SARIF 2.1.0 scan log from the attached workspace (input.relative_path) and "
+        f"retain it under {SARIF_CONTRACT}; the repository's security.sarif-import Line reads "
+        "it when it lands. Annotate each run first: versionControlProvenance (repositoryUri, "
+        "revisionId) and properties[\"cruxible.coverage\"] (full or partial).")
+
+
+def reproduction_acquire(cx: Cruxible) -> Any:
+    return _file_acquire(
+        cx, "security.reproduction-acquire", "reproduction", REPRO_CONTRACT,
+        "security.reproduction",
+        "Read one proof-of-concept run's report from the attached workspace "
+        f"(input.relative_path: a JUnit XML or a test log) and retain it under {REPRO_CONTRACT}; "
+        "cite the Capture for security.finding.verdict (confirmed: the PoC fails while "
+        "vulnerable) or verification (fixed: it passes).")
+
+
+def _sarif_steps(terminal: list[Any], guard: Guard) -> list[Any]:
+    """The landed SARIF log, the Line repository's held findings, the analysis, then the
+    repository guard (another repository's log halts wrong_repo) and ``terminal``."""
+
+    return [
+        Source("sarif", capture_contract=SARIF_CONTRACT, next="held",
+               request=_workspace_file("sarif.log", "scan.sarif")),
+        StateTap("held", query="security.finding_index", next="parse",
+                 parameters={"repo_ref": "$input.repo_ref"}),
+        Call("parse", contract_in=SARIF_REQUEST, contract_out=SARIF_RESULT, next="summary",
+             input={"sarif_text": "$steps.sarif.content.text",
+                    "held": "$steps.held.result.rows", "repo_ref": "$input.repo_ref",
+                    "truncated": "$steps.held.truncated"}),
+        _project(SARIF_SUMMARY, "parse", "mine"),
+        Guard("mine", predicate=_changed("parse", "mine"), on_true=guard.name,
+              on_false="other", refusal_code="wrong_repo",
+              message="The landed SARIF log has no run of the Line's repository."),
+        guard,
+        *terminal,
+        Halt("other", reason="wrong_repo"),
+    ]
+
+
+def sarif_import(cx: Cruxible) -> Any:
+    builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
+    parse = cx.provider_interface("security.sarif-findings", provider=ANALYSIS_PROVIDER)
+    sequence = Sequence(
+        _sarif_steps(
+            [ProposeChangeSet("propose", candidate_templates={"items": "$steps.parse.items"},
+                              result=Output("summary")),
+             Halt("nochange", reason="no_change")],
+            Guard("changed", predicate=_changed("parse"), on_true="propose",
+                  on_false="nochange", refusal_code="no_change",
+                  message="The scan reports nothing the held findings lack.")),
+        name="security.sarif-import",
+        description=(
+            "Read the SARIF log Capture that triggered the Line (security.sarif-v1) for the "
+            "Line's repository (parameter repo_ref, host/owner/repo) and propose what changed: "
+            "each new finding by key (repository, weakness, locus) with the rules and finders "
+            "that reported it and its severity; rules and finders a held finding lacks; "
+            "verification fixed for a held finding a full scan of its rules no longer reports, "
+            "present for a fixed one it reports again. Never a verdict. Halts wrong_repo for "
+            "another repository's log, no_change when nothing changed. Propose-only. Runs as a "
+            "Line with trigger_input sarif."
+        ),
+        contract_in=SARIF_INPUT,
+        contract_out=SARIF_SUMMARY,
+        returns="summary",
+        activation_policy="drain",
+        acquisition_policy=POLICY,
+        budget=_budget(120, 2, 16_777_216),
+        hard_caps=_caps(300, 2, 16_777_216, 5000),
+    ).bind(sarif=builtin, parse=parse)
+    return sequence.build()
+
+
+def sarif_attention(cx: Cruxible) -> Any:
+    builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
+    parse = cx.provider_interface("security.sarif-findings", provider=ANALYSIS_PROVIDER)
+    sequence = Sequence(
+        _sarif_steps(
+            [PostInbox("post", input={"items": Output("parse", "inbox")}, max_items=1000),
+             Halt("quiet", reason="nothing_to_post")],
+            Guard("posted", predicate=_changed("parse", "posted"), on_true="post",
+                  on_false="quiet", refusal_code="nothing_to_post",
+                  message="The scan has no location gap and no regression.")),
+        name="security.sarif-attention",
+        description=(
+            "Read the SARIF log Capture that triggered the Line for the Line's repository "
+            "(parameter repo_ref) and post one inbox item per location gap (a result with no "
+            "repository-relative path or no stable locus: one per tool, rule and path) and "
+            "per regression (a fixed finding a full scan reports again). Never changes "
+            "accepted state. Runs as a Line with trigger_input sarif, beside "
+            "security.sarif-import."
+        ),
+        contract_in=SARIF_INPUT,
+        contract_out=SARIF_SUMMARY,
+        returns="summary",
+        activation_policy="drain",
+        acquisition_policy=POLICY,
+        budget=_budget(120, 2, 16_777_216),
+        hard_caps=_caps(300, 2, 16_777_216, 1000),
+    ).bind(sarif=builtin, parse=parse)
     return sequence.build()
 
 
@@ -2402,11 +2557,13 @@ def harden_procedure(cx: Cruxible) -> Any:
         ],
         name="security.harden",
         description=(
-            "Ask the five hardening questions (HQ1-HQ5) about every gated target (a target "
+            "Ask the six hardening questions (HQ1-HQ6) about every gated target (a target "
             "with a security.target.publish_gate) and answer each in three states: found "
             "(posted as a finding), none (a current coverage answers it; run summary only) or "
             "unknown (posted as one gap item per source, naming the pull: {source, pull, "
-            "input}). Observe-only. Runs as a Line (parameters: default_ref, repo_pull, "
+            "input}). HQ6 (an open confirmed code finding in a release the target serves) is "
+            "found or not recorded, never none. Observe-only. Runs as a Line (parameters: "
+            "default_ref, repo_pull, "
             "registry_pull, release_pull, versions): daily, on a pull landing, or line run."
         ),
         contract_in=HARDEN_INPUT,
@@ -2526,7 +2683,8 @@ def _held_query(cx: Cruxible, name: str) -> tuple[dict[str, Any], str] | None:
 def procedures(cx: Cruxible, release: str) -> None:
     draft = cx.changes(rationale=f"security kit {release}: acquisition Blueprints, triage, "
                        "attention, SBOM import and applicability Procedures; the system "
-                       "model's pull Blueprints, parse Procedures and hardening Procedure.")
+                       "model's pull Blueprints, parse Procedures and hardening Procedure; "
+                       "the code findings' acquisition, import and attention Procedures.")
     draft.procedure(definition=kev_acquire(cx, release))
     draft.procedure(definition=cve_record_acquire(cx))
     draft.procedure(definition=epss_acquire(cx))
@@ -2546,6 +2704,10 @@ def procedures(cx: Cruxible, release: str) -> None:
     draft.procedure(definition=repo_parse(cx))
     draft.procedure(definition=registry_parse(cx))
     draft.procedure(definition=harden_procedure(cx))
+    draft.procedure(definition=sarif_acquire(cx))
+    draft.procedure(definition=reproduction_acquire(cx))
+    draft.procedure(definition=sarif_import(cx))
+    draft.procedure(definition=sarif_attention(cx))
     submit(cx, draft, "procedures")
 
 

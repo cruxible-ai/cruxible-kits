@@ -1,29 +1,29 @@
-# security kit 1.1.0 reference
+# security kit 1.2.0 reference
 
 Every kind, field, contract, Line, Procedure and query in this release, generated from its definitions (`cruxible-kit.json`, `artifacts/`) and the example ChangeSet (`examples/automation.json`) by `source/reference.py`; do not edit. `scripts/kits.py check` fails when it is out of date. Start with the kit's [README](README.md).
 
 ## At a glance
 
-Kit `security` version **1.1.0**, defining every name under `security.`.
+Kit `security` version **1.2.0**, defining every name under `security.`.
 
 | Definitions | Count | Notes |
 |---|---|---|
-| Subject kinds | 19 | [What it models](#what-it-models) |
-| ClaimTypes | 87 | 7 shared by several kinds |
-| Capture contracts | 12 | [Where evidence comes from](#where-evidence-comes-from) |
-| Procedures | 10 | - |
+| Subject kinds | 20 | [What it models](#what-it-models) |
+| ClaimTypes | 103 | 8 shared by several kinds |
+| Capture contracts | 14 | [Where evidence comes from](#where-evidence-comes-from) |
+| Procedures | 14 | - |
 | Blueprints | 9 | you bind each one's Provider slots |
-| Queries | 28 | [What you can ask](#what-you-can-ask) |
-| Provider interfaces | 15 | - |
+| Queries | 34 | [What you can ask](#what-you-can-ask) |
+| Provider interfaces | 16 | - |
 | Acquisition policies | 1 | `security.acquisition` |
-| Example Lines | 15 | with 17 Triggers and 7 Mandates in `examples/automation.json`: [What runs on its own](#what-runs-on-its-own) |
+| Example Lines | 17 | with 19 Triggers and 8 Mandates in `examples/automation.json`: [What runs on its own](#what-runs-on-its-own) |
 
 Providers `kit add` installs:
 
 | Package | Version | Delivery | Interfaces |
 |---|---|---|---|
 | `cruxible-provider-web` | 0.2.2 | by name from the index | `search.web`, `web.fetch` |
-| `security-analysis-provider` | 1.1.0 | bundled wheel | `security.cve-applicability`, `security.cyclonedx-components`, `security.epss-scores`, `security.harden`, `security.kev-attention`, `security.kev-catalog`, `security.osv-applicability`, `security.registry-facts`, `security.workflow-facts` |
+| `security-analysis-provider` | 1.2.0 | bundled wheel | `security.cve-applicability`, `security.cyclonedx-components`, `security.epss-scores`, `security.harden`, `security.kev-attention`, `security.kev-catalog`, `security.osv-applicability`, `security.registry-facts`, `security.sarif-findings`, `security.workflow-facts` |
 | `security-sources-provider` | 1.1.0 | bundled wheel | `security.epss-daily`, `security.osv-query`, `security.pypi-release`, `security.release-asset`, `security.repo-snapshot` |
 
 ### How evidence reaches each kind
@@ -45,11 +45,19 @@ flowchart LR
     c_security_release_asset_v1["github.release.asset<br/>as release-asset-v1"]
     c_security_repo_snapshot_v1["github.repo.snapshot<br/>as repo-snapshot-v1"]
   end
-  subgraph g1["SBOM documents"]
+  subgraph g1["Reproductions (PoC runs)"]
+    direction TB
+    c_security_reproduction_v1["security.reproduction<br/>as reproduction-v1"]
+  end
+  subgraph g2["SBOM documents"]
     direction TB
     c_security_cyclonedx_sbom_v1["cyclonedx.sbom<br/>as cyclonedx-sbom-v1"]
   end
-  subgraph g2["Workspace files an analyst cites"]
+  subgraph g3["Scan results (SARIF)"]
+    direction TB
+    c_security_sarif_v1["sarif.log<br/>as sarif-v1"]
+  end
+  subgraph g4["Workspace files an analyst cites"]
     direction TB
     c_security_workspace_evidence_v1["security.analysis.evidence<br/>as workspace-evidence-v1"]
   end
@@ -60,6 +68,7 @@ flowchart LR
     k_security_control["control"]
     k_security_coverage["coverage"]
     k_security_exception["exception"]
+    k_security_finding["finding"]
     k_security_job["job"]
     k_security_product["product"]
     k_security_release["release"]
@@ -70,13 +79,16 @@ flowchart LR
     k_security_workflow["workflow"]
   end
   c_security_cve_record_http_v1 -. "4" .-> k_security_assessment
+  c_security_cve_record_http_v1 -. "1" .-> k_security_finding
   c_security_cve_record_http_v1 == "2" ==> k_security_vulnerability
   c_security_cyclonedx_sbom_v1 -. "1" .-> k_security_product
   c_security_cyclonedx_sbom_v1 == "2, 1 captured" ==> k_security_release
   c_security_epss_daily_v1 == "2" ==> k_security_vulnerability
   c_security_github_api_v1 == "1" ==> k_security_artifact
+  c_security_github_api_v1 -. "2" .-> k_security_finding
   c_security_github_api_v1 -. "2" .-> k_security_signal
   c_security_github_release_v1 == "6, 5 captured" ==> k_security_artifact
+  c_security_github_release_v1 -. "1" .-> k_security_finding
   c_security_github_release_v1 -. "2" .-> k_security_signal
   c_security_kev_http_v1 == "6" ==> k_security_vulnerability
   c_security_observation_output_v1 -. "2" .-> k_security_assessment
@@ -86,6 +98,7 @@ flowchart LR
   c_security_observation_output_v1 -. "1" .-> k_security_signal
   c_security_observation_output_v1 == "4" ==> k_security_vulnerability
   c_security_osv_query_v1 -. "4" .-> k_security_assessment
+  c_security_osv_query_v1 -. "1" .-> k_security_finding
   c_security_pypi_release_v1 == "6, 5 captured" ==> k_security_artifact
   c_security_pypi_release_v1 == "2" ==> k_security_coverage
   c_security_pypi_release_v1 -. "2" .-> k_security_signal
@@ -98,7 +111,10 @@ flowchart LR
   c_security_repo_snapshot_v1 -. "2" .-> k_security_signal
   c_security_repo_snapshot_v1 -. "1" .-> k_security_target
   c_security_repo_snapshot_v1 == "3" ==> k_security_workflow
+  c_security_reproduction_v1 == "3, 2 captured" ==> k_security_finding
+  c_security_sarif_v1 == "6, 3 captured" ==> k_security_finding
   c_security_workspace_evidence_v1 -. "2" .-> k_security_assessment
+  c_security_workspace_evidence_v1 == "3, 1 captured" ==> k_security_finding
   c_security_workspace_evidence_v1 -. "1" .-> k_security_signal
 ```
 
@@ -120,6 +136,7 @@ flowchart LR
   subgraph direct["Run directly"]
     direction TB
     d_security_cve_record_acquire["cve-record-acquire<br/>blueprint run"]
+    d_security_sarif_acquire["sarif-acquire<br/>procedure run"]
     d_security_sbom_acquire["sbom-acquire<br/>procedure run"]
   end
   subgraph captures["Capture contracts"]
@@ -130,6 +147,7 @@ flowchart LR
     c_security_kev_http_v1[("kev-http-v1")]
     c_security_pypi_release_v1[("pypi-release-v1")]
     c_security_repo_snapshot_v1[("repo-snapshot-v1")]
+    c_security_sarif_v1[("sarif-v1")]
   end
   subgraph reacts["Lines a landing starts"]
     direction TB
@@ -141,6 +159,8 @@ flowchart LR
     l_security_registry_parse_cruxible["registry-parse.cruxible<br/>propose"]
     l_security_registry_parse_cruxible_client["registry-parse.cruxible-client<br/>propose"]
     l_security_repo_parse_cruxible_ci["repo-parse.cruxible-ci<br/>propose"]
+    l_security_sarif_attention_cruxible["sarif-attention.cruxible<br/>observe"]
+    l_security_sarif_import_cruxible["sarif-import.cruxible<br/>propose"]
     l_security_sbom_import["sbom-import<br/>propose"]
   end
   d_security_cve_record_acquire --> c_security_cve_record_http_v1
@@ -150,6 +170,7 @@ flowchart LR
   l_security_registry_pull_cruxible --> c_security_pypi_release_v1
   l_security_registry_pull_cruxible_client --> c_security_pypi_release_v1
   l_security_repo_pull_cruxible_ci --> c_security_repo_snapshot_v1
+  d_security_sarif_acquire --> c_security_sarif_v1
   c_security_cve_record_http_v1 -- "cve-landed" --> l_security_cve_applicability
   c_security_cyclonedx_sbom_v1 -- "sbom-landed" --> l_security_sbom_import
   c_security_epss_daily_v1 -- "epss-landed" --> l_security_epss_triage
@@ -160,6 +181,8 @@ flowchart LR
   c_security_pypi_release_v1 -- "registry-landed.cruxible-client" --> l_security_registry_parse_cruxible_client
   c_security_repo_snapshot_v1 -- "harden-on-snapshot" --> l_security_harden
   c_security_repo_snapshot_v1 -- "repo-landed.cruxible-ci" --> l_security_repo_parse_cruxible_ci
+  c_security_sarif_v1 -- "sarif-landed-attention.cruxible" --> l_security_sarif_attention_cruxible
+  c_security_sarif_v1 -- "sarif-landed.cruxible" --> l_security_sarif_import_cruxible
 ```
 
 ## What it models
@@ -245,7 +268,7 @@ Key: minted id.
 | `activation` | Whether the compensating control is active. | `declared_active` / `planned` / `retired` | one | normative | - | no | - | unresolved |
 | `kind` | The kind of compensating control. | `access_restriction` / `monitoring` / `network_isolation` | one | normative | - | no | - | unresolved |
 
-Also the shared `security.work.assessment`, `security.work.asset`, `security.work.job`, `security.work.owner`, `security.work.rationale`, `security.work.review_at`, `security.work.verification` (see [Shared ClaimTypes](#shared-claimtypes)).
+Also the shared `security.work.assessment`, `security.work.asset`, `security.work.finding`, `security.work.job`, `security.work.owner`, `security.work.rationale`, `security.work.review_at`, `security.work.verification` (see [Shared ClaimTypes](#shared-claimtypes)).
 
 ### security.coverage
 
@@ -271,7 +294,45 @@ Key: minted id.
 | `approval` | Whether the risk exception is approved. | `approved` / `revoked` | one | normative | - | no | - | unresolved |
 | `expires_at` | When the risk exception expires. | date-time | one | normative | - | no | - | unresolved |
 
-Also the shared `security.work.assessment`, `security.work.asset`, `security.work.job`, `security.work.owner`, `security.work.rationale`, `security.work.review_at`, `security.work.verification` (see [Shared ClaimTypes](#shared-claimtypes)).
+Also the shared `security.work.assessment`, `security.work.asset`, `security.work.finding`, `security.work.job`, `security.work.owner`, `security.work.rationale`, `security.work.review_at`, `security.work.verification` (see [Shared ClaimTypes](#shared-claimtypes)).
+
+### security.finding
+
+One weakness of one kind at one place in one repository's code, named by repository, weakness (CWE) and locus (path#symbol, snippet or line hash): every finder that reports it meets on the key.
+
+Key: `repo_ref` + `weakness` + `locus` (uniqueness `unique`).
+
+| Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
+|---|---|---|---|---|---|---|---|---|
+| `affects` | What the finding is in: a release, a service, a job or an artifact (joins the system model; HQ6 asks it of every gated target). | Subject: `security.artifact`, `security.job`, `security.release`, `security.service` | many | normative | own word, `security.github-api-v1`, `security.github-release-v1` | no (per rule) | - | all held |
+| `fixed_by` | The commit that fixes the finding. | Subject: `security.change` | one | normative | own word, `security.github-api-v1` | no (per rule) | - | unresolved |
+| `justification` | Why a finding is not_exploitable or a false_positive: an analyst's judgment (normative), or a scan's stated suppression. | one of 5 (below) | one | normative (or observation) | own word, `security.sarif-v1`, `security.workspace-evidence-v1` | no (per rule) | - | unresolved |
+| `location` | Where the sink is now, as path:start-end, cited by a file citation of the sink line (PATH#ANCHOR): origin-only, so `cruxible next` resurfaces it (citation_drifted) when the cited code changes. One per sink. | text | many | normative | - | no | - | all held |
+| `locus` | Where in the code: <repo-relative path>#<locator>, the first tier that applies (the symbol, snippet:<12 hex of the sink line>, line-hash:<the tool's>). Never a line number; with repo_ref and weakness, the finding's key. | text | one | normative | - | no | - | unresolved |
+| `repo` | The repository the finding is in (the key's repo_ref as a Subject). | Subject: `security.repo` | one | normative | own word, `security.sarif-v1` | no (per rule) | - | unresolved |
+| `repo_ref` | The repository as host/owner/repo (github.com/owner/repo); with weakness and locus, the finding's key. | text | one | normative | - | no | - | unresolved |
+| `reported_by` | A finder that reported the finding: a tool (semgrep, codeql) or an agent's principal; the grain of the finder track record. | text | many | observation | `security.sarif-v1` | yes | - | all held |
+| `reproduction` | The proof-of-concept test that reproduces the finding (tests/security/test_x.py::test_y), in the writer's own words or a section of the finding's note; the PoC run is the verdict's evidence. | text | one | normative | own word, `security.reproduction-v1` | no (per rule) | - | unresolved |
+| `rule` | A tool rule that reported the finding, as tool:ruleId (semgrep:python.lang.security...), observed in a SARIF scan. | text | many | observation | `security.sarif-v1` | yes | - | all held |
+| `severity` | How severe the finding is: a scan's severity (security-severity, else the level) citing its SARIF, or (normative) an analyst's judgment. | `critical` / `high` / `low` / `medium` | one | normative (or observation) | own word, `security.sarif-v1`, `security.workspace-evidence-v1` | no (per rule) | - | unresolved |
+| `verdict` | The adjudicated verdict: confirmed, not_exploitable or false_positive, citing a reproduction (the PoC run) or the code read (workspace evidence); own words are refused. A disputed verdict contends (set --contend) and reads conflict until one contender remains. Never settled by a Mandate. | one of 3 (below) | one | normative | `security.reproduction-v1`, `security.workspace-evidence-v1` | yes | - | unresolved |
+| `verification` | Whether a fix is verified: fixed when a full scan of the finder's rules no longer reports it or the PoC passes; present when a full scan reports it after it was fixed (a regression). | `fixed` / `present` | one | observation | `security.reproduction-v1`, `security.sarif-v1` | yes | - | unresolved |
+| `vulnerability` | The known CVE the finding is (vendored code with a published vulnerability). | Subject: `security.vulnerability` | one | normative | own word, `security.cve-record-http-v1`, `security.osv-query-v1` | no (per rule) | - | unresolved |
+| `weakness` | CWE-<n>, the smallest CWE the reporting rule names, else RULE:<tool>/<ruleId>; with repo_ref and locus, the finding's key. | text | one | normative | - | no | - | unresolved |
+
+`justification` is one of:
+
+- `not_attacker_controlled`: The input reaching the sink is not attacker-controlled.
+- `not_reachable`: No path from an entry point reaches the code.
+- `rule_misfire`: The rule matched code that is not the pattern it describes.
+- `sanitized`: The input is sanitized or validated before the sink.
+- `test_or_dead_code`: The code is a test, an example or never shipped.
+
+`verdict` is one of:
+
+- `confirmed`: The weakness is real and exploitable: a reproduction (the PoC run) or the code read shows it. Needs retained evidence, never own words.
+- `false_positive`: The tool or finder was wrong: there is no such weakness here.
+- `not_exploitable`: The weakness is in the code but cannot be exploited here; the justification says why (for example not_reachable).
 
 ### security.job
 
@@ -327,7 +388,7 @@ Key: minted id.
 | `progress` | Where the remediation stands. | `cancelled` / `completed` / `in_progress` / `planned` | one | normative | - | no | - | unresolved |
 | `target_release` | The release the remediation moves to. | Subject: `security.release` | one | normative | - | no | - | unresolved |
 
-Also the shared `security.work.assessment`, `security.work.asset`, `security.work.job`, `security.work.owner`, `security.work.rationale`, `security.work.review_at`, `security.work.verification` (see [Shared ClaimTypes](#shared-claimtypes)).
+Also the shared `security.work.assessment`, `security.work.asset`, `security.work.finding`, `security.work.job`, `security.work.owner`, `security.work.rationale`, `security.work.review_at`, `security.work.verification` (see [Shared ClaimTypes](#shared-claimtypes)).
 
 ### security.repo
 
@@ -361,7 +422,7 @@ Key: `detector` + `fingerprint` (uniqueness `unique`).
 | Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
 |---|---|---|---|---|---|---|---|---|
 | `detector` | What observed the signal (a question such as security.hq5, or manual); with fingerprint, the signal's key. | text | one | normative | - | no | - | unresolved |
-| `explained_by` | A hypothesis for the signal: what is responsible. Competing hypotheses contend (set --contend); the slot resolves when one remains. | Subject: `security.change`, `security.job`, `security.target`, `security.workflow` | one | normative | own word, `security.github-api-v1`, `security.github-release-v1`, `security.pypi-release-v1`, `security.release-asset-v1`, `security.repo-snapshot-v1` | no (per rule) | - | unresolved |
+| `explained_by` | A hypothesis for the signal: what is responsible (a finding: the anomaly is exploitation of that weakness). Competing hypotheses contend (set --contend); the slot resolves when one remains. | Subject: `security.change`, `security.finding`, `security.job`, `security.target`, `security.workflow` | one | normative | own word, `security.github-api-v1`, `security.github-release-v1`, `security.pypi-release-v1`, `security.release-asset-v1`, `security.repo-snapshot-v1` | no (per rule) | - | unresolved |
 | `fingerprint` | What identifies the observation; with detector, the signal's key. | text | one | normative | - | no | - | unresolved |
 | `observed` | What the signal was observed on: a source's observation, or someone's own words. | Subject: `security.artifact`, `security.job`, `security.target`, `security.workflow` | many | normative (or observation) | own word, `security.github-api-v1`, `security.github-release-v1`, `security.observation-output-v1`, `security.pypi-release-v1`, `security.release-asset-v1`, `security.repo-snapshot-v1`, `security.workspace-evidence-v1` | no (per rule) | - | all held |
 
@@ -439,6 +500,7 @@ Each of `security.control`, `security.exception`, `security.remediation` accepts
 |---|---|---|---|---|---|---|---|---|
 | `security.work.assessment` | The assessment this work item answers. | Subject: `security.assessment` | one | normative | - | no | - | unresolved |
 | `security.work.asset` | The asset this work item covers. | Subject: `security.asset` | one | normative | - | no | - | unresolved |
+| `security.work.finding` | The finding this work item answers (a remediation fixes it; an approved exception accepts its risk). | Subject: `security.finding` | one | normative | - | no | - | unresolved |
 | `security.work.job` | The job this work item changes. | Subject: `security.job` | one | normative | - | no | - | unresolved |
 | `security.work.owner` | The team accountable for this work item. | Subject: `security.team` | one | normative | - | no | - | unresolved |
 | `security.work.rationale` | Why this work item exists. | text | one | normative | - | no | - | unresolved |
@@ -451,18 +513,20 @@ One row per Capture contract. **Produced by**: the Procedures and Blueprints tha
 
 | Contract | Captures | Grade | Produced by | Landings start | Supports |
 |---|---|---|---|---|---|
-| `security.cve-record-http-v1` | cve.record (http_response) | observed | Blueprint `security.cve-record-acquire` (slot `web.fetch`; direct run) | `security.cve-applicability` | 6 ClaimTypes; 2 require a Capture |
+| `security.cve-record-http-v1` | cve.record (http_response) | observed | Blueprint `security.cve-record-acquire` (slot `web.fetch`; direct run) | `security.cve-applicability` | 7 ClaimTypes; 2 require a Capture |
 | `security.cyclonedx-sbom-v1` | cyclonedx.sbom (sbom_document) | observed | Procedure `security.sbom-acquire` (core's built-in `workspace.file`; direct run) | `security.sbom-import` | 3 ClaimTypes; 1 requires a Capture |
 | `security.epss-daily-v1` | first.epss.daily (http_response) | observed | Blueprint `security.epss-acquire` (slot `security.epss-daily`; Line `security.epss-daily`) | `security.epss-triage` | 2 ClaimTypes; 2 require a Capture |
-| `security.github-api-v1` | github.api (http_response) | observed | Blueprint `security.history-acquire` (slot `web.fetch`; direct run) | - | 3 ClaimTypes; 1 requires a Capture |
-| `security.github-release-v1` | github.release (http_response) | observed | Blueprint `security.release-acquire` (slot `web.fetch`; direct run) | - | 8 ClaimTypes; 5 require a Capture |
+| `security.github-api-v1` | github.api (http_response) | observed | Blueprint `security.history-acquire` (slot `web.fetch`; direct run) | - | 5 ClaimTypes; 1 requires a Capture |
+| `security.github-release-v1` | github.release (http_response) | observed | Blueprint `security.release-acquire` (slot `web.fetch`; direct run) | - | 9 ClaimTypes; 5 require a Capture |
 | `security.kev-http-v1` | cisa.kev.catalog (http_response) | observed | Blueprint `security.kev-acquire` (slot `web.fetch`; Line `security.kev-daily`) | `security.kev-attention`, `security.kev-triage` | 6 ClaimTypes; 6 require a Capture |
 | `security.observation-output-v1` | security.observation (http_response) | observed | Blueprint `security.epss-acquire` (its run's output; Line `security.epss-daily`); Blueprint `security.kev-acquire` (its run's output; Line `security.kev-daily`) | - | 8 ClaimTypes; 5 require a Capture |
-| `security.osv-query-v1` | osv.dev.query (http_response) | observed | Blueprint `security.osv-applicability` (slot `security.osv-query`; Line `security.osv-applicability`) | - | 4 ClaimTypes; 0 require a Capture |
+| `security.osv-query-v1` | osv.dev.query (http_response) | observed | Blueprint `security.osv-applicability` (slot `security.osv-query`; Line `security.osv-applicability`) | - | 5 ClaimTypes; 0 require a Capture |
 | `security.pypi-release-v1` | pypi.release (http_response) | observed | Blueprint `security.registry-acquire` (slot `security.pypi-release`; Line `security.registry-pull.cruxible`, `security.registry-pull.cruxible-client`) | `security.harden`, `security.registry-parse.cruxible`, `security.registry-parse.cruxible-client` | 11 ClaimTypes; 7 require a Capture |
 | `security.release-asset-v1` | github.release.asset (http_response) | observed | Blueprint `security.asset-fetch` (slot `security.release-asset`; direct run) | - | 3 ClaimTypes; 1 requires a Capture |
 | `security.repo-snapshot-v1` | github.repo.snapshot (http_response) | observed | Blueprint `security.repo-acquire` (slot `security.repo-snapshot`; Line `security.repo-pull.cruxible-ci`) | `security.harden`, `security.repo-parse.cruxible-ci` | 17 ClaimTypes; 14 require a Capture |
-| `security.workspace-evidence-v1` | security.analysis.evidence (workspace_file) | observed | Procedure `security.evidence-acquire` (core's built-in `workspace.file`; direct run) | - | 3 ClaimTypes; 0 require a Capture |
+| `security.reproduction-v1` | security.reproduction (test_report) | observed | Procedure `security.reproduction-acquire` (core's built-in `workspace.file`; direct run) | - | 3 ClaimTypes; 2 require a Capture |
+| `security.sarif-v1` | sarif.log (sarif_log) | observed | Procedure `security.sarif-acquire` (core's built-in `workspace.file`; direct run) | `security.sarif-attention.cruxible`, `security.sarif-import.cruxible` | 6 ClaimTypes; 3 require a Capture |
+| `security.workspace-evidence-v1` | security.analysis.evidence (workspace_file) | observed | Procedure `security.evidence-acquire` (core's built-in `workspace.file`; direct run) | - | 6 ClaimTypes; 1 requires a Capture |
 
 ## What runs on its own
 
@@ -484,6 +548,8 @@ The example ChangeSet (`examples/automation.json`) authors these Lines disabled;
 | `security.registry-pull.cruxible-client` | `security.registry-acquire` | `security.registry-pull.cruxible-client`: cron `25 6 * * *` | observe | nothing: retains a Capture |
 | `security.repo-parse.cruxible-ci` | `security.repo-parse` | `security.repo-landed.cruxible-ci`: lands `security.repo-snapshot-v1` | propose | nothing: proposes for review within `claims`, `subjects/security.artifact`, `subjects/security.coverage`, `subjects/security.job`, `subjects/security.repo`, `subjects/security.target`, `subjects/security.workflow` |
 | `security.repo-pull.cruxible-ci` | `security.repo-acquire` | `security.repo-pull.cruxible-ci`: cron `5 */6 * * *` | observe | nothing: retains a Capture |
+| `security.sarif-attention.cruxible` | `security.sarif-attention` | `security.sarif-landed-attention.cruxible`: lands `security.sarif-v1` | observe | nothing: posts inbox items |
+| `security.sarif-import.cruxible` | `security.sarif-import` | `security.sarif-landed.cruxible`: lands `security.sarif-v1` | propose | nothing: proposes for review within `claims`, `subjects/security.finding`, `subjects/security.repo` |
 | `security.sbom-import` | `security.sbom-import` | `security.sbom-landed`: lands `security.cyclonedx-sbom-v1` | propose | nothing: proposes for review within `claims`, `subjects/security.product`, `subjects/security.release`, `subjects/security.supplier` |
 
 Every Procedure and Blueprint, what its terminal does, and the example Lines that run it (`direct`: `cruxible procedure run`):
@@ -496,7 +562,7 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.epss-acquire` | Blueprint | retains a Capture | Fetch FIRST's current EPSS daily scores file (gzip CSV) and retain it under security.epss-daily-v1. | `security.epss-daily` |
 | `security.epss-triage` | Procedure | settles a ChangeSet | Read the EPSS daily file Capture that triggered the Line (security.epss-daily-v1) and the watched vulnerabilities, and settle epss_score and epss_percentile for each watched CVE whose scores changed, exactly as the file states them (or propose them under a propose cap). | `security.epss-triage` |
 | `security.evidence-acquire` | Procedure | retains a Capture | Read one workspace file an analyst cites for a judgment (input.relative_path: code, a config, an analysis note) and retain it under security.workspace-evidence-v1; cite the Capture with `cruxible set ... --capture CAP-...`. | direct |
-| `security.harden` | Procedure | posts inbox items | Ask the five hardening questions (HQ1-HQ5) about every gated target (a target with a security.target.publish_gate) and answer each in three states: found (posted as a finding), none (a current coverage answers it; run summary only) or unknown (posted as one gap item per source, naming the pull: {source, pull, input}). | `security.harden` |
+| `security.harden` | Procedure | posts inbox items | Ask the six hardening questions (HQ1-HQ6) about every gated target (a target with a security.target.publish_gate) and answer each in three states: found (posted as a finding), none (a current coverage answers it; run summary only) or unknown (posted as one gap item per source, naming the pull: {source, pull, input}). | `security.harden` |
 | `security.history-acquire` | Blueprint | retains a Capture | Fetch one GitHub API answer about history (input.url: commits?path=...&sha=..., or actions/workflows/W/runs?branch=...) and retain it under security.github-api-v1: which commit changed a path, which runs ran. | direct |
 | `security.kev-acquire` | Blueprint | retains a Capture | Fetch the CISA KEV catalog (static JSON, no rendering) and retain it under security.kev-http-v1. | `security.kev-daily` |
 | `security.kev-attention` | Procedure | posts inbox items | Read the KEV catalog Capture that triggered the Line and post one inbox item per CVE added in the catalog's last 7 days whose vendor/product matches a release in inventory that nobody watches the CVE for or nobody has assessed: possibly exposed, nobody has looked. | `security.kev-attention` |
@@ -507,6 +573,10 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.release-acquire` | Blueprint | retains a Capture | Fetch one GitHub release (input.url: https://api.github.com/repos/OWNER/REPO/releases/tags/TAG) and retain it under security.github-release-v1: its assets, their digests, uploader and update times. | direct |
 | `security.repo-acquire` | Blueprint | retains a Capture | Read what one GitHub repository declares at one ref for one scope (input: forge_host, full_name, ref, scope ci.workflows or release.manifest, path) and retain it under security.repo-snapshot-v1: the revision R and every file at R. An unchanged source is the same bytes. | `security.repo-pull.cruxible-ci` |
 | `security.repo-parse` | Procedure | proposes a ChangeSet | Read the repository snapshot that triggered the Line (security.repo-snapshot-v1) for the Line's source (parameters: source, repo_source, forge_host, full_name, ref, scope, path) and propose what changed: workflows, jobs and their triggers, permissions, secrets, environment, actions and publish targets, or a manifest's declared digests, plus the source's coverage restated (an unchanged snapshot re-observes it; a new revision revises it). | `security.repo-parse.cruxible-ci` |
+| `security.reproduction-acquire` | Procedure | retains a Capture | Read one proof-of-concept run's report from the attached workspace (input.relative_path: a JUnit XML or a test log) and retain it under security.reproduction-v1; cite the Capture for security.finding.verdict (confirmed: the PoC fails while vulnerable) or verification (fixed: it passes). | direct |
+| `security.sarif-acquire` | Procedure | retains a Capture | Read one SARIF 2.1.0 scan log from the attached workspace (input.relative_path) and retain it under security.sarif-v1; the repository's security.sarif-import Line reads it when it lands. | direct |
+| `security.sarif-attention` | Procedure | posts inbox items | Read the SARIF log Capture that triggered the Line for the Line's repository (parameter repo_ref) and post one inbox item per location gap (a result with no repository-relative path or no stable locus: one per tool, rule and path) and per regression (a fixed finding a full scan reports again). | `security.sarif-attention.cruxible` |
+| `security.sarif-import` | Procedure | proposes a ChangeSet | Read the SARIF log Capture that triggered the Line (security.sarif-v1) for the Line's repository (parameter repo_ref, host/owner/repo) and propose what changed: each new finding by key (repository, weakness, locus) with the rules and finders that reported it and its severity; rules and finders a held finding lacks; verification fixed for a held finding a full scan of its rules no longer reports, present for a fixed one it reports again. | `security.sarif-import.cruxible` |
 | `security.sbom-acquire` | Procedure | retains a Capture | Read one CycloneDX JSON SBOM from the attached workspace (input.relative_path) and retain it under security.cyclonedx-sbom-v1; security.sbom-import reads it when it lands. | direct |
 | `security.sbom-import` | Procedure | proposes a ChangeSet | Read the CycloneDX SBOM Capture that triggered the Line (security.cyclonedx-sbom-v1) and propose its product and release (created by key, or the held ones), the release's product link, supplier, and one security.release.component observation per component purl the release does not hold yet. | `security.sbom-import` |
 
@@ -525,13 +595,18 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.credentialed_jobs` | HQ2: every job of a covered source of a gated target's repository, with its permissions, secrets, environment and triggers. | - |
 | `security.exceptions` | Scoped risk exceptions and expiry. | - |
 | `security.expired_exceptions` | Expired approved exceptions requiring review. | - |
+| `security.finder_record` | Every finding of one repository with the finders and rules that reported it and its verdict (conflict while disputed): the reader counts upheld (confirmed, not_exploitable) against overturned (false_positive) per finder or rule. | `repo_ref` (string) |
+| `security.finding_index` | Every finding of one repository (repo_ref, host/owner/repo) with its key, the rules and finders that reported it, its severity, verification and verdict: the SARIF import's tap. | `repo_ref` (string) |
+| `security.finding_settle_condition` | One finding by id with its key: the condition a settle grant on the SARIF import's report observations (rule, reported_by, severity) evaluates per changed Claim. Never grant the verdict, justification, verification or affects. | `finding_id` (string) |
 | `security.incomplete_work` | Remediation actions missing accountable information. | - |
 | `security.inventory_context` | Assets with their releases, products, suppliers, services and owning teams. | - |
 | `security.kev_exposure` | Internet-facing assets with a release assessed affected by a KEV-listed vulnerability. | - |
 | `security.kev_triage_backlog` | Assessments of KEV-listed vulnerabilities still unresolved (no status, or inconclusive). | - |
 | `security.mutable_actions` | HQ3: every job of a covered source of a gated target's repository, with the actions it runs and the credentials it holds. | - |
+| `security.open_findings` | Every finding of one repository not verified fixed, with its verdict (conflict while disputed), justification, severity, location, finders and remediation. | `repo_ref` (string) |
 | `security.ownership_gaps` | Assets serving a service with no owning team. | - |
 | `security.publish_paths` | HQ1: every job that can publish to a gated target, with its workflow's triggers, beside the coverage of the target's repository. | - |
+| `security.published_findings` | HQ6: every confirmed finding not verified fixed that affects a release a gated target serves a file of, with the target, the artifact and the release. | - |
 | `security.registry_facts` | One target (by registry and name) with every artifact it serves and what each was published by and built from: the parse Procedures' tap. | `name` (string), `registry` (string) |
 | `security.release_inventory` | Every release with its product, supplier and components. | - |
 | `security.remediation_work` | Remediation actions and verification. | - |
@@ -542,5 +617,6 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.source_facts` | Every workflow read from one source (host/owner/repo@ref) and its jobs, with each many-valued fact's Claims: the repo parse's tap. | `source` (string) |
 | `security.supplier_concentration` | Shared component and supplier dependencies. | - |
 | `security.triage` | Applicability, exposure, KEV and EPSS facts for one vulnerability. | `vulnerability` (subject reference) |
+| `security.unverified_fixes` | Findings with a fix commit (fixed_by) that no full scan or passing PoC has verified fixed yet. | - |
 | `security.urgent_exposures` | Every release assessed affected, KEV-listed first, then by EPSS score, with the assets that install it. | - |
 | `security.watched_vulnerabilities` | Every watched vulnerability (a watch_reason, or an affected or inconclusive assessment of a release in inventory) with its current KEV and EPSS Claims. | - |
