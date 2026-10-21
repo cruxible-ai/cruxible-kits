@@ -1,10 +1,10 @@
-"""The hardening classifier: the five questions about every gated target, in three states.
+"""The hardening classifier: the six questions about every gated target, in three states.
 
-``Harden`` (``security.harden``) reads the rows of the five hardening queries
+``Harden`` (``security.harden``) reads the rows of the six hardening queries
 (``security.publish_paths``, ``security.credentialed_jobs``,
 ``security.mutable_actions``, ``security.shared_dependencies``,
-``security.served_vs_declared``), each scoped to the targets with a
-``security.target.publish_gate`` (stating a gate is what asks the questions), and
+``security.served_vs_declared``, ``security.published_findings``), each scoped to
+the targets with a ``security.target.publish_gate`` (stating a gate is what asks the questions), and
 answers each question per target and per covered source:
 
 - **found**: the facts answer it, and the answer is a problem (posted as a finding);
@@ -35,7 +35,12 @@ or a secret every publishing job of T shares. HQ5 what T serves against the path
 that declares it: an artifact whose ``published_by`` workflow, at the commit it
 was built from, has no job publishing T (or none in its ``publish_environment``),
 or whose served ``sha256`` differs from its ``declared_sha256`` (posted with both
-Claims, the declared and the running).
+Claims, the declared and the running). HQ6 an open confirmed code finding in what T
+serves: a ``security.finding`` whose verdict is ``confirmed`` (an undisputed verdict;
+a contended one reads ``conflict`` and is not confirmed) and whose verification is not
+``fixed``, that ``affects`` a release an artifact of T is a file of. HQ6 has two
+states, found or "no confirmed finding recorded": with no scan coverage belief, it
+never answers none.
 """
 
 from __future__ import annotations
@@ -50,7 +55,7 @@ from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunCo
 
 from .common import Bound, InputError, Row, parse_rows, sorted_items
 
-QUERIES = ("hq1", "hq2", "hq3", "hq4", "hq5")
+QUERIES = ("hq1", "hq2", "hq3", "hq4", "hq5", "hq6")
 WORKFLOWS_PATH = ".github/workflows/"
 RISKY_EVENTS = ("pull_request_target", "workflow_run", "issue_comment")
 _PINNED = re.compile(r"@[0-9a-f]{40}$")
@@ -505,6 +510,36 @@ def _hq5_artifact(answers: _Answers, target: Target, registry_coverage: Coverage
                                 **wcoverage.cites(), "jobs": sorted(matching)})
 
 
+def hq6(answers: _Answers, rows: list[Row]) -> None:
+    """One finding per (gated target, open confirmed finding), naming every release and
+    artifact of T it affects. Nothing is answered for a target without one."""
+
+    found: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in rows:
+        target, finding = row.subject("target"), row.subject("finding")
+        if target is None or finding is None:
+            continue
+        if row.value("verdict") != "confirmed" or row.value("verification") == "fixed":
+            continue
+        locator = f"{row.value('target_registry')}/{row.value('target_name')}"
+        subject = f"{locator}: {finding.kind}/{finding.subject_id}"
+        item = found.setdefault((target.path, finding.path), {
+            "subject": subject, "target": locator,
+            "finding": f"{finding.kind}/{finding.subject_id}",
+            "weakness": row.value("weakness"), "locus": row.value("locus"),
+            "severity": row.value("severity"), "releases": set(), "artifacts": set()})
+        release, artifact = row.subject("release"), row.subject("artifact")
+        if release is not None:
+            item["releases"].add(f"{release.kind}/{release.subject_id}")
+        if artifact is not None:
+            item["artifacts"].add(str(row.value("artifact_name") or artifact.subject_id))
+    for _key, item in sorted(found.items()):
+        subject = item.pop("subject")
+        answers.found("HQ6", subject, None, {
+            **item, "releases": sorted(item["releases"]),
+            "artifacts": sorted(item["artifacts"])})
+
+
 def _params(value: object) -> Params:
     if not isinstance(value, Mapping):
         return Params()
@@ -534,6 +569,7 @@ def harden(payload: Mapping[str, Any]) -> dict[str, Any]:
     _per_source(answers, "HQ3", targets, rows["hq3"], _hq3_judge)
     hq4(answers, targets, rows["hq4"], credentialed)
     hq5(answers, targets, rows["hq5"])
+    hq6(answers, rows["hq6"])
     items = sorted_items(answers.findings) + sorted_items(answers.gaps.values())
     counts = {state: sum(1 for a in answers.answers if a["state"] == state)
               for state in ("found", "none", "unknown")}

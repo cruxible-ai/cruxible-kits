@@ -1,0 +1,83 @@
+{
+  "interface_id": "security.sarif-findings",
+  "version": 1,
+  "effect_class": "pure",
+  "contracts": {
+    "input": {
+      "fields": {
+        "sarif_text": {
+          "type": "string"
+        },
+        "held": {
+          "type": "json"
+        },
+        "repo_ref": {
+          "type": "string"
+        },
+        "truncated": {
+          "type": "json"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": {
+      "fields": {
+        "items": {
+          "type": "json"
+        },
+        "inbox": {
+          "type": "json"
+        },
+        "repo_ref": {
+          "type": "string"
+        },
+        "tools": {
+          "type": "json"
+        },
+        "revisions": {
+          "type": "json"
+        },
+        "full": {
+          "type": "json"
+        },
+        "mine": {
+          "type": "integer"
+        },
+        "results": {
+          "type": "integer"
+        },
+        "findings": {
+          "type": "integer"
+        },
+        "gaps": {
+          "type": "integer"
+        },
+        "routed_to_assessment": {
+          "type": "integer"
+        },
+        "new": {
+          "type": "integer"
+        },
+        "added": {
+          "type": "integer"
+        },
+        "fixed": {
+          "type": "integer"
+        },
+        "regressed": {
+          "type": "integer"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "posted": {
+          "type": "integer"
+        }
+      },
+      "allow_extra": false
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

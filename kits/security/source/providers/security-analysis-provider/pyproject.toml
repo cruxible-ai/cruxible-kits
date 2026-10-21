@@ -1,13 +1,14 @@
 # The security kit's analysis provider: deterministic readings of the KEV
 # catalog, the EPSS daily file, CycloneDX SBOMs, OSV answers, CVE records,
-# repository snapshots (workflows, release manifests) and PyPI releases, plus
+# repository snapshots (workflows, release manifests), PyPI releases and SARIF
+# scan logs, plus
 # the hardening classifier, returned as Claim proposal items or inbox payloads.
 # No network, no clock. It is not published: it ships inside the security kit
 # as its built wheel plus this lock, and `cruxible kit add` installs it before
 # the kit's definitions.
 [project]
 name = "security-analysis-provider"
-version = "1.1.0"
+version = "1.2.0"
 description = "Security kit provider: KEV, EPSS, SBOM, applicability and system-model analysis to proposal items."
 requires-python = ">=3.11"
 license = "Apache-2.0"
@@ -25,6 +26,7 @@ dependencies = [
 "security.cve-applicability" = "security_analysis_provider.applicability:CveApplicability"
 "security.workflow-facts" = "security_analysis_provider.workflows:WorkflowFacts"
 "security.registry-facts" = "security_analysis_provider.registry:RegistryFacts"
+"security.sarif-findings" = "security_analysis_provider.sarif:SarifFindings"
 "security.harden" = "security_analysis_provider.harden:Harden"
 
 [dependency-groups]

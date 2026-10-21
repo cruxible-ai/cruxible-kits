@@ -359,7 +359,7 @@ def _job(name: str, path: str, triggers: list[str], **facts: Any) -> dict[str, A
 def test_every_answer_starts_unknown_and_gaps_group_by_source() -> None:
     rows = {"hq1": [_hq_row(PYPI, ["push:tags:v*"], repo=False),
                     _hq_row(GHCR, ["push:tags:v*"])],
-            "hq2": [], "hq3": [], "hq4": [], "hq5": [], "params": {}}
+            "hq2": [], "hq3": [], "hq4": [], "hq5": [], "hq6": [], "params": {}}
     result = harden(rows)
     assert {a["state"] for a in result["answers"]} == {"unknown"}
     gaps = [i for i in result["items"] if i["kind"] == "gap"]
@@ -380,7 +380,7 @@ def test_covered_answers_are_found_or_none_and_name_their_coverage() -> None:
                 _hq_row(GHCR, ["push:tags:v*"], coverage=MAIN,
                         **_job("build", "publish-runtime-image.yml",
                                ["push:tags:v*", "workflow_dispatch"]))],
-        "hq2": [], "hq3": [], "hq4": [], "hq5": [], "params": {},
+        "hq2": [], "hq3": [], "hq4": [], "hq5": [], "hq6": [], "params": {},
     }
     result = harden(rows)
     by = {(a["question"], a["subject"].split(" @ ")[0]): a for a in result["answers"]}
@@ -413,7 +413,7 @@ def test_hq2_hq3_hq4_judge_credentials_triggers_and_pins() -> None:
         "hq3": [_hq_row(PYPI, ["push:tags:v*"], **hq3_client)],
         "hq4": [_hq_row(PYPI, ["push:tags:v*"], coverage=MAIN, **client),
                 _hq_row(PYPI, ["push:tags:v*"], coverage=MAIN, **cruxible)],
-        "hq5": [], "params": {}})
+        "hq5": [], "hq6": [], "params": {}})
     findings = {i["question"]: i for i in result["items"] if i["kind"] == "finding"}
     assert findings["HQ2"]["jobs"][0]["triggers"] == ["workflow_dispatch"]
     assert findings["HQ3"]["jobs"][0]["mutable"] == ["pkg:githubactions/actions/checkout@v4"]
@@ -428,7 +428,7 @@ def test_hq1_counts_a_credentialed_job_before_its_publish_edge_is_parsed() -> No
     build["_bind"] = {"job": build["_bind"]["job"], "coverage": ("security.coverage", MAIN[0])}
     result = harden({"hq1": [_hq_row(GHCR, ["push:tags:v*"], coverage=MAIN)], "hq2": [],
                      "hq3": [_hq_row(GHCR, ["push:tags:v*"], coverage=MAIN, **build)],
-                     "hq4": [], "hq5": [], "params": {}})
+                     "hq4": [], "hq5": [], "hq6": [], "params": {}})
     (finding,) = [i for i in result["items"] if i["question"] == "HQ1"]
     assert finding["bypass"] == [{"job": "publish-runtime-image.yml#build",
                                   "triggers": ["workflow_dispatch"]}]
@@ -448,7 +448,8 @@ def test_hq5_posts_a_digest_disagreement_citing_both_claims() -> None:
         {"claim_path": f"claims/bb/{_claim('s')}.json", "predicate": "security.artifact.sha256",
          "subject_identity": "security.artifact/x"}]
     row["bindings"][-1]["subject_identity"] = "security.artifact/x"
-    result = harden({"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": [row], "params": {}})
+    result = harden({"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": [row], "hq6": [],
+                     "params": {}})
     (finding,) = [i for i in result["items"] if i["kind"] == "finding"]
     assert finding["disagreement"] == "digest"
     assert finding["declared"] == {"value": "sha256:" + "b2" * 32, "claim": _claim("d")}
@@ -474,7 +475,8 @@ def test_hq5_is_none_when_a_publishing_job_of_the_commit_matches_its_environment
             job_key=job, job_environment=environment,
             # The projected value of a Subject-valued fact is the Subject's identity.
             job_publishes=["Subject:security.target/pypi--cruxible"]))
-    result = harden({"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": rows, "params": {}})
+    result = harden({"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": rows, "hq6": [],
+                     "params": {}})
     (hq5,) = [a for a in result["answers"] if a["question"] == "HQ5"]
     assert (hq5["state"], hq5["jobs"], hq5["revision"]) == ("none", ["publish-cruxible"], sha)
 
@@ -489,7 +491,8 @@ def test_hq5_unknown_until_the_publishing_commit_is_covered() -> None:
                   artifact_name="cruxible-0.3.2-py3-none-any.whl", sha256="sha256:2",
                   workflow_source=f"github.com/cruxible-ai/cruxible@{sha}",
                   workflow_path=".github/workflows/publish.yml", publish_environment="none")
-    result = harden({"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": [row], "params": {}})
+    result = harden({"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": [row], "hq6": [],
+                     "params": {}})
     gaps = {i["source"]: i for i in result["items"] if i["kind"] == "gap"}
     # HQ5 waits on the workflows at the commit PyPI says it was built from; HQ1-4 on main.
     gap = gaps[f"github.com/cruxible-ai/cruxible@{sha}:.github/workflows/"]

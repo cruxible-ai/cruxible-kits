@@ -22,7 +22,7 @@ from cruxible_provider_runtime.registration import INTERFACE_DOMAIN, load_regist
 
 ROOT = Path(__file__).resolve().parent
 MODULE = ROOT / "src" / "security_analysis_provider"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 
 def _b64(data: bytes) -> str:
@@ -62,6 +62,22 @@ _RECORD = _b64(
             "containers": {"cna": {"affected": [{"vendor": "v", "product": "p", "versions": []}]}},
         }
     ).encode()
+)
+
+
+_SARIF = json.dumps(
+    {
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {"driver": {"name": "fixture", "rules": [{"id": "CWE-89"}]}},
+                "versionControlProvenance": [
+                    {"repositoryUri": "https://github.com/fixture/fixture", "revisionId": "0"}
+                ],
+                "results": [],
+            }
+        ],
+    }
 )
 
 
@@ -200,13 +216,29 @@ INTERFACES: dict[str, tuple[str, str, str, list[dict[str, Any]], dict[str, Any],
         "release=present",
         "release=present",
     ),
+    "security.sarif-findings": (
+        "sarif:SarifFindings",
+        "sarif:classify",
+        "A SARIF 2.1.0 log and the findings held for the Line's repository.",
+        [
+            _dimension("sarif", "whether a SARIF log is present", {"present": "a nonempty text"}),
+            _dimension(
+                "size", "how large the log is", {"small": "at most 16 MiB", "large": "more"}
+            ),
+        ],
+        {"sarif_text": _SARIF, "held": [], "repo_ref": "github.com/fixture/fixture",
+         "truncated": False},
+        "sarif=present;size=small",
+        "sarif=present;size=small",
+    ),
     "security.harden": (
         "harden:Harden",
         "harden:classify",
-        "The five hardening queries' rows for the gated targets.",
+        "The six hardening queries' rows for the gated targets.",
         [_dimension("rows", "how many rows the request carries", {
             "small": "at most 5000 rows", "large": "more than 5000 rows"})],
-        {"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": [], "params": {}, "truncated": {}},
+        {"hq1": [], "hq2": [], "hq3": [], "hq4": [], "hq5": [], "hq6": [], "params": {},
+         "truncated": {}},
         "rows=small",
         "rows=*",
     ),

@@ -5,11 +5,12 @@ Interfaces: ``security.kev-catalog`` (KEV triage), ``security.kev-attention``
 ``security.cyclonedx-components`` (SBOM import), ``security.osv-applicability``
 and ``security.cve-applicability`` (applicability assessments),
 ``security.workflow-facts`` and ``security.registry-facts`` (the system model:
-what a repository declares and what a registry serves) and ``security.harden``
-(the hardening questions in three states). No network, no clock: every output
+what a repository declares and what a registry serves), ``security.sarif-findings``
+(first-party code findings from SARIF scans, keyed so every finder meets) and
+``security.harden`` (the hardening questions in three states). No network, no clock: every output
 is a function of the input.
 """
 
 from __future__ import annotations
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"

@@ -20,6 +20,9 @@
         "hq5": {
           "type": "json"
         },
+        "hq6": {
+          "type": "json"
+        },
         "params": {
           "type": "json"
         },

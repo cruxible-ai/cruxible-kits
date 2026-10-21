@@ -1,0 +1,28 @@
+rules:
+  - id: sqli-fstring-execute
+    languages: [python]
+    severity: ERROR
+    message: SQL built with an f-string reaches cursor.execute; use bound parameters.
+    patterns:
+      - pattern: $CUR.execute(f"...")
+    metadata:
+      cwe:
+        - "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      owasp: ["A03:2021 - Injection"]
+      category: security
+      security-severity: "8.8"
+  - id: open-joined-path
+    languages: [python]
+    severity: WARNING
+    message: A path joined from caller input is opened; check it stays under its base.
+    patterns:
+      - pattern-either:
+          - pattern: open($P, ...)
+      - pattern-inside: |
+          $P = os.path.realpath(os.path.join(...))
+          ...
+    metadata:
+      cwe:
+        - "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+        - "CWE-73: External Control of File Name or Path"
+      category: security

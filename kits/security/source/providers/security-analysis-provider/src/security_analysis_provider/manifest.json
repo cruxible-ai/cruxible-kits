@@ -1,7 +1,7 @@
 {
   "distribution": {
     "name": "security-analysis-provider",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "entrypoint_group": "cruxible.providers",
   "implementations": [
@@ -162,6 +162,25 @@
         "local_env"
       ],
       "bucket_conformance": {
+        "sarif=present;size=small": "sarif-findings-fixture"
+      },
+      "capture_contract_families": [],
+      "declared_endpoints": [],
+      "declared_input_buckets": [
+        "sarif=present;size=small"
+      ],
+      "deterministic": true,
+      "entrypoint": "security_analysis_provider.sarif:SarifFindings",
+      "interface_digest": "sha256:7a6b08a9b4e8e98801aab89619b41a6af960ddd0f5654ea732b3b20f8cc406db",
+      "interface_id": "security.sarif-findings",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
         "rows=*": "harden-fixture"
       },
       "capture_contract_families": [],
@@ -171,7 +190,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.harden:Harden",
-      "interface_digest": "sha256:c65d157397c05199bbe086a9dda32f1c62b7b4a04d72c3e06b20e7fd3afd16e3",
+      "interface_digest": "sha256:d2b3c15122019eec4cb0a284bc4e71a0eb1742a7cb379c2fb209362846c9c709",
       "interface_id": "security.harden",
       "requires_extras": [],
       "side_effects": false

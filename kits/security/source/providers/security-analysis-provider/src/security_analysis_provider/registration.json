@@ -210,33 +210,59 @@
     },
     {
       "classifier": {
+        "entrypoint": "security_analysis_provider.sarif:classify",
+        "identity": "security.sarif-findings.input",
+        "source": {
+          "digest": "sha256:afbfbc99e16634fc25ad7e8b75488b49c1b8dbdcb103cc7586063352685cd08a",
+          "path": "sarif.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:14521730f13c0a40717ada9fe8768ca15168b7afb9afdf454e77e5287641e1f1",
+        "path": "contracts/security.sarif-findings.json"
+      },
+      "fixtures": {
+        "digest": "sha256:db06b6d0756eff33577cb7a4501f4eef10476f45cd70edf41314c1403ae33097",
+        "path": "registration-fixtures/security.sarif-findings.json"
+      },
+      "interface_digest": "sha256:7a6b08a9b4e8e98801aab89619b41a6af960ddd0f5654ea732b3b20f8cc406db",
+      "interface_id": "security.sarif-findings",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:5e52c5f20884aa2e63fea63015eba341914936b41c9848b06e6ffb6ced902246",
+        "path": "vocab/security.sarif-findings.json"
+      }
+    },
+    {
+      "classifier": {
         "entrypoint": "security_analysis_provider.harden:classify",
         "identity": "security.harden.input",
         "source": {
-          "digest": "sha256:c8c76c6b483da5751d46a1cbc7dac036f7f3706af295729c034d8c758d62dbfb",
+          "digest": "sha256:014feec0a15ae438ac9eff36218b40867bf704924ff6d701a0c920e186590522",
           "path": "harden.py"
         },
         "version": 1
       },
       "definition": {
-        "digest": "sha256:23e21c6363dcc84a283e1f7cb23415c99780896c5b3c1881b4a50e115c6224b9",
+        "digest": "sha256:9e938952e75efe69222385e951435b451cc3058ebd0a3453e3661f8c6d55d280",
         "path": "contracts/security.harden.json"
       },
       "fixtures": {
-        "digest": "sha256:dbc1e13bc4eea237d43e02add45b6aa40509cdb4e1369d64762e10357e15582a",
+        "digest": "sha256:5aec0893b0232823db57d386959f87426e4e86264211bfe509ac781975e01fd8",
         "path": "registration-fixtures/security.harden.json"
       },
-      "interface_digest": "sha256:c65d157397c05199bbe086a9dda32f1c62b7b4a04d72c3e06b20e7fd3afd16e3",
+      "interface_digest": "sha256:d2b3c15122019eec4cb0a284bc4e71a0eb1742a7cb379c2fb209362846c9c709",
       "interface_id": "security.harden",
       "predecessors": [],
       "vocabulary": {
-        "digest": "sha256:f87f79a1ae59063972b36f89fec971b035d40f3d53f62d14cf48e4e329a87069",
+        "digest": "sha256:befd006d61e511d81e6adbb7f6af8b2efd4ea06801059930f6b3421f3d336fd5",
         "path": "vocab/security.harden.json"
       }
     }
   ],
   "manifest": {
-    "digest": "sha256:5e22bf897ca211d0171285e67637dcb980c2557656938cd4eb725e57b1894213",
+    "digest": "sha256:636b97a56bc7715267aea3c95c645bfdeb21b195d3d835e7d55296c35e5afd40",
     "path": "manifest.json"
   },
   "runtime_requirements": [],
