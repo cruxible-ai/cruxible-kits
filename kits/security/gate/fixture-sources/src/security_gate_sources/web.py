@@ -5,7 +5,8 @@ cisa.gov, cveawg.mitre.org or GitHub. This reuses cruxible-provider-web's
 ``WebFetch`` unchanged (request validation, byte cap, material shape, Capture
 result) and swaps only the client factory: the KEV feed URL, the CVE record URLs
 of ``responses/cve/`` and the recorded GitHub release, runs and commits answers
-(``responses/github/api/``) are answered from ``responses/``; anything else is a
+(``responses/github/api/``, and gate-app's release, built in that shape) are
+answered from ``responses/``; anything else is a
 404. Every run is labelled ``packaged-recording``, never ``network``.
 """
 
@@ -26,6 +27,9 @@ ROUTES = {
         "github/api/runs-publish-v0.3.2.json"),
     f"{GITHUB}/commits?path=scripts/build_kit_bundles.py&sha=v0.3.2&per_page=5": (
         "github/api/commits-build_kit_bundles-v0.3.2.json"),
+    # gate-app's release (the code findings' HQ6): hand-built in the API's shape.
+    "https://api.github.com/repos/cruxible-ai/gate-app/releases/tags/v1.0.0": (
+        "github/api/gate-app-release-v1.0.0.json"),
 
     "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json": (
         "known_exploited_vulnerabilities.json"

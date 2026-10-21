@@ -112,7 +112,7 @@ def main() -> None:
         {
             "schema_version": 1,
             "provider_id": "security-gate-sources",
-            "distribution": {"name": "security-gate-sources", "version": "0.3.0"},
+            "distribution": {"name": "security-gate-sources", "version": "0.3.1"},
             "entrypoint_group": "cruxible.providers",
             "supported_protocol_majors": [1],
             "implementations": implementations,

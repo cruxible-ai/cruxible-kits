@@ -158,7 +158,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:6daedd6044b4584686d93a928c21275a844a0c0eb95cc8300b177d0b586f8d5a",
+    "digest": "sha256:326888dfbbf2f33fcd8ae060a4bbf6aa607489ed016f65cbcea014186c619db2",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

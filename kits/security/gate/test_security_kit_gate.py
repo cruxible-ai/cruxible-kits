@@ -16,9 +16,10 @@ Needs ``cruxible`` (the daemon and CLI under test; ``CRUXIBLE_BIN``, else the
 one beside this interpreter, else ``PATH``), this interpreter with
 ``cruxible_client``, ``git`` and ``openssl``. Tests run in file order and share
 one gate; a scratch root is kept for inspection when ``SECURITY_KIT_GATE_ROOT``
-names it. The gate starts on 1.1.0 and upgrades to the 1.1.1 gate variant with a
+names it. The gate starts on 1.2.0 and upgrades to the 1.2.1 gate variant with a
 changed bundled analysis Provider build and live consumer automation, then runs
-the system model's scenarios (steps 21-27) on the upgraded instance.
+the system model's scenarios (steps 21-27) and the code findings' (steps 28-34,
+under independent approval with five principals) on the upgraded instance.
 ``SECURITY_KIT_GATE_CADENCE`` (seconds, default 30) sets the gate
 cadence Trigger. Results are written to ``<root>/gate-results.md``.
 """
@@ -50,7 +51,7 @@ import recipe  # noqa: E402
 
 KIT = HERE.parent
 RELEASE_1_0 = KIT
-RELEASE_1_1 = KIT / "source" / "variants" / "1.1.1-gate"
+RELEASE_1_1 = KIT / "source" / "variants" / "1.2.1-gate"
 VERSION = json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())["version"]
 UPGRADE_VERSION = json.loads((RELEASE_1_1 / "cruxible-kit.json").read_text())["version"]
 FIXTURE = HERE / "fixture-sources"
@@ -93,6 +94,13 @@ STEPS = {
     "25": "HQ5 at the publishing commit: a parse Line per source; served matches declared",
     "26": "fail-closed freshness: past stale_after the coverage reads absent, answers unknown",
     "27": "declared/running disagreement posted with both Claims; the investigation resolves",
+    "28": "findings: principals; self-approval lets a finder confirm alone; independent mode",
+    "29": "(a) report: SARIF -> findings by key; other repo halts; finder cannot approve it",
+    "30": "(f) duplicate: an agent's report merges by key; a line-hash tool is its own key; gap",
+    "31": "(a') locate + (b) triage: sink cited by file; own words refused; false positive lands",
+    "32": "(c) confirm: PoC backs confirmed; finder cannot confirm its own; dispute resolves",
+    "33": "(d) remediate: work.finding; HQ6 posts the confirmed finding the release serves",
+    "34": "(e) fix: the citation drifts; a full re-scan verifies fixed; HQ6 clears; regression",
 }
 
 
@@ -154,6 +162,8 @@ class Gate:
         self.daemon: subprocess.Popen[bytes] | None = None
         self.registry_process: subprocess.Popen[bytes] | None = None
         self.values: dict[str, Any] = {}
+        #: principal -> its CLI environment (the owner's, with its own settings file loaded)
+        self.principals: dict[str, dict[str, str]] = {}
         self.log = (root / "gate.log").open("a")
 
     # -- processes -------------------------------------------------------
@@ -237,15 +247,17 @@ class Gate:
                 key, _, value = line.partition("=")
                 self.env[key.strip().removeprefix("export ").strip()] = value.strip().strip("'\"")
 
-    def cx(self, *args: str, check: bool = True,
-           timeout: float = 900) -> subprocess.CompletedProcess[str]:
+    def cx(self, *args: str, check: bool = True, timeout: float = 900,
+           who: str | None = None) -> subprocess.CompletedProcess[str]:
+        """Run the CLI as the owner, or as the principal ``who`` (its settings file)."""
+
         started = time.monotonic()
         result = subprocess.run(
-            [self.bin, *args], env=self.env, cwd=self.ws, capture_output=True, text=True,
-            timeout=timeout,
+            [self.bin, *args], env=self.principals[who] if who else self.env, cwd=self.ws,
+            capture_output=True, text=True, timeout=timeout,
         )
         took = time.monotonic() - started
-        self.log.write(f"$ cruxible {' '.join(args)}  [{took:.1f}s]\n"
+        self.log.write(f"$ cruxible {' '.join(args)}  [{took:.1f}s]{f' as {who}' if who else ''}\n"
                        f"{result.stdout}{result.stderr}(exit {result.returncode})\n")
         self.log.flush()
         if check and result.returncode != 0:
@@ -253,11 +265,11 @@ class Gate:
                                  f"{result.stdout[-1500:]}{result.stderr[-1500:]}")
         return result
 
-    def out(self, *args: str, check: bool = True) -> str:
-        return self.cx(*args, check=check).stdout
+    def out(self, *args: str, check: bool = True, who: str | None = None) -> str:
+        return self.cx(*args, check=check, who=who).stdout
 
-    def json(self, *args: str) -> Any:
-        return json.loads(self.out(*args, "--json"))
+    def json(self, *args: str, who: str | None = None) -> Any:
+        return json.loads(self.out(*args, "--json", who=who))
 
     def py(self, script: Path, *args: str) -> str:
         result = subprocess.run([sys.executable, str(script), *args], env=self.env, cwd=self.ws,
@@ -417,9 +429,9 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 12, "ClaimType": 87, "Procedure": 10,
-              "ProviderInterface": 15, "QueryDefinition": 28, "SourceAcquisitionPolicy": 1,
-              "SubjectKind": 19}
+KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 14, "ClaimType": 103, "Procedure": 14,
+              "ProviderInterface": 16, "QueryDefinition": 34, "SourceAcquisitionPolicy": 1,
+              "SubjectKind": 20}
 
 
 def test_02_kit_add(gate: Gate) -> None:
@@ -1606,7 +1618,8 @@ def test_26_fail_closed(gate: Gate) -> None:
                                 ("hq2", "security.credentialed_jobs"),
                                 ("hq3", "security.mutable_actions"),
                                 ("hq4", "security.shared_dependencies"),
-                                ("hq5", "security.served_vs_declared"))}
+                                ("hq5", "security.served_vs_declared"),
+                                ("hq6", "security.published_findings"))}
     # The coverage Subjects still join; their revision, re-read on every pull, is stale.
     assert rows["hq1"] and all(not any(f["name"] == "coverage_revision" and f["state"] == "present"
                                        for f in r["fields"]) for r in rows["hq1"]), rows["hq1"][:1]
@@ -1764,3 +1777,512 @@ def _commit(gate: Gate, out: str) -> str:
     material = json.loads(base64.b64decode(read["material"]["body_access"]["body_base64"]))
     commits = json.loads(base64.b64decode(material["retrieved"]["body_base64"]))
     return str(commits[0]["sha"])
+
+
+# --- code findings ----------------------------------------------------------------
+
+SARIF = KIT / "source" / "providers" / "security-analysis-provider" / "tests" / "data" / "sarif"
+GATE_APP = "github.com/cruxible-ai/gate-app"
+GATE_APP_KEY = {"forge_host": "github.com", "full_name": "cruxible-ai/gate-app"}
+VULNERABLE = "a382bce444533bfc4622e7f822b3d6c11cbd7510"  # the SARIF fixtures' revisions
+FIXED = "4542a98e11173c33db444e3e537bb2eb0a214fe1"
+PRINCIPALS = ("scanner", "auditor", "triage", "reviewer", "maintainer")
+FINDING_LINES = {"import": "security.sarif-import.gate-app",
+                 "attention": "security.sarif-attention.gate-app"}
+SINK = "cursor.execute(f\"SELECT * FROM users WHERE name = '{name}'\")"
+GUARD = "if not path.startswith(BASE + os.sep):"
+DB_PY = '''"""User lookups for gate-app."""
+
+import sqlite3
+
+
+class UserRepo:
+    def __init__(self, path: str) -> None:
+        self.conn = sqlite3.connect(path)
+
+    def find_by_name(self, name: str) -> list[tuple[object, ...]]:
+        cursor = self.conn.cursor()
+        {sink}
+        return cursor.fetchall()
+'''
+FILES_PY = '''"""Static files for gate-app."""
+
+import os
+
+BASE = "/srv/gate-app/static"
+
+
+def read_static(relative: str) -> bytes:
+    path = os.path.realpath(os.path.join(BASE, relative))
+    if not path.startswith(BASE + os.sep):
+        raise PermissionError(relative)
+    with open(path, "rb") as handle:
+        return handle.read()
+'''
+POC = '''from app.db import UserRepo
+
+
+def test_rejects_injection(tmp_path):
+    repo = UserRepo(str(tmp_path / "users.db"))
+    repo.conn.execute("CREATE TABLE users (name TEXT)")
+    repo.conn.execute("INSERT INTO users VALUES ('alice'), ('bob')")
+    assert repo.find_by_name("x' OR '1'='1") == []
+'''
+POC_FAILED = '''<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.031"
+ timestamp="2026-10-21T12:00:00" hostname="gate"><testcase
+ classname="tests.security.test_sqli_find_by_name" name="test_rejects_injection" time="0.004"><failure
+ message="AssertionError: assert [('alice',), ('bob',)] == []">find_by_name("x' OR '1'='1") returned
+every row: the name is interpolated into the SQL text.</failure></testcase></testsuite></testsuites>
+'''
+
+
+def _principals(gate: Gate) -> None:
+    """Register each finder and reviewer, signed by the owner; load its settings file."""
+
+    for name in PRINCIPALS:
+        custody = gate.root / "keys" / name
+        if not (custody / "cruxible.env").is_file():
+            gate.out("principal", "add", name, "--key-dir", str(custody))
+        env = dict(gate.env)
+        for line in (custody / "cruxible.env").read_text().splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                key, _, value = line.partition("=")
+                env[key.strip().removeprefix("export ").strip()] = value.strip().strip("'\"")
+        gate.principals[name] = env
+
+
+def _approve(gate: Gate, proposal: str, who: str) -> dict[str, Any]:
+    """``who`` signs; the signature completes the approval and activates the proposal."""
+
+    receipt = gate.json("proposal", "approve", proposal, "--yes", who=who)
+    assert receipt.get("activation"), json.dumps(receipt)[-1500:]
+    return dict(receipt)
+
+
+def _write_as(gate: Gate, who: str, label: str, payload: dict[str, Any], *,
+              approver: str | None = None) -> dict[str, Any]:
+    """A write by ``who``; independent approval stops it at a proposal ``approver`` signs."""
+
+    outcome = gate.json("write", gate.payload(label, payload), who=who)
+    if approver is None:
+        return dict(outcome)
+    assert outcome["status"] == "awaiting_approval", json.dumps(outcome)[-1500:]
+    assert outcome["approval"]["reason"] == "independent_approval_required", outcome
+    _approve(gate, outcome["proposal"]["proposal_id"], approver)
+    return dict(outcome)
+
+
+def _scan(gate: Gate, fixture: str, who: str = "scanner") -> dict[str, dict[str, Any]]:
+    """Retain one SARIF log; wait for both findings Lines of each repository it lands on."""
+
+    lines = (*FINDING_LINES.values(), "security.sarif-import.cruxible",
+             "security.sarif-attention.cruxible")
+    before = {line: {r["run"] for r in gate.runs(line)} for line in lines}
+    (gate.ws / "scans").mkdir(exist_ok=True)
+    shutil.copyfile(SARIF / fixture, gate.ws / "scans" / fixture)
+    out = gate.out("procedure", "run", "security.sarif-acquire", gate.payload(
+        f"sarif-{fixture}-{len(gate.values.get('scans', []))}",
+        {"relative_path": f"scans/{fixture}"}), who=who)
+    assert ": succeeded" in out and "Capture sarif:" in out, out[-1200:]
+    gate.values.setdefault("scans", []).append(fixture)
+    return {line: _wait_for_run(gate, line, before[line], 180) for line in lines}
+
+
+def _import_proposal(gate: Gate, runs: dict[str, dict[str, Any]]) -> str:
+    run = runs[FINDING_LINES["import"]]
+    assert run["status"] == "succeeded", gate.out("get", run["run"])[-1500:]
+    egress = gate.egress(run["run"])
+    assert egress["kind"] == "propose_change_set" and egress["proposal_id"], egress
+    return str(egress["proposal_id"])
+
+
+def _findings(gate: Gate) -> dict[tuple[str, str], dict[str, Any]]:
+    """(weakness, locus) -> the finding_index row's fields, with its id."""
+
+    found = {}
+    for row in gate.rows("security.finding_index", repo_ref=GATE_APP):
+        fields = {name: _field(row, name) for name in (
+            "repo_ref", "weakness", "locus", "rules", "reported_by", "severity",
+            "verification", "verdict")}
+        fields["id"] = row["subject_id"]
+        found[(fields["weakness"], fields["locus"])] = fields
+    return found
+
+
+def _finding(gate: Gate, weakness: str, path: str, tool: str | None = None) -> dict[str, Any]:
+    (row,) = [row for (w, locus), row in _findings(gate).items()
+              if w == weakness and locus.startswith(path + "#")
+              and (tool is None or tool in (row.get("reported_by") or ()))]
+    return row
+
+
+def _state(gate: Gate, finding: str, field: str) -> tuple[str, Any]:
+    """(state, value) of one finding field as finder_record reads it: present, absent, conflict."""
+
+    for row in gate.rows("security.finder_record", repo_ref=GATE_APP):
+        if row["subject_id"] == finding:
+            value = _field(row, field)
+            if "contested" in (row.get("flags") or ()) and (value is None
+                                                            or isinstance(value, list)):
+                return "conflict", value
+            return ("present" if value is not None else "absent"), value
+    raise AssertionError(f"no finder_record row for {finding}")
+
+
+def test_28_findings_setup(gate: Gate) -> None:
+    for item in _inbox(gate, "--status", "unread"):
+        gate.out("inbox", "ack", item["item_id"])
+    (gate.ws / "app").mkdir(exist_ok=True)
+    (gate.ws / "app" / "db.py").write_text(DB_PY.format(sink=SINK))
+    (gate.ws / "app" / "files.py").write_text(FILES_PY)
+    for name, path in (("gate-app-db", "app/db.py"), ("gate-app-files", "app/files.py")):
+        gate.out("files", "add", name, path)
+    _principals(gate)
+    whoami = gate.json("whoami", who="scanner")
+    assert "scanner" in json.dumps(whoami), whoami
+    # The repository's findings Lines, one write: kits are not rigid.
+    gate.submit("findings-lines", {"kind": "change_set", "rationale": "Import gate-app's scans.",
+                                   "members": [
+        {"kind": "line", "name": FINDING_LINES["import"], "procedure_name": "security.sarif-import",
+         "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+         "trigger_input": "sarif", "parameters": {"repo_ref": GATE_APP}},
+        {"kind": "line", "name": FINDING_LINES["attention"],
+         "procedure_name": "security.sarif-attention", "acquisition_policy_name": recipe.POLICY,
+         "max_authority": "observe", "trigger_input": "sarif",
+         "parameters": {"repo_ref": GATE_APP}},
+        {"kind": "trigger", "name": "security.sarif-landed.gate-app",
+         "line_name": FINDING_LINES["import"],
+         "schedule": {"kind": "capture_landing", "capture_contract": "security.sarif-v1"}},
+        {"kind": "trigger", "name": "security.sarif-landed-attention.gate-app",
+         "line_name": FINDING_LINES["attention"],
+         "schedule": {"kind": "capture_landing", "capture_contract": "security.sarif-v1"}}]})
+    # The scanner arms its Lines: their runs act as it, so it creates their proposals.
+    for name in FINDING_LINES.values():
+        gate.out("line", "enable", name, who="scanner")
+    # The precondition: under self_approval_allowed a finder confirms its own report alone.
+    (gate.ws / "reports").mkdir(exist_ok=True)
+    (gate.ws / "reports" / "poc.xml").write_text(POC_FAILED)
+    out = gate.out("procedure", "run", "security.reproduction-acquire", gate.payload(
+        "poc", {"relative_path": "reports/poc.xml"}), who="scanner")
+    assert ": succeeded" in out, out[-1200:]
+    gate.values["poc"] = _capture(out, "reproduction")
+    alone = {"because": "The scanner confirms the SQL injection it reported.",
+             "changes": [
+                 {"op": "create", "label": "finding", "subject_kind": "security.finding",
+                  "key": [{"predicate": "security.finding.repo_ref", "value": GATE_APP},
+                          {"predicate": "security.finding.weakness", "value": "CWE-89"},
+                          {"predicate": "security.finding.locus",
+                           "value": "app/db.py#snippet:probe"}]},
+                 {"op": "set", "subject": {"created": "finding"},
+                  "field": "security.finding.verdict", "value": "confirmed",
+                  "evidence": {"kind": "capture", "capture": gate.values["poc"]}}]}
+    path = gate.payload("finder-confirms", alone)
+    assert gate.json("write", path, "--dry-run", who="scanner")["status"] == "would_accept"
+    gate.submit("independent", {"kind": "approval_policy",
+                                "approval_policy": {"mode": "independent_approval_required"}})
+    assert "independent_approval_required" in gate.out("get", "ApprovalPolicy:instance")
+    now = gate.json("write", path, "--dry-run", who="scanner")
+    assert now["status"] == "would_await_approval", now
+    assert now["approval"]["reason"] == "independent_approval_required", now
+    record("28", f"{len(PRINCIPALS)} principals; gate-app findings Lines armed by the scanner; "
+           "self_approval_allowed: the finder's own confirmed would_accept (the documented "
+           "precondition); independent_approval_required: would_await_approval")
+
+
+def test_29_report(gate: Gate) -> None:
+    runs = _scan(gate, "semgrep-gate-app-vulnerable.sarif")
+    assert runs["security.sarif-import.cruxible"]["status"] == "halted"
+    assert "wrong_repo" in gate.out("get", runs["security.sarif-import.cruxible"]["run"])
+    proposal = _import_proposal(gate, runs)
+    review = gate.out("proposal", "review", proposal)
+    assert "CWE-89" in review and "CWE-22" in review, review[-2000:]
+    refused = gate.cx("proposal", "approve", proposal, "--yes", who="scanner", check=False)
+    assert refused.returncode != 0 and "creator_forbidden" in refused.stdout + refused.stderr
+    _approve(gate, proposal, "reviewer")
+    held = _findings(gate)
+    assert sorted(w for w, _ in held) == ["CWE-22", "CWE-89"], held
+    sqli = _finding(gate, "CWE-89", "app/db.py")
+    traversal = _finding(gate, "CWE-22", "app/files.py")
+    assert sqli["reported_by"] == ["semgrep"] and sqli["severity"] == "high", sqli
+    assert sqli["locus"].startswith("app/db.py#snippet:"), sqli  # Semgrep has no symbols
+    assert traversal["severity"] == "medium", traversal
+    gate.values.update(sqli=sqli["id"], traversal=traversal["id"])
+    card = gate.out("get", f"security.finding/{sqli['id']}")
+    assert GATE_APP in card, card[-1500:]
+    # The same log again: nothing new.
+    again = _scan(gate, "semgrep-gate-app-vulnerable.sarif")
+    assert again[FINDING_LINES["import"]]["status"] == "halted"
+    assert "no_change" in gate.out("get", again[FINDING_LINES["import"]]["run"])
+    record("29", f"Semgrep SARIF -> 2 findings by key (CWE-89 {sqli['locus']}, CWE-22); "
+           "the cruxible Line halted wrong_repo; the scanner's approval refused "
+           "creator_forbidden, the reviewer's activated it; the same log again halted no_change")
+
+
+def test_30_duplicate(gate: Gate) -> None:
+    runs = _scan(gate, "auditor-gate-app.sarif", who="auditor")
+    _approve(gate, _import_proposal(gate, runs), "reviewer")
+    sqli = _finding(gate, "CWE-89", "app/db.py", tool="semgrep")
+    assert sqli["id"] == gate.values["sqli"] and sqli["reported_by"] == ["auditor", "semgrep"]
+    assert "auditor:CWE-89" in sqli["rules"], sqli
+    assert len(_findings(gate)) == 2  # the agent's report merged: no new Subject
+    attention = runs[FINDING_LINES["attention"]]
+    assert attention["status"] == "succeeded", attention
+    gaps = [g for g in _inbox(gate, "--line", FINDING_LINES["attention"], "--status", "unread")]
+    (gap,) = gaps
+    body = json.dumps(gate.json("inbox", "get", gap["item_id"]))
+    assert "location_gap" in body and "auditor:CWE-79" in body, body[-1500:]
+    gate.out("inbox", "ack", gap["item_id"])
+    # CodeQL names no snippet and no symbol: its line hash is its own key.
+    runs = _scan(gate, "codeql-gate-app-vulnerable.sarif")
+    _approve(gate, _import_proposal(gate, runs), "reviewer")
+    codeql = _finding(gate, "CWE-89", "app/db.py", tool="codeql")
+    assert codeql["locus"].startswith("app/db.py#line-hash:") and codeql["id"] != sqli["id"]
+    gate.values["codeql"] = codeql["id"]
+    record("30", "the auditor's SARIF (same sink snippet) added reported_by auditor to the held "
+           "finding: no new Subject; its unlocated CWE-79 result posted one location_gap; "
+           f"CodeQL's line-hash locus is a third finding ({codeql['locus']})")
+
+
+def test_31_locate_and_triage(gate: Gate) -> None:
+    sqli, traversal = gate.values["sqli"], gate.values["traversal"]
+    _write_as(gate, "triage", "locate", {
+        "because": "The sink: find_by_name interpolates the caller's name into the SQL text.",
+        "subject": f"security.finding/{sqli}",
+        "changes": [{"op": "add", "field": "security.finding.location", "value": "app/db.py:12-12",
+                     "evidence": {"kind": "file", "file": f"app/db.py#{SINK}"}}]},
+              approver="reviewer")
+    assert len(_claim_of(gate, sqli, "location")) == 1
+    # Own words never back a verdict.
+    own = gate.cx("write", gate.payload("own-words", {
+        "because": "I read it; the path is checked.",
+        "subject": f"security.finding/{traversal}",
+        "changes": [{"op": "set", "field": "security.finding.verdict",
+                     "value": "false_positive"}]}), "--dry-run", who="triage", check=False)
+    assert "cruxible.write.evidence_required" in own.stdout + own.stderr, own.stdout[-1200:]
+    for relative, label in (("app/files.py", "files"), ("app/db.py", "db")):
+        out = gate.out("procedure", "run", "security.evidence-acquire", gate.payload(
+            f"evidence-{label}", {"relative_path": relative}), who="triage")
+        gate.values[f"read-{label}"] = _capture(out, "evidence")
+    note = f"findings/{traversal}.md"
+    _write_as(gate, "triage", "false-positive", {
+        "because": "realpath plus the BASE prefix check keeps every path under the static root.",
+        "subject": f"security.finding/{traversal}",
+        "changes": [
+            {"op": "set", "field": "security.finding.verdict", "value": "false_positive",
+             "evidence": {"kind": "capture", "capture": gate.values["read-files"]}},
+            {"op": "set", "field": "security.finding.justification", "value": "sanitized",
+             "role": "normative",
+             "evidence": {"kind": "capture", "capture": gate.values["read-files"]}}],
+        "docs": [{"op": "append", "file": note, "text": (
+            f"# Triage\n\nThe opened path is `os.path.realpath` of the join, refused unless it "
+            f"starts with BASE (`{GUARD}`): sanitized.\n")}]}, approver="reviewer")
+    # The wrong call on the SQL injection: it stands until someone contends it.
+    _write_as(gate, "triage", "sqli-call", {
+        "because": "find_by_name is only called with names from the session.",
+        "subject": f"security.finding/{sqli}",
+        "changes": [
+            {"op": "set", "field": "security.finding.verdict", "value": "false_positive",
+             "evidence": {"kind": "capture", "capture": gate.values["read-db"]}},
+            {"op": "set", "field": "security.finding.justification",
+             "value": "not_attacker_controlled", "role": "normative",
+             "evidence": {"kind": "capture", "capture": gate.values["read-db"]}}]},
+              approver="maintainer")
+    assert _state(gate, traversal, "verdict") == ("present", "false_positive")
+    assert _state(gate, sqli, "verdict") == ("present", "false_positive")
+    record("31", "location cites app/db.py#<the sink line> (origin-only, catalogued file); an "
+           "own-words verdict refused evidence_required; the CWE-22 false positive (sanitized, "
+           "citing the read of files.py, a Triage section) and triage's SQLi call landed after "
+           "review")
+
+
+def test_32_confirm(gate: Gate) -> None:
+    sqli = gate.values["sqli"]
+    (gate.ws / "tests" / "security").mkdir(parents=True, exist_ok=True)
+    (gate.ws / "tests" / "security" / "test_sqli_find_by_name.py").write_text(POC)
+    poc = gate.values["poc"]  # reports/poc.xml: the PoC fails while vulnerable
+    confirm = {"subject": f"security.finding/{sqli}",
+               "changes": [{"op": "set", "field": "security.finding.verdict",
+                            "value": "confirmed", "contend": True,
+                            "evidence": {"kind": "capture", "capture": poc}}]}
+    # The finder cannot confirm its own report: its approval is refused.
+    own = _write_as(gate, "scanner", "scanner-confirms", {
+        "because": "My report reproduces.", **confirm})
+    assert own["status"] == "awaiting_approval", own
+    refused = gate.cx("proposal", "approve", own["proposal"]["proposal_id"], "--yes",
+                      who="scanner", check=False)
+    assert refused.returncode != 0 and "creator_forbidden" in refused.stdout + refused.stderr
+    gate.out("proposal", "withdraw", own["proposal"]["proposal_id"], "--reason",
+             "The reviewer confirms with the PoC instead.", who="scanner")
+    note = f"findings/{sqli}.md"
+    _write_as(gate, "reviewer", "confirm", {
+        "because": "The PoC test returns every row for x' OR '1'='1 while find_by_name "
+                   "interpolates the name: the injection is real.",
+        "subject": f"security.finding/{sqli}",
+        "changes": [
+            *confirm["changes"],
+            {"op": "set", "field": "security.finding.reproduction",
+             "value": "tests/security/test_sqli_find_by_name.py::test_rejects_injection",
+             "evidence": {"kind": "section", "file": note, "section": ["Reproduction"],
+                          "own_words": True}},
+            {"op": "add", "field": "security.finding.affects",
+             "value": "security.release/gate-app--1.0.0"}],
+        "docs": [{"op": "append", "file": note, "text": (
+            "# Reproduction\n\n`tests/security/test_sqli_find_by_name.py::test_rejects_injection`"
+            " inserts two users and looks up `x' OR '1'='1`; it gets both rows back (Capture "
+            f"{poc}).\n")}]}, approver="maintainer")
+    assert _state(gate, sqli, "verdict")[0] == "conflict"
+    assert "claim_conflicted" in {row["reason"] for row in gate.json("next")["items"]}
+    wrong = [c["claim"] for c in _claim_of(gate, sqli, "verdict")
+             if c["value"] == "false_positive"]
+    wrong += [c["claim"] for c in _claim_of(gate, sqli, "justification")]
+    assert len(wrong) == 2, wrong
+    _write_as(gate, "maintainer", "retire-wrong-call", {
+        "because": "The PoC reproduces the injection: triage's call was wrong.",
+        "changes": [{"op": "retire", "target": claim, "reason": "was-wrong"} for claim in wrong]},
+              approver="reviewer")
+    assert _state(gate, sqli, "verdict") == ("present", "confirmed")
+    record("32", "the scanner's own confirmed stopped at a proposal its approval cannot "
+           "activate (creator_forbidden); the reviewer's PoC-backed confirmed (contend) plus a "
+           "Reproduction section and affects gate-app 1.0.0, approved by the maintainer; the "
+           "slot read conflict (next: claim_conflicted); triage's call retired was-wrong; "
+           "confirmed")
+
+
+def _claim_of(gate: Gate, finding: str, field: str) -> list[dict[str, Any]]:
+    """The live Claims of one finding field, with their IDs and values."""
+
+    rows = gate.json("query", "security.finding", "--select", field, "--claims", "--all")["rows"]
+    (row,) = [row for row in rows if row["subject_id"] == finding]
+    return list((row.get("claims") or {}).get(field) or ())
+
+
+def test_33_remediate(gate: Gate) -> None:
+    sqli = gate.values["sqli"]
+    _write_as(gate, "maintainer", "remediation", {
+        "because": "Parameterize find_by_name.",
+        "changes": [
+            {"op": "create", "label": "fix", "subject_kind": "security.remediation"},
+            {"op": "set", "subject": {"created": "fix"}, "field": "security.work.finding",
+             "value": f"security.finding/{sqli}"},
+            {"op": "set", "subject": {"created": "fix"}, "field": "security.remediation.progress",
+             "value": "in_progress"},
+            {"op": "set", "subject": {"created": "fix"}, "field": "security.work.rationale",
+             "value": "Bind the name as a query parameter; keep the PoC as a regression test."}]},
+              approver="reviewer")
+    open_rows = gate.rows("security.open_findings", repo_ref=GATE_APP)
+    assert any(r["subject_id"] == sqli and _field(r, "progress") == "in_progress"
+               for r in open_rows), open_rows
+    # What gate-app's release serves: one cited pull, then the target and its file.
+    out = gate.out("procedure", "run", "security.release-acquire", gate.payload(
+        "gate-app-release",
+        {"url": "https://api.github.com/repos/cruxible-ai/gate-app/releases/tags/v1.0.0"}),
+        who="maintainer")
+    release = {"kind": "capture", "capture": _capture(out, "release")}
+    target_key = [{"predicate": "security.target.registry", "value": "github_release"},
+                  {"predicate": "security.target.name", "value": "cruxible-ai/gate-app"}]
+    _write_as(gate, "maintainer", "gate-app-target", {
+        "because": "gate-app ships as a GitHub release; only a v* tag may publish it.",
+        "changes": [
+            {"op": "create", "label": "target", "subject_kind": "security.target",
+             "key": target_key},
+            {"op": "add", "subject": {"created": "target"},
+             "field": "security.target.publish_gate", "value": "push:tags:v*"},
+            {"op": "create", "label": "repo", "subject_kind": "security.repo",
+             "key": [{"predicate": "security.repo.forge_host", "value": "github.com"},
+                     {"predicate": "security.repo.full_name", "value": "cruxible-ai/gate-app"}]},
+            {"op": "set", "subject": {"created": "target"},
+             "field": "security.target.source_repo", "value": {"created": "repo"}},
+            {"op": "create", "label": "file", "subject_kind": "security.artifact",
+             "key": [{"predicate": "security.artifact.target_ref",
+                      "value": "github_release/cruxible-ai/gate-app"},
+                     {"predicate": "security.artifact.name",
+                      "value": "v1.0.0/gate-app-1.0.0.tar.gz"}]},
+            {"op": "set", "subject": {"created": "file"}, "field": "security.artifact.target",
+             "value": {"created": "target"}, "evidence": release},
+            {"op": "set", "subject": {"created": "file"}, "field": "security.artifact.release",
+             "value": "security.release/gate-app--1.0.0", "evidence": release}]},
+              approver="reviewer")
+    for item in _inbox(gate, "--line", "security.harden", "--status", "unread"):
+        gate.out("inbox", "ack", item["item_id"])
+    _, summary = _harden(gate)
+    (hq6,) = [f for f in _posted(gate, "finding") if f["payload"]["question"] == "HQ6"]
+    payload = hq6["payload"]
+    assert payload["finding"] == f"security.finding/{sqli}", payload
+    assert payload["target"] == "github_release/cruxible-ai/gate-app", payload
+    assert payload["releases"] == ["security.release/gate-app--1.0.0"], payload
+    assert payload["artifacts"] == ["v1.0.0/gate-app-1.0.0.tar.gz"], payload
+    gate.out("inbox", "ack", hq6["item_id"])
+    record("33", "a remediation answers the finding (work.finding, in_progress: open_findings "
+           "shows it); gate-app's release pull cites the gated target's file of release 1.0.0; "
+           f"harden posted HQ6 for {payload['finding']} ({payload['severity']}) on "
+           f"{payload['target']}")
+
+
+def test_34_fix_and_verify(gate: Gate) -> None:
+    sqli = gate.values["sqli"]
+    (location,) = _claim_of(gate, sqli, "location")
+    # The fix lands in the workspace: the cited sink line is gone, so the citation drifts.
+    (gate.ws / "app" / "db.py").write_text(DB_PY.format(
+        sink='cursor.execute("SELECT * FROM users WHERE name = ?", (name,))'))
+    drifted = [row for row in gate.json("next")["items"] if row["reason"] == "citation_drifted"
+               and location["claim"] in json.dumps(row)]
+    assert len(drifted) == 1, gate.json("next")["items"]
+    drift_state = drifted[0]["detail"]["drift_state"]
+    # A full re-scan of the fixed revision verifies the fix, finding by finding.
+    runs = _scan(gate, "semgrep-gate-app-fixed.sarif")
+    proposal = _import_proposal(gate, runs)
+    reasons = gate.out("proposal", "review", proposal)
+    assert "no longer reports" in reasons, reasons[-2000:]
+    _approve(gate, proposal, "reviewer")
+    runs = _scan(gate, "codeql-gate-app-fixed.sarif")
+    _approve(gate, _import_proposal(gate, runs), "reviewer")
+    held = {row["id"]: row for row in _findings(gate).values()}
+    assert held[sqli]["verification"] == "fixed", held[sqli]
+    assert held[gate.values["codeql"]]["verification"] == "fixed", held
+    assert held[gate.values["traversal"]]["verification"] is None  # a false positive stays
+    # The fix commit, and the location retired: valid then, obsolete now.
+    _write_as(gate, "triage", "fixed-by", {
+        "because": f"Fixed in {FIXED[:12]}: find_by_name binds the name as a parameter.",
+        "subject": f"security.finding/{sqli}",
+        "changes": [
+            {"op": "create", "label": "change", "subject_kind": "security.change",
+             "key": [{"predicate": "security.change.repo_ref", "value": GATE_APP},
+                     {"predicate": "security.change.commit_sha", "value": FIXED}]},
+            {"op": "set", "field": "security.finding.fixed_by", "value": {"created": "change"}},
+            {"op": "retire", "target": location["claim"], "reason": "superseded"}]},
+               approver="reviewer")
+    assert not [row for row in gate.json("next")["items"] if row["reason"] == "citation_drifted"
+                and location["claim"] in json.dumps(row)]
+    assert sqli not in {r["subject_id"] for r in gate.rows("security.unverified_fixes")}
+    assert sqli not in {r["subject_id"] for r in gate.rows("security.open_findings",
+                                                            repo_ref=GATE_APP)}
+    _, summary = _harden(gate)
+    assert not [a for a in _answers(summary, "HQ6").values()
+                if a.get("subject", "").endswith(sqli)], summary["answers"]
+    # A later scan that reports it again: a regression, proposed and posted.
+    runs = _scan(gate, "semgrep-gate-app-vulnerable.sarif")
+    proposal = _import_proposal(gate, runs)
+    assert "again after it was verified fixed" in gate.out("proposal", "review", proposal)
+    _approve(gate, proposal, "reviewer")
+    assert _findings(gate)[(held[sqli]["weakness"], held[sqli]["locus"])][
+        "verification"] == "present"
+    posted = [json.dumps(gate.json("inbox", "get", item["item_id"])) for item in
+              _inbox(gate, "--line", FINDING_LINES["attention"], "--status", "unread")]
+    assert any('"regression"' in body and sqli in body for body in posted), posted
+    # The finder track record: upheld (confirmed, not_exploitable) against overturned.
+    record_rows = gate.rows("security.finder_record", repo_ref=GATE_APP)
+    precision: dict[str, list[int]] = {}
+    for row in record_rows:
+        verdict = _field(row, "verdict")
+        if verdict not in {"confirmed", "not_exploitable", "false_positive"}:
+            continue
+        for finder in _field(row, "reported_by") or ():
+            counts = precision.setdefault(finder, [0, 0])
+            counts[0 if verdict != "false_positive" else 1] += 1
+    assert precision == {"semgrep": [1, 1], "auditor": [1, 0]}, precision
+    record("34", f"the fix made the location citation drift ({drift_state}); full Semgrep and "
+           "CodeQL re-scans proposed verification fixed (the false positive untouched); "
+           "fixed_by + the location retired superseded cleared the drift row; unverified_fixes "
+           "and HQ6 clear; the vulnerable log again proposed present and posted a regression; "
+           f"finder record upheld/overturned {precision}")

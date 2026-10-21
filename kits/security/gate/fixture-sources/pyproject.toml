@@ -5,7 +5,7 @@
 # Gate fixture only, never published.
 [project]
 name = "security-gate-sources"
-version = "0.3.0"
+version = "0.3.1"
 description = "Offline web.fetch and the security kit's Sources for the security kit gate."
 requires-python = ">=3.11"
 license = "Apache-2.0"
