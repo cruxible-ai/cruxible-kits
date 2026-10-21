@@ -12,7 +12,9 @@ wheel; run provider tests separately). Then: start a daemon, ``init``, install
 ``kit build`` it, install the patched 1.1.1 analysis wheel (the gate-only patch
 adds the changed KEV field to each Claim rationale), author the 1.1.1 successors, ``kit
 build`` 1.1.1, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
-and ``providers/`` and 1.1.1 over ``source/variants/1.1.1-gate``, and stop the daemon.
+and ``providers/`` and 1.1.1 over ``source/variants/1.1.1-gate``, stop the daemon, and regenerate
+the release's reference (``source/reference.py``: the README's generated sections
+and ``reference.md``).
 """
 
 from __future__ import annotations
@@ -24,6 +26,9 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import reference  # noqa: E402 - the sibling generator, beside this script
 
 KIT = Path(__file__).resolve().parents[1]
 SOURCE = KIT / "source"
@@ -149,6 +154,8 @@ def main() -> None:
             shutil.copytree(out / release / name, target / name)
         shutil.copyfile(out / release / "cruxible-kit.json", target / "cruxible-kit.json")
     print(f"copied {RELEASE} to {KIT} and {VARIANT} to {VARIANT_DIR}")
+    for path in reference.write(KIT):
+        print(f"wrote {path}")
 
 
 if __name__ == "__main__":

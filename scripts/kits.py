@@ -1,6 +1,7 @@
 """Check and publish the kits in this repository.
 
-    python scripts/kits.py check               # every kit reads and packs deterministically
+    python scripts/kits.py check               # every kit reads, packs deterministically and
+                                               # has an up-to-date generated reference
     python scripts/kits.py publish [--dry-run]  # push versions the registry lacks
 
 A published version is immutable: if the registry already holds a kit's version
@@ -12,6 +13,7 @@ CRUXIBLE_REGISTRY, CRUXIBLE_REGISTRY_USERNAME and CRUXIBLE_REGISTRY_PASSWORD.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -28,6 +30,21 @@ def _kits() -> list[Path]:
     return sorted(path for path in (ROOT / "kits").iterdir() if path.is_dir())
 
 
+def _reference_problems(directory: Path) -> list[str]:
+    """A kit with ``source/reference.py`` generates its README sections and reference.md
+    from its definitions; report where the committed files differ."""
+
+    script = directory / "source" / "reference.py"
+    if not script.is_file():
+        return []
+    spec = importlib.util.spec_from_file_location(f"{directory.name}_reference", script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # dataclasses resolve their module by name
+    spec.loader.exec_module(module)
+    return list(module.check(directory))
+
+
 def check() -> int:
     failures = 0
     for directory in _kits():
@@ -39,6 +56,9 @@ def check() -> int:
             second = pack_artifact(KIT_ARTIFACT, read_kit_directory(directory)).digest
             if first != second:
                 raise ValueError("packing is not deterministic")
+            stale = _reference_problems(directory)
+            if stale:
+                raise ValueError("; ".join(stale))
         except Exception as error:  # noqa: BLE001 - report every kit, then fail
             failures += 1
             print(f"FAIL {directory.name}: {error}", file=sys.stderr)
