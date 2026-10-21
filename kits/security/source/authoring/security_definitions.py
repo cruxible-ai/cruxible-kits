@@ -1,9 +1,9 @@
 """Author the security kit's definitions in a fresh authoring instance.
 
-    python security_definitions.py definitions [--release 1.1.0|1.1.1]
-    python security_definitions.py procedures  [--release 1.1.0|1.1.1]
+    python security_definitions.py definitions [--release 1.2.0|1.2.1]
+    python security_definitions.py procedures  [--release 1.2.0|1.2.1]
 
-``1.1.1`` is the release gate's upgrade variant (``source/variants/1.1.1-gate``,
+``1.2.1`` is the release gate's upgrade variant (``source/variants/1.2.1-gate``,
 never published); any other release is the base.
 
 ``definitions`` proposes and activates the CaptureContracts, ClaimTypes, the
@@ -104,13 +104,15 @@ PYPI_CONTRACT = "security.pypi-release-v1"
 GH_RELEASE_CONTRACT = "security.github-release-v1"
 GH_API_CONTRACT = "security.github-api-v1"
 ASSET_CONTRACT = "security.release-asset-v1"
+SARIF_CONTRACT = "security.sarif-v1"
+REPRO_CONTRACT = "security.reproduction-v1"
 #: The system model's pull contracts: every fact about the organization's systems
 #: cites a Capture under one of them.
 SYSTEM_CONTRACTS = (REPO_CONTRACT, PYPI_CONTRACT, GH_RELEASE_CONTRACT, GH_API_CONTRACT,
                     ASSET_CONTRACT)
 POLICY = "security.acquisition"
-RELEASE = "1.1.0"  # the kit release
-VARIANT = "1.1.1"  # the release gate's upgrade variant (not published)
+RELEASE = "1.2.0"  # the kit release
+VARIANT = "1.2.1"  # the release gate's upgrade variant (not published)
 WEB_PROVIDER = "cruxible-provider-web"
 ANALYSIS_PROVIDER = "security-analysis-provider"
 SOURCES_PROVIDER = "security-sources-provider"
@@ -155,7 +157,8 @@ WORKSPACE_EVIDENCE_CONTRACT = "security.workspace-evidence-v1"
 SELF_SOURCE_CONTRACT = "playbill.coordinator-self-source-v1"
 #: every other kit contract: http_response
 EVIDENCE_KINDS = {SBOM_CONTRACT: "sbom_document", WORKSPACE_EVIDENCE_CONTRACT: "workspace_file",
-                  SELF_SOURCE_CONTRACT: "self_asserted"}
+                  SELF_SOURCE_CONTRACT: "self_asserted", SARIF_CONTRACT: "sarif_log",
+                  REPRO_CONTRACT: "test_report"}
 #: What an analyst's judgment may cite: their own words, or a workspace file
 #: retained by security.evidence-acquire.
 JUDGMENT_EVIDENCE = (SELF_SOURCE_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT)
@@ -167,6 +170,21 @@ JUDGMENT_EVIDENCE = (SELF_SOURCE_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT)
 # their own origin. Every literal ClaimType is v8: its canonical form is how its
 # values are stored and compared (the key ClaimTypes' forms are their identity).
 WORK = ("security.control", "security.exception", "security.remediation")
+SEVERITY = ("critical", "high", "low", "medium")
+VERDICTS = {
+    "confirmed": "The weakness is real and exploitable: a reproduction (the PoC run) or the "
+    "code read shows it. Needs retained evidence, never own words.",
+    "false_positive": "The tool or finder was wrong: there is no such weakness here.",
+    "not_exploitable": "The weakness is in the code but cannot be exploited here; the "
+    "justification says why (for example not_reachable).",
+}
+FINDING_JUSTIFICATIONS = {
+    "not_attacker_controlled": "The input reaching the sink is not attacker-controlled.",
+    "not_reachable": "No path from an entry point reaches the code.",
+    "rule_misfire": "The rule matched code that is not the pattern it describes.",
+    "sanitized": "The input is sanitized or validated before the sink.",
+    "test_or_dead_code": "The code is a test, an example or never shipped.",
+}
 ClaimRow = tuple[str, tuple[str, ...], str, Any, str, str, tuple[str, ...], tuple[str, ...], str]
 CLAIM_TYPES: list[ClaimRow] = [
     # Identity: the key ClaimTypes the SubjectKinds name (see SUBJECT_KINDS).
@@ -437,12 +455,88 @@ SYSTEM: list[ClaimRow] = [
      "judged", SYSTEM_CONTRACTS + (OUTPUT_CONTRACT,), (),
      "What the signal was observed on: a source's observation, or someone's own words."),
     ("security.signal.explained_by", ("security.signal",), "subject",
-     ("security.change", "security.job", "security.target", "security.workflow"), "one",
-     "sourced", SYSTEM_CONTRACTS, (), "A hypothesis for the signal: what is responsible. "
-     "Competing hypotheses contend (set --contend); the slot resolves when one remains."),
+     ("security.change", "security.finding", "security.job", "security.target",
+      "security.workflow"), "one", "sourced", SYSTEM_CONTRACTS, (),
+     "A hypothesis for the signal: what is responsible (a finding: the anomaly is "
+     "exploitation of that weakness). Competing hypotheses contend (set --contend); the slot "
+     "resolves when one remains."),
     ("security.work.job", WORK, "subject", ("security.job",), "one", "normative", (), (),
      "The job this work item changes."),
 ]
+# First-party code findings (1.2.0): one weakness of one kind at one place in one
+# repository's code, keyed by repository, weakness and locus (never a line number).
+# What finders report is an observation of their SARIF; what reviewers decide (the
+# verdict) is normative and needs retained evidence; the location is an origin-only
+# file citation, so it drifts when the code changes. Status is derived, never stored.
+FINDING_KIND = ("security.finding",)
+FINDINGS: list[ClaimRow] = [
+    ("security.finding.repo_ref", FINDING_KIND, "literal", TEXT, "one", "normative", (),
+     ("trim", "casefold"), "The repository as host/owner/repo (github.com/owner/repo); with "
+     "weakness and locus, the finding's key."),
+    ("security.finding.weakness", FINDING_KIND, "literal", TEXT, "one", "normative", (),
+     ("trim", "upper"), "CWE-<n>, the smallest CWE the reporting rule names, else "
+     "RULE:<tool>/<ruleId>; with repo_ref and locus, the finding's key."),
+    ("security.finding.locus", FINDING_KIND, "literal", TEXT, "one", "normative", (),
+     ("trim",), "Where in the code: <repo-relative path>#<locator>, the first tier that "
+     "applies (the symbol, snippet:<12 hex of the sink line>, line-hash:<the tool's>). Never "
+     "a line number; with repo_ref and weakness, the finding's key."),
+    ("security.finding.repo", FINDING_KIND, "subject", ("security.repo",), "one", "sourced",
+     (SARIF_CONTRACT,), (), "The repository the finding is in (the key's repo_ref as a "
+     "Subject)."),
+    ("security.finding.rule", FINDING_KIND, "literal", TEXT, "many", "observation",
+     (SARIF_CONTRACT,), ("trim",), "A tool rule that reported the finding, as tool:ruleId "
+     "(semgrep:python.lang.security...), observed in a SARIF scan."),
+    ("security.finding.reported_by", FINDING_KIND, "literal", TEXT, "many", "observation",
+     (SARIF_CONTRACT,), ("trim", "casefold"), "A finder that reported the finding: a tool "
+     "(semgrep, codeql) or an agent's principal; the grain of the finder track record."),
+    ("security.finding.severity", FINDING_KIND, "literal",
+     {"enum": list(SEVERITY), "type": "string"}, "one", "judged", (SARIF_CONTRACT,), (),
+     "How severe the finding is: a scan's severity (security-severity, else the level) "
+     "citing its SARIF, or (normative) an analyst's judgment."),
+    ("security.finding.location", FINDING_KIND, "literal", TEXT, "many", "normative", (),
+     ("trim",), "Where the sink is now, as path:start-end, cited by a file citation of the "
+     "sink line (PATH#ANCHOR): origin-only, so `cruxible next` resurfaces it "
+     "(citation_drifted) when the cited code changes. One per sink."),
+    ("security.finding.verdict", FINDING_KIND, "literal",
+     {"enum": sorted(VERDICTS), "type": "string"}, "one", "normative",
+     (REPRO_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT), (),
+     "The adjudicated verdict: confirmed, not_exploitable or false_positive, citing a "
+     "reproduction (the PoC run) or the code read (workspace evidence); own words are "
+     "refused. A disputed verdict contends (set --contend) and reads conflict until one "
+     "contender remains. Never settled by a Mandate."),
+    ("security.finding.justification", FINDING_KIND, "literal",
+     {"enum": sorted(FINDING_JUSTIFICATIONS), "type": "string"}, "one", "judged",
+     (SARIF_CONTRACT,), (), "Why a finding is not_exploitable or a false_positive: an "
+     "analyst's judgment (normative), or a scan's stated suppression."),
+    ("security.finding.reproduction", FINDING_KIND, "literal", TEXT, "one", "sourced",
+     (REPRO_CONTRACT,), ("trim",), "The proof-of-concept test that reproduces the finding "
+     "(tests/security/test_x.py::test_y), in the writer's own words or a section of the "
+     "finding's note; the PoC run is the verdict's evidence."),
+    ("security.finding.affects", FINDING_KIND, "subject",
+     ("security.artifact", "security.job", "security.release", "security.service"), "many",
+     "sourced", (GH_API_CONTRACT, GH_RELEASE_CONTRACT), (),
+     "What the finding is in: a release, a service, a job or an artifact (joins the system "
+     "model; HQ6 asks it of every gated target)."),
+    ("security.finding.vulnerability", FINDING_KIND, "subject", ("security.vulnerability",),
+     "one", "sourced", (CVE_CONTRACT, OSV_CONTRACT), (),
+     "The known CVE the finding is (vendored code with a published vulnerability)."),
+    ("security.finding.fixed_by", FINDING_KIND, "subject", ("security.change",), "one",
+     "sourced", (GH_API_CONTRACT,), (), "The commit that fixes the finding."),
+    ("security.finding.verification", FINDING_KIND, "literal",
+     {"enum": ["fixed", "present"], "type": "string"}, "one", "observation",
+     (REPRO_CONTRACT, SARIF_CONTRACT), (),
+     "Whether a fix is verified: fixed when a full scan of the finder's rules no longer "
+     "reports it or the PoC passes; present when a full scan reports it after it was fixed "
+     "(a regression)."),
+    ("security.work.finding", WORK, "subject", FINDING_KIND, "one", "normative", (), (),
+     "The finding this work item answers (a remediation fixes it; an approved exception "
+     "accepts its risk)."),
+]
+#: predicate -> {member: description} for the enum ClaimTypes that describe their values.
+MEMBERS = {"security.assessment.justification": JUSTIFICATIONS,
+           "security.finding.verdict": VERDICTS,
+           "security.finding.justification": FINDING_JUSTIFICATIONS}
+
 #: predicate -> evidence freshness horizon in hours.
 #: Only the revision carries freshness: it is restated on every pull (an unchanged
 #: source re-observes it), and every answer reads it, so a stale revision reads
@@ -472,6 +566,8 @@ SUBJECT_KINDS: dict[str, tuple[tuple[str, ...], str] | None] = {
     "security.change": (("security.change.repo_ref", "security.change.commit_sha"), "unique"),
     "security.coverage": (("security.coverage.source", "security.coverage.scope"), "unique"),
     "security.signal": (("security.signal.detector", "security.signal.fingerprint"), "unique"),
+    "security.finding": (("security.finding.repo_ref", "security.finding.weakness",
+                          "security.finding.locus"), "unique"),
 }
 SUBJECT_KIND_DESCRIPTIONS = {
     "security.vulnerability": "A CVE, named by its id. Tracked when it has a watch_reason or an "
@@ -499,6 +595,9 @@ SUBJECT_KIND_DESCRIPTIONS = {
     "is an answer only inside current coverage.",
     "security.signal": "An observation an investigation starts from, named by its detector "
     "and fingerprint.",
+    "security.finding": "One weakness of one kind at one place in one repository's code, named "
+    "by repository, weakness (CWE) and locus (path#symbol, snippet or line hash): every finder "
+    "that reports it meets on the key.",
 }
 
 
@@ -553,16 +652,14 @@ def _evidence(role: str, contracts: tuple[str, ...]) -> tuple[
 
 
 def claim_types(release: str) -> list[ClaimType]:
-    rows = CLAIM_TYPES + SYSTEM + (CLAIM_TYPES_1_1 if release == VARIANT else [])
+    rows = CLAIM_TYPES + SYSTEM + FINDINGS + (CLAIM_TYPES_1_1 if release == VARIANT else [])
     result = []
     for predicate, kinds, obj, shape, cardinality, role, contracts, form, description in rows:
         roles, default_role, rules, requirement = _evidence(role, contracts)
-        members = ()
-        if predicate == "security.assessment.justification":
-            members = tuple(
-                ClaimTypeMemberDescription(member=name, description=text)
-                for name, text in sorted(JUSTIFICATIONS.items())
-            )
+        members = tuple(
+            ClaimTypeMemberDescription(member=name, description=text)
+            for name, text in sorted(MEMBERS.get(predicate, {}).items())
+        )
         result.append(
             ClaimType(
                 artifact_format="playbill-claim-type-v8",
@@ -706,7 +803,8 @@ def _work_predicate(kind: str, field: str) -> str:
                           "control": "control.activation"}}
     if field == "status":
         return "security." + aliases["status"][kind]
-    if field in {"asset", "assessment", "owner", "rationale", "review_at", "verification"}:
+    if field in {"asset", "assessment", "finding", "owner", "rationale", "review_at",
+                 "verification"}:
         return "security.work." + field
     return f"security.{kind}.{field}"
 
@@ -1000,7 +1098,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         _all(_cmp("vulnerability", "security.vulnerability.kev_listed", True, "boolean"),
              _any(_missing("assessment", "security.assessment.status"),
                   _cmp("assessment", "security.assessment.status", "inconclusive")))))
-    return q + system_queries()
+    return q + system_queries() + finding_queries()
 
 
 # --- the system model's queries ------------------------------------------------
@@ -1192,6 +1290,113 @@ def system_queries() -> list[QueryDefinitionSpec]:
     return q
 
 
+# --- the code findings' queries -------------------------------------------------
+
+F = "security.finding."
+
+
+def _finding_fields(*names: str) -> list[QueryProjectionField]:
+    """The finding binding's subject id and the named finding fields (rules: finding.rule)."""
+
+    predicates = {"rules": F + "rule"}
+    return [_field("finding", "finding")] + [
+        _field(name, "finding", predicates.get(name, F + name)) for name in names]
+
+
+def _open() -> QueryDisjunctionFilter:
+    """Not verified fixed: no verification yet, or one that says present."""
+
+    return _any(_missing("finding", F + "verification"),
+                QueryComparisonFilter(left=QueryClaimValueRef(binding="finding",
+                                                              predicate=F + "verification"),
+                                      operator="ne", right=QueryLiteralRef(value="fixed"),
+                                      value_type="string"))
+
+
+def finding_queries() -> list[QueryDefinitionSpec]:
+    q: list[QueryDefinitionSpec] = []
+    in_repo = _is("finding", F + "repo_ref", "repo_ref")
+    repo = (_param("repo_ref"),)
+    q.append(_query(
+        "security.finding_index", "Every finding of one repository (repo_ref, host/owner/repo) "
+        "with its key, the rules and finders that reported it, its severity, verification and "
+        "verdict: the SARIF import's tap", "finding", "finding", [],
+        _finding_fields("repo_ref", "weakness", "locus", "rules", "reported_by", "severity",
+                        "verification", "verdict"),
+        in_repo, parameters=repo, shape="subject", max_results=2000))
+    q.append(_query(
+        "security.open_findings", "Every finding of one repository not verified fixed, with its "
+        "verdict (conflict while disputed), justification, severity, location, finders and "
+        "remediation", "finding", "finding",
+        [_hop("remediation", "finding", "security.work.finding", "remediation", reverse=True)],
+        _finding_fields("weakness", "locus", "severity", "verdict", "justification",
+                        "location", "reported_by", "rules", "reproduction", "verification")
+        + [_field("remediation", "remediation"),
+           _field("progress", "remediation", "security.remediation.progress")],
+        _all(in_repo, _open()), parameters=repo, max_results=2000))
+    # HQ6: what a gated target serves, through the release its files are of, joined to
+    # the findings that affect that release.
+    q.append(_query(
+        "security.published_findings", "HQ6: every confirmed finding not verified fixed that "
+        "affects a release a gated target serves a file of, with the target, the artifact "
+        "and the release", "target", "target",
+        [_hop("artifact", "target", "security.artifact.target", "artifact", reverse=True,
+              required=True),
+         _hop("release", "artifact", "security.artifact.release", "release", required=True),
+         _hop("finding", "release", F + "affects", "finding", reverse=True, required=True,
+              where=_all(_cmp("finding", F + "verdict", "confirmed"), _open()))],
+        [_field("target", "target"), _field("artifact", "artifact"),
+         _field("release", "release"),
+         _field("target_registry", "target", "security.target.registry"),
+         _field("target_name", "target", "security.target.name"),
+         _field("gate", "target", "security.target.publish_gate"),
+         _field("artifact_name", "artifact", "security.artifact.name"),
+         _field("release_version", "release", "security.release.version")]
+        + _finding_fields("weakness", "locus", "severity", "verdict", "verification"),
+        GATED, max_results=2000, paths_per_result=1000))
+    q.append(_query(
+        "security.unverified_fixes", "Findings with a fix commit (fixed_by) that no full scan "
+        "or passing PoC has verified fixed yet", "finding", "finding", [],
+        _finding_fields("repo_ref", "weakness", "locus", "fixed_by", "verification",
+                        "verdict"),
+        _all(QueryClaimPresenceFilter(binding="finding", predicate=F + "fixed_by"), _open()),
+        shape="subject", max_results=2000))
+    # The finder track record. A comparison on a many-valued field matches only a field
+    # holding exactly one value, so the reader filters reported_by (and counts).
+    q.append(_query(
+        "security.finder_record", "Every finding of one repository with the finders and rules "
+        "that reported it and its verdict (conflict while disputed): the reader counts upheld "
+        "(confirmed, not_exploitable) against overturned (false_positive) per finder or rule",
+        "finding", "finding", [],
+        _finding_fields("weakness", "locus", "reported_by", "rules", "verdict",
+                        "justification", "verification"),
+        in_repo, parameters=repo, shape="subject", max_results=2000))
+    q.append(QueryDefinitionSpec(
+        identity=ArtifactIdentity(kind="QueryDefinition",
+                                  name="security.finding_settle_condition"),
+        description=(
+            "One finding by id with its key: the condition a settle grant on the SARIF "
+            "import's report observations (rule, reported_by, severity) evaluates per "
+            "changed Claim. Never grant the verdict, justification, verification or affects."
+        ),
+        entry=QueryEntry(binding="finding", subject_kinds=FINDING_KIND,
+                         subject_id=QueryParameterRef(parameter="finding_id")),
+        result_binding="finding",
+        result_shape="subject",
+        result_cardinality="many",
+        dedupe="subject",
+        projection=QueryProjection(fields=tuple(sorted(
+            _finding_fields("locus", "repo_ref", "weakness"), key=lambda x: x.name))),
+        parameters=(QueryParameterDeclaration(name="finding_id", value_type="string"),),
+        evaluation_policy=QueryEvaluationPolicy(
+            visible_verdicts=("supported",), visible_currency=("current",),
+            conflict_behavior="surface_conflicts"),
+        default_budgets=QueryBudgets(max_results=1, max_traversal_depth=1),
+        maximum_budgets=QueryBudgets(max_results=10, max_traversal_depth=1),
+    ))
+    return q
+
+
 # --- CaptureContracts and the acquisition policy -------------------------------
 
 
@@ -1219,6 +1424,9 @@ def capture_contracts() -> list[CaptureContract]:
         derived(GH_RELEASE_CONTRACT, "github.release", ["external"], "http_response"),
         derived(GH_API_CONTRACT, "github.api", ["external"], "http_response"),
         derived(ASSET_CONTRACT, "github.release.asset", ["external"], "http_response"),
+        # Code findings: a scan's SARIF log, and a reproduction's test report.
+        derived(SARIF_CONTRACT, "sarif.log", ["external"], "sarif_log"),
+        derived(REPRO_CONTRACT, "security.reproduction", ["external"], "test_report"),
     ]
     for item in raw:
         if item["identity"]["name"] == ASSET_CONTRACT:
@@ -1230,10 +1438,12 @@ def capture_contracts() -> list[CaptureContract]:
 def acquisition_policy() -> SourceAcquisitionPolicy:
     """`security.acquisition` covers every Source alias the kit uses: `catalog` (KEV),
     `record` (CVE record), `epss`, `osv`, `sbom` and `evidence` (an analyst's
-    workspace file), and the system model's `snapshot` (a repository), `registry`
-    (PyPI), `release`, `asset` and `history` (GitHub). Each is required, at most 24 h
-    old, refused when stale, unavailable or oversized. Network Captures replay as
-    attested; the SBOM, a workspace file, replays exactly."""
+    workspace file), the system model's `snapshot` (a repository), `registry`
+    (PyPI), `release`, `asset` and `history` (GitHub), and the code findings' `sarif`
+    (a scan's log) and `reproduction` (a PoC run's report). Each is required, at most
+    24 h old, refused when stale, unavailable or oversized. Network Captures replay as
+    attested; workspace files (the SBOM, evidence, SARIF, reproductions) replay
+    exactly."""
 
     def rule(alias: str, replayability: str = "attested_only") -> dict[str, Any]:
         return {
@@ -1256,7 +1466,8 @@ def acquisition_policy() -> SourceAcquisitionPolicy:
             "identity": {"kind": "SourceAcquisitionPolicy", "name": POLICY},
             "inputs": [rule("asset"), rule("catalog"), rule("epss"), rule("evidence", "exact"),
                        rule("history"), rule("osv"), rule("record"), rule("registry"),
-                       rule("release"), rule("sbom", "exact"), rule("snapshot")],
+                       rule("release"), rule("reproduction", "exact"),
+                       rule("sarif", "exact"), rule("sbom", "exact"), rule("snapshot")],
         }
     )
 
