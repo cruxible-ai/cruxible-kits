@@ -1,10 +1,10 @@
 # security kit 1.1.0 reference
 
-Generated from the release's definitions by `source/reference.py`; do not edit. The kit's README holds the same sections beside its walkthrough.
+Every kind, field, contract, Line, Procedure and query in this release, generated from its definitions (`cruxible-kit.json`, `artifacts/`) and the example ChangeSet (`examples/automation.json`) by `source/reference.py`; do not edit. `scripts/kits.py check` fails when it is out of date. Start with the kit's [README](README.md).
 
 ## At a glance
 
-Kit `security` version **1.1.0**, defining every name under `security.`. Generated from the release's own definitions (`cruxible-kit.json`, `artifacts/`) and the example ChangeSet; `python source/reference.py` rewrites it and `scripts/kits.py check` fails when it is out of date.
+Kit `security` version **1.1.0**, defining every name under `security.`.
 
 | Definitions | Count | Notes |
 |---|---|---|

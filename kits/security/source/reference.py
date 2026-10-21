@@ -6,11 +6,14 @@
 The reference is read from the release bundle (``cruxible-kit.json`` and
 ``artifacts/``, through ``cruxible_client.kits.read_kit_directory``) and the
 example automation ChangeSet (``examples/automation.json``), never from an
-instance. ``README.md`` holds it between ``<!-- BEGIN GENERATED: NAME -->`` and
-``<!-- END GENERATED: NAME -->`` markers (``overview`` and ``reference``); the
-hand-written text outside them is kept. ``reference.md`` holds the same sections
-as one standalone file for the website. Output is byte-stable: everything is
-sorted and nothing depends on the clock or the machine.
+instance. ``reference.md`` holds all of it (counts, Providers, two diagrams, every
+kind, field, contract, Line, Procedure and query); ``README.md`` holds only a short
+counts table between ``<!-- BEGIN GENERATED: glance -->`` and ``<!-- END
+GENERATED: glance -->``, and the hand-written text outside it is kept. ``check``
+also reads the README's hand-written concept map (the Mermaid block after
+``CONCEPT_MAP``) and refuses one that names a kind or a field the kit does not
+define. Output is byte-stable: everything is sorted and nothing depends on the
+clock or the machine.
 
 ``build_release.py`` runs this after copying a release; ``scripts/kits.py check``
 runs ``check`` for every kit that has a ``source/reference.py``.
@@ -33,7 +36,11 @@ KIT = Path(__file__).resolve().parents[1]
 README = "README.md"
 REFERENCE = "reference.md"
 EXAMPLE = Path("examples") / "automation.json"
-SECTIONS = ("overview", "reference")
+# The README carries only the short counts table; reference.md carries everything.
+SECTIONS = ("glance",)
+# The README's hand-written concept map follows this marker; ``check`` refuses a map that
+# names a kind or a field the kit does not define.
+CONCEPT_MAP = "<!-- concept-map: checked by source/reference.py -->"
 SELF_SOURCE = "playbill.coordinator-self-source-v1"
 # Every kit QueryDefinition description ends with the same scope sentence; it is
 # stated once above the table instead of in every row.
@@ -490,10 +497,7 @@ def _glance(docs: KitDocs) -> list[str]:
         "## At a glance",
         "",
         f"Kit `{docs.kit_id}` version **{docs.version}**, defining every name under "
-        f"{_code(docs.owns)}. Generated from the release's own definitions "
-        f"(`cruxible-kit.json`, `artifacts/`) and the example ChangeSet; "
-        f"`python source/reference.py` rewrites it and `scripts/kits.py check` fails when "
-        "it is out of date.",
+        f"{_code(docs.owns)}.",
         "",
     ]
     out += _table(("Definitions", "Count", "Notes"), ((n, str(c), note) for n, c, note in counts))
@@ -907,23 +911,91 @@ def _asks(docs: KitDocs) -> list[str]:
     return out
 
 
-def render(docs: KitDocs) -> dict[str, str]:
-    """The generated sections, by marker name."""
+def _short_glance(docs: KitDocs) -> list[str]:
+    """The README's counts: what the kit defines, each row linking into reference.md."""
 
-    overview = _glance(docs) + [""] + _evidence_diagram(docs) + [""] + _automation_diagram(docs)
-    reference = _models(docs) + [""] + _contracts(docs) + [""] + _runs(docs) + [""] + _asks(docs)
-    return {"overview": "\n".join(overview), "reference": "\n".join(reference)}
-
-
-def reference_file(docs: KitDocs, sections: Mapping[str, str]) -> str:
-    head = [
-        f"# {docs.kit_id} kit {docs.version} reference",
-        "",
-        "Generated from the release's definitions by `source/reference.py`; do not edit. The "
-        "kit's README holds the same sections beside its walkthrough.",
-        "",
+    procedures = sum(1 for d in docs.definitions.values() if d.kind == "Procedure")
+    blueprints = len(docs.definitions) - procedures
+    rows = [
+        ("Kinds of thing it models", str(len(docs.kinds)), "what-it-models"),
+        ("Fields (ClaimTypes) across them", str(len(docs.claim_types)), "what-it-models"),
+        (
+            "Evidence sources (Capture contracts)",
+            str(len(docs.contracts)),
+            "where-evidence-comes-from",
+        ),
+        ("Procedures / Blueprints", f"{procedures} / {blueprints}", "what-runs-on-its-own"),
+        ("Queries", str(len(docs.queries)), "what-you-can-ask"),
+        (
+            "Example Lines / Triggers / Mandates",
+            f"{len(docs.lines)} / {len(docs.triggers)} / {len(docs.mandates)}",
+            "what-runs-on-its-own",
+        ),
     ]
-    return "\n".join(head) + "\n" + "\n\n".join(sections[name] for name in SECTIONS) + "\n"
+    return _table(
+        (f"`{docs.kit_id}` {docs.version}", "Count"),
+        ((f"[{label}]({REFERENCE}#{anchor})", count) for label, count, anchor in rows),
+    )
+
+
+def render(docs: KitDocs) -> dict[str, str]:
+    """The README's generated sections, by marker name."""
+
+    return {"glance": "\n".join(_short_glance(docs))}
+
+
+def reference_file(docs: KitDocs) -> str:
+    parts = [
+        [
+            f"# {docs.kit_id} kit {docs.version} reference",
+            "",
+            "Every kind, field, contract, Line, Procedure and query in this release, generated "
+            "from its definitions (`cruxible-kit.json`, `artifacts/`) and the example "
+            f"ChangeSet (`{EXAMPLE.as_posix()}`) by `source/reference.py`; do not edit. "
+            "`scripts/kits.py check` fails when it is out of date. Start with the kit's "
+            f"[README]({README}).",
+        ],
+        _glance(docs),
+        _evidence_diagram(docs),
+        _automation_diagram(docs),
+        _models(docs),
+        _contracts(docs),
+        _runs(docs),
+        _asks(docs),
+    ]
+    return "\n\n".join("\n".join(part) for part in parts) + "\n"
+
+
+_MAP_BLOCK = re.compile(r"```mermaid\n(.*?)```", re.DOTALL)
+_MAP_NODE = re.compile(r"\w+\(?\[\(?\"([^\"]*)\"")
+_MAP_EDGE = re.compile(r"\|([^|]*)\|")
+
+
+def concept_map_problems(docs: KitDocs, readme: str) -> list[str]:
+    """Names in the README's concept map the kit does not define.
+
+    A node label naming an owned kind (``security.job``) must be a defined SubjectKind;
+    an edge label lists fields as ``kind.field`` (``job.uses``), each a defined ClaimType.
+    """
+
+    at = readme.find(CONCEPT_MAP)
+    block = _MAP_BLOCK.search(readme, at) if at >= 0 else None
+    if block is None:
+        return [f"{README} has no concept map after {CONCEPT_MAP}"]
+    text = block.group(1)
+    problems = []
+    owned = "|".join(re.escape(prefix) for prefix in docs.owns)
+    for label in _MAP_NODE.findall(text):
+        for name in re.findall(rf"(?:{owned})[a-z0-9_]+", label):
+            if name not in docs.kinds:
+                problems.append(f"concept map names kind {name}, which the kit does not define")
+    for label in _MAP_EDGE.findall(text):
+        for field_name in re.findall(r"[a-z0-9_]+\.[a-z0-9_]+", label):
+            if not any(prefix + field_name in docs.claim_types for prefix in docs.owns):
+                problems.append(
+                    f"concept map names field {field_name}, which the kit does not define"
+                )
+    return sorted(set(problems))
 
 
 def _markers(name: str) -> tuple[str, str]:
@@ -946,10 +1018,9 @@ def splice(readme: str, sections: Mapping[str, str]) -> str:
 
 def expected(kit_dir: Path) -> dict[Path, str]:
     docs = load(kit_dir)
-    sections = render(docs)
     return {
-        kit_dir / README: splice((kit_dir / README).read_text(), sections),
-        kit_dir / REFERENCE: reference_file(docs, sections),
+        kit_dir / README: splice((kit_dir / README).read_text(), render(docs)),
+        kit_dir / REFERENCE: reference_file(docs),
     }
 
 
@@ -963,13 +1034,15 @@ def write(kit_dir: Path) -> list[Path]:
 
 
 def check(kit_dir: Path) -> list[str]:
-    """The generated files that differ from the kit's definitions."""
+    """The generated files that differ from the kit's definitions, and the concept map's
+    undefined names."""
 
-    return [
+    problems = [
         f"{path.relative_to(kit_dir)} is out of date: run python source/reference.py"
         for path, text in expected(kit_dir).items()
         if not path.is_file() or path.read_text() != text
     ]
+    return problems + concept_map_problems(load(kit_dir), (kit_dir / README).read_text())
 
 
 def main(argv: list[str]) -> int:
