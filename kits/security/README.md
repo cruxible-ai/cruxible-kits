@@ -33,6 +33,10 @@ Ask any of them with `cruxible query --name NAME`. The hardening questions
 **none** (looked, nothing matches) or **unknown** (not read yet: it names the
 pull that would answer it); never "none" for something nobody read.
 
+An agent doing this work can load the [security analyst
+skill](skills/security-analyst/SKILL.md): the order to work these questions in,
+and the rules that keep its judgments reviewable.
+
 ## How it models your world
 
 Four words carry the rest of this README. A **Subject** is one thing the kit
