@@ -637,8 +637,8 @@ def _automation_diagram(docs: KitDocs) -> list[str]:
     out.append("  end")
     for contract in contracts:
         for definition in sorted({node.definition for node in producers.get(contract, [])}):
-            for line in sorted(by_definition.get(definition, [])):
-                out.append(f"  {_node_id('l', line)} --> {_node_id('c', contract)}")
+            for line_name in sorted(by_definition.get(definition, [])):
+                out.append(f"  {_node_id('l', line_name)} --> {_node_id('c', contract)}")
             if definition not in by_definition:
                 out.append(f"  {_node_id('d', definition)} --> {_node_id('c', contract)}")
     for contract in contracts:
