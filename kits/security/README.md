@@ -556,12 +556,16 @@ they rest on:
   --capture CAP-... --because "..."`. An unchanged scan proposes nothing, so the
   re-bind is what moves them.
   <!-- update: erased-scan-answers -->
-  Until then, the respond Line stops answering RQ1 and RQ2 for that host
-  (neither found nor unknown), so repair them straight away.
+  Today, erasing an inventory scan hides that host from the respond Line's
+  answers (RQ1 and RQ2 are neither found nor unknown for it) until you
+  re-acquire the scan and re-bind its Claims, so do both straight away.
   <!-- update: erased-evidence-retire -->
   A Claim that hasn't been re-bound can't be retired or revised. Fields that
   cite the scan without needing it as evidence (an asset's `hostname`, a
   coverage's `scope` and `source`) can't be re-bound either, and stay `stale`.
+  With `hostname` stale, the respond Line names the host by its Subject
+  (`security.asset/...`) and posts its items afresh: a decision on the earlier
+  items doesn't carry over.
 
 See [Erasing a Capture that holds a
 secret](https://docs.cruxible.ai/evidence-and-admission/#erasing-a-capture-that-holds-a-secret).
