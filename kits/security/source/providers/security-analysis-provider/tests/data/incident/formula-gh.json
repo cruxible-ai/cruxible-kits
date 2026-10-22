@@ -1,0 +1,22 @@
+{
+  "name": "gh",
+  "full_name": "gh",
+  "tap": "homebrew/core",
+  "desc": "GitHub command-line tool",
+  "license": "MIT",
+  "homepage": "https://cli.github.com/",
+  "versions": {
+    "stable": "2.86.0",
+    "head": "HEAD",
+    "bottle": true
+  },
+  "urls": {
+    "stable": {
+      "url": "https://github.com/cli/cli/archive/refs/tags/v2.86.0.tar.gz",
+      "tag": null,
+      "revision": null,
+      "using": null,
+      "checksum": "0f2c5c1e8f8d1b3f9c0d2e4a6b8c0e1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b"
+    }
+  }
+}

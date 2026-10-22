@@ -1,0 +1,18 @@
+{
+  "description": "OSV's published ecosystem list (ecosystems.txt) to retain.",
+  "dimensions": [
+    {
+      "classes": [
+        {
+          "description": "OSV's ecosystems.txt",
+          "id": "osv"
+        }
+      ],
+      "description": "which list",
+      "name": "list"
+    }
+  ],
+  "interface_id": "security.osv-ecosystems",
+  "status": "draft",
+  "version": 1
+}

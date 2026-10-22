@@ -23,8 +23,31 @@
       ],
       "deterministic": false,
       "entrypoint": "security_sources_provider.sources:OsvQuery",
-      "interface_digest": "sha256:92a7c29cdc19ede3a1c55edab561b2e9ef3de2e70ca287e30a6c30f39f49c2ae",
+      "interface_digest": "sha256:9f6744d0260ce513dfa7fe7c8eaceb3ec1b7e4b660c5b01be09b805eb819a978",
       "interface_id": "security.osv-query",
+      "requires_extras": [],
+      "side_effects": false
+    },
+    {
+      "backends": [
+        "local_env"
+      ],
+      "bucket_conformance": {
+        "list=osv": "osv-ecosystems-fixture"
+      },
+      "capture_contract_families": [
+        "security.osv.ecosystems.v1"
+      ],
+      "declared_endpoints": [
+        "https://osv-vulnerabilities.storage.googleapis.com"
+      ],
+      "declared_input_buckets": [
+        "list=osv"
+      ],
+      "deterministic": false,
+      "entrypoint": "security_sources_provider.sources:OsvEcosystems",
+      "interface_digest": "sha256:8a7b148641d017c2bd1a6cc60e1c99a5a9e8e6cff351ae27ae27479639198e51",
+      "interface_id": "security.osv-ecosystems",
       "requires_extras": [],
       "side_effects": false
     },

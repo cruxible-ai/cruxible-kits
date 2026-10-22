@@ -1,5 +1,5 @@
 {
-  "description": "One incident's exposure, patch, exception, audit and credential rows.",
+  "description": "One incident's exposure, scanned-run, patch, exception, audit and credential rows.",
   "dimensions": [
     {
       "classes": [

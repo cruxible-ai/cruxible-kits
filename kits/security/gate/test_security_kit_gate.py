@@ -19,8 +19,10 @@ one gate; a scratch root is kept for inspection when ``SECURITY_KIT_GATE_ROOT``
 names it. The gate starts on 1.3.0 and upgrades to the 1.3.1 gate variant with a
 changed bundled analysis Provider build and live consumer automation, then runs
 the system model's scenarios (steps 21-27), the code findings' (steps 28-34,
-under independent approval with five principals) and an incident response
-(steps 35-42, PHP2Shell: patch, audit, rotate) on the upgraded instance.
+under independent approval with five principals), an incident response
+(steps 35-42, PHP2Shell: patch, audit, rotate) and no silent all-clears (steps
+43-44: OSV coverage, CVE records matched by data and by an analyst's alias) on the
+upgraded instance.
 ``SECURITY_KIT_GATE_CADENCE`` (seconds, default 30) sets the gate
 cadence Trigger. Results are written to ``<root>/gate-results.md``.
 """
@@ -118,6 +120,13 @@ STEPS = {
     "40": "G8: a contended result is conflict, RQ3 unknown, RQ4 raises its rotation",
     "41": "G10 G11 G12: receipts never verify, state reads do; secret refused; window re-asks",
     "42": "G13: ready_to_close with residue; closed; status page rendered; next empty",
+    "43": "K1: a workstation and a CI runner (environment workstation, ci): Homebrew purls read "
+          "OSV coverage partial, the Go /v2 module keeps its path and reads complete; a gh "
+          "incident's RQ1 is unknown with the record pull before the record lands, never "
+          "nothing_to_post; the record matches the Go module by collectionURL+packageName",
+    "44": "K1: Homebrew gh stays unknown (OSV doesn't index brew) until an analyst's product "
+          "alias, citing the formula, lets the record match it; jq stays unknown, never none; "
+          "the status page shows the exposures with no action yet",
 }
 
 
@@ -446,8 +455,8 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 17, "ClaimType": 132, "Procedure": 21,
-              "ProviderInterface": 20, "QueryDefinition": 45, "SourceAcquisitionPolicy": 1,
+KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 18, "ClaimType": 135, "Procedure": 21,
+              "ProviderInterface": 21, "QueryDefinition": 47, "SourceAcquisitionPolicy": 1,
               "SubjectKind": 23}
 
 
@@ -2422,12 +2431,12 @@ def _proposal(gate: Gate, run: dict[str, Any]) -> str | None:
     return egress.get("proposal_id")
 
 
-def _respond(gate: Gate) -> dict[str, Any]:
+def _respond(gate: Gate, line: str = RESPOND) -> dict[str, Any]:
     """Run the incident's respond Line; its summary (every answer) is the run's result."""
 
     out = ""
     for _attempt in range(12):  # a window-close run of the same Line may be in flight
-        result = gate.cx("line", "run", RESPOND, check=False)
+        result = gate.cx("line", "run", line, check=False)
         out = result.stdout + result.stderr
         if result.returncode == 0 and (": succeeded" in out or ": halted" in out):
             break
@@ -2448,15 +2457,15 @@ def _states(summary: dict[str, Any], question: str) -> dict[str, str]:
     return {a["subject"]: a["state"] for a in summary["answers"] if a["question"] == question}
 
 
-def _respond_posts(gate: Gate, kind: str | None = None,
-                   status: str = "unread") -> list[dict[str, Any]]:
+def _respond_posts(gate: Gate, kind: str | None = None, status: str = "unread", *,
+                   line: str = RESPOND, incident: str = INCIDENT_NAME) -> list[dict[str, Any]]:
     """The respond Line's inbox payloads (``kind`` only), with their item ids."""
 
     found = []
-    for entry in gate.json("inbox", "list", "--line", RESPOND, "--status", status)["entries"]:
+    for entry in gate.json("inbox", "list", "--line", line, "--status", status)["entries"]:
         item = gate.json("inbox", "get", entry["item"]["item_id"])
         body = next((v for v in _walk(item) if isinstance(v, dict)
-                     and v.get("incident") == INCIDENT_NAME and "kind" in v), {})
+                     and v.get("incident") == incident and "kind" in v), {})
         if kind is None or body.get("kind") == kind:
             found.append({"item_id": entry["item"]["item_id"], "payload": body})
     return found
@@ -3342,3 +3351,191 @@ def test_42_close(gate: Gate) -> None:
            "storefront); the lead closed the incident with a Closure section, the responder "
            "approved; a closed incident posts nothing; the status page block rendered the "
            "incident's patches, audits and rotations; next shows nothing for the incident")
+
+
+# --- K1: no silent all-clears (a workstation, a CI runner, a gh CVE) ---------------------
+
+GH_CVE = "CVE-2026-110311"  # fixture record: gh < 2.97.0 (collectionURL pkg.go.dev, cli/cli)
+GH_INCIDENT = "gh token suffix"
+GH_RESPOND = "security.respond.gh-token"
+WORKSTATION = "security.inventory-import.workstation"
+MAC, RUNNER = "dev-mac.local", "ci-runner-1.acme.internal"
+
+
+def test_43_workstation_and_record_match(gate: Gate) -> None:
+    _incident_ready(gate)
+    _ack_all(gate)
+    # The hosts, with the environments the kit now names (workstation, ci).
+    _write_created(gate, RESPONDER, "workstation-hosts", {
+        "because": "The maintainer's laptop and the CI runner: both run gh.",
+        "changes": [
+            {"op": "create", "label": "mac", "subject_kind": "security.asset",
+             "key": _key_of("security.asset", hostname=MAC)},
+            {"op": "set", "subject": {"created": "mac"}, "field": "security.asset.environment",
+             "value": "workstation"},
+            {"op": "set", "subject": {"created": "mac"},
+             "field": "security.asset.internet_exposed", "value": False},
+            {"op": "create", "label": "runner", "subject_kind": "security.asset",
+             "key": _key_of("security.asset", hostname=RUNNER)},
+            {"op": "set", "subject": {"created": "runner"},
+             "field": "security.asset.environment", "value": "ci"},
+            {"op": "set", "subject": {"created": "runner"},
+             "field": "security.asset.internet_exposed", "value": False}]}, LEAD)
+    environments = {v for v, _ in gate.claims("security.asset",
+                                              "security.asset.environment").values()}
+    assert {"workstation", "ci"} <= environments, environments
+    _submit_as(gate, RESPONDER, "workstation-scope", {
+        "kind": "change_set", "rationale": "Import the workstation scope's inventory.",
+        "members": [
+            {"kind": "line", "name": WORKSTATION, "procedure_name": "security.inventory-import",
+             "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+             "trigger_input": "inventory", "parameters": {"scope": "workstation"}},
+            {"kind": "trigger", "name": "security.inventory-landed.workstation",
+             "line_name": WORKSTATION, "schedule": {
+                 "kind": "capture_landing", "capture_contract": "security.runtime-inventory-v1"}}]},
+        approver=LEAD)
+    gate.out("line", "enable", WORKSTATION, who=SCANNER)
+    # Homebrew purls for the laptop (from brew list), the Go module `go version -m` names
+    # for the runner's gh binary.
+    _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "workstation.json",
+                       "inventory/workstation.json", SCANNER, (WORKSTATION,))
+    _approve(gate, _proposal(gate, runs[WORKSTATION]), LEAD)  # type: ignore[arg-type]
+    names = {(_field(r, "product_name"), _field(r, "version"))
+             for r in gate.rows("security.release_inventory")}
+    assert ("github.com/cli/cli/v2", "v2.86.0") in names and ("gh", "2.86.0") in names, names
+    assert not [n for n in names if n[0] == "v2"], names  # never the last segment
+    run, out = gate.run_line("security.osv-applicability")
+    proposal = gate.egress(run).get("proposal_id")
+    assert proposal, out[-1500:]
+    _approve(gate, proposal, LEAD)
+    coverage = {(_field(r, "product_name"), _field(r, "version")): _field(r, "osv_coverage")
+                for r in gate.rows("security.release_inventory")}
+    assert coverage[("gh", "2.86.0")] == (
+        "partial: 0 of 1 components answered; not indexed: brew 1"), coverage
+    assert coverage[("github.com/cli/cli/v2", "v2.86.0")] == (
+        "complete: 1 of 1 components answered"), coverage
+    # The incident: one gh CVE nobody has a record of yet.
+    _write_created(gate, RESPONDER, "incident-gh", {
+        "because": "gh auth status prints a token's last characters (reported 2026-10-20).",
+        "changes": [
+            {"op": "create", "label": "cve", "subject_kind": "security.vulnerability",
+             "key": _key_of("security.vulnerability", cve_id=GH_CVE)},
+            {"op": "create", "label": "incident", "subject_kind": "security.incident",
+             "key": _key_of("security.incident", name=GH_INCIDENT)},
+            {"op": "set", "subject": {"created": "incident"},
+             "field": "security.incident.window_start", "value": "2026-01-21T00:00:00Z"},
+            {"op": "set", "subject": {"created": "incident"},
+             "field": "security.incident.rotation_policy", "value": "on_found_or_unknown"},
+            {"op": "set", "subject": {"created": "incident"}, "field": "security.incident.status",
+             "value": "open"},
+            {"op": "add", "subject": {"created": "incident"},
+             "field": "security.incident.vulnerability", "value": {"created": "cve"}}]}, LEAD)
+    _submit_as(gate, RESPONDER, "gh-incident-line", {
+        "kind": "change_set", "rationale": "The gh incident's respond Line.", "members": [
+            {"kind": "line", "name": GH_RESPOND, "procedure_name": "security.respond",
+             "max_authority": "observe",
+             "parameters": {"incident": GH_INCIDENT,
+                            "inventory_pull": "security.inventory-acquire",
+                            "log_pull": "security.log-acquire",
+                            "credential_pull": "security.credential-acquire",
+                            "record_pull": "security.cve-record-acquire"}}]}, approver=LEAD)
+    gate.out("line", "enable", GH_RESPOND, who=RESPONDER)
+    # No assessment anywhere and no record read: every scanned release is unknown, and the
+    # one gap names the record pull. Never nothing_to_post.
+    summary = _respond(gate, GH_RESPOND)
+    assert not summary.get("halted"), summary
+    rq1 = _states(summary, "RQ1")
+    for subject in (f"{RUNNER}: github.com/cli/cli/v2 v2.86.0", f"{MAC}: gh 2.86.0"):
+        assert rq1[subject] == "unknown", rq1
+    assert "none" not in {state for subject, state in rq1.items() if MAC in subject}, rq1
+    gaps = [g["payload"] for g in _respond_posts(gate, "gap", line=GH_RESPOND,
+                                                 incident=GH_INCIDENT)]
+    record_gaps = [g for g in gaps if g["pull"] == "security.cve-record-acquire"]
+    assert [(g["subject"], g["input"]) for g in record_gaps] == [
+        (GH_CVE, {"url": f"https://cveawg.mitre.org/api/cve/{GH_CVE}"})], gaps
+    # The gap's pull: the record, matched to the runner's Go module by its collectionURL
+    # (pkg.go.dev) and packageName, decided by the module's version.
+    before = {r["run"] for r in gate.runs("security.cve-applicability")}
+    gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
+        "record-gh", record_gaps[0]["input"]), who=RESPONDER)
+    run = _wait_for_run(gate, "security.cve-applicability", before, 180)
+    proposal = _proposal(gate, run)
+    assert proposal, gate.out("get", run["run"])[-1500:]
+    review = gate.out("proposal", "review", proposal)
+    assert "packageName" in review and "github.com/cli/cli/v2" in review, review[-2500:]
+    _approve(gate, proposal, LEAD)
+    held = _assessments(gate)
+    go = _release_id(gate, "github.com/cli/cli/v2", "v2.86.0")
+    brew = _release_id(gate, "gh", "2.86.0")
+    assert held[(go, GH_CVE)][0] == "affected", held
+    assert (brew, GH_CVE) not in held, held  # the record names cli/cli, not Homebrew's gh
+    summary = _respond(gate, GH_RESPOND)
+    rq1 = _states(summary, "RQ1")
+    assert rq1[f"{RUNNER}: github.com/cli/cli/v2 v2.86.0"] == "found", rq1
+    assert rq1[f"{MAC}: gh 2.86.0"] == "unknown", rq1
+    unindexed = [g["payload"] for g in _respond_posts(gate, "gap", line=GH_RESPOND,
+                                                      incident=GH_INCIDENT)
+                 if g["payload"]["subject"] == "gh 2.86.0"]
+    assert [g["input"]["osv_not_indexed"] for g in unindexed] == [{"brew": 1}], unindexed
+    gate.values["gh_releases"] = {"go": go, "brew": brew}
+    record("43", f"hosts {MAC} (workstation) and {RUNNER} (ci); the workstation scope's scan "
+           "named github.com/cli/cli/v2 v2.86.0 (never v2) and gh 2.86.0; OSV coverage: brew "
+           "partial (not indexed), the Go module complete; before any record RQ1 was unknown "
+           f"for every scanned release with one gap naming {GH_CVE}'s record pull (posted, "
+           "never nothing_to_post); the record matched the Go module by collectionURL + "
+           "packageName (affected at v2.86.0 < 2.97.0, read as written) and RQ1 found it; "
+           "Homebrew gh stayed unknown naming brew as not indexed")
+
+
+def test_44_product_alias(gate: Gate) -> None:
+    _incident_ready(gate)
+    _ack_all(gate)
+    brew = gate.values["gh_releases"]["brew"]
+    # What says Homebrew's gh is cli/cli: the formula (its source URL), retained.
+    _incident_file(gate, "formula-gh.json", "evidence/gh-formula.json")
+    out = gate.out("procedure", "run", "security.evidence-acquire", gate.payload(
+        "evidence-gh-formula", {"relative_path": "evidence/gh-formula.json"}), who=RESPONDER)
+    capture = re.search(r"Capture evidence: (sha256:[0-9a-f]{64})", out)
+    assert ": succeeded" in out and capture, out
+    alias = {"because": "Homebrew's gh formula builds github.com/cli/cli (its stable URL), "
+                        "which CVE records name cli/cli.",
+             "subject": f"security.release/{brew}",
+             "changes": [{"op": "add", "field": "security.release.product_alias",
+                          "value": "cli/cli"}]}
+    own = gate.cx("write", gate.payload("alias-own-words", alias), "--dry-run", who=RESPONDER,
+                  check=False)
+    assert "evidence_required" in own.stdout + own.stderr, own.stdout[-1200:]
+    alias["changes"][0]["evidence"] = {"kind": "capture", "capture": capture.group(1)}
+    _write_as(gate, RESPONDER, "alias-gh", alias, approver=LEAD)
+    # Re-acquire the record: the matcher reads the alias like the release's own name.
+    before = {r["run"] for r in gate.runs("security.cve-applicability")}
+    gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
+        "record-gh-again", {"url": f"https://cveawg.mitre.org/api/cve/{GH_CVE}"}),
+        who=RESPONDER)
+    run = _wait_for_run(gate, "security.cve-applicability", before, 180)
+    proposal = _proposal(gate, run)
+    assert proposal, gate.out("get", run["run"])[-1500:]
+    review = gate.out("proposal", "review", proposal)
+    assert "alias" in review, review[-2500:]
+    _approve(gate, proposal, LEAD)
+    assert _assessments(gate)[(brew, GH_CVE)][0] == "affected"
+    summary = _respond(gate, GH_RESPOND)
+    rq1 = _states(summary, "RQ1")
+    assert rq1[f"{MAC}: gh 2.86.0"] == "found", rq1
+    # jq: nobody assessed it and OSV never indexes Homebrew: unknown, never none.
+    assert rq1[f"{MAC}: jq 1.7.1"] == "unknown", rq1
+    exposed = sorted({p["payload"]["asset"] for status in ("unread", "acknowledged")
+                      for p in _respond_posts(gate, "exposed", status, line=GH_RESPOND,
+                                              incident=GH_INCIDENT)})
+    assert exposed == sorted([MAC, RUNNER]), exposed
+    # The status page shows each exposure with no action raised yet (a row with no host).
+    rows = [r for r in gate.rows("security.incident_status", incident=GH_INCIDENT)
+            if _field(r, "cve") == GH_CVE]
+    assert rows and {(_field(r, "exposure"), _field(r, "host")) for r in rows} == {
+        ("affected", None)}, rows
+    record("44", "an own-words alias was refused (evidence_required); the responder's alias "
+           "cli/cli on Homebrew gh 2.86.0, citing the retained formula, approved by the lead; "
+           f"re-reading {GH_CVE}'s record matched it by the alias: affected, RQ1 found on "
+           f"{MAC} and {RUNNER}; jq 1.7.1 stays unknown (brew not indexed); the status page "
+           "shows both exposures with no host: no action raised yet")
+

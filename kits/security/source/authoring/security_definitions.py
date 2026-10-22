@@ -1988,15 +1988,11 @@ def response_queries() -> list[QueryDefinitionSpec]:
             right=QueryLiteralRef(value="security.remediation"), value_type="string"),
             _active_exception("work")))
     q.append(_query(
-        "security.incident_status", "The incident status page: per CVE, every exposure (a "
-        "release assessed affected or inconclusive), every patch raised for an exposed asset, "
-        "and every exception accepting the risk until it expires (excepted_until), with the "
-        "asset, its service and inventory coverage, the patch's progress and verification, the "
-        "service's audit result, and each credential the service uses with its rotation's "
-        "progress and verification. An exposure with no work item is a row with no host: no "
-        "action raised yet (respond posts patch_missing). Pending actions are their own state "
-        "(patch and rotation planned or in_progress, beside verification). Empty is unknown; "
-        "none needs the respond Line's answer", "incident", "incident",
+        "security.incident_status", "The incident status page: per CVE and exposure, each "
+        "patch or unexpired exception (excepted_until) with its asset, service, coverage, "
+        "progress and verification, the audit result, and each credential's rotation progress "
+        "and verification (pending is its own state). No host: no action yet. Empty is "
+        "unknown", "incident", "incident",
         _cves(required=True) + [
             work,
             _hop("asset", "work", "security.work.asset", "asset"),
