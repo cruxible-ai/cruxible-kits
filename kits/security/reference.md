@@ -13,7 +13,7 @@ Kit `security` version **1.3.0**, defining every name under `security.`.
 | Capture contracts | 17 | [Where evidence comes from](#where-evidence-comes-from) |
 | Procedures | 21 | - |
 | Blueprints | 9 | you bind each one's Provider slots |
-| Queries | 44 | [What you can ask](#what-you-can-ask) |
+| Queries | 45 | [What you can ask](#what-you-can-ask) |
 | Provider interfaces | 20 | - |
 | Acquisition policies | 1 | `security.acquisition` |
 | Example Lines | 19 | with 21 Triggers and 11 Mandates in `examples/automation.json`: [What runs on its own](#what-runs-on-its-own) |
@@ -716,9 +716,10 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.finding_index` | Every finding of one repository (repo_ref, host/owner/repo) with its key, the rules and finders that reported it, its severity, verification and verdict: the SARIF import's tap. | `repo_ref` (string) |
 | `security.finding_settle_condition` | One finding by id with its key: the condition a settle grant on the SARIF import's report observations (rule, reported_by, severity) evaluates per changed Claim. Never grant the verdict, justification, verification or affects. | `finding_id` (string) |
 | `security.incident_credentials` | RQ4 for one incident: every credential an audited service uses, with its current key (non-secret id, issued_at: before window_start = not rotated since exposure) and its rotations' progress and verification. | `incident` (string) |
+| `security.incident_exceptions` | RQ2's accepted risks for one incident: every approved exception (work.asset + work.assessment) of an asset for one of its CVEs that has not expired at the query's evaluation time, with its expiry, owner and rationale: the respond Line's exception tap. | `incident` (string) |
 | `security.incident_exposure` | RQ1 for one incident (parameter incident, its name): every release assessed affected or inconclusive by one of its CVEs, every asset a scan observed running it with its inventory coverage and services, and every asset that only declares installing it. | `incident` (string) |
 | `security.incident_patches` | RQ2 for one incident: every patch of an asset for one of its CVEs (work.asset + work.assessment), with progress, verification, due date, target release, the asset's coverage and services: the respond Line's tap. | `incident` (string) |
-| `security.incident_status` | The incident status page: per CVE, every patch raised for an exposed asset, with the asset, its service and inventory coverage, the patch's progress and verification, the service's audit result, and each credential the service uses with its rotation's verification. Empty is unknown; none needs the respond Line's answer. | `incident` (string) |
+| `security.incident_status` | The incident status page: per CVE, every patch raised for an exposed asset, and every exception accepting the risk until it expires (excepted_until), with the asset, its service and inventory coverage, the patch's progress and verification, the service's audit result, and each credential the service uses with its rotation's verification. Empty is unknown; none needs the respond Line's answer. | `incident` (string) |
 | `security.incomplete_work` | Remediation actions missing accountable information. | - |
 | `security.inventory_context` | Assets with their releases, products, suppliers, services and owning teams. | - |
 | `security.inventory_index` | One inventory scope's coverage (source = the scope's name, stale or current) with every asset scanned in it and every release each runs, with the Claims behind them: the runtime-inventory import's tap. | `scope` (string) |

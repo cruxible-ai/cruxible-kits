@@ -1626,6 +1626,17 @@ NOT_VERIFIED = _any(_missing("patch", "security.work.verification"),
                         value_type="string"))
 
 
+def _active_exception(binding: str) -> QueryConjunctionFilter:
+    """``binding`` is an approved risk exception not yet expired at the query's evaluation
+    time (the query clock, never a Procedure's)."""
+
+    return _all(_cmp(binding, "security.exception.approval", "approved"),
+                QueryComparisonFilter(
+                    left=QueryClaimValueRef(binding=binding,
+                                            predicate="security.exception.expires_at"),
+                    operator="gt", right=QueryEvaluationTimeRef(), value_type="timestamp"))
+
+
 def _inventory_coverage(binding: str, source: str) -> QueryTraversalStep:
     """``source``'s inventory coverage: the asset's ``scanned_in`` of scope inventory.runtime."""
 
@@ -1776,6 +1787,25 @@ def response_queries() -> list[QueryDefinitionSpec]:
         "query's evaluation time", _all(NOT_VERIFIED, QueryComparisonFilter(
             left=QueryClaimValueRef(binding="patch", predicate="security.remediation.due_at"),
             operator="lte", right=QueryEvaluationTimeRef(), value_type="timestamp"))))
+    # RQ2's accepted risks: an approved exception of an asset for one of the incident's
+    # assessments holds, until its expiry, instead of a patch.
+    q.append(_query(
+        "security.incident_exceptions", "RQ2's accepted risks for one incident: every approved "
+        "exception (work.asset + work.assessment) of an asset for one of its CVEs that has "
+        "not expired at the query's evaluation time, with its expiry, owner and rationale: "
+        "the respond Line's exception tap", "incident", "incident",
+        _cves(required=True) + [
+            _hop("exception", "assessment", "security.work.assessment", "exception",
+                 reverse=True, required=True, where=_active_exception("exception")),
+            _hop("asset", "exception", "security.work.asset", "asset", required=True),
+            _hop("owner", "exception", "security.work.owner", "team")],
+        _incident_fields() + _cve_fields() + [
+            _field("exception", "exception"), _field("asset", "asset"),
+            _field("owner", "owner"),
+            _field("hostname", "asset", "security.asset.hostname"),
+            _field("expires_at", "exception", "security.exception.expires_at"),
+            _field("rationale", "exception", "security.work.rationale")],
+        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000))
     # RQ3: every audit of the incident, with its window, sources, reads and result.
     q.append(_query(
         "security.audit_status", "RQ3 for one incident: every audit (one per service) with "
@@ -1843,18 +1873,28 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("revokes_key", "rotation", "security.remediation.revokes_key"),
          _field("window_start", "rotation_incident", INC + "window_start")],
         max_results=2000, paths_per_result=1000))
-    # The incident status page: one row per (CVE, patch, credential of the patched asset's
-    # service), every state as held. An empty cell is unknown (nothing recorded), never none.
+    # The incident status page: one row per (CVE, work item, credential of the asset's
+    # service), every state as held. A work item is a patch, or an exception that has not
+    # expired (work.assessment is shared, so one step reads both kinds). An empty cell is
+    # unknown (nothing recorded), never none.
+    work = QueryTraversalStep(
+        binding="work", from_binding="assessment", predicate="security.work.assessment",
+        direction="reverse", required=True,
+        target_subject_kinds=("security.exception", "security.remediation"),
+        where=_any(QueryComparisonFilter(
+            left=QuerySubjectFieldRef(binding="work", field="subject_kind"), operator="eq",
+            right=QueryLiteralRef(value="security.remediation"), value_type="string"),
+            _active_exception("work")))
     q.append(_query(
         "security.incident_status", "The incident status page: per CVE, every patch raised "
-        "for an exposed asset, with the asset, its service and inventory coverage, the patch's "
+        "for an exposed asset, and every exception accepting the risk until it expires "
+        "(excepted_until), with the asset, its service and inventory coverage, the patch's "
         "progress and verification, the service's audit result, and each credential the "
         "service uses with its rotation's verification. Empty is unknown; none needs the "
         "respond Line's answer", "incident", "incident",
         _cves(required=True) + [
-            _hop("patch", "assessment", "security.work.assessment", "remediation",
-                 reverse=True, required=True),
-            _hop("asset", "patch", "security.work.asset", "asset", required=True),
+            work,
+            _hop("asset", "work", "security.work.asset", "asset", required=True),
             _inventory_coverage("coverage", "asset"),
             _hop("service", "asset", "security.asset.serves", "service"),
             _hop("audit", "service", AUD + "service", "audit", reverse=True,
@@ -1867,8 +1907,9 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("host", "asset", "security.asset.hostname"),
          _field("service", "service", "security.service.name"),
          _field("coverage", "coverage", "security.coverage.revision"),
-         _field("patch", "patch", "security.remediation.progress"),
-         _field("patch_verified", "patch", "security.work.verification"),
+         _field("patch", "work", "security.remediation.progress"),
+         _field("patch_verified", "work", "security.work.verification"),
+         _field("excepted_until", "work", "security.exception.expires_at"),
          _field("audit", "audit", AUD + "result"),
          _field("credential", "credential", CRED + "name"),
          _field("rotation_verified", "rotation", "security.work.verification")],
@@ -2192,7 +2233,8 @@ CREDENTIAL_SUMMARY = _contract("security-credential-state-summary", credential=_
 RESPOND_INPUT = _contract("security-respond-input", incident=_S, inventory_pull=_S,
                           log_pull=_S, credential_pull=_S, record_pull=_S)
 RESPOND_REQUEST = _contract("security-respond-request", exposure=_J, patches=_J, overdue=_J,
-                            audits=_J, credentials=_J, params=_J, truncated=_J)
+                            exceptions=_J, audits=_J, credentials=_J, params=_J,
+                            truncated=_J)
 _RESPOND_COUNTS = _ints("posted", "found", "none", "unknown", "ready_to_close")
 RESPOND_RESULT = _contract("security-respond-result", items=_J, answers=_J, incident=_S,
                            status=_S, **_RESPOND_COUNTS)
@@ -2203,6 +2245,7 @@ RESPOND_QUERIES = {
     "exposure": "security.incident_exposure",
     "patches": "security.incident_patches",
     "overdue": "security.overdue_patches",
+    "exceptions": "security.incident_exceptions",
     "audits": "security.audit_status",
     "credentials": "security.incident_credentials",
 }
@@ -3345,7 +3388,8 @@ def respond_procedure(cx: Cruxible) -> Any:
             "in three states: found (posted), none (run summary only) or unknown (posted as a "
             "gap naming the pull or statement that would answer it). RQ1 which deployments run "
             "an affected release; RQ2 is each exposure patched (missing, overdue, disputed; "
-            "none only when a full scan verified it); RQ3 were we exploited in the window, per "
+            "none only when a full scan verified it; excepted while an approved exception for "
+            "each of its CVEs has not expired, then missing again); RQ3 were we exploited in the window, per "
             "service (none only for not_exploited with complete reads of every stated log "
             "source covering the window); RQ4 which credentials warrant rotation (posted with "
             "the audit and patch state; rotating after a verified patch is the recommended "

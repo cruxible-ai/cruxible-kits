@@ -1,0 +1,552 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "RQ2's accepted risks for one incident: every approved exception (work.asset + work.assessment) of an asset for one of its CVEs that has not expired at the query's evaluation time, with its expiry, owner and rationale: the respond Line's exception tap. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "entry": {
+    "binding": "incident",
+    "subject_id": null,
+    "subject_kinds": [
+      "security.incident"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.incident_exceptions"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [
+    {
+      "default": null,
+      "name": "incident",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "string"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:3943580408f5ba36b2d327ff765256478de74163a43928debd3d910d3dae0304",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.release"
+      }
+    },
+    {
+      "artifact_digest": "sha256:af3ce1531dba3d67329952c3ce2833d90318c3f19e5bedea85b5dbc200fab2aa",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.status"
+      }
+    },
+    {
+      "artifact_digest": "sha256:97b3d2b4c70eca2f81cf880ef40a18312af4fccf801f2d51b283d6125df02538",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.vulnerability"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ce5f9b0261417798b701e9d7356492d170a381c6cfe5946c5f371f49c9a79649",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.hostname"
+      }
+    },
+    {
+      "artifact_digest": "sha256:50a489ce0116180bd1ea088ce3a791521a3a0179c61646fd784189d11ae1a644",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.exception.approval"
+      }
+    },
+    {
+      "artifact_digest": "sha256:12174a74ba83dcd47fe896a5ea8d6c6109ec657682f1f4249907fddc7c93c9c0",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.exception.expires_at"
+      }
+    },
+    {
+      "artifact_digest": "sha256:5f6eed77486406c3935556c70ca39f086122298729de18016d04e5b3c3566f6f",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.incident.name"
+      }
+    },
+    {
+      "artifact_digest": "sha256:c27b5c0525a43fd067483f1cb85940100450d6cedcd23cc86df6623ae6e7c871",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.incident.rotation_policy"
+      }
+    },
+    {
+      "artifact_digest": "sha256:39aa3ed7feece74dd4a11443150295b78daeef4755f35ddfd95dc405766acb68",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.incident.status"
+      }
+    },
+    {
+      "artifact_digest": "sha256:6795b146e12c06f6310f00a916d856aa552e421ce607ae17bf43e475ebfbbcc9",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.incident.vulnerability"
+      }
+    },
+    {
+      "artifact_digest": "sha256:86719c39d254a79e10c422aba9d29d255f280807b7db076f21e773bf9eb5d39b",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.incident.window_start"
+      }
+    },
+    {
+      "artifact_digest": "sha256:59db3d9aefaaabe5c1d2f72cdcaaf9f302cb07ab7aacb7ee86223bb5441c1050",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.release.product_name"
+      }
+    },
+    {
+      "artifact_digest": "sha256:4f00800056fb9c2af1d558a2ebdc688148172e319f5fdf9bcf8aaf121305a283",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.release.version"
+      }
+    },
+    {
+      "artifact_digest": "sha256:71d273d960c85450760acab13b526712916c7a62125ff08d0837999a4c358ea9",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.cve_id"
+      }
+    },
+    {
+      "artifact_digest": "sha256:2a29f2494840a6dea9e7da0c7d0bf458b6022a1e45cdefc78476c95c29239857",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.assessment"
+      }
+    },
+    {
+      "artifact_digest": "sha256:62ff1936036ef6b36a7223c478fc31bbae2076450f1e524b5296cf18781320fe",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.asset"
+      }
+    },
+    {
+      "artifact_digest": "sha256:abb8f39dc629f6ae6f50d876b396740e3cced99d65d22c8e9da0bb5b6b9b75c7",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.owner"
+      }
+    },
+    {
+      "artifact_digest": "sha256:0954f2ac7a329507371c62a37de294cd171f5e7fb5ebb02d85d77031cda3379c",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.work.rationale"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "assessment",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "asset",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "asset",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "cve_id",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.cve_id",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "exception",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "exception",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "expires_at",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "exception",
+          "kind": "claim_value",
+          "predicate": "security.exception.expires_at",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "hostname",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "security.asset.hostname",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "incident",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "incident",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "incident_status",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "incident",
+          "kind": "claim_value",
+          "predicate": "security.incident.status",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "owner",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "owner",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "product_name",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "kind": "claim_value",
+          "predicate": "security.release.product_name",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "rationale",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "exception",
+          "kind": "claim_value",
+          "predicate": "security.work.rationale",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "release",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "rotation_policy",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "incident",
+          "kind": "claim_value",
+          "predicate": "security.incident.rotation_policy",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "status",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "kind": "claim_value",
+          "predicate": "security.assessment.status",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "status_role",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "field": "role",
+          "kind": "claim_field",
+          "predicate": "security.assessment.status",
+          "tag": "playbill-query-claim-field-ref-v1"
+        }
+      },
+      {
+        "name": "version",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "kind": "claim_value",
+          "predicate": "security.release.version",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "window_start",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "incident",
+          "kind": "claim_value",
+          "predicate": "security.incident.window_start",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "incident",
+  "result_cardinality": "many",
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "vulnerability",
+      "direction": "forward",
+      "from_binding": "incident",
+      "predicate": "security.incident.vulnerability",
+      "required": true,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.vulnerability"
+      ],
+      "where": null
+    },
+    {
+      "binding": "assessment",
+      "direction": "reverse",
+      "from_binding": "vulnerability",
+      "predicate": "security.assessment.vulnerability",
+      "required": true,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.assessment"
+      ],
+      "where": {
+        "filters": [
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "assessment",
+              "kind": "claim_value",
+              "predicate": "security.assessment.status",
+              "tag": "playbill-query-claim-value-ref-v1"
+            },
+            "operator": "eq",
+            "right": {
+              "kind": "literal",
+              "tag": "playbill-query-literal-ref-v1",
+              "value": "affected"
+            },
+            "tag": "playbill-query-comparison-filter-v1",
+            "value_type": "string"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "assessment",
+              "kind": "claim_value",
+              "predicate": "security.assessment.status",
+              "tag": "playbill-query-claim-value-ref-v1"
+            },
+            "operator": "eq",
+            "right": {
+              "kind": "literal",
+              "tag": "playbill-query-literal-ref-v1",
+              "value": "inconclusive"
+            },
+            "tag": "playbill-query-comparison-filter-v1",
+            "value_type": "string"
+          }
+        ],
+        "kind": "any_of",
+        "tag": "playbill-query-disjunction-filter-v1"
+      }
+    },
+    {
+      "binding": "release",
+      "direction": "forward",
+      "from_binding": "assessment",
+      "predicate": "security.assessment.release",
+      "required": true,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.release"
+      ],
+      "where": null
+    },
+    {
+      "binding": "exception",
+      "direction": "reverse",
+      "from_binding": "assessment",
+      "predicate": "security.work.assessment",
+      "required": true,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.exception"
+      ],
+      "where": {
+        "filters": [
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "exception",
+              "kind": "claim_value",
+              "predicate": "security.exception.approval",
+              "tag": "playbill-query-claim-value-ref-v1"
+            },
+            "operator": "eq",
+            "right": {
+              "kind": "literal",
+              "tag": "playbill-query-literal-ref-v1",
+              "value": "approved"
+            },
+            "tag": "playbill-query-comparison-filter-v1",
+            "value_type": "string"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "exception",
+              "kind": "claim_value",
+              "predicate": "security.exception.expires_at",
+              "tag": "playbill-query-claim-value-ref-v1"
+            },
+            "operator": "gt",
+            "right": {
+              "kind": "evaluation_time",
+              "tag": "playbill-query-evaluation-time-ref-v1"
+            },
+            "tag": "playbill-query-comparison-filter-v1",
+            "value_type": "timestamp"
+          }
+        ],
+        "kind": "all_of",
+        "tag": "playbill-query-conjunction-filter-v1"
+      }
+    },
+    {
+      "binding": "asset",
+      "direction": "forward",
+      "from_binding": "exception",
+      "predicate": "security.work.asset",
+      "required": true,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.asset"
+      ],
+      "where": null
+    },
+    {
+      "binding": "owner",
+      "direction": "forward",
+      "from_binding": "exception",
+      "predicate": "security.work.owner",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.team"
+      ],
+      "where": null
+    }
+  ],
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "incident",
+      "kind": "claim_value",
+      "predicate": "security.incident.name",
+      "tag": "playbill-query-claim-value-ref-v1"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "parameter",
+      "parameter": "incident",
+      "tag": "playbill-query-parameter-ref-v1"
+    },
+    "tag": "playbill-query-comparison-filter-v1",
+    "value_type": "string"
+  }
+}

@@ -181,7 +181,7 @@ its window; a credential is a key you may need to rotate, by its non-secret id.
 | [Fields (ClaimTypes) across them](reference.md#what-it-models) | 132 |
 | [Evidence sources (Capture contracts)](reference.md#where-evidence-comes-from) | 17 |
 | [Procedures / Blueprints](reference.md#what-runs-on-its-own) | 21 / 9 |
-| [Queries](reference.md#what-you-can-ask) | 44 |
+| [Queries](reference.md#what-you-can-ask) | 45 |
 | [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 19 / 21 / 11 |
 
 <!-- END GENERATED: glance -->

@@ -14,6 +14,9 @@
         "overdue": {
           "type": "json"
         },
+        "exceptions": {
+          "type": "json"
+        },
         "audits": {
           "type": "json"
         },

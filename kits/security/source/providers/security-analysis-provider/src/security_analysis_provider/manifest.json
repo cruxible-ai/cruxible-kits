@@ -247,7 +247,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.response:Respond",
-      "interface_digest": "sha256:842bb8a78f6da6837e15fb4d3a7ea76af7fa1c9130670eb17b33597d261290ea",
+      "interface_digest": "sha256:29a8b27c5b252037895ed2d5fb181c2d570a707f4a0ef8e9320864cfb51ee9dd",
       "interface_id": "security.respond",
       "requires_extras": [],
       "side_effects": false

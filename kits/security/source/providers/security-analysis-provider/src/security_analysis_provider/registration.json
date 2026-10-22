@@ -239,7 +239,7 @@
         "entrypoint": "security_analysis_provider.response:classify_inventory",
         "identity": "security.runtime-inventory.input",
         "source": {
-          "digest": "sha256:f18f8365a1532d7941da60f60c8b319741e4e1fe3aca6194867970a6f68d6c6f",
+          "digest": "sha256:b641842ea35035ee16cd7da60f631467ca05b1104c0f0717a0f94de250dabfd5",
           "path": "response.py"
         },
         "version": 1
@@ -265,7 +265,7 @@
         "entrypoint": "security_analysis_provider.response:classify_log",
         "identity": "security.log-reads.input",
         "source": {
-          "digest": "sha256:f18f8365a1532d7941da60f60c8b319741e4e1fe3aca6194867970a6f68d6c6f",
+          "digest": "sha256:b641842ea35035ee16cd7da60f631467ca05b1104c0f0717a0f94de250dabfd5",
           "path": "response.py"
         },
         "version": 1
@@ -291,7 +291,7 @@
         "entrypoint": "security_analysis_provider.response:classify_credential",
         "identity": "security.credential-state.input",
         "source": {
-          "digest": "sha256:f18f8365a1532d7941da60f60c8b319741e4e1fe3aca6194867970a6f68d6c6f",
+          "digest": "sha256:b641842ea35035ee16cd7da60f631467ca05b1104c0f0717a0f94de250dabfd5",
           "path": "response.py"
         },
         "version": 1
@@ -317,24 +317,24 @@
         "entrypoint": "security_analysis_provider.response:classify_respond",
         "identity": "security.respond.input",
         "source": {
-          "digest": "sha256:f18f8365a1532d7941da60f60c8b319741e4e1fe3aca6194867970a6f68d6c6f",
+          "digest": "sha256:b641842ea35035ee16cd7da60f631467ca05b1104c0f0717a0f94de250dabfd5",
           "path": "response.py"
         },
         "version": 1
       },
       "definition": {
-        "digest": "sha256:a3d1b16773ff3637bf83c3dc1c8273f842d1c2948d3e01d8734f1ad762404a67",
+        "digest": "sha256:67d9fff9efca314c9cca5c2486df07cdd66e715916789bd30aab4893da3da314",
         "path": "contracts/security.respond.json"
       },
       "fixtures": {
-        "digest": "sha256:6992b42d7f6f84c13856af03499754c4ca61959384b832ca02ed64b3423c439a",
+        "digest": "sha256:a784d529007f5717e0af82746738f46fef825dbd8d9ef7b974bffacb2bad1bda",
         "path": "registration-fixtures/security.respond.json"
       },
-      "interface_digest": "sha256:842bb8a78f6da6837e15fb4d3a7ea76af7fa1c9130670eb17b33597d261290ea",
+      "interface_digest": "sha256:29a8b27c5b252037895ed2d5fb181c2d570a707f4a0ef8e9320864cfb51ee9dd",
       "interface_id": "security.respond",
       "predecessors": [],
       "vocabulary": {
-        "digest": "sha256:a7c04ae53a8a6ee49cdca97d7290b060a6e8375dff65e9cc22cd579ef6ab1622",
+        "digest": "sha256:317788bbe243c111705769b15251afdf380f657221c3629bc1e55a3da5adeca8",
         "path": "vocab/security.respond.json"
       }
     },
@@ -366,7 +366,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:af32da2b94c07fa9b9c89807ba5f81f5d3e363962f6c3744a99f41d7e27177c1",
+    "digest": "sha256:5ed8a05958325f44d90b7236037d96774e825d817d7f56731dd3cf8cb3ab422c",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

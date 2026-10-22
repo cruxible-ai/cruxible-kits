@@ -58,7 +58,8 @@ active or inactive.
 ``Respond`` (``security.respond``) answers one incident's five questions in three
 states, from the rows of ``security.incident_exposure``,
 ``security.incident_patches``, ``security.overdue_patches``,
-``security.audit_status`` and ``security.incident_credentials``:
+``security.incident_exceptions``, ``security.audit_status`` and
+``security.incident_credentials``:
 
 - RQ1 which deployments run an affected release: ``exposed`` (found); an asset
   that only declares installing it, or a patched one, under no current coverage
@@ -70,7 +71,11 @@ states, from the rows of ``security.incident_exposure``,
   verification failed), ``patch_regressed`` (verified, then seen running again)
   are found; ``verified`` with no affected run is none; a claimed patch no scan has
   read since is unknown (the gap names the inventory pull); an approved one on
-  schedule is pending (summary only).
+  schedule is pending (summary only). An exposure with no patch, or an overdue one,
+  is ``excepted`` (summary only) while an approved risk exception of the asset holds
+  for each of the release's incident CVEs (rows of ``security.incident_exceptions``,
+  which drop an exception at its ``expires_at`` by the query's evaluation time);
+  then it is ``patch_missing`` or ``patch_overdue`` again.
 - RQ3 were we exploited in the window, per service: ``exploited`` is found;
   ``not_exploited`` is none only with ``window_end`` stated and, for every stated
   log source, complete reads whose union covers [window_start, window_end];
@@ -899,7 +904,7 @@ class CredentialState:
 
 # --- respond: the five questions ------------------------------------------------------
 
-RESPOND_TAPS = ("exposure", "patches", "overdue", "audits", "credentials")
+RESPOND_TAPS = ("exposure", "patches", "overdue", "exceptions", "audits", "credentials")
 
 
 @dataclass
@@ -1127,6 +1132,26 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
                if row.subject("patch") is not None}
     for path, release in patch_release.items():
         releases.setdefault(path, release)
+    # RQ2's accepted risks: (asset, release) -> CVE -> the latest expiry of an active
+    # exception for it (the tap holds only approved, unexpired ones).
+    excepted: dict[tuple[str, str], dict[str, str]] = {}
+    for row in rows["exceptions"]:
+        asset, release, cve = row.subject("asset"), row.subject("release"), row.value("cve_id")
+        expires = row.value("expires_at")
+        if asset is None or release is None or not isinstance(cve, str) or not isinstance(
+                expires, str):
+            continue
+        held_until = excepted.setdefault((asset.path, release.path), {})
+        held_until[cve] = max(held_until.get(cve, expires), expires)
+
+    def excepted_until(key: tuple[str, str]) -> str | None:
+        """The expiry until which every incident CVE of the exposure is excepted, if any."""
+
+        held_until = excepted.get(key, {})
+        cves = releases[key[1]].cves
+        if not cves or not cves <= set(held_until):
+            return None
+        return min(held_until[cve] for cve in cves)
 
     # RQ1.
     for asset_path, release_path in sorted(runs):
@@ -1178,7 +1203,12 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
         found = {"asset": asset.hostname, "release": release.label,
                  "internet_exposed": asset.internet_exposed}
         candidates = sorted(by_exposure.get(key, ()), key=lambda p: p.bound.path)
+        until = excepted_until(key) if exposed else None
         if not candidates:
+            if until is not None:
+                out.answer("RQ2", subject, "excepted", f"no patch; a risk exception holds "
+                           f"until {until}")
+                continue
             out.answer("RQ2", subject, "found", "no patch", {
                 "kind": "patch_missing", **found, "cves": sorted(release.cves)})
             continue
@@ -1190,6 +1220,9 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
         elif exposed and patch.verification == "verified":
             out.answer("RQ2", subject, "found", "running again after it was verified", {
                 "kind": "patch_regressed", **found, "patch": ref})
+        elif exposed and patch.bound.path in overdue and until is not None:
+            out.answer("RQ2", subject, "excepted", f"past due; a risk exception holds until "
+                       f"{until}")
         elif exposed and patch.bound.path in overdue:
             out.answer("RQ2", subject, "found", "past due", {
                 "kind": "patch_overdue", **found, "patch": ref, "due_at": patch.due_at})
@@ -1318,7 +1351,7 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
             if path in running[asset_path].services and not by_exposure.get(
                     (asset_path, release_path)):
                 states.add("found")
-        patch_state[path] = ("open" if states & {"found", "unknown", "pending"}
+        patch_state[path] = ("open" if states & {"found", "unknown", "pending", "excepted"}
                              else "verified" if states else "none_recorded")
     for path, credential in sorted(credentials.items(), key=lambda item: item[1].label):
         why = sorted(credential.services & warranted)
@@ -1359,7 +1392,8 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
             out.answer("RQ4", credential.label, "pending", "rotation approved, in progress")
 
     # RQ5.
-    blocking = [a for a in out.answers if a["state"] in ("found", "unknown", "pending")
+    blocking = [a for a in out.answers if a["state"] in ("found", "unknown", "pending",
+                                                         "excepted")
                 and not (a["question"] == "RQ3" and a["state"] in ("found", "unknown"))]
     if not blocking and out.answers:
         residue = sorted({a["subject"] for a in out.answers

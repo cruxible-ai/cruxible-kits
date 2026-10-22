@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "The incident status page: per CVE, every patch raised for an exposed asset, with the asset, its service and inventory coverage, the patch's progress and verification, the service's audit result, and each credential the service uses with its rotation's verification. Empty is unknown; none needs the respond Line's answer. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "The incident status page: per CVE, every patch raised for an exposed asset, and every exception accepting the risk until it expires (excepted_until), with the asset, its service and inventory coverage, the patch's progress and verification, the service's audit result, and each credential the service uses with its rotation's verification. Empty is unknown; none needs the respond Line's answer. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "incident",
     "subject_id": null,
@@ -162,6 +162,22 @@
       }
     },
     {
+      "artifact_digest": "sha256:50a489ce0116180bd1ea088ce3a791521a3a0179c61646fd784189d11ae1a644",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.exception.approval"
+      }
+    },
+    {
+      "artifact_digest": "sha256:12174a74ba83dcd47fe896a5ea8d6c6109ec657682f1f4249907fddc7c93c9c0",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.exception.expires_at"
+      }
+    },
+    {
       "artifact_digest": "sha256:5f6eed77486406c3935556c70ca39f086122298729de18016d04e5b3c3566f6f",
       "role": "claim-type",
       "target": {
@@ -277,6 +293,16 @@
         }
       },
       {
+        "name": "excepted_until",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "work",
+          "kind": "claim_value",
+          "predicate": "security.exception.expires_at",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
         "name": "exposure",
         "tag": "playbill-query-projection-field-v1",
         "value": {
@@ -300,7 +326,7 @@
         "name": "patch",
         "tag": "playbill-query-projection-field-v1",
         "value": {
-          "binding": "patch",
+          "binding": "work",
           "kind": "claim_value",
           "predicate": "security.remediation.progress",
           "tag": "playbill-query-claim-value-ref-v1"
@@ -310,7 +336,7 @@
         "name": "patch_verified",
         "tag": "playbill-query-projection-field-v1",
         "value": {
-          "binding": "patch",
+          "binding": "work",
           "kind": "claim_value",
           "predicate": "security.work.verification",
           "tag": "playbill-query-claim-value-ref-v1"
@@ -419,21 +445,83 @@
       "where": null
     },
     {
-      "binding": "patch",
+      "binding": "work",
       "direction": "reverse",
       "from_binding": "assessment",
       "predicate": "security.work.assessment",
       "required": true,
       "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
+        "security.exception",
         "security.remediation"
       ],
-      "where": null
+      "where": {
+        "filters": [
+          {
+            "filters": [
+              {
+                "kind": "comparison",
+                "left": {
+                  "binding": "work",
+                  "kind": "claim_value",
+                  "predicate": "security.exception.approval",
+                  "tag": "playbill-query-claim-value-ref-v1"
+                },
+                "operator": "eq",
+                "right": {
+                  "kind": "literal",
+                  "tag": "playbill-query-literal-ref-v1",
+                  "value": "approved"
+                },
+                "tag": "playbill-query-comparison-filter-v1",
+                "value_type": "string"
+              },
+              {
+                "kind": "comparison",
+                "left": {
+                  "binding": "work",
+                  "kind": "claim_value",
+                  "predicate": "security.exception.expires_at",
+                  "tag": "playbill-query-claim-value-ref-v1"
+                },
+                "operator": "gt",
+                "right": {
+                  "kind": "evaluation_time",
+                  "tag": "playbill-query-evaluation-time-ref-v1"
+                },
+                "tag": "playbill-query-comparison-filter-v1",
+                "value_type": "timestamp"
+              }
+            ],
+            "kind": "all_of",
+            "tag": "playbill-query-conjunction-filter-v1"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "work",
+              "field": "subject_kind",
+              "kind": "subject_field",
+              "tag": "playbill-query-subject-field-ref-v1"
+            },
+            "operator": "eq",
+            "right": {
+              "kind": "literal",
+              "tag": "playbill-query-literal-ref-v1",
+              "value": "security.remediation"
+            },
+            "tag": "playbill-query-comparison-filter-v1",
+            "value_type": "string"
+          }
+        ],
+        "kind": "any_of",
+        "tag": "playbill-query-disjunction-filter-v1"
+      }
     },
     {
       "binding": "asset",
       "direction": "forward",
-      "from_binding": "patch",
+      "from_binding": "work",
       "predicate": "security.work.asset",
       "required": true,
       "tag": "playbill-query-traversal-step-v1",

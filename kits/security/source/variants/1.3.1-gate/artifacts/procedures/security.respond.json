@@ -28,7 +28,7 @@
         "name": "security-respond-summary"
       }
     },
-    "description": "Ask one incident's five questions (parameter incident, its name) and answer each in three states: found (posted), none (run summary only) or unknown (posted as a gap naming the pull or statement that would answer it). RQ1 which deployments run an affected release; RQ2 is each exposure patched (missing, overdue, disputed; none only when a full scan verified it); RQ3 were we exploited in the window, per service (none only for not_exploited with complete reads of every stated log source covering the window); RQ4 which credentials warrant rotation (posted with the audit and patch state; rotating after a verified patch is the recommended order, the agent's call), and is each rotation verified by a separate state read; RQ5 can the incident close (ready_to_close, with any unknown audit as accepted residue). A closed incident posts nothing. Observe-only. Runs as a Line (parameters incident, inventory_pull, log_pull, credential_pull, record_pull): daily, on a landing, after a window closes, or line run.",
+    "description": "Ask one incident's five questions (parameter incident, its name) and answer each in three states: found (posted), none (run summary only) or unknown (posted as a gap naming the pull or statement that would answer it). RQ1 which deployments run an affected release; RQ2 is each exposure patched (missing, overdue, disputed; none only when a full scan verified it; excepted while an approved exception for each of its CVEs has not expired, then missing again); RQ3 were we exploited in the window, per service (none only for not_exploited with complete reads of every stated log source covering the window); RQ4 which credentials warrant rotation (posted with the audit and patch state; rotating after a verified patch is the recommended order, the agent's call), and is each rotation verified by a separate state read; RQ5 can the incident close (ready_to_close, with any unknown audit as accepted residue). A closed incident posts nothing. Observe-only. Runs as a Line (parameters incident, inventory_pull, log_pull, credential_pull, record_pull): daily, on a landing, after a window closes, or line run.",
     "graph_format": 6,
     "hard_caps": {
       "max_capture_bytes": 1048576,
@@ -86,7 +86,7 @@
         "as": "overdue",
         "budgets": null,
         "kind": "state_tap",
-        "next": "audits",
+        "next": "exceptions",
         "node_id": "overdue",
         "parameters": {
           "incident": "$input.incident"
@@ -97,6 +97,25 @@
           "target": {
             "kind": "QueryDefinition",
             "name": "security.overdue_patches"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "exceptions",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "audits",
+        "node_id": "exceptions",
+        "parameters": {
+          "incident": "$input.incident"
+        },
+        "query": {
+          "artifact_digest": "sha256:270a9644163513b4ac4644bc1c32cd6fb23334194b06626ed1a3c34c22159a3f",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.incident_exceptions"
           }
         },
         "view": "typed_query"
@@ -142,7 +161,7 @@
       {
         "as": "classify",
         "contract_in": {
-          "artifact_digest": "sha256:20559bb54896559a76c59f32c882f65fe1d6e3e32d00711001a1b532bcefc4ba",
+          "artifact_digest": "sha256:f5c431c6f9f02baea26541c843fb28d15ccf336ab97bc37c47cfe0a27bf136ba",
           "role": "contract-in",
           "target": {
             "kind": "Contract",
@@ -158,10 +177,11 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:b964e4d6d645c1581ba27439e77a26878a45dcc7a200951fbfbd97096b99f542",
+        "implementation_digest": "sha256:a377b9cbe73defe32d1422544b67549fdeeeea280cdbb915edacf52b7b359b04",
         "input": {
           "audits": "$steps.audits.result.rows",
           "credentials": "$steps.credentials.result.rows",
+          "exceptions": "$steps.exceptions.result.rows",
           "exposure": "$steps.exposure.result.rows",
           "overdue": "$steps.overdue.result.rows",
           "params": "$input",
@@ -169,29 +189,30 @@
           "truncated": {
             "audits": "$steps.audits.truncated",
             "credentials": "$steps.credentials.truncated",
+            "exceptions": "$steps.exceptions.truncated",
             "exposure": "$steps.exposure.truncated",
             "overdue": "$steps.overdue.truncated",
             "patches": "$steps.patches.truncated"
           }
         },
         "interface": {
-          "artifact_digest": "sha256:e57ba512de5bf0fc8a46e30cf07e5b31faf0a4c42dae07229a1c3eb3b3e132e1",
+          "artifact_digest": "sha256:4c82bda1adfdaaaf2d73645224abd88ec494052d2ba4fc8a614213df14fb152a",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.respond/192d27d044efceffb9c1ea85fde7c578de355aec709d65255ac43f2d4229cc85"
+            "name": "security.respond/8ccfb4b48b4474c76e16412e97c4d41da7f8c5c88d5c1a023a1fad355470a36b"
           }
         },
-        "interface_digest": "sha256:842bb8a78f6da6837e15fb4d3a7ea76af7fa1c9130670eb17b33597d261290ea",
+        "interface_digest": "sha256:29a8b27c5b252037895ed2d5fb181c2d570a707f4a0ef8e9320864cfb51ee9dd",
         "kind": "call",
         "next": "summary",
         "node_id": "classify",
         "provider": {
-          "artifact_digest": "sha256:dac9fc4c760d5d11add99216614c7479d7409edc51a0e52ee89c5d58f219803e",
+          "artifact_digest": "sha256:6397b10327bc588090bc910ae56f4ec6aa010ffad1b06a9b426288e94ebffec6",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/9405254d553189dd1d36fc2bef10eef772a4cc466dca05ff7fc7b7425ba4b1fd"
+            "name": "security-analysis-provider/fb43c55050c12040b02ed24ca5c498ee2f50c90b2bce5a269918f0c4f61d8fbd"
           }
         }
       },
@@ -274,7 +295,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:5d3b0b7e974f9691de7a66ae5d57e161e66629dcfdfe457ffc121c63fa1247d0",
+  "definition_digest": "sha256:fccc31e7928f49248df352ed9d7116ed4cc099fbb2a2e608052b6b71b620da15",
   "identity": {
     "kind": "Procedure",
     "name": "security.respond"
@@ -373,6 +394,17 @@
             "type": "json"
           },
           "credentials": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "exceptions": {
             "default": null,
             "description": null,
             "enum": null,
@@ -666,7 +698,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:20559bb54896559a76c59f32c882f65fe1d6e3e32d00711001a1b532bcefc4ba",
+      "artifact_digest": "sha256:f5c431c6f9f02baea26541c843fb28d15ccf336ab97bc37c47cfe0a27bf136ba",
       "role": "contract-in",
       "target": {
         "kind": "Contract",
@@ -690,19 +722,19 @@
       }
     },
     {
-      "artifact_digest": "sha256:dac9fc4c760d5d11add99216614c7479d7409edc51a0e52ee89c5d58f219803e",
+      "artifact_digest": "sha256:6397b10327bc588090bc910ae56f4ec6aa010ffad1b06a9b426288e94ebffec6",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/9405254d553189dd1d36fc2bef10eef772a4cc466dca05ff7fc7b7425ba4b1fd"
+        "name": "security-analysis-provider/fb43c55050c12040b02ed24ca5c498ee2f50c90b2bce5a269918f0c4f61d8fbd"
       }
     },
     {
-      "artifact_digest": "sha256:e57ba512de5bf0fc8a46e30cf07e5b31faf0a4c42dae07229a1c3eb3b3e132e1",
+      "artifact_digest": "sha256:4c82bda1adfdaaaf2d73645224abd88ec494052d2ba4fc8a614213df14fb152a",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "security.respond/192d27d044efceffb9c1ea85fde7c578de355aec709d65255ac43f2d4229cc85"
+        "name": "security.respond/8ccfb4b48b4474c76e16412e97c4d41da7f8c5c88d5c1a023a1fad355470a36b"
       }
     },
     {
@@ -719,6 +751,14 @@
       "target": {
         "kind": "QueryDefinition",
         "name": "security.incident_credentials"
+      }
+    },
+    {
+      "artifact_digest": "sha256:270a9644163513b4ac4644bc1c32cd6fb23334194b06626ed1a3c34c22159a3f",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.incident_exceptions"
       }
     },
     {

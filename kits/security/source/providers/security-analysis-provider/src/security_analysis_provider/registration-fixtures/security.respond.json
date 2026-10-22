@@ -3,6 +3,7 @@
     "canonical_input": {
       "audits": [],
       "credentials": [],
+      "exceptions": [],
       "exposure": [],
       "overdue": [],
       "params": {},

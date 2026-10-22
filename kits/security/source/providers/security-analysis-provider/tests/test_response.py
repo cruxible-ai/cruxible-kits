@@ -464,8 +464,8 @@ def _cred(service: str, label: tuple[str, str], *, rotation: dict[str, Any] | No
 
 
 def _ask(**taps: list[dict[str, Any]]) -> dict[str, Any]:
-    payload = {name: taps.get(name, []) for name in ("exposure", "patches", "overdue", "audits",
-                                                     "credentials")}
+    payload = {name: taps.get(name, []) for name in ("exposure", "patches", "overdue",
+                                                     "exceptions", "audits", "credentials")}
     return respond({**payload, "params": {"incident": "PHP2Shell"}, "truncated": {}})
 
 
@@ -539,6 +539,50 @@ def test_rq2_patch_states_from_the_scan_never_from_the_claim() -> None:
             field.update(state="absent", value=None)
     stale_result = _ask(patches=[stale])
     assert _by(stale_result, "RQ2")["k8s:prod/storefront-a: php 8.3.10"]["state"] == "unknown"
+
+
+def _exception(asset: str, release: tuple[str, str], cve: str, expires_at: str
+               ) -> dict[str, Any]:
+    """A row of security.incident_exceptions: approved and unexpired at evaluation time."""
+
+    return _row({"incident": INCIDENT, "assessment": ("security.assessment", f"{release[1]}--{cve}"),
+                 "release": release, "exception": ("security.exception", f"exc-{cve}"),
+                 "asset": ("security.asset", asset.replace("/", "-").replace(":", "-"))},
+                **{**INCIDENT_FIELDS, "cve_id": cve, "hostname": asset,
+                   "expires_at": expires_at})
+
+
+def test_an_active_exception_holds_rq2_until_it_expires() -> None:
+    host = "app-1.acme.internal"
+    exposures = [_exposure(DEB, ("php8.2", "8.2.20-1~deb12u1"), asset=host,
+                           service="partner-portal")]
+    second = _exposure(DEB, ("php8.2", "8.2.20-1~deb12u1"), asset=host, service="partner-portal")
+    for item in second["fields"]:
+        if item["name"] == "cve_id":
+            item["value"] = "CVE-2026-109619"
+    exposures.append(second)
+    subject = f"{host}: php8.2 8.2.20-1~deb12u1"
+    both = [_exception(host, DEB, cve, "2026-11-01T00:00:00Z")
+            for cve in ("CVE-2026-109618", "CVE-2026-109619")]
+    # Every one of the release's incident CVEs excepted: excepted, nothing posted for RQ2.
+    held = _ask(exposure=exposures, exceptions=both)
+    assert _by(held, "RQ2")[subject]["state"] == "excepted"
+    assert "2026-11-01T00:00:00Z" in _by(held, "RQ2")[subject]["why"]
+    assert not _posted(held, "patch_missing") and held["ready_to_close"] == 0
+    # One CVE left out, or the exception expired (the tap drops it): patch_missing again.
+    for exceptions in (both[:1], []):
+        missing = _ask(exposure=exposures, exceptions=exceptions)
+        assert _by(missing, "RQ2")[subject]["state"] == "found"
+        assert len(_posted(missing, "patch_missing")) == 1
+    # An overdue patch under the exception is excepted too; a disputed one is not.
+    patch = _patch("rem-a", host, "partner-portal", DEB, ("php8.2", "8.2.20-1~deb12u1"),
+                   progress="planned", due_at="2026-10-18T00:00:00Z")
+    overdue = _ask(exposure=exposures, patches=[patch], overdue=[patch], exceptions=both)
+    assert _by(overdue, "RQ2")[subject]["state"] == "excepted"
+    failed = _patch("rem-a", host, "partner-portal", DEB, ("php8.2", "8.2.20-1~deb12u1"),
+                    progress="completed", verification="failed")
+    disputed = _ask(exposure=exposures, patches=[failed], exceptions=both)
+    assert len(_posted(disputed, "patch_disputed")) == 1
 
 
 def test_the_window_is_unioned_per_source() -> None:
@@ -658,8 +702,9 @@ def test_payloads_are_stable_so_a_resighting_dedupes() -> None:
 
 
 def test_a_truncated_tap_is_refused() -> None:
-    output = _context(Respond(), {"exposure": [], "patches": [], "overdue": [], "audits": [],
-                                  "credentials": [], "params": {},
+    output = _context(Respond(), {"exposure": [], "patches": [], "overdue": [],
+                                  "exceptions": [], "audits": [], "credentials": [],
+                                  "params": {},
                                   "truncated": {"exposure": True}})
     assert output.status == "refused"
 
