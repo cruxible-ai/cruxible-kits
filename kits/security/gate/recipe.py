@@ -31,6 +31,8 @@ LINES: dict[str, tuple[str, str, str | None]] = {
     "security.harden": ("security.harden", "observe", None),
     "security.sarif-import.cruxible": ("security.sarif-import", "propose", "sarif"),
     "security.sarif-attention.cruxible": ("security.sarif-attention", "observe", "sarif"),
+    "security.inventory-import.prod": ("security.inventory-import", "propose", "inventory"),
+    "security.credential-import": ("security.credential-import", "propose", "credential"),
 }
 #: Lines the gate drives by hand (`line run`) instead of their clock: its runs must
 #: not race a tick.
@@ -60,6 +62,12 @@ MANDATES: dict[str, tuple[list[str], int, int, int, int]] = {
     "security.sarif-import": (
         ["claims", "subjects/security.finding", "subjects/security.repo"], 300, 2, 16_777_216,
         5000),
+    "security.inventory-import": (
+        ["claims", "subjects/security.asset", "subjects/security.coverage",
+         "subjects/security.release"], 300, 2, 1_048_576, 5000),
+    "security.log-import": (["claims"], 120, 2, 1_048_576, 100),
+    "security.credential-import": (
+        ["claims", "subjects/security.credential"], 120, 2, 1_048_576, 500),
 }
 KEV_FIELDS = ("kev_date_added", "kev_due_date", "kev_listed", "kev_ransomware_use")
 EPSS_FIELDS = ("epss_percentile", "epss_score")

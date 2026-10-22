@@ -3,7 +3,7 @@
     python edit_kev_exposure.py MAX_RESULTS
 
 Authored through the SDK as a successor of the live QueryDefinition; the submit
-lands it when policy allows. The gate uses it to give the 1.2.1 upgrade an edit to overwrite.
+lands it when policy allows. The gate uses it to give the 1.3.1 upgrade an edit to overwrite.
 """
 
 from __future__ import annotations

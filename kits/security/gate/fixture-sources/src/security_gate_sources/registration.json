@@ -31,7 +31,7 @@
         "entrypoint": "security_gate_sources._sources:classify_osv",
         "identity": "security.osv-query.input",
         "source": {
-          "digest": "sha256:acfb79e3db6577259d5a9b26ac2c952cb7c25a2e9219922425cb989dd4715fcb",
+          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
           "path": "_sources.py"
         },
         "version": 1
@@ -57,7 +57,7 @@
         "entrypoint": "security_gate_sources._sources:classify_epss",
         "identity": "security.epss-daily.input",
         "source": {
-          "digest": "sha256:acfb79e3db6577259d5a9b26ac2c952cb7c25a2e9219922425cb989dd4715fcb",
+          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
           "path": "_sources.py"
         },
         "version": 1
@@ -83,7 +83,7 @@
         "entrypoint": "security_gate_sources._sources:classify_repo",
         "identity": "security.repo-snapshot.input",
         "source": {
-          "digest": "sha256:acfb79e3db6577259d5a9b26ac2c952cb7c25a2e9219922425cb989dd4715fcb",
+          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
           "path": "_sources.py"
         },
         "version": 1
@@ -109,7 +109,7 @@
         "entrypoint": "security_gate_sources._sources:classify_pypi",
         "identity": "security.pypi-release.input",
         "source": {
-          "digest": "sha256:acfb79e3db6577259d5a9b26ac2c952cb7c25a2e9219922425cb989dd4715fcb",
+          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
           "path": "_sources.py"
         },
         "version": 1
@@ -135,7 +135,7 @@
         "entrypoint": "security_gate_sources._sources:classify_asset",
         "identity": "security.release-asset.input",
         "source": {
-          "digest": "sha256:acfb79e3db6577259d5a9b26ac2c952cb7c25a2e9219922425cb989dd4715fcb",
+          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
           "path": "_sources.py"
         },
         "version": 1
@@ -158,7 +158,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:326888dfbbf2f33fcd8ae060a4bbf6aa607489ed016f65cbcea014186c619db2",
+    "digest": "sha256:0be7c71e6cdf5f82f1de95ca4f88e91c45b7165bcdae742dfaeb1e5bf7522514",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

@@ -823,7 +823,7 @@ wheels = [
 
 [[package]]
 name = "security-gate-sources"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "." }
 dependencies = [
     { name = "cruxible-provider-runtime" },

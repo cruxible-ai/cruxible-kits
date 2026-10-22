@@ -16,10 +16,11 @@ Needs ``cruxible`` (the daemon and CLI under test; ``CRUXIBLE_BIN``, else the
 one beside this interpreter, else ``PATH``), this interpreter with
 ``cruxible_client``, ``git`` and ``openssl``. Tests run in file order and share
 one gate; a scratch root is kept for inspection when ``SECURITY_KIT_GATE_ROOT``
-names it. The gate starts on 1.2.0 and upgrades to the 1.2.1 gate variant with a
+names it. The gate starts on 1.3.0 and upgrades to the 1.3.1 gate variant with a
 changed bundled analysis Provider build and live consumer automation, then runs
-the system model's scenarios (steps 21-27) and the code findings' (steps 28-34,
-under independent approval with five principals) on the upgraded instance.
+the system model's scenarios (steps 21-27), the code findings' (steps 28-34,
+under independent approval with five principals) and an incident response
+(steps 35-42, PHP2Shell: patch, audit, rotate) on the upgraded instance.
 ``SECURITY_KIT_GATE_CADENCE`` (seconds, default 30) sets the gate
 cadence Trigger. Results are written to ``<root>/gate-results.md``.
 """
@@ -51,7 +52,7 @@ import recipe  # noqa: E402
 
 KIT = HERE.parent
 RELEASE_1_0 = KIT
-RELEASE_1_1 = KIT / "source" / "variants" / "1.2.1-gate"
+RELEASE_1_1 = KIT / "source" / "variants" / "1.3.1-gate"
 VERSION = json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())["version"]
 UPGRADE_VERSION = json.loads((RELEASE_1_1 / "cruxible-kit.json").read_text())["version"]
 FIXTURE = HERE / "fixture-sources"
@@ -101,6 +102,14 @@ STEPS = {
     "32": "(c) confirm: PoC backs confirmed; finder cannot confirm its own; dispute resolves",
     "33": "(d) remediate: work.finding; HQ6 posts the confirmed finding the release serves",
     "34": "(e) fix: the citation drifts; a full re-scan verifies fixed; HQ6 clears; regression",
+    "35": "G14 G1: a Syft SBOM and the scope's scan land runs; re-scan no_change; KEV lists it",
+    "36": "G2: CVE ranges decide upstream php, OSV the Debian build; incident declared; G1 RQ1",
+    "37": "G3 G4 G5: patches close only on a scan; a claim waits; the scan disagrees; unchanged",
+    "38": "G2 G6: 8.3.36 not_affected, OSV decides the fixed Debian build; stale coverage unknown",
+    "39": "G7 G9: audit three states with the uncovered interval named; own words refused",
+    "40": "G8: a contended result is conflict, RQ3 unknown, RQ4 raises its rotation",
+    "41": "G10 G11 G12: receipts never verify, state reads do; secret refused; window re-asks",
+    "42": "G13: ready_to_close with residue; closed; status page rendered; next empty",
 }
 
 
@@ -429,9 +438,9 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 14, "ClaimType": 103, "Procedure": 14,
-              "ProviderInterface": 16, "QueryDefinition": 34, "SourceAcquisitionPolicy": 1,
-              "SubjectKind": 20}
+KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 17, "ClaimType": 131, "Procedure": 21,
+              "ProviderInterface": 20, "QueryDefinition": 44, "SourceAcquisitionPolicy": 1,
+              "SubjectKind": 23}
 
 
 def test_02_kit_add(gate: Gate) -> None:
@@ -686,10 +695,14 @@ def test_08_osv_applicability(gate: Gate) -> None:
     statuses = gate.claims("security.assessment", "security.assessment.status")
     evidence = gate.out("get", statuses[assessment][1], "--detail", "evidence")
     assert "CaptureContract:security.osv-query-v1" in evidence, evidence
+    # Which dependency brings it in: the assessment names the component OSV listed.
+    urgent = {_field(r, "cve_id"): r for r in gate.rows("security.urgent_exposures")}
+    assert "pkg:pypi/jinja2@3.1.3" in json.dumps(_field(urgent[JINJA], "component")), urgent
     rerun, rerun_out = gate.run_line("security.osv-applicability")
     assert ": halted" in rerun_out or "no_change" in rerun_out, rerun_out
     affected = sum(1 for (r, _), (s, _) in held.items() if r == app and s == "affected")
     record("08", f"OSV proposal accepted: {affected} affected for {app} (CVEs watched by key), "
+           f"(component named on urgent_exposures), "
            f"{REQUESTS_FIXED} not_affected/vulnerable_code_not_present, {STRUTS} (no "
            "struts2-core component) not assessed; evidence cites the OSV Capture; re-run "
            "no_change")
@@ -2286,3 +2299,858 @@ def test_34_fix_and_verify(gate: Gate) -> None:
            "fixed_by + the location retired superseded cleared the drift row; unverified_fixes "
            "and HQ6 clear; the vulnerable log again proposed present and posted a regression; "
            f"finder record upheld/overturned {precision}")
+
+
+# --- incident response: PHP2Shell, patch, audit, rotate --------------------------------
+# The design's roles on the gate's five principals: responder = triage, the actor (ops)
+# = maintainer, scanner = scanner, auditor = auditor, the security lead = reviewer.
+
+INCIDENT_DATA = (KIT / "source" / "providers" / "security-analysis-provider" / "tests" /
+                 "data" / "incident")
+RESPONDER, OPS, SCANNER, AUDITOR, LEAD = "triage", "maintainer", "scanner", "auditor", "reviewer"
+PHP2SHELL = ("CVE-2026-109618", "CVE-2026-109619")
+INCIDENT_NAME = "PHP2Shell"
+WINDOW_START, WINDOW_END = "2026-09-01T00:00:00Z", "2026-10-17T00:00:00Z"
+RESPOND = "security.respond.php2shell"
+LOG_IMPORT = "security.log-import.php2shell"
+PROD, OPS_SCOPE = "security.inventory-import.prod", "security.inventory-import.ops"
+CREDENTIAL_IMPORT = "security.credential-import"
+HOSTS = {"storefront-a": "k8s:prod/storefront-a", "storefront-b": "k8s:prod/storefront-b",
+         "app-1": "app-1.acme.internal", "wiki-1": "wiki-1.ops.acme.internal"}
+CREDENTIALS = {"aws": ("aws-iam/111122223333", "storefront-app", "storefront"),
+               "stripe": ("stripe", "storefront-live", "storefront"),
+               "postgres": ("postgres/partners-db", "portal", "partner-portal"),
+               "github": ("github/acme-ops", "wiki-deploy", "ops-wiki")}
+
+
+def _incident_ready(gate: Gate) -> None:
+    """The owner's settings and the principals (also when steps 35-42 run alone on a kept
+    root, after steps 01-34)."""
+
+    here = {key: gate.env[key] for key in (
+        "CRUXIBLE_STATE_ROOT", "CRUXIBLE_SERVER_SOCKET", "CRUXIBLE_ARTIFACT_CACHE")}
+    if not any(key.startswith("CRUXIBLE_") and key not in here for key in gate.env):
+        gate.load_settings()  # a kept root: its settings name the old run's socket
+        gate.env.update(here)
+    if not gate.principals:
+        _principals(gate)
+        for env in gate.principals.values():
+            env.update(here)
+
+
+def _find(value: Any, key: str) -> Any:
+    if isinstance(value, dict):
+        if value.get(key):
+            return value[key]
+        for child in value.values():
+            if (found := _find(child, key)) is not None:
+                return found
+    if isinstance(value, list):
+        for child in value:
+            if (found := _find(child, key)) is not None:
+                return found
+    return None
+
+
+def _submit_as(gate: Gate, who: str, label: str, payload: dict[str, Any],
+               approver: str) -> dict[str, Any]:
+    """An authored ChangeSet by ``who``; under independent approval ``approver`` signs."""
+
+    result = json.loads(gate.out("authoring", "submit", gate.payload(label, payload), who=who))
+    if (result.get("outcome") or {}).get("status") != "landed":
+        proposal = _find(result, "proposal_id")
+        assert proposal, json.dumps(result)[-1500:]
+        _approve(gate, proposal, approver)
+    return result
+
+
+def _incident_file(gate: Gate, fixture: str, relative: str) -> str:
+    target = gate.ws / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(INCIDENT_DATA / fixture, target)
+    return relative
+
+
+def _land(gate: Gate, procedure: str, alias: str, fixture: str, relative: str, who: str,
+          lines: tuple[str, ...]) -> tuple[str, str, dict[str, dict[str, Any]]]:
+    """Acquire one workspace file as ``who``; wait for the Lines its landing runs."""
+
+    before = {line: {r["run"] for r in gate.runs(line)} for line in lines}
+    _incident_file(gate, fixture, relative)
+    out = gate.out("procedure", "run", procedure, gate.payload(
+        f"{alias}-{fixture}-{len(gate.values.setdefault('landings', []))}",
+        {"relative_path": relative}), who=who)
+    gate.values["landings"].append(fixture)
+    assert ": succeeded" in out, out[-1500:]
+    run = re.search(r"(RUN-[0-9a-f]+)", out)
+    assert run, out[-800:]
+    return _capture(out, alias), run.group(1), {
+        line: _wait_for_run(gate, line, before[line], 240) for line in lines}
+
+
+def _proposal(gate: Gate, run: dict[str, Any]) -> str | None:
+    assert run["status"] in {"succeeded", "halted"}, gate.out("get", run["run"])[-1500:]
+    egress = gate.egress(run["run"]) if run["status"] == "succeeded" else {}
+    return egress.get("proposal_id")
+
+
+def _respond(gate: Gate) -> dict[str, Any]:
+    """Run the incident's respond Line; its summary (every answer) is the run's result."""
+
+    out = ""
+    for _attempt in range(12):  # a window-close run of the same Line may be in flight
+        result = gate.cx("line", "run", RESPOND, check=False)
+        out = result.stdout + result.stderr
+        if result.returncode == 0 and (": succeeded" in out or ": halted" in out):
+            break
+        time.sleep(5)
+    assert ": succeeded" in out or ": halted" in out, out[-1500:]
+    run = re.search(r"(RUN-[0-9a-f]+)", out).group(1)  # type: ignore[union-attr]
+    found = re.search(r"^Result: (\{.*\})$", out, re.M)
+    if found:
+        return dict(json.loads(found.group(1)))
+    result = gate.card(run).get("result")
+    if isinstance(result, dict):
+        return dict(result)
+    assert ": halted" in out, out[-1500:]
+    return {"halted": True}
+
+
+def _states(summary: dict[str, Any], question: str) -> dict[str, str]:
+    return {a["subject"]: a["state"] for a in summary["answers"] if a["question"] == question}
+
+
+def _respond_posts(gate: Gate, kind: str | None = None,
+                   status: str = "unread") -> list[dict[str, Any]]:
+    """The respond Line's inbox payloads (``kind`` only), with their item ids."""
+
+    found = []
+    for entry in gate.json("inbox", "list", "--line", RESPOND, "--status", status)["entries"]:
+        item = gate.json("inbox", "get", entry["item"]["item_id"])
+        body = next((v for v in _walk(item) if isinstance(v, dict)
+                     and v.get("incident") == INCIDENT_NAME and "kind" in v), {})
+        if kind is None or body.get("kind") == kind:
+            found.append({"item_id": entry["item"]["item_id"], "payload": body})
+    return found
+
+
+def _walk(value: Any) -> Iterator[Any]:
+    yield value
+    if isinstance(value, dict):
+        for child in value.values():
+            yield from _walk(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk(child)
+
+
+def _ack_all(gate: Gate) -> None:
+    for item in _inbox(gate, "--status", "unread"):
+        gate.out("inbox", "ack", item["item_id"])
+
+
+def _key_of(kind: str, **key: str) -> list[dict[str, str]]:
+    return [{"predicate": f"{kind}.{name}", "value": value} for name, value in key.items()]
+
+
+def _write_created(gate: Gate, who: str, label: str, payload: dict[str, Any],
+                   approver: str) -> dict[str, str]:
+    """A write by ``who`` that ``approver`` signs; label -> kind/id of each Subject it
+    creates (the outcome's changes answer the request's changes in order)."""
+
+    outcome = _write_as(gate, who, label, payload, approver=approver)
+    created = {}
+    for change, answer in zip(payload["changes"], outcome.get("changes") or (), strict=False):
+        if change.get("op") == "create" and change.get("label") and answer.get("subject"):
+            subject = str(answer["subject"])
+            if "/" not in subject:
+                subject = f"{change['subject_kind']}/{subject}"
+            created[change["label"]] = subject
+    assert all(c.get("label") in created for c in payload["changes"] if c["op"] == "create"), (
+        json.dumps(outcome)[-1500:])
+    return created
+
+
+def _assessment(gate: Gate, release_id: str, cve: str) -> str:
+    _assessments(gate)
+    return str(gate.values["assessment_ids"][(release_id, cve)])
+
+
+def _release_id(gate: Gate, product: str, version: str) -> str:
+    for row in gate.rows("security.release_inventory"):
+        if _field(row, "product_name") == product and _field(row, "version") == version:
+            return str(row["subject_id"])
+    raise AssertionError(f"no release {product} {version}")
+
+
+def test_35_inventory_and_listing(gate: Gate) -> None:
+    _incident_ready(gate)
+    _ack_all(gate)
+    # What the responder knows: the services, the workloads that serve them, what wiki-1
+    # declares, and where each credential is used (own words; the lead approves).
+    services = {name: f"svc-{name}" for name in ("storefront", "partner-portal", "ops-wiki")}
+    changes: list[dict[str, Any]] = []
+    for name, label in services.items():
+        changes.append({"op": "create", "label": label, "subject_kind": "security.service",
+                        "key": _key_of("security.service", name=name)})
+    serves = {"storefront-a": "storefront", "storefront-b": "storefront", "app-1": "partner-portal",
+              "wiki-1": "ops-wiki"}
+    for short, host in HOSTS.items():
+        changes += [
+            {"op": "create", "label": short, "subject_kind": "security.asset",
+             "key": _key_of("security.asset", hostname=host)},
+            {"op": "set", "subject": {"created": short}, "field": "security.asset.internet_exposed",
+             "value": short != "wiki-1"},
+            {"op": "add", "subject": {"created": short}, "field": "security.asset.serves",
+             "value": {"created": services[serves[short]]}}]
+    changes += [
+        {"op": "create", "label": "php-old", "subject_kind": "security.release",
+         "key": _key_of("security.release", product_name="php", version="8.3.10")},
+        {"op": "add", "subject": {"created": "wiki-1"}, "field": "security.asset.installs",
+         "value": {"created": "php-old"}}]
+    for short, (issuer, name, service) in CREDENTIALS.items():
+        changes += [
+            {"op": "create", "label": f"cred-{short}", "subject_kind": "security.credential",
+             "key": _key_of("security.credential", issuer=issuer, name=name)},
+            {"op": "add", "subject": {"created": f"cred-{short}"},
+             "field": "security.credential.used_by", "value": {"created": services[service]}}]
+    gate.values["incident_subjects"] = _write_created(gate, RESPONDER, "incident-context", {
+        "because": "Acme's services, the workloads and hosts serving them, and the credentials "
+                   "each uses (non-secret identities only).", "changes": changes}, LEAD)
+    # The scanner arms the inventory and credential imports: their proposals are its.
+    for line in (PROD, CREDENTIAL_IMPORT):
+        gate.out("line", "enable", line, who=SCANNER)
+    # G14: a Syft SBOM of one workload's image (annotated with its scope and asset).
+    _, sbom_run, runs = _land(gate, "security.inventory-acquire", "inventory",
+                              "storefront-a.syft.cdx.json", "inventory/storefront-a.cdx.json",
+                              SCANNER, (PROD,))
+    proposal = _proposal(gate, runs[PROD])
+    assert proposal, gate.out("get", runs[PROD]["run"])[-1500:]
+    review = gate.out("proposal", "review", proposal)
+    assert "pkg:generic/php@8.3.10" in review and "libc6" in review, review[-2000:]
+    refused = gate.cx("proposal", "approve", proposal, "--yes", who=SCANNER, check=False)
+    assert refused.returncode != 0 and "creator_forbidden" in refused.stdout + refused.stderr
+    _approve(gate, proposal, LEAD)
+    # The same image re-scanned: its own timestamp and serial, the same run set.
+    head = gate.json("orient")["coordinate"]["git_oid"]
+    _, _, again = _land(gate, "security.inventory-acquire", "inventory",
+                        "storefront-a.syft.rescan.cdx.json", "inventory/storefront-a.cdx.json",
+                        SCANNER, (PROD,))
+    assert again[PROD]["status"] == "halted" and "no_change" in gate.out("get",
+                                                                          again[PROD]["run"])
+    assert gate.json("orient")["coordinate"]["git_oid"] == head
+    # The scope's full scan (the kit body): the other two exposed deployments.
+    _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "prod-before.json",
+                       "inventory/prod.json", SCANNER, (PROD,))
+    proposal = _proposal(gate, runs[PROD])
+    assert proposal
+    _approve(gate, proposal, LEAD)
+    assert {HOSTS["storefront-a"], HOSTS["storefront-b"], HOSTS["app-1"]} <= {
+        _field(r, "hostname") for r in gate.rows("security.inventory_index", scope="prod")}
+    # KEV lists PHP2Shell: attention says inventory has php.
+    marker = gate.root / "security-gate-fixture.json"
+    held = json.loads(marker.read_text()) if marker.is_file() else {}
+    marker.write_text(json.dumps({**held, "kev": "known_exploited_vulnerabilities-2026-10-17.json"}))
+    seen = {r["run"] for r in gate.runs("security.kev-attention")}
+    gate.out("line", "run", "security.kev-daily")
+    _wait_for_run(gate, "security.kev-attention", seen, 180)
+    posted = [json.dumps(gate.json("inbox", "get", i["item_id"])) for i in _inbox(
+        gate, "--line", "security.kev-attention", "--status", "unread")]
+    listed = [body for body in posted if PHP2SHELL[0] in body and "inventory has php" in body]
+    assert listed, posted
+    actor = gate.card(sbom_run).get("actor")
+    assert actor and SCANNER in json.dumps(actor), gate.card(sbom_run)
+    gate.values["scanner_actor"] = actor
+    record("35", "a Syft SBOM of k8s:prod/storefront-a landed its runs (php 8.3.10 and its "
+           "Debian packages) proposed by the scanner (its own approval creator_forbidden); "
+           "the re-scanned image (new timestamp) halted no_change, head unchanged; the prod "
+           f"scope's full scan added storefront-b and app-1; KEV lists {PHP2SHELL[0]}: "
+           f"kev-attention posted 'inventory has php'; the acquiring run's actor is {actor}")
+
+
+def test_36_applicability_and_declaration(gate: Gate) -> None:
+    _incident_ready(gate)
+    for cve in PHP2SHELL:
+        before = {r["run"] for r in gate.runs("security.cve-applicability")}
+        out = gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
+            f"record-{cve}", {"url": f"https://cveawg.mitre.org/api/cve/{cve}"}), who=RESPONDER)
+        assert ": succeeded" in out, out[-1200:]
+        run = _wait_for_run(gate, "security.cve-applicability", before, 180)
+        proposal = _proposal(gate, run)
+        assert proposal, gate.out("get", run["run"])[-1500:]
+        review = gate.out("proposal", "review", proposal)
+        assert "php8.2" not in review, review[-2000:]  # the distro build is OSV's
+        _approve(gate, proposal, LEAD)
+    run, out = gate.run_line("security.osv-applicability")
+    proposal = gate.egress(run).get("proposal_id")
+    assert proposal, out[-1500:]
+    _approve(gate, proposal, LEAD)
+    held = _assessments(gate)
+    php = _release_id(gate, "php", "8.3.10")
+    debian = _release_id(gate, "php8.2", "8.2.20-1~deb12u1")
+    for cve in PHP2SHELL:
+        assert held[(php, cve)][0] == "affected", held
+        assert held[(debian, cve)][0] == "affected", held
+    statuses = gate.claims("security.assessment", "security.assessment.status")
+    evidence = gate.out("get", statuses[gate.values["assessment_ids"][(debian, PHP2SHELL[0])]][1],
+                        "--detail", "evidence")
+    assert "security.osv-query-v1" in evidence, evidence
+    gate.values.update(php_release=php, debian_release=debian)
+    # Declare the incident: its Claims, its respond and log-import Lines (README template).
+    incident = _write_created(gate, RESPONDER, "incident", {
+        "because": "One response to PHP2Shell (CVE-2026-109618, CVE-2026-109619): "
+                   "unauthenticated RCE in PHP, exploited in the wild.",
+        "changes": [
+            {"op": "create", "label": "incident", "subject_kind": "security.incident",
+             "key": _key_of("security.incident", name=INCIDENT_NAME)},
+            {"op": "set", "subject": {"created": "incident"},
+             "field": "security.incident.window_start", "value": WINDOW_START},
+            {"op": "set", "subject": {"created": "incident"},
+             "field": "security.incident.rotation_policy", "value": "on_found_or_unknown"},
+            {"op": "set", "subject": {"created": "incident"}, "field": "security.incident.status",
+             "value": "open"},
+            {"op": "add", "subject": {"created": "incident"},
+             "field": "security.incident.vulnerability",
+             "value": f"security.vulnerability/{PHP2SHELL[0].lower()}"}]}, LEAD)
+    gate.values["incident"] = incident["incident"]
+    _write_as(gate, RESPONDER, "incident-cve-2", {
+        "because": "The second PHP2Shell CVE.", "subject": gate.values["incident"],
+        "changes": [{"op": "add", "field": "security.incident.vulnerability",
+                     "value": f"security.vulnerability/{PHP2SHELL[1].lower()}"}]}, approver=LEAD)
+    _submit_as(gate, RESPONDER, "incident-lines", {
+        "kind": "change_set", "rationale": "PHP2Shell's respond and log import Lines.",
+        "members": [
+            {"kind": "line", "name": RESPOND, "procedure_name": "security.respond",
+             "max_authority": "observe",
+             "parameters": {"incident": INCIDENT_NAME,
+                            "inventory_pull": "security.inventory-acquire",
+                            "log_pull": "security.log-acquire",
+                            "credential_pull": "security.credential-acquire",
+                            "record_pull": "security.cve-record-acquire"}},
+            {"kind": "line", "name": LOG_IMPORT, "procedure_name": "security.log-import",
+             "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+             "trigger_input": "log", "parameters": {"incident": INCIDENT_NAME}},
+            {"kind": "trigger", "name": "security.log-landed.php2shell", "line_name": LOG_IMPORT,
+             "schedule": {"kind": "capture_landing", "capture_contract": "security.log-read-v1"}},
+            # The gate's re-ask window is 30 s (a deployment's, a day).
+            {"kind": "trigger", "name": "security.respond-after-rotation.php2shell",
+             "line_name": RESPOND, "schedule": {"kind": "window_close", "window": {
+                 "kind": "capture_event", "capture_contract": "security.credential-state-v1",
+                 "duration_seconds": 30}}}]}, approver=LEAD)
+    for line in (RESPOND, LOG_IMPORT):
+        gate.out("line", "enable", line, who=RESPONDER)
+    # G1: RQ1 found x3, wiki-1 unknown (declared, outside every scope); RQ2 missing x3.
+    summary = _respond(gate)
+    rq1 = _states(summary, "RQ1")
+    found = sorted(s for s, state in rq1.items() if state == "found")
+    assert found == [f"{HOSTS['app-1']}: php8.2 8.2.20-1~deb12u1",
+                     f"{HOSTS['storefront-a']}: php 8.3.10",
+                     f"{HOSTS['storefront-b']}: php 8.3.10"], rq1
+    assert rq1[f"{HOSTS['wiki-1']}: php 8.3.10"] == "unknown", rq1
+    gaps = {g["payload"]["subject"]: g["payload"] for g in _respond_posts(gate, "gap")}
+    assert gaps[HOSTS["wiki-1"]]["pull"] == "security.inventory-acquire", gaps
+    assert len(_respond_posts(gate, "patch_missing")) == 3
+    assert len(_respond_posts(gate, "exposed")) == 3
+    record("36", "the CVE records' ranges proposed php 8.3.10 affected and never touched the "
+           "Debian build; OSV's distro advisory (upstream CVE ids) proposed php8.2 "
+           "8.2.20-1~deb12u1 affected, citing the OSV Capture; PHP2Shell declared (incident, "
+           "respond and log-import Lines, a window-close Trigger); respond: RQ1 found x3, "
+           "wiki-1 unknown naming security.inventory-acquire, RQ2 patch_missing x3")
+
+
+def _patch(gate: Gate, short: str, release: str, target: tuple[str, str], due: str) -> str:
+    asset = gate.values["incident_subjects"][short]
+    created = _write_created(gate, RESPONDER, f"patch-{short}", {
+        "because": f"Move {HOSTS[short]} off the affected PHP build.",
+        "changes": [
+            {"op": "create", "label": "patch", "subject_kind": "security.remediation"},
+            {"op": "set", "subject": {"created": "patch"}, "field": "security.work.asset",
+             "value": asset},
+            {"op": "set", "subject": {"created": "patch"}, "field": "security.work.assessment",
+             "value": f"security.assessment/{_assessment(gate, release, PHP2SHELL[0])}"},
+            {"op": "create", "label": "target", "subject_kind": "security.release",
+             "key": _key_of("security.release", product_name=target[0], version=target[1])},
+            {"op": "set", "subject": {"created": "patch"},
+             "field": "security.remediation.target_release", "value": {"created": "target"}},
+            {"op": "set", "subject": {"created": "patch"}, "field": "security.remediation.due_at",
+             "value": due},
+            {"op": "set", "subject": {"created": "patch"},
+             "field": "security.remediation.progress", "value": "planned"}]}, LEAD)
+    return created["patch"]
+
+
+def _progress(gate: Gate, remediation: str, value: str, *, refuse_self: bool = False) -> None:
+    outcome = _write_as(gate, OPS, f"progress-{remediation.rsplit('/', 1)[-1]}-{value}", {
+        "because": f"Done with our own tools: {value}.", "subject": remediation,
+        "changes": [{"op": "set", "field": "security.remediation.progress", "value": value}]})
+    assert outcome["status"] == "awaiting_approval", outcome
+    proposal = outcome["proposal"]["proposal_id"]
+    if refuse_self:
+        refused = gate.cx("proposal", "approve", proposal, "--yes", who=OPS, check=False)
+        assert refused.returncode != 0 and "creator_forbidden" in refused.stdout + refused.stderr
+    _approve(gate, proposal, LEAD)
+
+
+def _verification(gate: Gate, remediation: str) -> Any:
+    for row in gate.rows("security.incident_patches", incident=INCIDENT_NAME):
+        if _field(row, "patch") == remediation.rsplit("/", 1)[-1]:
+            return _field(row, "verification")
+    raise AssertionError(f"no patch {remediation}")
+
+
+def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
+    _incident_ready(gate)
+    _ack_all(gate)  # each step reads only what it posts
+    php, debian = _release_id(gate, "php", "8.3.10"), _release_id(gate, "php8.2",
+                                                                  "8.2.20-1~deb12u1")
+    patches = {"storefront-a": _patch(gate, "storefront-a", php, ("php", "8.3.36"),
+                                      "2026-12-01T00:00:00Z"),
+               "storefront-b": _patch(gate, "storefront-b", php, ("php", "8.3.36"),
+                                      "2026-10-18T00:00:00Z"),
+               "app-1": _patch(gate, "app-1", debian, ("php8.2", "8.2.29-1~deb12u1"),
+                               "2026-12-01T00:00:00Z")}
+    gate.values["patches"] = patches
+    summary = _respond(gate)
+    overdue = [p["payload"] for p in _respond_posts(gate, "patch_overdue")]
+    assert [p["asset"] for p in overdue] == [HOSTS["storefront-b"]], overdue
+    # G3: ops claims all three done; the claim alone closes nothing, and ops cannot approve it.
+    for index, remediation in enumerate(patches.values()):
+        _progress(gate, remediation, "completed", refuse_self=index == 0)
+    summary = _respond(gate)
+    rq2 = _states(summary, "RQ2")
+    assert {rq2[f"{HOSTS[s]}: {label}"] for s, label in (
+        ("storefront-a", "php 8.3.10"), ("app-1", "php8.2 8.2.20-1~deb12u1"))} == {"unknown"}, rq2
+    # G4: the scanner's scan disagrees for storefront-b (still 8.3.10): failed, disputed.
+    _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "prod-mid.json",
+                       "inventory/prod.json", SCANNER, (PROD,))
+    proposal = _proposal(gate, runs[PROD])
+    review = gate.out("proposal", "review", proposal)
+    assert "still runs" in review and "no longer runs" in review, review[-2500:]
+    _approve(gate, proposal, LEAD)
+    assert _verification(gate, patches["storefront-a"]) == "verified"
+    assert _verification(gate, patches["app-1"]) == "verified"
+    assert _verification(gate, patches["storefront-b"]) == "failed"
+    summary = _respond(gate)
+    disputed = [p["payload"] for p in _respond_posts(gate, "patch_disputed")]
+    assert [p["asset"] for p in disputed] == [HOSTS["storefront-b"]], disputed
+    assert _states(summary, "RQ2")[f"{HOSTS['storefront-a']}: php 8.3.10"] == "none"
+    # ops fixes it; the next full scan verifies (revising failed).
+    _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "prod-after.json",
+                       "inventory/prod.json", SCANNER, (PROD,))
+    _approve(gate, _proposal(gate, runs[PROD]), LEAD)  # type: ignore[arg-type]
+    assert _verification(gate, patches["storefront-b"]) == "verified"
+    # G5: the same fleet again: a re-observation, no proposal, no generation.
+    head = gate.json("orient")["coordinate"]["git_oid"]
+    _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "prod-after.json",
+                       "inventory/prod.json", SCANNER, (PROD,))
+    egress = gate.egress(runs[PROD]["run"])
+    assert egress.get("proposal_id") is None and all(
+        c.get("unchanged") for c in egress.get("children") or ()), egress
+    assert gate.json("orient")["coordinate"]["git_oid"] == head
+    # The ops scope: its own import Line (kits are not rigid), wiki-1 runs 8.3.10.
+    _submit_as(gate, RESPONDER, "ops-scope", {
+        "kind": "change_set", "rationale": "Import the ops scope's inventory too.", "members": [
+            {"kind": "line", "name": OPS_SCOPE, "procedure_name": "security.inventory-import",
+             "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+             "trigger_input": "inventory", "parameters": {"scope": "ops"}},
+            {"kind": "trigger", "name": "security.inventory-landed.ops", "line_name": OPS_SCOPE,
+             "schedule": {"kind": "capture_landing",
+                          "capture_contract": "security.runtime-inventory-v1"}}]}, approver=LEAD)
+    gate.out("line", "enable", OPS_SCOPE, who=SCANNER)
+    _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "ops-before.json",
+                       "inventory/ops.json", SCANNER, (PROD, OPS_SCOPE))
+    assert runs[PROD]["status"] == "halted" and "other_scope" in gate.out("get",
+                                                                           runs[PROD]["run"])
+    _approve(gate, _proposal(gate, runs[OPS_SCOPE]), LEAD)  # type: ignore[arg-type]
+    summary = _respond(gate)
+    assert _states(summary, "RQ1")[f"{HOSTS['wiki-1']}: php 8.3.10"] == "found", summary
+    patches["wiki-1"] = _patch(gate, "wiki-1", php, ("php", "8.3.36"), "2026-12-01T00:00:00Z")
+    _progress(gate, patches["wiki-1"], "completed")
+    _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "ops-after.json",
+                       "inventory/ops.json", SCANNER, (OPS_SCOPE,))
+    _approve(gate, _proposal(gate, runs[OPS_SCOPE]), LEAD)  # type: ignore[arg-type]
+    summary = _respond(gate)
+    rq2 = _states(summary, "RQ2")
+    assert all(rq2[f"{HOSTS[s]}: {label}"] == "none" for s, label in (
+        ("storefront-a", "php 8.3.10"), ("storefront-b", "php 8.3.10"), ("wiki-1", "php 8.3.10"),
+        ("app-1", "php8.2 8.2.20-1~deb12u1"))), rq2
+    assert not gate.rows("security.open_patches", incident=INCIDENT_NAME)
+    record("37", "storefront-b's patch (due 2026-10-18) posted patch_overdue; ops' completed "
+           "claims left RQ2 unknown (ops' own approval creator_forbidden); the scanner's scan "
+           "proposed verified x2 and failed for storefront-b (patch_disputed); the fix's scan "
+           "revised it verified; the same scan again: no proposal, head unchanged; the ops "
+           "scope's Line (prod's halted other_scope) found wiki-1 on 8.3.10, a 4th patch "
+           "verified; RQ2 none x4, open_patches empty")
+
+
+#: The incident queries' projected Subject fields, by the kind each binding holds.
+RESPOND_BINDINGS = {
+    "incident": "security.incident", "assessment": "security.assessment",
+    "release": "security.release", "asset": "security.asset", "coverage": "security.coverage",
+    "service": "security.service", "declared": "security.asset",
+    "declared_coverage": "security.coverage", "patch": "security.remediation",
+    "target": "security.release", "owner": "security.team", "audit": "security.audit",
+    "credential": "security.credential", "rotation": "security.remediation",
+    "rotation_audit": "security.audit"}
+
+
+def _respond_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """An incident query's CLI rows in the state-tap row shape the classifier reads."""
+
+    wire = []
+    for row in rows:
+        bindings, fields = [], []
+        for name, value in row.items():
+            if name in {"subject", "subject_id", "flags"}:
+                continue
+            if name in RESPOND_BINDINGS:
+                if value:
+                    kind = RESPOND_BINDINGS[name]
+                    bindings.append({"binding": name, "subject_kind": kind, "subject_id": value,
+                                     "subject_path": f"subjects/{kind}/{value}.json",
+                                     "subject_identity": f"{kind}/{value}"})
+                continue
+            fields.append({"name": name, "state": "absent" if value is None else "present",
+                           "value": value})
+        wire.append({"bindings": bindings, "fields": fields})
+    return wire
+
+
+def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
+    from security_analysis_provider.response import respond
+
+    _incident_ready(gate)
+    _ack_all(gate)  # each step reads only what it posts
+    # G2: the upstream fix is decided by the CVE record's ranges, the distro fix by OSV.
+    before = {r["run"] for r in gate.runs("security.cve-applicability")}
+    gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
+        "record-again", {"url": f"https://cveawg.mitre.org/api/cve/{PHP2SHELL[0]}"}),
+        who=RESPONDER)
+    run = _wait_for_run(gate, "security.cve-applicability", before, 180)
+    proposal = _proposal(gate, run)
+    assert proposal, gate.out("get", run["run"])[-1500:]
+    review = gate.out("proposal", "review", proposal)
+    assert "php8.2" not in review, review[-2000:]
+    _approve(gate, proposal, LEAD)
+    run, out = gate.run_line("security.osv-applicability")
+    proposal = gate.egress(run).get("proposal_id")
+    assert proposal, out[-1500:]
+    _approve(gate, proposal, LEAD)
+    held = _assessments(gate)
+    fixed = _release_id(gate, "php", "8.3.36")
+    debian_fixed = _release_id(gate, "php8.2", "8.2.29-1~deb12u1")
+    assert held[(fixed, PHP2SHELL[0])][0] == "not_affected", held
+    for cve in PHP2SHELL:
+        assert held[(debian_fixed, cve)] == ("not_affected", "vulnerable_code_not_present"), held
+    # G6: 13 h on (stale_after 12 h) every coverage revision reads absent: none turns unknown.
+    later = (datetime.now(UTC) + timedelta(hours=13)).isoformat().replace("+00:00", "Z")
+    taps = {alias: _respond_rows(gate.json(
+        "query", "--name", query, "--all", "--param", f"incident={INCIDENT_NAME}",
+        "--evaluation-time", later)["rows"]) for alias, query in (
+            ("exposure", "security.incident_exposure"), ("patches", "security.incident_patches"),
+            ("overdue", "security.overdue_patches"), ("audits", "security.audit_status"),
+            ("credentials", "security.incident_credentials"))}
+    stale = respond({**taps, "params": {"incident": INCIDENT_NAME}, "truncated": {}})
+    rq2 = {s: state for s, state in _states(stale, "RQ2").items()}
+    assert set(rq2.values()) == {"unknown"} and len(rq2) == 4, rq2
+    assert {g["subject"] for g in stale["items"] if g["kind"] == "gap"} >= set(HOSTS.values())
+    now = _respond(gate)
+    assert set(_states(now, "RQ2").values()) == {"none"}, now["answers"]
+    record("38", f"re-reading {PHP2SHELL[0]}'s record proposed php 8.3.36 not_affected and no "
+           "php8.2 build; OSV proposed php8.2 8.2.29-1~deb12u1 not_affected "
+           "(vulnerable_code_not_present) for both CVEs; at +13 h the coverage revisions read "
+           "absent and RQ2 answers turn unknown x4, each naming its asset's scan; none now")
+
+
+def _claim_ids_of(gate: Gate, kind: str, field: str) -> dict[str, list[dict[str, Any]]]:
+    rows = gate.json("query", kind, "--select", field, "--claims", "--all")["rows"]
+    return {row["subject_id"]: list((row.get("claims") or {}).get(field) or ()) for row in rows}
+
+
+def test_39_audit_three_states(gate: Gate) -> None:
+    _incident_ready(gate)
+    _ack_all(gate)  # each step reads only what it posts
+    subjects = gate.values["incident_subjects"]
+    incident = gate.values["incident"]
+    sources = {"storefront": "storefront/nginx-access", "partner-portal": "partner-portal/apache",
+               "ops-wiki": "ops-wiki/nginx"}
+    changes: list[dict[str, Any]] = []
+    for service, source in sources.items():
+        label = f"audit-{service}"
+        changes += [
+            {"op": "create", "label": label, "subject_kind": "security.audit",
+             "key": _key_of("security.audit", incident_ref=INCIDENT_NAME, service_ref=service)},
+            {"op": "set", "subject": {"created": label}, "field": "security.audit.incident",
+             "value": incident},
+            {"op": "set", "subject": {"created": label}, "field": "security.audit.service",
+             "value": subjects[f"svc-{service}"]},
+            {"op": "add", "subject": {"created": label}, "field": "security.audit.log_source",
+             "value": source}]
+    audits = _write_created(gate, AUDITOR, "audits", {
+        "because": "The log sources that must be read in full over PHP2Shell's window.",
+        "changes": changes}, LEAD)
+    gate.values["audits"] = {s: audits[f"audit-{s}"] for s in sources}
+    _write_as(gate, AUDITOR, "audit-php-fpm", {
+        "because": "PHP-FPM's log records which scripts ran.",
+        "subject": gate.values["audits"]["storefront"],
+        "changes": [{"op": "add", "field": "security.audit.log_source",
+                     "value": "storefront/php-fpm"}]}, approver=LEAD)
+    reads: dict[str, str] = {}
+    for fixture, relative in (
+            ("log-storefront-nginx.json", "logs/storefront-nginx.json"),
+            ("log-storefront-php-fpm.json", "logs/storefront-php-fpm.json"),
+            ("log-partner-portal-apache.json", "logs/partner-portal-apache.json"),
+            ("log-ops-wiki-nginx-window.json", "logs/ops-wiki-nginx-window.json"),
+            ("log-ops-wiki-nginx-retained.json", "logs/ops-wiki-nginx-retained.json")):
+        capture, _, runs = _land(gate, "security.log-acquire", "log", fixture, relative, AUDITOR,
+                                 (LOG_IMPORT,))
+        reads[fixture] = capture
+        proposal = _proposal(gate, runs[LOG_IMPORT])
+        if fixture == "log-ops-wiki-nginx-window.json":
+            assert proposal is None, gate.out("get", runs[LOG_IMPORT]["run"])[-1500:]
+            continue
+        assert proposal, gate.out("get", runs[LOG_IMPORT]["run"])[-1500:]
+        _approve(gate, proposal, LEAD)
+    posted = [json.dumps(gate.json("inbox", "get", i["item_id"])) for i in _inbox(
+        gate, "--line", LOG_IMPORT, "--status", "unread")]
+    assert any("read_incomplete" in body and "retention is 14 days" in body for body in posted)
+    gate.values["reads"] = reads
+    # G9: a result in the auditor's own words is refused.
+    own = gate.cx("write", gate.payload("own-words-result", {
+        "because": "I looked; nothing happened.", "subject": gate.values["audits"]["partner-portal"],
+        "changes": [{"op": "set", "field": "security.audit.result", "value": "not_exploited"}]}),
+        "--dry-run", who=AUDITOR, check=False)
+    assert "evidence_required" in own.stdout + own.stderr, own.stdout[-1200:]
+    note = "incidents/php2shell.md"
+    for service, result, fixture, why in (
+            ("storefront", "exploited", "log-storefront-nginx.json",
+             "POST /index.php?-d allow_url_include=1 from 203.0.113.45 on 2026-10-03, then a "
+             "new uploads/x5.php that PHP-FPM executed: a webshell."),
+            ("partner-portal", "not_exploited", "log-partner-portal-apache.json",
+             "The whole window, every record: no exploit pattern, no new .php file served."),
+            ("ops-wiki", "not_exploited", "log-ops-wiki-nginx-retained.json",
+             "What is retained (from 2026-10-04) shows nothing.")):
+        _write_as(gate, AUDITOR, f"result-{service}", {
+            "because": why, "subject": gate.values["audits"][service],
+            "changes": [
+                {"op": "set", "field": "security.audit.result", "value": result,
+                 "evidence": {"kind": "capture", "capture": reads[fixture]}},
+                {"op": "set", "field": "security.audit.window_end", "value": WINDOW_END}],
+            "docs": [{"op": "append", "file": note,
+                      "text": f"# Audit: {service}\n\n{result}: {why}\n"}]}, approver=LEAD)
+    summary = _respond(gate)
+    rq3 = _states(summary, "RQ3")
+    assert rq3 == {"storefront": "found", "partner-portal": "none", "ops-wiki": "unknown"}, rq3
+    (gap,) = [g["payload"] for g in _respond_posts(gate, "gap")
+              if g["payload"]["subject"] == "ops-wiki"]
+    assert (gap["input"]["source"], gap["input"]["from"], gap["input"]["to"]) == (
+        "ops-wiki/nginx", WINDOW_START, "2026-10-04T00:00:00Z"), gap
+    assert gap["pull"] == "security.log-acquire"
+    assert [p["payload"]["service"] for p in _respond_posts(gate, "exploited")] == ["storefront"]
+    record("39", "the auditor stated four log sources; four complete reads recorded, ops-wiki's "
+           "window read posted read_incomplete (14-day retention); an own-words result refused "
+           "evidence_required; results citing the decisive reads with Audit sections: RQ3 "
+           "storefront found, partner-portal none, ops-wiki unknown with ops-wiki/nginx "
+           f"{WINDOW_START} to 2026-10-04 named as the uncovered interval")
+
+
+def test_40_contended_audit(gate: Gate) -> None:
+    _incident_ready(gate)
+    _ack_all(gate)  # each step reads only what it posts
+    audit = gate.values["audits"]["partner-portal"]
+    _write_as(gate, OPS, "contend", {
+        "because": "The portal's apache log rotates mid-day; I am not sure every record was "
+                   "searched.", "subject": audit,
+        "changes": [{"op": "set", "field": "security.audit.result", "value": "inconclusive",
+                     "contend": True, "evidence": {
+                         "kind": "capture",
+                         "capture": gate.values["reads"]["log-partner-portal-apache.json"]}}]},
+               approver=LEAD)
+    rows = [r for r in gate.rows("security.audit_status", incident=INCIDENT_NAME)
+            if r["subject_id"] and _field(r, "service_ref") == "partner-portal"]
+    assert rows and "contested" in json.dumps(rows), rows
+    assert "claim_conflicted" in {row["reason"] for row in gate.json("next")["items"]}
+    summary = _respond(gate)
+    assert _states(summary, "RQ3")["partner-portal"] == "unknown", summary["answers"]
+    rotate = {p["payload"]["credential"] for p in _respond_posts(gate, "rotate")}
+    assert "postgres/partners-db/portal" in rotate, rotate
+    wrong = [c["claim"] for c in _claim_ids_of(gate, "security.audit", "result")[
+        audit.rsplit("/", 1)[-1]] if c["value"] == "inconclusive"]
+    assert len(wrong) == 1, wrong
+    _write_as(gate, OPS, "retire-contender", {
+        "because": "The apache read was complete: the rotation finished before the window.",
+        "changes": [{"op": "retire", "target": wrong[0], "reason": "was-wrong"}]},
+              approver=LEAD)
+    summary = _respond(gate)
+    assert _states(summary, "RQ3")["partner-portal"] == "none"
+    assert _states(summary, "RQ4")["postgres/partners-db/portal"] == "none"
+    record("40", "a second reading (inconclusive, contend) made partner-portal's result a "
+           "conflict (next: claim_conflicted): RQ3 unknown, RQ4 posted a rotation of "
+           "postgres/partners-db/portal; retired was-wrong, RQ3 none and RQ4 none again")
+
+
+def _credential(short: str) -> str:
+    return f"{CREDENTIALS[short][0]}/{CREDENTIALS[short][1]}"
+
+
+def _key_ids(gate: Gate) -> dict[str, Any]:
+    return {f"{_field(r, 'issuer')}/{_field(r, 'name')}": _field(r, "key_id")
+            for r in gate.rows("security.rotation_work")}
+
+
+def test_41_rotate(gate: Gate) -> None:
+    _incident_ready(gate)
+    _ack_all(gate)  # each step reads only what it posts
+    # What each credential's current key is, read by the scanner before anyone rotates.
+    for short in CREDENTIALS:
+        _, _, runs = _land(gate, "security.credential-acquire", "credential",
+                           f"cred-{short}-initial.json", f"credentials/{short}-initial.json",
+                           SCANNER, (CREDENTIAL_IMPORT,))
+        _approve(gate, _proposal(gate, runs[CREDENTIAL_IMPORT]), LEAD)  # type: ignore[arg-type]
+    keys = _key_ids(gate)
+    assert keys[_credential("aws")] == "AKIAQ3EXAMPLEOLDKEY1", keys
+    summary = _respond(gate)
+    rotate = {p["payload"]["credential"]: p["payload"] for p in _respond_posts(gate, "rotate")}
+    assert sorted(rotate) == sorted(_credential(s) for s in ("aws", "stripe", "github")), rotate
+    assert rotate[_credential("github")]["services"] == {
+        "ops-wiki": {"audit": "unknown", "patch": "verified"}}, rotate
+    # The responder raises the rotations (revokes_key = the held key id); the lead approves.
+    rotations = {}
+    services = {"aws": "storefront", "stripe": "storefront", "github": "ops-wiki"}
+    for short, service in services.items():
+        credential = gate.values["incident_subjects"][f"cred-{short}"]
+        created = _write_created(gate, RESPONDER, f"rotation-{short}", {
+            "because": f"{service}'s audit is {rotate[_credential(short)]['services'][service]['audit']}"
+                       ": rotate what it could read.",
+            "changes": [
+                {"op": "create", "label": "rotation", "subject_kind": "security.remediation"},
+                {"op": "set", "subject": {"created": "rotation"},
+                 "field": "security.work.credential", "value": credential},
+                {"op": "set", "subject": {"created": "rotation"}, "field": "security.work.audit",
+                 "value": gate.values["audits"][service]},
+                {"op": "set", "subject": {"created": "rotation"},
+                 "field": "security.remediation.revokes_key", "value": keys[_credential(short)]},
+                {"op": "set", "subject": {"created": "rotation"},
+                 "field": "security.remediation.due_at", "value": "2026-12-01T00:00:00Z"}]},
+                                 LEAD)
+        rotations[short] = created["rotation"]
+        _progress(gate, rotations[short], "completed")
+    # G10: ops records the issuers' receipts: new key ids, never a verification.
+    for short in services:
+        _, _, runs = _land(gate, "security.credential-acquire", "credential",
+                           f"cred-{short}-receipt.json", f"credentials/{short}-receipt.json",
+                           OPS, (CREDENTIAL_IMPORT,))
+        proposal = _proposal(gate, runs[CREDENTIAL_IMPORT])
+        assert proposal and "security.work.verification" not in gate.out(
+            "proposal", "review", proposal)
+        _approve(gate, proposal, LEAD)
+    # Claimed, no separate state read: unknown, a gap naming the credential pull.
+    _respond(gate)
+    (claimed,) = [g for g in _respond_posts(gate, "gap")
+                  if g["payload"]["subject"] == _credential("github")]
+    assert claimed["payload"]["pull"] == "security.credential-acquire", claimed
+    _ack_all(gate)
+    # G11: a body with a secret is refused whole and echoes nothing.
+    _, _, runs = _land(gate, "security.credential-acquire", "credential", "cred-aws-leaky.json",
+                       "credentials/aws-leaky.json", OPS, (CREDENTIAL_IMPORT,))
+    assert _proposal(gate, runs[CREDENTIAL_IMPORT]) is None
+    bodies = [json.dumps(gate.json("inbox", "get", i["item_id"])) for i in _inbox(
+        gate, "--line", CREDENTIAL_IMPORT, "--status", "unread")]
+    assert any("secret_shape" in b for b in bodies) and not any(
+        "wJalrXUtnFEMI" in b for b in bodies), bodies
+    # The contracts a secret may slip into authorize erasure (`cruxible capture erase`).
+    for contract in ("security.credential-state-v1", "security.log-read-v1",
+                     "security.runtime-inventory-v1"):
+        policy = gate.proof(f"CaptureContract:{contract}")["envelope"]["retention_erasure_policy"]
+        assert policy["erasure"] == "authorized_by_rule" and policy["erasure_rule_digest"], policy
+    # G12: 30 s after that landing the respond Line re-asks on its own (window_close): the
+    # acknowledged gap is sighted again and counts the recurrence, keeping its decision.
+    def resighted() -> bool:
+        envelope = _find(gate.json("inbox", "get", claimed["item_id"]), "recurred_since_disposition")
+        return isinstance(envelope, int) and envelope >= 1
+
+    gate.wait(resighted, 240, "the window-close run did not re-sight the rotation gap")
+    again = gate.json("inbox", "get", claimed["item_id"])
+    assert _find(again, "status") == "acknowledged", again
+    latest = _find(again, "recent_sightings")[0]["run_id"]  # it recurred after the ack
+    assert "window_close" in json.dumps(gate.proof(f"ProcedureRun:{latest}")), latest
+    # The state reads, acquired by the scanner (not the rotator): verified, or failed.
+    state_runs = {}
+    for short, fixture in (("stripe", "cred-stripe-state.json"),
+                           ("github", "cred-github-state.json"),
+                           ("aws", "cred-aws-state-still-active.json")):
+        _, state_runs[short], runs = _land(gate, "security.credential-acquire", "credential",
+                                           fixture, f"credentials/{short}-state.json", SCANNER,
+                                           (CREDENTIAL_IMPORT,))
+        _approve(gate, _proposal(gate, runs[CREDENTIAL_IMPORT]), LEAD)  # type: ignore[arg-type]
+    verification = {_credential(s): _field(r, "verification") for s in services
+                    for r in gate.rows("security.rotation_work")
+                    if _field(r, "rotation") == rotations[s].rsplit("/", 1)[-1]}
+    assert verification == {_credential("stripe"): "verified", _credential("github"): "verified",
+                            _credential("aws"): "failed"}, verification
+    summary = _respond(gate)
+    assert [p["payload"]["credential"] for p in _respond_posts(gate, "rotation_disputed")] == [
+        _credential("aws")]
+    _, state_runs["aws"], runs = _land(gate, "security.credential-acquire", "credential",
+                                       "cred-aws-state.json", "credentials/aws-state.json",
+                                       SCANNER, (CREDENTIAL_IMPORT,))
+    _approve(gate, _proposal(gate, runs[CREDENTIAL_IMPORT]), LEAD)  # type: ignore[arg-type]
+    summary = _respond(gate)
+    rq4 = _states(summary, "RQ4")
+    assert all(rq4[_credential(s)] == "none" for s in CREDENTIALS), rq4
+    actor = gate.card(state_runs["aws"]).get("actor")
+    assert actor and SCANNER in json.dumps(actor) and OPS not in json.dumps(actor), actor
+    record("41", "initial state reads stated each current key; respond posted rotate x3 with "
+           "each service's audit and patch state; three rotations raised (revokes_key the held "
+           "id) and claimed; receipts proposed new key ids, never a verification; 30 s after a "
+           "landing the window-close run re-sighted the unverified rotation's acknowledged gap "
+           "(recurred_since_disposition counted, decision kept); a "
+           "body with secret_access_key refused (secret_shape, nothing echoed; the three incident "
+           "contracts authorize erasure); the scanner's "
+           "state reads verified two and failed AWS (old key still active: rotation_disputed) "
+           f"until the next read verified it; RQ4 none x4; the state read's actor is {actor}")
+
+
+def test_42_close(gate: Gate) -> None:
+    _incident_ready(gate)
+    summary = _respond(gate)
+    assert summary["ready_to_close"] == 1, summary["answers"]
+    readies = [p["payload"] for p in (*_respond_posts(gate, "ready_to_close"),
+                                      *_respond_posts(gate, "ready_to_close",
+                                                      status="acknowledged"))]
+    residue = [{"service": "ops-wiki", "audit": "unknown"}]
+    ready = next((p for p in readies if p["residue"] == residue), None)
+    assert ready is not None, readies
+    assert ready["exploited"] == ["storefront"], ready
+    _write_as(gate, LEAD, "close", {
+        "because": "Every exposure patched and verified by a scan, every warranted key rotated "
+                   "and verified by a state read; ops-wiki's audit stays unknown (14-day "
+                   "retention) and its deploy key is rotated.",
+        "subject": gate.values["incident"],
+        "changes": [{"op": "set", "field": "security.incident.status", "value": "closed"}],
+        "docs": [{"op": "append", "file": "incidents/php2shell.md", "text": (
+            "# Closure\n\nClosed on the respond Line's ready_to_close. Residue: ops-wiki's "
+            "audit is unknown (logs before 2026-10-03 are gone); github/acme-ops/wiki-deploy "
+            "was rotated anyway.\n")}]}, approver=RESPONDER)
+    _ack_all(gate)
+    closed = _respond(gate)
+    assert closed.get("status", "closed") == "closed" and not closed.get("posted"), closed
+    assert not _respond_posts(gate)  # a closed incident posts nothing
+    # The status page: one projection block the status query renders.
+    page = gate.ws / "incidents" / "php2shell-status.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(KIT / "examples" / "incident-status.md", page)
+    gate.out("files", "add", "php2shell-status", "incidents/php2shell-status.md")
+    params = json.dumps({"incident": INCIDENT_NAME}, sort_keys=True, separators=(",", ":"))
+    gate.out("block", "repin", "php2shell-status", "status", "--query",
+             "QueryDefinition:security.incident_status", "--params", params, "--render")
+    text = page.read_text()
+    assert "| subject |" in text and HOSTS["storefront-b"] in text and "verified" in text, text
+    _ack_all(gate)
+    rows = [row for row in gate.json("next")["items"]
+            if RESPOND in json.dumps(row) or INCIDENT_NAME.lower() in json.dumps(row).lower()]
+    assert not rows, rows
+    record("42", "respond posted ready_to_close (residue: ops-wiki's audit unknown; exploited: "
+           "storefront); the lead closed the incident with a Closure section, the responder "
+           "approved; a closed incident posts nothing; the status page block rendered the "
+           "incident's patches, audits and rotations; next shows nothing for the incident")
