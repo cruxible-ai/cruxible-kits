@@ -18,6 +18,7 @@ dependencies = [
 [project.entry-points."cruxible.providers"]
 "web.fetch" = "security_gate_sources.web:GateWebFetch"
 "security.osv-query" = "security_gate_sources.feeds:GateOsvQuery"
+"security.osv-ecosystems" = "security_gate_sources.feeds:GateOsvEcosystems"
 "security.epss-daily" = "security_gate_sources.feeds:GateEpssDaily"
 "security.repo-snapshot" = "security_gate_sources.feeds:GateRepoSnapshot"
 "security.pypi-release" = "security_gate_sources.feeds:GatePypiRelease"

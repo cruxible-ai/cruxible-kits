@@ -16,7 +16,9 @@ from cruxible_provider_runtime.protocol import Budgets
 from cruxible_provider_runtime.provider_api import ProviderRunContext
 from cruxible_provider_runtime.registration import load_registration
 from security_sources_provider.sources import (
+    OSV_ECOSYSTEMS_URL,
     EpssDaily,
+    OsvEcosystems,
     OsvQuery,
     PypiRelease,
     ReleaseAsset,
@@ -57,6 +59,64 @@ def _rows(name: str, *values: object) -> list[dict[str, Any]]:
     ]
 
 
+#: The kit data the osv-applicability Procedure carries (purl type -> OSV ecosystem).
+PURL_TYPES = json.loads(
+    (Path(__file__).resolve().parents[3] / "authoring" / "data" / "purl_osv_ecosystems.json")
+    .read_text())
+ECOSYSTEMS_TXT = b"Debian\nDebian:12\nGo\nMaven\nnpm\nPyPI\n"
+
+
+def _ecosystems(body: bytes = ECOSYSTEMS_TXT) -> dict[str, Any]:
+    """The security.osv-ecosystems material the osv Source reads."""
+
+    return _material(OsvEcosystems(lambda: static_transport(
+        {("GET", "/ecosystems.txt"): (200, body, {"content-type": "text/plain"})}))(
+            _context("security.osv-ecosystems", {})))
+
+
+def test_osv_ecosystems_retains_the_published_list_exactly() -> None:
+    context = _context("security.osv-ecosystems", {})
+    material = _material(OsvEcosystems(lambda: static_transport(
+        {("GET", "/ecosystems.txt"): (200, ECOSYSTEMS_TXT, {"content-type": "text/plain"})}))(
+            context))
+    retrieved = material["retrieved"]
+    assert base64.b64decode(retrieved["body_base64"]) == ECOSYSTEMS_TXT
+    assert retrieved["url"] == OSV_ECOSYSTEMS_URL and retrieved["status_code"] == 200
+    assert context.egress.observed() == ["https://osv-vulnerabilities.storage.googleapis.com"]
+    refused = OsvEcosystems(lambda: static_transport({}))(
+        _context("security.osv-ecosystems", {"url": "https://example.com/ecosystems.txt"}))
+    assert refused.status == "refused"
+
+
+def test_osv_query_never_asks_about_a_component_osv_does_not_index() -> None:
+    asked: list[list[str]] = []
+
+    def batch(purls: list[str]) -> bytes:
+        asked.append(list(purls))
+        return json.dumps({"results": [{} for _ in purls]}).encode()
+
+    provider = OsvQuery(lambda: static_transport({}, batch))
+    payload = {
+        "releases": _rows("components", ["pkg:brew/gh@2.86.0", "pkg:generic/php@8.3.10",
+                                         "pkg:golang/github.com/cli/cli/v2@v2.86.0",
+                                         "pkg:deb/debian/libc6@2.36-9", "pkg:apk/alpine/musl@1.2"]),
+        "watched": [], "ecosystems": _ecosystems(), "purl_types": PURL_TYPES}
+    material = _material(provider(_context("security.osv-query", payload)))
+    assert asked == [["pkg:deb/debian/libc6@2.36-9", "pkg:golang/github.com/cli/cli/v2@v2.86.0"]]
+    reasons = {item["purl"]: (item["type"], item["reason"]) for item in material["not_indexed"]}
+    assert reasons == {
+        "pkg:apk/alpine/musl@1.2": ("apk", "OSV does not list the Alpine ecosystem"),
+        "pkg:brew/gh@2.86.0": ("brew", "no OSV ecosystem for purl type brew"),
+        "pkg:generic/php@8.3.10": ("generic", "no OSV ecosystem for purl type generic")}
+    assert material["osv_ecosystems"]["listed"] == ["Debian", "Go", "Maven", "PyPI", "npm"]
+    assert material["purl_types"]["osv_ecosystems"]["golang"] == "Go"
+    # Without the captured list (or the map) a missing answer would read as none: refused.
+    for missing in ("ecosystems", "purl_types"):
+        refused = provider(_context("security.osv-query", {**payload, missing: None}))
+        assert refused.status == "refused"
+        assert "would read as no advisories" in refused.refusal.message
+
+
 def test_osv_query_batches_components_then_fetches_hits_watched_and_their_aliases() -> None:
     records = {
         "GHSA-h75v-3vvj-5mfj": {"id": "GHSA-h75v-3vvj-5mfj", "aliases": ["CVE-2024-34064"]},
@@ -81,9 +141,12 @@ def test_osv_query_batches_components_then_fetches_hits_watched_and_their_aliase
                 "components", ["pkg:pypi/jinja2@3.1.3", "pkg:pypi/httpx@0.28.1", "x"]
             ),
             "watched": _rows("cve_id", "CVE-2021-44228", "CVE-2099-0001"),
+            "ecosystems": _ecosystems(),
+            "purl_types": PURL_TYPES,
         },
     )
     material = _material(provider(context))
+    assert material["not_indexed"] == []
     paths = [(e["method"], e["path"], e["status"]) for e in material["exchanges"]]
     assert paths == [
         ("POST", "/v1/querybatch", 200),

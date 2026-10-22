@@ -45,6 +45,12 @@
         },
         "judged": {
           "type": "integer"
+        },
+        "coverage": {
+          "type": "integer"
+        },
+        "packages": {
+          "type": "integer"
         }
       },
       "allow_extra": false

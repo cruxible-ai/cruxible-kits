@@ -49,7 +49,7 @@ MANDATES: dict[str, tuple[list[str], int, int, int, int]] = {
     "security.sbom-import": (
         ["claims", "subjects/security.product", "subjects/security.release",
          "subjects/security.supplier"], 300, 2, 16_777_216, 5000),
-    "security.osv-applicability": (APPLICABILITY_NAMESPACE, 600, 2, 67_108_864, 5000),
+    "security.osv-applicability": (APPLICABILITY_NAMESPACE, 600, 3, 67_108_864, 5000),
     "security.cve-applicability": (APPLICABILITY_NAMESPACE, 300, 2, 16_777_216, 5000),
     "security.repo-parse": (
         ["claims", "subjects/security.artifact", "subjects/security.coverage",

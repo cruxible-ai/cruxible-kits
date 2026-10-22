@@ -13,8 +13,16 @@ revised: the run counts it under ``judged``.
 
 ``OsvApplicability`` (``security.osv-applicability``) reads the
 ``security.osv-query`` Capture: OSV's answer for every component purl@version
-of every release with an SBOM, plus the OSV records of every hit and of every
-watched CVE (and their aliases). For a release with components:
+of every release with an SBOM whose ecosystem OSV indexes (the Capture lists the
+rest as ``not_indexed``, with the ecosystem list and purl type map it applied),
+plus the OSV records of every hit and of every watched CVE (and their aliases).
+For each release with components it states one ``security.release.osv_coverage``
+(``complete: N of N components answered``, or ``partial`` with how many OSV
+answered, the purl types not indexed and how many went unanswered): OSV's
+coverage is the provider's own word, never a per-CVE inconclusive. For each
+watched CVE (and each this proposal starts watching) it states the packages OSV's
+records say it affects (``security.vulnerability.package``, a purl without
+version): OSV knows the CVE. For a release with components:
 
 - a component OSV lists as affected by a CVE -> ``affected`` (the proposal creates
   the CVE's vulnerability by key when it does not exist; the affected assessment
@@ -23,6 +31,8 @@ watched CVE (and their aliases). For a release with components:
   a component of one of its packages is present at a version OSV does not list
   -> ``not_affected`` / ``vulnerable_code_not_present``;
 - a component of one of its packages whose OSV query failed -> ``inconclusive``;
+- a component of one of its packages OSV was never asked about (not indexed) ->
+  no answer here (the coverage Claim says partial);
 - a watched CVE none of whose packages is a component -> no assessment. Writing
   ``component_not_present`` for every such pair is releases x watched CVEs of
   answers nobody asked for (the self-dogfood run's second day: 509 of them, 2,545
@@ -81,6 +91,7 @@ from .common import (
     cve_token,
     key_ref,
     match_token,
+    once_per,
     parse_rows,
     replacing,
     sorted_items,
@@ -291,18 +302,21 @@ def _releases(rows: Iterable[Row]) -> list[tuple[Bound, Row]]:
 
 # --- OSV ------------------------------------------------------------------------
 
-_ECOSYSTEM_TYPES = {
-    "pypi": "pypi",
-    "npm": "npm",
-    "maven": "maven",
-    "go": "golang",
-    "crates.io": "cargo",
-    "rubygems": "gem",
-    "nuget": "nuget",
-    "packagist": "composer",
-    "pub": "pub",
-    "hex": "hex",
-}
+RELEASE_COVERAGE = "security.release.osv_coverage"
+VULNERABILITY_PACKAGE = "security.vulnerability.package"
+
+
+def ecosystem_purls(purl_types: object) -> dict[str, tuple[str, str | None]]:
+    """OSV ecosystem name (casefolded) -> (purl type, namespace or None), from the kit's
+    purl type map the OSV query applied (its Capture records it): how an OSV record
+    that names a package by ecosystem and name, without a purl, is read."""
+
+    table = purl_types.get("osv_ecosystems") if isinstance(purl_types, Mapping) else None
+    found: dict[str, tuple[str, str | None]] = {}
+    for key, ecosystem in sorted((table or {}).items()):
+        purl_type, _, namespace = str(key).lower().partition("/")
+        found.setdefault(str(ecosystem).casefold(), (purl_type, namespace or None))
+    return found
 
 
 def _package_name(purl_type: str, name: str) -> str:
@@ -325,7 +339,12 @@ def purl_package(purl: str) -> tuple[str, str] | None:
     return purl_type.lower(), _package_name(purl_type.lower(), rest.replace("%40", "@"))
 
 
-def _record_packages(record: Mapping[str, Any]) -> set[tuple[str, str]]:
+def _record_packages(record: Mapping[str, Any],
+                     ecosystems: Mapping[str, tuple[str, str | None]] | None = None,
+                     ) -> set[tuple[str, str]]:
+    """(type, name) of every package an OSV record's affected[] names: its purl, else its
+    ecosystem and name through the kit's purl type map (``ecosystem_purls``)."""
+
     packages: set[tuple[str, str]] = set()
     for affected in record.get("affected") or ():
         package = affected.get("package") if isinstance(affected, Mapping) else None
@@ -335,12 +354,34 @@ def _record_packages(record: Mapping[str, Any]) -> set[tuple[str, str]]:
         if isinstance(purl, str) and (parsed := purl_package(purl)):
             packages.add(parsed)
             continue
-        ecosystem = str(package.get("ecosystem") or "").split(":", 1)[0].lower()
+        ecosystem = str(package.get("ecosystem") or "").split(":", 1)[0].strip().casefold()
         name = package.get("name")
-        if ecosystem in _ECOSYSTEM_TYPES and isinstance(name, str) and name:
-            purl_type = _ECOSYSTEM_TYPES[ecosystem]
-            packages.add((purl_type, _package_name(purl_type, name)))
+        mapped = (ecosystems or {}).get(ecosystem)
+        if mapped is not None and isinstance(name, str) and name.strip():
+            purl_type, namespace = mapped
+            full = f"{namespace}/{name.strip()}" if namespace else name.strip()
+            packages.add((purl_type, _package_name(purl_type, full)))
     return packages
+
+
+def package_purl(package: tuple[str, str]) -> str:
+    """A package as a purl without version (``pkg:deb/debian/php8.2``)."""
+
+    return f"pkg:{package[0]}/{package[1]}"
+
+
+def coverage_text(total: int, answered: int, not_indexed: Mapping[str, int],
+                  unanswered: int) -> str:
+    """The release's OSV coverage, one value: ``complete: N of N components answered``, or
+    ``partial: A of N components answered; not indexed: brew 1, generic 2; unanswered K``."""
+
+    state = "complete" if answered == total and total else "partial"
+    text = f"{state}: {answered} of {total} components answered"
+    if not_indexed:
+        text += "; not indexed: " + ", ".join(f"{t} {n}" for t, n in sorted(not_indexed.items()))
+    if unanswered:
+        text += f"; unanswered {unanswered}"
+    return text
 
 
 def _cves(record_id: str, record: Mapping[str, Any] | None) -> set[str]:
@@ -352,10 +393,11 @@ def _cves(record_id: str, record: Mapping[str, Any] | None) -> set[str]:
     return {cve for item in ids if (cve := cve_token(item))}
 
 
-def _fixed(record: Mapping[str, Any], package: tuple[str, str]) -> list[str]:
+def _fixed(record: Mapping[str, Any], package: tuple[str, str],
+           ecosystems: Mapping[str, tuple[str, str | None]] | None = None) -> list[str]:
     fixed: list[str] = []
     for affected in record.get("affected") or ():
-        if _record_packages({"affected": [affected]}) != {package}:
+        if _record_packages({"affected": [affected]}, ecosystems) != {package}:
             continue
         for span in affected.get("ranges") or ():
             for event in span.get("events") or ():
@@ -420,20 +462,45 @@ class OsvApplicability:
             hits, failed, records = osv_view(osv)
         except InputError as error:
             return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, str(error))
+        ecosystems = ecosystem_purls(osv.get("purl_types"))
+        # Components the query never asked OSV about (their ecosystem is not OSV's).
+        not_indexed = {str(item["purl"]): str(item.get("type") or "")
+                       for item in osv.get("not_indexed") or ()
+                       if isinstance(item, Mapping) and isinstance(item.get("purl"), str)}
         cve_packages: dict[str, set[tuple[str, str]]] = {}
         cve_records: dict[str, set[str]] = {}
         unkeyed: set[str] = set()
         for record_id, record in records.items():
             cves = _cves(record_id, record)
             for cve in cves:
-                cve_packages.setdefault(cve, set()).update(_record_packages(record))
+                cve_packages.setdefault(cve, set()).update(_record_packages(record, ecosystems))
                 cve_records.setdefault(cve, set()).add(record_id)
-        watched = {cve for row in watched_rows if (cve := cve_token(row.value("cve_id")))}
+        watched_once = once_per(watched_rows, "vulnerability")
+        watched = {cve for row in watched_once if (cve := cve_token(row.value("cve_id")))}
         decisions: list[Decision] = []
+        coverage_items: list[dict[str, Any]] = []
         for release, row in releases:
             components = sorted(str(item) for item in row.value("components") or ())
             if not components:
                 continue
+            # One coverage Claim per release: did OSV answer every component?
+            answered = [c for c in components if c in hits and c not in failed]
+            skipped: dict[str, int] = {}
+            for purl in components:
+                if purl in not_indexed:
+                    skipped[not_indexed[purl]] = skipped.get(not_indexed[purl], 0) + 1
+            unanswered = len(components) - len(answered) - sum(skipped.values())
+            coverage = coverage_text(len(components), len(answered), skipped, unanswered)
+            if row.value("osv_coverage") != coverage:
+                held_claim = row.claim_id(release, RELEASE_COVERAGE)
+                coverage_items.append(claim_item(
+                    release, RELEASE_COVERAGE, coverage,
+                    f"OSV's answer for {release.subject_id}'s {len(components)} components: "
+                    f"{coverage}." + (" The query did not ask about a component whose purl type "
+                                      "OSV does not index (its ecosystem list and the kit's "
+                                      "purl type map), so no advisory there reads as none."
+                                      if skipped else ""),
+                    revises=held_claim if row.value("osv_coverage") else None))
             affected: dict[str, list[str]] = {}
             affected_purls: dict[str, set[str]] = {}
             for purl in components:
@@ -444,7 +511,7 @@ class OsvApplicability:
                     for cve in cves:
                         package = purl_package(purl)
                         fixed = (
-                            _fixed(records[record_id], package)
+                            _fixed(records[record_id], package, ecosystems)
                             if package and record_id in records
                             else []
                         )
@@ -476,6 +543,10 @@ class OsvApplicability:
                     continue
                 present = sorted(p for package in packages for p in by_package.get(package, ()))
                 advisories = ", ".join(sorted(cve_records.get(cve, ())))
+                if any(purl not in hits and purl not in failed for purl in present):
+                    # Never asked (not indexed) or no answer in the Capture: OSV's silence
+                    # decides nothing; the release's coverage Claim says partial.
+                    continue
                 if any(purl in failed for purl in present):
                     decisions.append(
                         Decision(
@@ -500,6 +571,32 @@ class OsvApplicability:
                         )
                     )
         items, counts = decisions_to_items(decisions, held, watched)
+        # What OSV says each watched CVE affects (OSV knows the CVE), and each CVE this
+        # proposal starts watching: what respond and the CVE record matcher read.
+        created = {str(item["key"]["cve_id"]) for item in items
+                   if item.get("subject_kind") == VULNERABILITY}
+        package_items: list[dict[str, Any]] = []
+        targets: dict[str, Any] = {}
+        held_packages: dict[str, set[str]] = {}
+        for row in watched_once:
+            cve, bound = cve_token(row.value("cve_id")), row.subject("vulnerability")
+            if cve is not None and bound is not None:
+                targets.setdefault(cve, bound)
+                held_packages.setdefault(cve, set()).update(
+                    str(item.value) for item in row.included("package")
+                    if isinstance(item.value, str))
+        for cve in sorted(created):
+            targets.setdefault(cve, key_ref(VULNERABILITY, cve_id=cve))
+        for cve, subject in sorted(targets.items()):
+            advisories = ", ".join(sorted(cve_records.get(cve, ())))
+            for purl in sorted(package_purl(p) for p in cve_packages.get(cve, set())):
+                if purl not in held_packages.get(cve, set()):
+                    package_items.append(claim_item(
+                        subject, VULNERABILITY_PACKAGE, purl,
+                        f"OSV's {advisories} name {purl} as affected by {cve}."))
+        subjects = [item for item in items if item.get("subject_kind")]
+        claims = [item for item in items if not item.get("subject_kind")]
+        items = subjects + sorted_items(claims + coverage_items + package_items)
         return ProviderResult.ok(
             {
                 "items": items,
@@ -509,6 +606,8 @@ class OsvApplicability:
                 "inconclusive": counts["inconclusive"],
                 "unchanged": counts["unchanged"],
                 "judged": counts["judged"],
+                "coverage": len(coverage_items),
+                "packages": len(package_items),
                 "unkeyed": sorted(unkeyed),
             },
             metrics={"items": float(len(items))},

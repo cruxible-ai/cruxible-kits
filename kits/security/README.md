@@ -862,14 +862,32 @@ Capture. Core cannot require a justification only when the status is
 `not_affected`; the kit's Procedures always state one with it, and `cruxible
 query --name security.assessment_index` shows any assessment without one.
 
-- **`security.osv-applicability`** (open source, by SBOM component). OSV is
-  asked about every component `purl@version` of every release and for the
-  record of every watched CVE and its aliases. A component OSV lists as affected
+- **`security.osv-applicability`** (open source, by SBOM component). Each run
+  first retains OSV's own list of what it indexes (`ecosystems.txt`, under
+  `security.osv-ecosystems-v1`). OSV is then asked about every component
+  `purl@version` of every release whose ecosystem is on that list, and for the
+  record of every watched CVE and its aliases. Which ecosystem answers for a
+  purl type is kit data, carried in the Procedure with its sources (the purl
+  spec's types, the OSV schema's ecosystems; `deb/debian` -> Debian, `golang` ->
+  Go, `pypi` -> PyPI ...); edit it by authoring a successor of your
+  `security.osv-applicability` Procedure. A component of any other type
+  (`pkg:brew`, `pkg:generic`, `pkg:docker` ...) is never asked: OSV's empty
+  answer there would read as "no advisories". The OSV Capture records it as
+  `not_indexed` with why, and each release gets one
+  `security.release.osv_coverage` Claim: `complete: N of N components answered`,
+  or `partial: A of N components answered; not indexed: brew 1, generic 1`
+  (and `unanswered K` for a query that failed). An empty OSV answer is a
+  negative only under complete coverage. The run also states, for each watched
+  CVE, the packages OSV's records say it affects
+  (`security.vulnerability.package`, `pkg:deb/debian/php8.2`): OSV knows the CVE.
+  A component OSV lists as affected
   -> `affected` (the CVE is created by key when new, and watched through that
   assessment). A watched CVE OSV has package data for
   but does not list -> `not_affected` with `vulnerable_code_not_present` when one
-  of its packages is a component at another version. A failed OSV query for a
-  relevant component -> `inconclusive`. A release none of whose components is a
+  of its packages is a component at another version OSV answered for. A failed
+  OSV query for a relevant component -> `inconclusive`; a relevant component OSV
+  never answered (not indexed) -> no answer (the coverage says partial). A release
+  none of whose components is a
   package the CVE affects is not assessed at all: an SBOM release with no
   assessment for a CVE means OSV relates none of its components to it.
   (Writing `component_not_present` for every such pair is releases x watched

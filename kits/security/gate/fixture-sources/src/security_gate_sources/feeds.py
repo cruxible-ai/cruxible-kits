@@ -3,7 +3,8 @@
 ``_sources.py`` is security-sources-provider's ``sources.py``, copied byte for byte
 by ``build_registration.py``; only the transport differs. OSV answers the gate
 SBOM's purls from ``responses/osv/querybatch.json`` and serves the records in
-``responses/osv/vulns/`` (404 for anything else); EPSS serves
+``responses/osv/vulns/`` (404 for anything else) and its ecosystem list from
+``responses/osv/ecosystems.txt`` (OSV's names; no Homebrew, no generic); EPSS serves
 ``responses/epss_scores.csv.gz``. ``security.repo-snapshot`` answers GitHub's
 commits, contents and raw-file requests from ``responses/github/`` (recorded by
 ``record_system_model.py``), and ``security.pypi-release`` PyPI's project JSON and
@@ -28,6 +29,7 @@ import httpx
 
 from ._sources import (
     EpssDaily,
+    OsvEcosystems,
     OsvQuery,
     PypiRelease,
     ReleaseAsset,
@@ -66,6 +68,19 @@ class GateOsvQuery(OsvQuery):
 
     def __init__(self) -> None:
         super().__init__(_osv_transport)
+
+
+def _ecosystems_transport() -> httpx.BaseTransport:
+    body = (RESPONSES / "osv" / "ecosystems.txt").read_bytes()
+    return static_transport({("GET", "/ecosystems.txt"): (200, body,
+                                                          {"content-type": "text/plain"})})
+
+
+class GateOsvEcosystems(OsvEcosystems):
+    """``security.osv-ecosystems`` serving the gate's vendored ecosystem list."""
+
+    def __init__(self) -> None:
+        super().__init__(_ecosystems_transport)
 
 
 class GateEpssDaily(EpssDaily):

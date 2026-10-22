@@ -102,6 +102,8 @@ KEV_SOURCE = "cisa.kev.catalog"
 KEV_CONTRACT = "security.kev-http-v1"
 CVE_CONTRACT = "security.cve-record-http-v1"
 OSV_CONTRACT = "security.osv-query-v1"
+#: OSV's published ecosystem list (ecosystems.txt): what OSV indexes, OSV's own word.
+OSV_ECOSYSTEMS_CONTRACT = "security.osv-ecosystems-v1"
 EPSS_CONTRACT = "security.epss-daily-v1"
 SBOM_CONTRACT = "security.cyclonedx-sbom-v1"
 OUTPUT_CONTRACT = "security.observation-output-v1"
@@ -149,6 +151,15 @@ CVE_ID = {"type": "string", "pattern": r"^CVE-[0-9]{4}-[0-9]{4,}$"}
 TEXT = {"minLength": 1, "type": "string"}
 PROBABILITY = {"type": "string", "pattern": r"^(0(\.[0-9]+)?|1(\.0+)?)$"}
 PURL = {"type": "string", "pattern": r"^pkg:[a-z0-9.+-]+/.+@.+$"}
+#: A package without version or qualifiers: what a vulnerability affects.
+PACKAGE = {"type": "string", "pattern": r"^pkg:[a-z0-9.+-]+/[^@?#\s]+$"}
+#: A release's OSV coverage: whether OSV answered every component, and why not.
+OSV_COVERAGE = {"type": "string", "pattern": (
+    r"^(complete|partial): [0-9]+ of [0-9]+ components answered"
+    r"(; not indexed: [a-z0-9.+-]+ [0-9]+(, [a-z0-9.+-]+ [0-9]+)*)?(; unanswered [0-9]+)?$")}
+#: Kit data (cited, editable by authoring a successor of the Procedure that carries it):
+#: which OSV ecosystem answers for a purl type.
+PURL_OSV_ECOSYSTEMS = json.loads((DATA / "purl_osv_ecosystems.json").read_text())
 SHA256 = {"type": "string", "pattern": r"^sha256:[0-9a-f]{64}$"}
 COMMIT = {"type": "string", "pattern": r"^[0-9a-f]{40}$"}
 FULL_NAME = {"type": "string", "pattern": r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"}
@@ -286,6 +297,14 @@ CLAIM_TYPES: list[ClaimRow] = [
      "The release's component that brings the vulnerability in (purl@version), as OSV's "
      "answer for that component states it: which dependency an affected release needs to "
      "change."),
+    ("security.release.osv_coverage", ("security.release",), "literal", OSV_COVERAGE, "one",
+     "observation", (OSV_CONTRACT,), ("trim",),
+     "Whether OSV answered for every component of the release, as the OSV query Capture shows: "
+     "complete (N of N components answered), or partial with how many it answered, the purl "
+     "types it does not index (brew, generic: never asked, since OSV's empty answer there "
+     "would read as no advisories) and how many went unanswered. What OSV indexes is its own "
+     "word (its ecosystems.txt, captured beside every query) read through the kit's purl type "
+     "map. An empty OSV answer is a negative only under complete coverage."),
     ("security.assessment.expected_status", ("security.assessment",), "literal",
      {"enum": ["affected", "not_affected"], "type": "string"}, "one", "normative", (), (),
      "An agent's stated bet on the assessment's status before a source observes it; "
@@ -316,6 +335,13 @@ CLAIM_TYPES: list[ClaimRow] = [
     ("security.vulnerability.vendor_product", ("security.vulnerability",), "literal",
      TEXT, "one", "observation", (CVE_CONTRACT, KEV_CONTRACT), (),
      "The affected vendor and product as a retained source states it."),
+    ("security.vulnerability.package", ("security.vulnerability",), "literal", PACKAGE, "many",
+     "observation", (OSV_CONTRACT,), ("trim",),
+     "A package OSV's records say the vulnerability affects, as a package URL without version "
+     "(pkg:deb/debian/php8.2, pkg:pypi/jinja2): OSV knows the CVE. A release whose components "
+     "OSV answered in full and that holds none of these packages is not affected (an "
+     "incident's RQ1 reads it none, citing both); with none stated, OSV's silence decides "
+     "nothing."),
     ("security.vulnerability.watch_reason", ("security.vulnerability",), "literal", TEXT,
      "one", "normative", (), (),
      "The decision to track the vulnerability, and why. A vulnerability is tracked when it has "
@@ -1043,7 +1069,8 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
     # Every release with its key, product, supplier and SBOM components: the
     # import, applicability and attention Procedures' state tap.
     q.append(_query(
-        "security.release_inventory", "Every release with its product, supplier and components",
+        "security.release_inventory", "Every release with its product, supplier, components "
+        "and OSV coverage",
         "release", "release",
         [_hop("product", "release", "security.release.product", "product"),
          _hop("supplier", "product", "security.product.supplied_by", "supplier")],
@@ -1052,7 +1079,8 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
          _field("product_name", "release", "security.release.product_name"),
          _field("version", "release", "security.release.version"),
          _field("supplier_name", "supplier", "security.supplier.name"),
-         _field("components", "release", "security.release.component")],
+         _field("components", "release", "security.release.component"),
+         _field("osv_coverage", "release", "security.release.osv_coverage")],
         max_results=2000,
     ))
     # Every assessment with its key, status (and its role: normative is an analyst's
@@ -1267,7 +1295,8 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
                          "epss_score", "epss_percentile")],
         # Path-shaped (core admits an optional hop only there), so a vulnerability with
         # several qualifying assessments is several rows: the Procedures read it once.
-        tracked, max_results=2000))
+        tracked, max_results=2000,
+        includes=(_include("package", "vulnerability", "security.vulnerability.package"),)))
     # The settle mandates' condition: the changed Claim's Subject is a keyed
     # vulnerability. Core requires a condition on every settle grant, and that it
     # return exactly one row per target. "Watched" (a watch_reason OR an affected or
@@ -1937,6 +1966,7 @@ def capture_contracts() -> list[CaptureContract]:
 
     raw += [
         derived(OSV_CONTRACT, "osv.dev.query", ["external"], "http_response"),
+        derived(OSV_ECOSYSTEMS_CONTRACT, "osv.dev.ecosystems", ["external"], "http_response"),
         derived(EPSS_CONTRACT, "first.epss.daily", ["external"], "http_response"),
         derived(SBOM_CONTRACT, "cyclonedx.sbom", ["external"], "sbom_document"),
         derived(WORKSPACE_EVIDENCE_CONTRACT, "security.analysis.evidence", ["external"],
@@ -1975,7 +2005,8 @@ def capture_contracts() -> list[CaptureContract]:
 
 def acquisition_policy() -> SourceAcquisitionPolicy:
     """`security.acquisition` covers every Source alias the kit uses: `catalog` (KEV),
-    `record` (CVE record), `epss`, `osv`, `sbom` and `evidence` (an analyst's
+    `record` (CVE record), `epss`, `osv`, `ecosystems` (OSV's ecosystem list), `sbom` and
+    `evidence` (an analyst's
     workspace file), the system model's `snapshot` (a repository), `registry`
     (PyPI), `release`, `asset` and `history` (GitHub), and the code findings' `sarif`
     (a scan's log) and `reproduction` (a PoC run's report), and incident response's
@@ -2005,7 +2036,8 @@ def acquisition_policy() -> SourceAcquisitionPolicy:
             "coherence": {"kind": "independent"},
             "identity": {"kind": "SourceAcquisitionPolicy", "name": POLICY},
             "inputs": [rule("asset"), rule("catalog"), rule("credential", "exact"),
-                       rule("epss"), rule("evidence", "exact"), rule("history"),
+                       rule("ecosystems"), rule("epss"), rule("evidence", "exact"),
+                       rule("history"),
                        rule("inventory", "exact"), rule("log", "exact"), rule("osv"),
                        rule("record"), rule("registry"), rule("release"),
                        rule("reproduction", "exact"), rule("sarif", "exact"),
@@ -2120,12 +2152,14 @@ OSV_RESULT = _contract(
     "security-osv-applicability-result",
     items=PropertySchema(type="json"),
     unkeyed=PropertySchema(type="json"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged"),
+    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged",
+            "coverage", "packages"),
 )
 OSV_SUMMARY = _contract(
     "security-osv-applicability-summary",
     unkeyed=PropertySchema(type="json"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged"),
+    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged",
+            "coverage", "packages"),
 )
 CVE_REQUEST = _contract(
     "security-cve-applicability-request",
@@ -2306,26 +2340,31 @@ def _project(summary: CarriedContractInput, alias: str, next: str) -> Project:
                    fields={name: f"$steps.{alias}.{name}" for name in summary.fields})
 
 
-def _blueprint(sequence: Sequence, interface: dict[str, Any], slot: str) -> BlueprintInput:
-    """Open the Sequence's ``slot`` Source as a slot typed by ``interface``."""
+def _blueprint(sequence: Sequence, interface: dict[str, Any], slot: str,
+               also: dict[str, dict[str, Any]] | None = None) -> BlueprintInput:
+    """Open the Sequence's ``slot`` Source (and each Source ``also`` names) as a slot typed
+    by its interface: every network Source is the consumer's to bind."""
 
+    slots = {slot: interface, **(also or {})}
     built = sequence.build()
     definition = dict(built.definition)
     nodes = []
     for node in definition["nodes"]:
         node = dict(node)
-        if node["kind"] == "source" and node.get("as", node.get("node_id")) == slot:
-            node["provider"] = {"kind": "slot", "slot_name": slot}
+        name = node.get("as", node.get("node_id"))
+        if node["kind"] == "source" and name in slots:
+            node["provider"] = {"kind": "slot", "slot_name": name}
             node.pop("implementation_digest", None)
         nodes.append(node)
     definition["nodes"] = nodes
     definition["pin_slots"] = [
         {
-            "slot_name": slot,
+            "slot_name": name,
             "pin_role": "provider",
             "artifact_kind": "Provider",
-            "interface_digest": interface["interface_digest"],
+            "interface_digest": slots[name]["interface_digest"],
         }
+        for name in sorted(slots)
     ]
     return BlueprintInput(kind="blueprint", definition=definition, contracts=built.contracts)
 
@@ -2802,15 +2841,24 @@ def sbom_import(cx: Cruxible) -> Any:
 
 def osv_applicability(cx: Cruxible) -> BlueprintInput:
     osv = cx.provider_interface("security.osv-query", provider=SOURCES_PROVIDER)
+    ecosystems = cx.provider_interface("security.osv-ecosystems", provider=SOURCES_PROVIDER)
     decide = cx.provider_interface("security.osv-applicability", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
             StateTap("releases", query="security.release_inventory", next="watched"),
             StateTap("watched", query="security.watched_vulnerabilities", next="assessments"),
-            StateTap("assessments", query="security.assessment_index", next="osv"),
+            StateTap("assessments", query="security.assessment_index", next="ecosystems"),
+            # What OSV indexes, in its own words, retained as its own Capture.
+            Source("ecosystems", capture_contract=OSV_ECOSYSTEMS_CONTRACT, next="osv",
+                   request={}),
+            # The purl type map is kit data (its sources cited): edit it by authoring a
+            # successor of this Procedure.
             Source("osv", capture_contract=OSV_CONTRACT, next="decide",
                    request={"releases": "$steps.releases.result.rows",
-                            "watched": "$steps.watched.result.rows"}),
+                            "watched": "$steps.watched.result.rows",
+                            "ecosystems": "$steps.ecosystems",
+                            "purl_types": {"osv_ecosystems": PURL_OSV_ECOSYSTEMS["osv_ecosystems"],
+                                           "sources": PURL_OSV_ECOSYSTEMS["sources"]}}),
             Call("decide", contract_in=OSV_REQUEST, contract_out=OSV_RESULT, next="summary",
                  input={"osv": "$steps.osv", "releases": "$steps.releases.result.rows",
                         "watched": "$steps.watched.result.rows",
@@ -2825,22 +2873,27 @@ def osv_applicability(cx: Cruxible) -> BlueprintInput:
         ],
         name="security.osv-applicability",
         description=(
-            "Ask OSV.dev about every SBOM component (purl@version) of every release and every "
-            "watched CVE, retain the answer under security.osv-query-v1, and propose an "
-            "assessment per (release, CVE) whose answer changed: affected (watching the CVE "
-            "when it is new), not_affected with its VEX justification, or inconclusive. "
-            "Propose-only; never settles. Runs as a Line (daily, or `line run` after an SBOM "
-            "import is accepted)."
+            "Retain OSV's ecosystem list (ecosystems.txt, under security.osv-ecosystems-v1), "
+            "then ask OSV.dev about every SBOM component (purl@version) of every release whose "
+            "ecosystem OSV indexes (by the kit's purl type map, carried in this Procedure; the "
+            "rest are recorded not_indexed, never asked) and every watched CVE, retain the "
+            "answer under security.osv-query-v1, and propose what changed: each release's OSV "
+            "coverage (complete, or partial with the purl types not indexed), the packages "
+            "OSV says each watched CVE affects, and an assessment per (release, CVE): affected "
+            "(watching the CVE when it is new), not_affected with its VEX justification, or "
+            "inconclusive. Propose-only; never settles. Runs as a Line (daily, or `line run` "
+            "after an SBOM or inventory import is accepted)."
         ),
         contract_in=EMPTY,
         contract_out=OSV_SUMMARY,
         returns="summary",
         activation_policy="drain",
         acquisition_policy=POLICY,
-        budget=_budget(300, 2, 67_108_864),
-        hard_caps=_caps(600, 2, 67_108_864, 5000),
-    ).bind(osv=osv, decide=decide)
-    return _blueprint(sequence, _interface(cx, "security.osv-query"), "osv")
+        budget=_budget(300, 3, 67_108_864),
+        hard_caps=_caps(600, 3, 67_108_864, 5000),
+    ).bind(osv=osv, ecosystems=ecosystems, decide=decide)
+    return _blueprint(sequence, _interface(cx, "security.osv-query"), "osv",
+                      also={"ecosystems": _interface(cx, "security.osv-ecosystems")})
 
 
 def cve_applicability(cx: Cruxible) -> Any:

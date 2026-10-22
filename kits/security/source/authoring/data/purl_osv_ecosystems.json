@@ -1,0 +1,38 @@
+{
+  "description": "Which OSV ecosystem answers for a package URL: a purl type (or type/namespace for a distribution's packages) -> the OSV ecosystem name. The OSV query asks OSV only about a component whose ecosystem the captured ecosystems.txt lists; every other component is recorded not_indexed, and its release's OSV coverage is partial. A type missing here is not indexed (brew, generic, docker, oci, cocoapods, conda, github ...). Edit it by authoring a successor of the osv-applicability Procedure; keep the sources.",
+  "sources": [
+    "https://github.com/package-url/purl-spec/blob/main/PURL-TYPES.rst (purl types and their namespaces)",
+    "https://ossf.github.io/osv-schema/#defined-ecosystems (OSV ecosystem names and the purl type each uses)",
+    "https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt (what OSV indexes now: captured on every run)"
+  ],
+  "osv_ecosystems": {
+    "apk/alpine": "Alpine",
+    "apk/chainguard": "Chainguard",
+    "apk/wolfi": "Wolfi",
+    "bitnami": "Bitnami",
+    "cargo": "crates.io",
+    "composer": "Packagist",
+    "conan": "ConanCenter",
+    "cran": "CRAN",
+    "deb/debian": "Debian",
+    "deb/ubuntu": "Ubuntu",
+    "gem": "RubyGems",
+    "githubactions": "GitHub Actions",
+    "golang": "Go",
+    "hackage": "Hackage",
+    "hex": "Hex",
+    "maven": "Maven",
+    "npm": "npm",
+    "nuget": "NuGet",
+    "pub": "Pub",
+    "pypi": "PyPI",
+    "rpm/almalinux": "AlmaLinux",
+    "rpm/mageia": "Mageia",
+    "rpm/openeuler": "openEuler",
+    "rpm/opensuse": "openSUSE",
+    "rpm/redhat": "Red Hat",
+    "rpm/rocky-linux": "Rocky Linux",
+    "rpm/suse": "SUSE",
+    "swift": "SwiftURL"
+  }
+}

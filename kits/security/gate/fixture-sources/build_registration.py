@@ -4,7 +4,7 @@
 
 web.fetch's definition, vocabulary and fixtures are cruxible-provider-web
 0.2.2's, byte for byte, so installing this package binds core's web.fetch
-registration. ``security.osv-query``, ``security.epss-daily``,
+registration. ``security.osv-query``, ``security.osv-ecosystems``, ``security.epss-daily``,
 ``security.repo-snapshot``, ``security.pypi-release`` and
 ``security.release-asset`` are the kit's security-sources-provider definitions,
 vocabularies and fixtures, copied here
@@ -44,8 +44,9 @@ def _vendor() -> dict[str, dict[str, object]]:
     (MODULE / "_sources.py").write_text(VENDORED + (SOURCES / "sources.py").read_text())
     kit = json.loads((SOURCES / "manifest.json").read_text())
     implementations = {item["interface_id"]: item for item in kit["implementations"]}
-    for interface in ("security.osv-query", "security.epss-daily", "security.repo-snapshot",
-                      "security.pypi-release", "security.release-asset"):
+    for interface in ("security.osv-query", "security.osv-ecosystems", "security.epss-daily",
+                      "security.repo-snapshot", "security.pypi-release",
+                      "security.release-asset"):
         for folder in ("contracts", "vocab", "registration-fixtures"):
             shutil.copyfile(SOURCES / folder / f"{interface}.json",
                             MODULE / folder / f"{interface}.json")
@@ -67,6 +68,8 @@ def main() -> None:
          }),
         ("security.osv-query", "feeds:GateOsvQuery", "_sources:classify_osv", "_sources.py",
          "vocab/security.osv-query.json", kit["security.osv-query"]),
+        ("security.osv-ecosystems", "feeds:GateOsvEcosystems", "_sources:classify_ecosystems",
+         "_sources.py", "vocab/security.osv-ecosystems.json", kit["security.osv-ecosystems"]),
         ("security.epss-daily", "feeds:GateEpssDaily", "_sources:classify_epss", "_sources.py",
          "vocab/security.epss-daily.json", kit["security.epss-daily"]),
         ("security.repo-snapshot", "feeds:GateRepoSnapshot", "_sources:classify_repo",

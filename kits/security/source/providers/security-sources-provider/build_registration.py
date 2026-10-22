@@ -10,6 +10,7 @@ built wheel carries always matches the bytes beside it.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 from pathlib import Path
@@ -59,11 +60,28 @@ INTERFACES: dict[
         {
             "releases": _rows("components", ["pkg:pypi/jinja2@3.1.3"]),
             "watched": _rows("cve_id", "CVE-2024-34064"),
+            "ecosystems": {"input_bucket": "list=osv", "retrieved": {
+                "url": "https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt",
+                "status_code": 200, "content_type": "text/plain", "byte_count": 5,
+                "body_sha256": "sha256:" + hashlib.sha256(b"PyPI\n").hexdigest(),
+                "body_base64": base64.b64encode(b"PyPI\n").decode(), "source": "fixture"}},
+            "purl_types": {"osv_ecosystems": {"pypi": "PyPI"}},
         },
         "components=small;watchlist=small",
         "components=*;watchlist=*",
         ["https://api.osv.dev"],
         "security.osv.exchanges.v1",
+    ),
+    "security.osv-ecosystems": (
+        "sources:OsvEcosystems",
+        "sources:classify_ecosystems",
+        "OSV's published ecosystem list (ecosystems.txt) to retain.",
+        [_dimension("list", "which list", {"osv": "OSV's ecosystems.txt"})],
+        {},
+        "list=osv",
+        "list=osv",
+        ["https://osv-vulnerabilities.storage.googleapis.com"],
+        "security.osv.ecosystems.v1",
     ),
     "security.epss-daily": (
         "sources:EpssDaily",

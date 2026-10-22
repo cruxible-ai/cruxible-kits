@@ -34,6 +34,7 @@
       "name": "security.osv-applicability",
       "blueprint": "security.osv-applicability",
       "bindings": {
+        "ecosystems": "security-sources-provider",
         "osv": "security-sources-provider"
       },
       "acquisition_policy": "security.acquisition"
@@ -545,7 +546,7 @@
         "max_wall_clock": {
           "microseconds": 600000000
         },
-        "max_provider_calls": 2,
+        "max_provider_calls": 3,
         "max_capture_bytes": 67108864,
         "max_items": 5000,
         "max_repeat_attempts": 1

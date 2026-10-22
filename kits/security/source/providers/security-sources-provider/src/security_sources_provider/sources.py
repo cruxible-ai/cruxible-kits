@@ -7,13 +7,24 @@ Every request goes through one httpx client whose request hook records the
 endpoint on the run's egress recorder; the endpoints are declared in the
 manifest (``https://api.osv.dev``, ``https://epss.empiricalsecurity.com``).
 
+``security.osv-ecosystems`` retains OSV's published ecosystem list
+(``ecosystems.txt``), exactly as served: what OSV indexes is OSV's own word,
+captured as evidence on every run, never a table in code.
+
 ``security.osv-query`` asks OSV, for every component purl@version of every
-release in the request (rows of ``security.release_inventory``), which
-advisories affect it (``POST /v1/querybatch``, up to 1000 queries a batch), then
-fetches the full record of every advisory it found and of every watched CVE
-(rows of ``security.watched_vulnerabilities``) and their aliases
-(``GET /v1/vulns/{id}``). A 404 is retained as an exchange like any other: OSV
-not knowing an id is an answer.
+release in the request (rows of ``security.release_inventory``) whose ecosystem
+OSV indexes, which advisories affect it (``POST /v1/querybatch``, up to 1000
+queries a batch), then fetches the full record of every advisory it found and of
+every watched CVE (rows of ``security.watched_vulnerabilities``) and their
+aliases (``GET /v1/vulns/{id}``). A 404 is retained as an exchange like any
+other: OSV not knowing an id is an answer. A component's ecosystem comes from
+the kit's purl type map (``purl_types``: a purl type, or type/namespace for a
+distribution, -> an OSV ecosystem name; kit data citing the purl spec and the
+OSV schema) and must be on the captured list (``ecosystems``: the
+``security.osv-ecosystems`` material); any other component (``pkg:brew``,
+``pkg:generic`` ...) is not queried, since OSV's empty answer for it would read as
+no advisories, and is recorded in the bundle's ``not_indexed`` with why. The
+bundle also records the map it applied and the digest of the list it read.
 
 ``security.epss-daily`` fetches the current EPSS daily scores file (gzip CSV,
 following the redirect to the dated file) and retains its exact bytes.
@@ -70,6 +81,10 @@ from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunCo
 
 OSV_API = "https://api.osv.dev"
 OSV_SOURCE = "osv.dev.query"
+OSV_ECOSYSTEMS_HOST = "https://osv-vulnerabilities.storage.googleapis.com"
+OSV_ECOSYSTEMS_URL = f"{OSV_ECOSYSTEMS_HOST}/ecosystems.txt"
+OSV_ECOSYSTEMS_SOURCE = "osv.dev.ecosystems"
+MAX_ECOSYSTEMS_BYTES = 1_048_576
 EPSS_URL = "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz"
 EPSS_SOURCE = "first.epss.daily"
 USER_AGENT = "security-sources-provider/1.0 (cruxible security kit)"
@@ -173,6 +188,52 @@ def _rows_values(rows: object, name: str) -> list[Any]:
     return values
 
 
+class OsvInputError(ValueError):
+    """The OSV query lacks what tells an indexed component from one OSV never answers."""
+
+
+def indexed_ecosystems(material: object) -> tuple[set[str], str]:
+    """(OSV ecosystem names, the list's body digest) from the ``security.osv-ecosystems``
+    material: one name per line, a release suffix (``Debian:12``) folded into its base."""
+
+    retrieved = material.get("retrieved") if isinstance(material, Mapping) else None
+    if not isinstance(retrieved, Mapping):
+        raise OsvInputError("no captured OSV ecosystem list (security.osv-ecosystems)")
+    try:
+        body = base64.b64decode(str(retrieved.get("body_base64") or ""), validate=True)
+        text = body.decode("utf-8")
+    except (ValueError, UnicodeDecodeError) as error:
+        raise OsvInputError("the captured OSV ecosystem list is not text") from error
+    names = {line.split(":", 1)[0].strip() for line in text.splitlines() if line.strip()}
+    if not names:
+        raise OsvInputError("the captured OSV ecosystem list names no ecosystem")
+    return names, _sha256(body)
+
+
+def purl_type_map(value: object) -> dict[str, str]:
+    """The kit's purl type map: ``type`` or ``type/namespace`` -> OSV ecosystem name."""
+
+    table = value.get("osv_ecosystems") if isinstance(value, Mapping) else None
+    if not isinstance(table, Mapping) or not table:
+        raise OsvInputError("no purl type map (purl_types.osv_ecosystems)")
+    return {str(key).strip().lower(): str(name).strip() for key, name in table.items()
+            if str(key).strip() and str(name).strip()}
+
+
+def purl_ecosystem(purl: str, table: Mapping[str, str]) -> tuple[str, str, str | None]:
+    """(the purl's type, its type/namespace, its OSV ecosystem or None): the map keys a
+    distribution's packages by type/namespace (``deb/debian``), the rest by type."""
+
+    body = purl[4:].split("?", 1)[0].split("#", 1)[0].rsplit("@", 1)[0]
+    purl_type, _, rest = body.partition("/")
+    purl_type = purl_type.lower()
+    segments = [segment for segment in rest.split("/") if segment]
+    scoped = f"{purl_type}/{segments[0].lower()}" if len(segments) > 1 else purl_type
+    if scoped in table:
+        return purl_type, scoped, table[scoped]
+    return purl_type, scoped, table.get(purl_type)
+
+
 def osv_request(payload: Mapping[str, Any]) -> tuple[list[str], list[str]]:
     """(component purls with a version, watched CVE ids), sorted and unique."""
 
@@ -244,7 +305,29 @@ class OsvQuery:
         self._source = "network" if transport_factory is None else "packaged-recording"
 
     def __call__(self, context: ProviderRunContext) -> ProviderResult:
-        purls, cves = osv_request(context.input)
+        components, cves = osv_request(context.input)
+        try:
+            listed, list_digest = indexed_ecosystems(context.input.get("ecosystems"))
+            table = purl_type_map(context.input.get("purl_types"))
+        except OsvInputError as error:
+            return ProviderResult.refused(
+                RefusalCode.PROVIDER_DECLINED,
+                f"{error}: without it a component OSV never indexes would read as no "
+                "advisories",
+            )
+        purls: list[str] = []
+        not_indexed: list[dict[str, str]] = []
+        for purl in components:
+            purl_type, scoped, ecosystem = purl_ecosystem(purl, table)
+            if ecosystem is None:
+                named = purl_type if scoped == purl_type or purl_type in table else scoped
+                not_indexed.append({"purl": purl, "type": purl_type,
+                                    "reason": f"no OSV ecosystem for purl type {named}"})
+            elif ecosystem not in listed:
+                not_indexed.append({"purl": purl, "type": purl_type,
+                                    "reason": f"OSV does not list the {ecosystem} ecosystem"})
+            else:
+                purls.append(purl)
         timeout = max(5.0, context.budgets.wall_clock_seconds * 0.4)
         exchanges: list[_Exchange] = []
         try:
@@ -311,6 +394,12 @@ class OsvQuery:
             "service": OSV_API,
             "source": self._source,
             "exchanges": [exchange.wire() for exchange in exchanges],
+            "not_indexed": not_indexed,
+            "osv_ecosystems": {"body_sha256": list_digest, "listed": sorted(listed)},
+            "purl_types": {
+                "osv_ecosystems": dict(sorted(table.items())),
+                "sources": [str(item) for item in
+                            (context.input.get("purl_types") or {}).get("sources") or ()]},
         }
         return ProviderResult.ok(
             external_capture_result(
@@ -319,13 +408,83 @@ class OsvQuery:
                 coordinate_type="http-response-v1",
                 selector_type="whole-response-v1",
                 coordinate={
-                    "request_digest": _sha256(canonical_json({"purls": purls, "cves": cves})),
+                    "request_digest": _sha256(canonical_json({
+                        "purls": purls, "cves": cves,
+                        "not_indexed": [item["purl"] for item in not_indexed]})),
                     "exchanges": len(exchanges),
                     "source": self._source,
                 },
                 observed_at=datetime.now(UTC),
             ),
-            metrics={"exchanges": float(len(exchanges)), "purls": float(len(purls))},
+            metrics={"exchanges": float(len(exchanges)), "purls": float(len(purls)),
+                     "not_indexed": float(len(not_indexed))},
+        )
+
+
+def classify_ecosystems(payload: Mapping[str, Any]) -> Mapping[str, str] | None:
+    url = payload.get("url", OSV_ECOSYSTEMS_URL)
+    if url != OSV_ECOSYSTEMS_URL:
+        return None
+    return {"list": "osv"}
+
+
+class OsvEcosystems:
+    """The ``security.osv-ecosystems`` implementation (external read, Source)."""
+
+    interface_id = "security.osv-ecosystems"
+
+    def __init__(self, transport_factory: TransportFactory | None = None) -> None:
+        self._transport_factory = transport_factory or (lambda: None)
+        self._source = "network" if transport_factory is None else "packaged-recording"
+
+    def __call__(self, context: ProviderRunContext) -> ProviderResult:
+        url = str(context.input.get("url") or OSV_ECOSYSTEMS_URL)
+        if url != OSV_ECOSYSTEMS_URL:
+            return ProviderResult.refused(
+                RefusalCode.PROVIDER_DECLINED,
+                f"the OSV ecosystem list is read from {OSV_ECOSYSTEMS_URL}",
+            )
+        timeout = max(5.0, context.budgets.wall_clock_seconds * 0.4)
+        try:
+            with _client(context.egress, base_url=OSV_ECOSYSTEMS_HOST, timeout=timeout,
+                         transport=self._transport_factory()) as client:
+                response = client.get("/ecosystems.txt")
+        except httpx.HTTPError as error:
+            return ProviderResult.failed("HttpError", f"{type(error).__name__}: {error}")
+        if response.status_code != 200:
+            return ProviderResult.failed(
+                "HttpStatus", f"the OSV ecosystem list answered {response.status_code}")
+        body = response.content
+        if len(body) > MAX_ECOSYSTEMS_BYTES:
+            return ProviderResult.refused(
+                RefusalCode.PROVIDER_DECLINED, "the OSV ecosystem list is too large")
+        material = {
+            "input_bucket": context.input_bucket,
+            "retrieved": {
+                "url": url,
+                "status_code": response.status_code,
+                "content_type": response.headers.get("content-type", ""),
+                "byte_count": len(body),
+                "body_sha256": _sha256(body),
+                "body_base64": base64.b64encode(body).decode("ascii"),
+                "source": self._source,
+            },
+        }
+        return ProviderResult.ok(
+            external_capture_result(
+                canonical_json(material),
+                source_identity=OSV_ECOSYSTEMS_SOURCE,
+                coordinate_type="http-response-v1",
+                selector_type="whole-response-v1",
+                coordinate={
+                    "request_digest": _sha256(url.encode()),
+                    "status": response.status_code,
+                    "body_sha256": _sha256(body),
+                    "source": self._source,
+                },
+                observed_at=datetime.now(UTC),
+            ),
+            metrics={"byte_count": float(len(body))},
         )
 
 

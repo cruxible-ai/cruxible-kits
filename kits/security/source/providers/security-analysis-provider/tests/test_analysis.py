@@ -105,18 +105,32 @@ def _row(
     }
 
 
-def _vuln(cve: str, claims: dict[str, str] | None = None, **fields: object) -> dict[str, Any]:
+def _includes(**named: list[str]) -> list[dict[str, Any]]:
+    """A row's includes: name -> literal values (each its own Claim)."""
+
+    return [{"name": name, "items": [
+        {"claim_object": {"kind": "literal", "value": value},
+         "visibility": {"claim_path": f"claims/00/CLM-{name}-{index}.json"}}
+        for index, value in enumerate(values)]} for name, values in named.items()]
+
+
+def _vuln(cve: str, claims: dict[str, str] | None = None, *, packages: list[str] | None = None,
+          **fields: object) -> dict[str, Any]:
     subject = ("security.vulnerability", cve.lower())
-    return _row(
+    row = _row(
         {"vulnerability": subject},
         {("vulnerability", f"security.vulnerability.{k}"): v for k, v in (claims or {}).items()},
         cve_id=cve,
         **fields,
     )
+    if packages:
+        row["includes"] = _includes(package=packages)
+    return row
 
 
 def _release(
-    product: str, version: str, components: list[str] | None = None, supplier: str | None = None
+    product: str, version: str, components: list[str] | None = None, supplier: str | None = None,
+    *, coverage: str | None = None, aliases: list[str] | None = None,
 ) -> dict[str, Any]:
     rid = f"{product}--{version}"
     bindings = {"release": ("security.release", rid), "product": ("security.product", product)}
@@ -126,7 +140,13 @@ def _release(
         fields["supplier_name"] = supplier.lower()
     if components:
         fields["components"] = components
-    return _row(bindings, **fields)
+    claims = {}
+    if coverage:
+        fields["osv_coverage"] = coverage
+        claims[("release", "security.release.osv_coverage")] = f"CLM-coverage-{rid}"
+    if aliases:
+        fields["product_alias"] = aliases
+    return _row(bindings, claims, **fields)
 
 
 def _catalog_b64() -> str:
@@ -395,8 +415,10 @@ OSV = {
         _exchange(
             "POST",
             "/v1/querybatch",
-            {"results": [{}, {"vulns": [{"id": "GHSA-h75v-3vvj-5mfj"}, {"id": "GHSA-xxxx-only"}]}]},
-            {"purls": ["pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3"]},
+            {"results": [{}, {"vulns": [{"id": "GHSA-h75v-3vvj-5mfj"}, {"id": "GHSA-xxxx-only"}]},
+                         {}]},
+            {"purls": ["pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3",
+                       "pkg:pypi/jinja2@3.1.4"]},
         ),
         _exchange("GET", "/v1/vulns/GHSA-h75v-3vvj-5mfj", JINJA_GHSA),
         _exchange("GET", "/v1/vulns/GHSA-xxxx-only", GHSA_ONLY),
@@ -409,15 +431,32 @@ OSV = {
 }
 
 
+COMPLETE = {1: "complete: 1 of 1 components answered", 2: "complete: 2 of 2 components answered"}
+
+
 def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> None:
-    core = _release("cruxible-core", "0.3.2", ["pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3"])
-    client = _release("cruxible-client", "0.3.2", ["pkg:pypi/httpx@0.28.1"])
-    fixed = _release("other", "1.0", ["pkg:pypi/jinja2@3.1.4"])
+    first = [_release("cruxible-core", "0.3.2", ["pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3"]),
+             _release("cruxible-client", "0.3.2", ["pkg:pypi/httpx@0.28.1"]),
+             _release("other", "1.0", ["pkg:pypi/jinja2@3.1.4"])]
     output = _run(
         OsvApplicability(),
-        {"osv": OSV, "releases": [core, client, fixed], "watched": [], "assessments": []},
+        {"osv": OSV, "releases": first, "watched": [], "assessments": []},
     )
     assert output["unkeyed"] == ["GHSA-xxxx-only"]
+    # One coverage Claim per release: OSV answered every component of each.
+    assert {s[0]: s[2] for s in _statements(output["items"]) if s[1] == "osv_coverage"} == {
+        "subjects/security.release/cruxible-client--0.3.2.json": COMPLETE[1],
+        "subjects/security.release/cruxible-core--0.3.2.json": COMPLETE[2],
+        "subjects/security.release/other--1.0.json": COMPLETE[1]}
+    # What OSV says the CVE it starts watching affects (OSV knows the CVE).
+    assert [(json.loads(s[0]), s[2]) for s in _statements(output["items"])
+            if s[1] == "package"] == [({"cve_id": "CVE-2024-34064"}, "pkg:pypi/jinja2")]
+    assert (output["coverage"], output["packages"]) == (3, 1)
+    core = _release("cruxible-core", "0.3.2", ["pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3"],
+                    coverage=COMPLETE[2])
+    client = _release("cruxible-client", "0.3.2", ["pkg:pypi/httpx@0.28.1"],
+                      coverage=COMPLETE[1])
+    fixed = _release("other", "1.0", ["pkg:pypi/jinja2@3.1.4"], coverage=COMPLETE[1])
     # Not watched yet: only the affected release is assessed, and the CVE is watched by key.
     keys = [(i["subject_kind"], i["key"]) for i in output["items"] if i.get("subject_kind")]
     assert keys == [
@@ -436,10 +475,11 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
         {
             "osv": OSV,
             "releases": [core, client, fixed],
-            "watched": [_vuln("CVE-2024-34064")],
+            "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])],
             "assessments": [],
         },
     )
+    assert (watched["coverage"], watched["packages"]) == (0, 0)
     decided = {
         json.loads(s[0])["release_id"]: s[2]
         for s in _statements(watched["items"])
@@ -465,7 +505,8 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
     # An affected assessment held without its component gains it, and nothing else.
     gains = _run(
         OsvApplicability(),
-        {"osv": OSV, "releases": [core, client, fixed], "watched": [_vuln("CVE-2024-34064")],
+        {"osv": OSV, "releases": [core, client, fixed],
+         "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])],
          "assessments": held},
     )
     assert [(s[1], s[2]) for s in _statements(gains["items"])] == [
@@ -478,7 +519,7 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
         {
             "osv": OSV,
             "releases": [core, client, fixed],
-            "watched": [_vuln("CVE-2024-34064")],
+            "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])],
             "assessments": held,
         },
     )
@@ -518,7 +559,8 @@ def test_a_flipped_answer_revises_status_and_retires_the_stale_justification() -
 
 
 def test_an_analyst_judgment_is_never_revised_by_a_source() -> None:
-    core = _release("cruxible-core", "0.3.2", ["pkg:pypi/jinja2@3.1.3"])
+    core = _release("cruxible-core", "0.3.2", ["pkg:pypi/jinja2@3.1.3"], coverage=(
+        "partial: 0 of 1 components answered; unanswered 1"))
     judged = _row(
         {"assessment": ("security.assessment", "a1")},
         cve_id="CVE-2024-34064",
@@ -532,11 +574,37 @@ def test_an_analyst_judgment_is_never_revised_by_a_source() -> None:
         {
             "osv": OSV,
             "releases": [core],
-            "watched": [_vuln("CVE-2024-34064")],
+            "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])],
             "assessments": [judged],
         },
     )
-    assert output["items"] == [] and output["judged"] == 1 and output["affected"] == 0
+    # (jinja2 3.1.3 is in the batch: its held partial coverage is revised to complete.)
+    assert [(s[1], s[2]) for s in _statements(output["items"])] == [
+        ("osv_coverage", COMPLETE[1])]
+    assert output["items"][0]["revises"] == "CLM-coverage-cruxible-core--0.3.2"
+    assert output["judged"] == 1 and output["affected"] == 0
+
+
+def test_osv_coverage_is_partial_where_osv_never_answered_and_decides_nothing_there() -> None:
+    """A component OSV does not index is never asked: its release's coverage is partial (with
+    the purl types), and no CVE is decided from OSV's silence about it (never none)."""
+
+    osv = {**OSV, "not_indexed": [
+        {"purl": "pkg:brew/gh@2.86.0", "type": "brew", "reason": "no OSV ecosystem for brew"},
+        {"purl": "pkg:generic/php@8.3.10", "type": "generic", "reason": "no OSV ecosystem"},
+        {"purl": "pkg:pypi/jinja2@3.1.5", "type": "pypi", "reason": "not listed"}]}
+    mixed = _release("tooling", "1.0", ["pkg:brew/gh@2.86.0", "pkg:generic/php@8.3.10",
+                                        "pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.5"],
+                     coverage=COMPLETE[2])
+    output = _run(OsvApplicability(), {
+        "osv": osv, "releases": [mixed],
+        "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])], "assessments": []})
+    (item,) = output["items"]
+    assert item["statement"]["predicate"] == "security.release.osv_coverage"
+    assert item["statement"]["object"]["value"] == (
+        "partial: 1 of 4 components answered; not indexed: brew 1, generic 1, pypi 1")
+    assert item["revises"] == "CLM-coverage-tooling--1.0"
+    assert (output["inconclusive"], output["not_affected"]) == (0, 0)
 
 
 def test_purls_and_versions_compare_conservatively() -> None:

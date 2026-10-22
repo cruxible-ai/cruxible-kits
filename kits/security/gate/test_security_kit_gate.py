@@ -70,7 +70,7 @@ RESULTS: dict[str, tuple[str, str]] = {}
 STEPS = {
     "01": "init: empty instance, seeded Triggers",
     "02": "kit add from the registry: preview by kind, commit, status, providers",
-    "03": "fixture Sources: web.fetch, osv-query, epss-daily implementations",
+    "03": "fixture Sources: web.fetch, osv-query, osv-ecosystems, epss-daily implementations",
     "04": "instantiate Blueprints; unbound and mismatched refused",
     "05": "author Lines, Triggers, propose mandates; enable",
     "06": "SBOM import first: workspace Source v2 -> landing -> proposal; re-import no_change",
@@ -484,6 +484,7 @@ def test_03_fixture_sources(gate: Gate) -> None:
     found = {}
     for interface, kit_provider in (("web.fetch", "cruxible-provider-web"),
                                     ("security.osv-query", "security-sources-provider"),
+                                    ("security.osv-ecosystems", "security-sources-provider"),
                                     ("security.epss-daily", "security-sources-provider"),
                                     ("security.repo-snapshot", "security-sources-provider"),
                                     ("security.pypi-release", "security-sources-provider"),
