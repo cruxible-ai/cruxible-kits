@@ -1,13 +1,14 @@
 ---
 name: security-analyst
-description: Work as a security analyst on an instance with the Cruxible security kit - answer exposure questions, work the KEV triage backlog, review applicability proposals, record analyst judgments with their evidence, act on hardening answers (found, none, unknown), and triage code findings without a finder confirming its own report.
+description: Work as a security analyst on an instance with the Cruxible security kit - answer exposure questions, work the KEV triage backlog, review applicability proposals, record analyst judgments with their evidence, act on hardening answers (found, none, unknown), triage code findings without a finder confirming its own report, and carry an incident through patch, audit and rotate on evidence, never on self-report.
 ---
 
 # Security Analyst
 
 Use this skill when the security kit is installed and the user wants security
 questions answered or security work done: what is exposed, what is untriaged,
-whether a finding is real, what to fix first.
+whether a finding is real, what to fix first, and how to respond when a
+vulnerability is exploited in the wild.
 
 The kit's [README](../../README.md) is the source for every name below, and
 its [reference](../../reference.md) lists every kind, field and query. The
@@ -44,10 +45,12 @@ cruxible inbox list --status unread                      # what the Lines posted
 cruxible proposal list --status open
 ```
 
-Three Lines post for judgment: `security.harden` (hardening answers),
-`security.kev-attention` (possible exposures) and the SARIF attention Line of
+These Lines post for judgment: `security.harden` (hardening answers),
+`security.kev-attention` (possible exposures), the SARIF attention Line of
 each repository (`security.sarif-attention.<repo>` in the example automation;
-regressions and location gaps). Use `--line NAME` to read one.
+regressions and location gaps), and during an incident its respond Line
+(`security.respond.<incident>`) and log import (`security.log-import.<incident>`:
+incomplete reads). Use `--line NAME` to read one.
 
 Open proposals from the kit's Lines are its proposed observations; review them
 before anything else rests on them.
@@ -145,7 +148,56 @@ cruxible query --name security.finder_record --param repo_ref=github.com/OWNER/R
    (a partial scan never verifies), and `fixed_by` names the fixing change.
    A later report of the same finding is a regression.
 
-## 6. Report
+## 6. Respond to an incident
+
+The README's [Respond to an incident](../../README.md#respond-to-an-incident) is
+the source. You govern the response; your own tools perform it. Cruxible runs no
+command against any service.
+
+```bash
+cruxible inbox list --line security.respond.INCIDENT --status unread
+cruxible query --name security.incident_exposure --param incident=INCIDENT    # RQ1
+cruxible query --name security.open_patches --param incident=INCIDENT         # RQ2, internet-facing first
+cruxible query --name security.audit_status --param incident=INCIDENT         # RQ3
+cruxible query --name security.incident_credentials --param incident=INCIDENT # RQ4
+```
+
+- **Declare.** An incident groups the CVEs of one response: its window
+  (`window_start`), rotation policy and status, plus its respond and log
+  import Lines, in one approved ChangeSet. Enable both Lines after approval.
+- **Act only on an accepted remediation.** A patch names `work.asset`,
+  `work.assessment` and `target_release`; a rotation names `work.credential`,
+  `work.audit` and `revokes_key` (the `key_id` held when you raise it). Approval
+  is the authorization to act. Set `progress` `completed` when done: it never
+  closes anything.
+- **Prove with a read you did not make.** A full inventory scan verifies a
+  patch, a separate state read of the credential verifies a rotation. Whoever
+  acted does not acquire the Capture that verifies the action; `cruxible get
+  ProcedureRun:RUN-...` shows each acquiring run's `actor`. A receipt from the
+  issuer records the new key id; it never verifies.
+- **Audit in three states.** State the log sources first (stating them asks the
+  question). `none` needs `not_exploited`, a `window_end`, and complete reads of
+  every source covering the whole window. An incomplete read is a finding about
+  the logs, not about the attacker: report it as such. The result cites the
+  decisive read; your reasoning goes in a section of the incident's note.
+  Disagree by contending.
+- **Rotate, usually after the patch.** Rotating after the patch is verified is
+  the recommended order (rotating first lets an attacker still on the host read
+  the new key), but it is your call: rotate at once when a key is known leaked or
+  the patch cannot land soon. The respond Line posts `rotate` with the service's
+  audit and patch state and never gates the rotation on the patch.
+- **Never put a secret in a file.** Record only the allow-listed fields: key ids
+  or `fp:` fingerprints, states, times, who. If a secret slips into a file you
+  acquired, stop, rotate what it exposed and tell the maintainer: the Capture is
+  retained.
+- **Close on the answer.** Close (`status` `closed`, with a Closure section)
+  only after the respond Line posts `ready_to_close`, and name its residue
+  (audits that stay unknown, and that their credentials were rotated).
+
+Report per question RQ1-RQ5 in the README's flow table shape, with the exact
+pull or statement for every unknown.
+
+## 7. Report
 
 Report in priority order, one row per item:
 
