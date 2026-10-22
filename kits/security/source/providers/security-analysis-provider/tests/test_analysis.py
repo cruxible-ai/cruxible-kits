@@ -426,6 +426,9 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
     ]
     status = [s for s in _statements(output["items"]) if s[1] == "status"]
     assert [s[2] for s in status] == ["affected"]
+    # The component that brings it in (urgent_exposures and triage show it).
+    assert [s[2] for s in _statements(output["items"]) if s[1] == "component"] == [
+        "pkg:pypi/jinja2@3.1.3"]
     # Watched: every release with a component of the CVE's packages gets an answer; a
     # release with none of them (client: no jinja2) is not assessed.
     watched = _run(
@@ -459,6 +462,17 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
             ]
         )
     ]
+    # An affected assessment held without its component gains it, and nothing else.
+    gains = _run(
+        OsvApplicability(),
+        {"osv": OSV, "releases": [core, client, fixed], "watched": [_vuln("CVE-2024-34064")],
+         "assessments": held},
+    )
+    assert [(s[1], s[2]) for s in _statements(gains["items"])] == [
+        ("component", "pkg:pypi/jinja2@3.1.3")]
+    held[0]["includes"] = [{"name": "component", "items": [{
+        "claim_object": {"kind": "literal", "value": "pkg:pypi/jinja2@3.1.3"},
+        "visibility": {"claim_path": "claims/00/CLM-component.json"}}]}]
     again = _run(
         OsvApplicability(),
         {

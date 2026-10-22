@@ -82,6 +82,7 @@ from .common import (
     key_ref,
     match_token,
     parse_rows,
+    replacing,
     sorted_items,
     subject_item,
 )
@@ -90,6 +91,7 @@ ASSESSMENT = "security.assessment"
 VULNERABILITY = "security.vulnerability"
 STATUS = "security.assessment.status"
 JUSTIFICATION = "security.assessment.justification"
+COMPONENT = "security.assessment.component"
 RETIREMENT_ITEM = "playbill-procedure-claim-retirement-item-v1"
 LIMIT = 1000
 
@@ -121,6 +123,8 @@ class Decision:
     status: str
     justification: str | None
     rationale: str
+    #: The release's components OSV lists as affected (``assessment.component``).
+    components: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -133,6 +137,8 @@ class Held:
     status_claim: str | None
     justification_claim: str | None
     judged: bool = False
+    #: component purl -> its Claim ID
+    components: tuple[tuple[str, str], ...] = ()
 
 
 def _held(rows: Iterable[Row]) -> dict[tuple[str, str], Held]:
@@ -150,6 +156,9 @@ def _held(rows: Iterable[Row]) -> dict[tuple[str, str], Held]:
             status_claim=row.claim_id(assessment, STATUS),
             justification_claim=row.claim_id(assessment, JUSTIFICATION),
             judged=row.value("status_role") == "normative",
+            components=tuple(sorted((str(item.value), item.claim_id)
+                                    for item in row.included("component")
+                                    if isinstance(item.value, str))),
         )
     return held
 
@@ -169,10 +178,14 @@ def decisions_to_items(
             # An analyst's judgment (a normative status) is never revised by a source.
             counts["judged"] += 1
             continue
+        held_components = dict(prior.components) if prior is not None else {}
+        wanted = set(decision.components) if decision.status == "affected" else set()
         if (
             prior is not None
             and prior.status == decision.status
             and prior.justification == decision.justification
+            and (decision.status != "affected" or not decision.components
+                 or wanted == set(held_components))
         ):
             counts["unchanged"] += 1
             continue
@@ -219,15 +232,26 @@ def decisions_to_items(
             )
         else:
             assessment = prior.assessment
-        claims.append(
-            claim_item(
-                assessment,
-                STATUS,
-                decision.status,
-                decision.rationale,
-                revises=prior.status_claim if prior is not None and prior.status else None,
+        if prior is None or prior.status != decision.status:
+            claims.append(
+                claim_item(
+                    assessment,
+                    STATUS,
+                    decision.status,
+                    decision.rationale,
+                    revises=prior.status_claim if prior is not None and prior.status else None,
+                )
             )
-        )
+        pairs, adds, stale = replacing(held_components, wanted)
+        for purl, revises in [*pairs, *((purl, None) for purl in adds)]:
+            claims.append(claim_item(assessment, COMPONENT, purl,
+                                     f"OSV lists {decision.cve} for the component {purl}.",
+                                     revises=revises))
+        for purl in stale:
+            claims.append({"tag": RETIREMENT_ITEM, "retires": held_components[purl],
+                           "reason": "superseded", "effective_until": None,
+                           "rationale": f"{decision.status}: OSV no longer lists {purl} for "
+                                        f"{decision.cve}. {decision.rationale}"})
         if decision.justification is not None:
             claims.append(
                 claim_item(
@@ -411,6 +435,7 @@ class OsvApplicability:
             if not components:
                 continue
             affected: dict[str, list[str]] = {}
+            affected_purls: dict[str, set[str]] = {}
             for purl in components:
                 for record_id in hits.get(purl, ()):
                     cves = _cves(record_id, records.get(record_id))
@@ -428,6 +453,7 @@ class OsvApplicability:
                             + (f", fixed in {', '.join(fixed)}" if fixed else "")
                             + ")"
                         )
+                        affected_purls.setdefault(cve, set()).add(purl)
             for cve, reasons in sorted(affected.items()):
                 decisions.append(
                     Decision(
@@ -436,6 +462,7 @@ class OsvApplicability:
                         "affected",
                         None,
                         f"OSV lists {cve} as affecting {'; '.join(sorted(set(reasons)))}.",
+                        tuple(sorted(affected_purls.get(cve, ()))),
                     )
                 )
             by_package: dict[tuple[str, str], list[str]] = {}

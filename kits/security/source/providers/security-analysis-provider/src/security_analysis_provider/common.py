@@ -248,6 +248,37 @@ def claim_item(
     return item
 
 
+def replacing(held: Mapping[Any, str], wanted: Iterable[Any],
+              same: Any = None) -> tuple[list[tuple[Any, str]], list[Any], list[Any]]:
+    """How a many-valued slot moves from ``held`` (value -> Claim ID) to ``wanted``.
+
+    Core's slot law asks every live Claim of the slot for a disposition when a new value
+    is staged, and refuses one a retirement in the same terminal also names: one terminal
+    cannot both add to a slot and retire from it. So a replaced value revises the Claim it
+    replaces (``same(value)`` pairs them, e.g. by product name; else in order), the rest
+    adds, and what is gone retires only in a terminal that stages nothing else in the slot:
+    otherwise the retirements wait for the next read, which then only retires.
+
+    Returns (``(new value, revised Claim)`` pairs, values to add, held values to retire).
+    """
+
+    wanted_set = set(wanted)
+    gone = sorted(set(held) - wanted_set, key=str)
+    pairs: list[tuple[Any, str]] = []
+    adds: list[Any] = []
+    for value in sorted(wanted_set - set(held), key=str):
+        if same is not None:
+            match = next((g for g in gone if same(g) == same(value)), None)
+        else:
+            match = gone[0] if gone else None
+        if match is None:
+            adds.append(value)
+            continue
+        gone.remove(match)
+        pairs.append((value, held[match]))
+    return pairs, adds, ([] if adds or pairs else gone)
+
+
 def retirement_item(claim_id: str, rationale: str, reason: str = "superseded") -> dict[str, Any]:
     """Retire one live Claim by ID: the source no longer states it."""
 

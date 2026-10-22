@@ -109,7 +109,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_osv",
         "identity": "security.osv-applicability.input",
         "source": {
-          "digest": "sha256:6023688a92ef5e0a508534791995722c6336edb803ca928dca4de16c555aad2a",
+          "digest": "sha256:28086750fe16f9519bc980ffc8648de4f4a86d90f291234750ad69b31c380ea5",
           "path": "applicability.py"
         },
         "version": 1
@@ -135,7 +135,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_cve",
         "identity": "security.cve-applicability.input",
         "source": {
-          "digest": "sha256:6023688a92ef5e0a508534791995722c6336edb803ca928dca4de16c555aad2a",
+          "digest": "sha256:28086750fe16f9519bc980ffc8648de4f4a86d90f291234750ad69b31c380ea5",
           "path": "applicability.py"
         },
         "version": 1
@@ -239,7 +239,7 @@
         "entrypoint": "security_analysis_provider.response:classify_inventory",
         "identity": "security.runtime-inventory.input",
         "source": {
-          "digest": "sha256:e50d3fc38c6648d6b829c6c73e0c78a25c72c1ea093ad96ab2b9b470ad967f28",
+          "digest": "sha256:2de543b796370909cf30e79d72aea9841fe96b375cd25431d0c2637b00841cf5",
           "path": "response.py"
         },
         "version": 1
@@ -265,7 +265,7 @@
         "entrypoint": "security_analysis_provider.response:classify_log",
         "identity": "security.log-reads.input",
         "source": {
-          "digest": "sha256:e50d3fc38c6648d6b829c6c73e0c78a25c72c1ea093ad96ab2b9b470ad967f28",
+          "digest": "sha256:2de543b796370909cf30e79d72aea9841fe96b375cd25431d0c2637b00841cf5",
           "path": "response.py"
         },
         "version": 1
@@ -291,7 +291,7 @@
         "entrypoint": "security_analysis_provider.response:classify_credential",
         "identity": "security.credential-state.input",
         "source": {
-          "digest": "sha256:e50d3fc38c6648d6b829c6c73e0c78a25c72c1ea093ad96ab2b9b470ad967f28",
+          "digest": "sha256:2de543b796370909cf30e79d72aea9841fe96b375cd25431d0c2637b00841cf5",
           "path": "response.py"
         },
         "version": 1
@@ -317,7 +317,7 @@
         "entrypoint": "security_analysis_provider.response:classify_respond",
         "identity": "security.respond.input",
         "source": {
-          "digest": "sha256:e50d3fc38c6648d6b829c6c73e0c78a25c72c1ea093ad96ab2b9b470ad967f28",
+          "digest": "sha256:2de543b796370909cf30e79d72aea9841fe96b375cd25431d0c2637b00841cf5",
           "path": "response.py"
         },
         "version": 1

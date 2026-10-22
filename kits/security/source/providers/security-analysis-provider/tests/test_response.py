@@ -207,8 +207,14 @@ def test_a_full_scan_retires_old_runs_verifies_patches_and_disputes_a_false_clai
     # storefront-a and app-1 no longer run it: verified, however far the claim got;
     # storefront-b is claimed completed but still runs it: failed.
     assert verifications == {"rem-a": "verified", "rem-app": "verified", "rem-b": "failed"}
-    retired = {s[1] for s in statements if s[0] == "retire"}
-    assert retired == {"CLM-run-1-php-8.3.10", "CLM-run-0-php8.2-8.2.20-1~deb12u1"}
+    # A new version of a product revises the run it replaces (one terminal cannot both
+    # add to a many-valued slot and retire from it).
+    assert not [s for s in statements if s[0] == "retire"]
+    revised = {i["revises"]: i["statement"]["object"]["subject"]["key"]["version"]
+               for i in result["items"] if i.get("statement", {}).get("predicate") ==
+               "security.asset.runs"}
+    assert revised == {"CLM-run-1-php-8.3.10": "8.3.36",
+                       "CLM-run-0-php8.2-8.2.20-1~deb12u1": "8.2.29-1~deb12u1"}
     assert any(s[1] == "revision" and s[2] == result["revision"] for s in statements)
     assert (result["verified"], result["failed"]) == (2, 1)
 
@@ -254,8 +260,20 @@ def test_a_cyclonedx_sbom_is_one_assets_complete_run_set() -> None:
     patch = _patch_row("rem-a", "k8s:prod/storefront-a", progress="completed")
     patched = _inventory(_text("storefront-a.syft.patched.cdx.json"), held, [patch])
     statements = _statements(patched["items"])
-    assert ("retire", "CLM-run-0-php-8.3.10", "superseded") in statements
+    (run,) = [i for i in patched["items"] if i.get("statement", {}).get("predicate") ==
+              "security.asset.runs"]
+    assert run["revises"] == "CLM-run-0-php-8.3.10"
     assert [s[2] for s in statements if s[1] == "verification"] == ["verified"]
+    # A product that is gone with nothing replacing it is retired, once nothing is added.
+    gone = json.loads(_text("storefront-a.syft.patched.cdx.json"))
+    gone["components"] = [c for c in gone["components"] if c["name"] != "libxml2"]
+    statements = _statements(_inventory(json.dumps(gone), held, [patch])["items"])
+    assert not [s for s in statements if s[0] == "retire"]  # waits: php is revised now
+    held_after = _held_prod(None, assets={"k8s:prod/storefront-a": [
+        ("php", "8.3.36"), ("libc6", "2.36-9+deb12u7"), ("libxml2", "2.9.14+dfsg-1.3~deb12u1"),
+        ("libssl3", "3.0.15-1~deb12u1")]})
+    later = _statements(_inventory(json.dumps(gone), held_after)["items"])
+    assert later == [("retire", "CLM-run-0-libxml2-2.9.14+dfsg-1.3~deb12u1", "superseded")]
 
 
 def test_a_cyclonedx_sbom_without_its_annotations_is_refused() -> None:
@@ -487,9 +505,15 @@ def test_rq2_patch_states_from_the_scan_never_from_the_claim() -> None:
     exposures = [_exposure(PHP, ("php", "8.3.10"), asset=sa[0], service=sa[1])]
     claimed = _ask(exposure=exposures, patches=[_patch("rem-a", *sa, PHP, ("php", "8.3.10"),
                                                        progress="completed")])
-    assert _by(claimed, "RQ2")["k8s:prod/storefront-a: php 8.3.10"]["state"] == "found"
-    (disputed,) = _posted(claimed, "patch_disputed")
-    assert disputed["why"] == "claimed_but_running"
+    # A claim alone is never a closure: unknown until a scan reads the asset.
+    assert _by(claimed, "RQ2")["k8s:prod/storefront-a: php 8.3.10"]["state"] == "unknown"
+    assert [g["pull"] for g in _posted(claimed, "gap")
+            if g["subject"] == "k8s:prod/storefront-a"] == ["security.inventory-acquire"]
+    failed = _ask(exposure=exposures, patches=[_patch("rem-a", *sa, PHP, ("php", "8.3.10"),
+                                                      progress="completed",
+                                                      verification="failed")])
+    (disputed,) = _posted(failed, "patch_disputed")
+    assert disputed["why"] == "verification_failed"
     pending = _ask(exposure=exposures, patches=[_patch("rem-a", *sa, PHP, ("php", "8.3.10"),
                                                        progress="in_progress")])
     assert _by(pending, "RQ2")["k8s:prod/storefront-a: php 8.3.10"]["state"] == "pending"

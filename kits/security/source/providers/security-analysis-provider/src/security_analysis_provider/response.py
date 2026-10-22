@@ -47,7 +47,7 @@ created_at, revoked_at, last_used_at, created_by}]}`` and nothing else, beside
 every credential's held state (rows of ``security.rotation_work``). An unknown
 field anywhere, or a key id shaped like a secret, refuses the whole body: nothing
 is proposed and one ``secret_shape`` item is posted that echoes no value (the
-bytes are retained already; tell the maintainer). From either read: the current
+bytes are retained already: the contract authorizes ``cruxible capture erase``). From either read: the current
 key's ``key_id``, ``issued_at`` and ``issued_by``. Only from a ``state_read`` (a
 separate listing): ``revoked_key``, and a rotation's ``verification`` --
 ``verified`` when its ``revokes_key`` is revoked, deleted or no longer listed and
@@ -66,11 +66,11 @@ states, from the rows of ``security.incident_exposure``,
   for the product and shows no affected run is none. An inconclusive assessment is
   unknown (an analyst's judgment answers it).
 - RQ2 is each exposure patched: ``patch_missing``, ``patch_overdue``,
-  ``patch_disputed`` (verification failed, or claimed completed while a scan
-  still shows the release), ``patch_regressed`` (verified, then seen running
-  again) are found; ``verified`` with no affected run is none; a claimed patch no
-  scan has read since is unknown; an approved one on schedule is pending (summary
-  only).
+  ``patch_disputed`` (a scan read it after the claim and still shows the release:
+  verification failed), ``patch_regressed`` (verified, then seen running again)
+  are found; ``verified`` with no affected run is none; a claimed patch no scan has
+  read since is unknown (the gap names the inventory pull); an approved one on
+  schedule is pending (summary only).
 - RQ3 were we exploited in the window, per service: ``exploited`` is found;
   ``not_exploited`` is none only with ``window_end`` stated and, for every stated
   log source, complete reads whose union covers [window_start, window_end];
@@ -115,6 +115,7 @@ from .common import (
     key_ref,
     name_form,
     parse_rows,
+    replacing,
     retirement_item,
     sorted_items,
     subject_item,
@@ -465,9 +466,12 @@ def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
                       revises=held.revision_claim)
         else:
             items.restate(cover, "security.coverage.revision", digest, why)
-        for product in sorted(scan.looked_for - set(held.looked_for)):
+        pairs, adds, dropped = replacing(held.looked_for, scan.looked_for)
+        for product, claim in pairs:
+            items.add(cover, "security.coverage.looked_for", product, f"{said}.", revises=claim)
+        for product in adds:
             items.add(cover, "security.coverage.looked_for", product, f"{said}.")
-        for product in sorted(set(held.looked_for) - scan.looked_for):
+        for product in dropped:
             items.retire(held.looked_for[product], f"{said}: no longer looks for {product}.")
     components: set[tuple[tuple[str, str], str]] = set()
     for host in sorted(scan.assets):
@@ -479,7 +483,13 @@ def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
         if have is None or have.scanned_in is None:
             items.add(asset, "security.asset.scanned_in", cover, f"{said}: {written} was read.")
         held_runs = have.runs if have else {}
-        for key in sorted(set(runs) - set(held_runs)):
+        # What a complete read no longer sees goes (of the products it looked for); a new
+        # version of a product revises the run it replaces (see common.replacing).
+        retirable = {key: claim for key, claim in held_runs.items()
+                     if key in runs or (complete and scan.covers(key[0]))}
+        pairs, adds, gone = replacing(retirable, set(runs),
+                                      same=lambda key: key[0])
+        for key, revises in [*pairs, *((key, None) for key in adds)]:
             run = runs[key]
             release = key_ref(RELEASE, product_name=run.name, version=run.version)
             items.subject(RELEASE, {"product_name": run.name, "version": run.version},
@@ -489,12 +499,9 @@ def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
                 items.add(release, "security.release.component", run.purl,
                           f"{said}: {run.purl} is the runtime's own package.")
             items.add(asset, "security.asset.runs", release, f"{said}: {written} runs "
-                      f"{run.purl}.")
-        if complete:
-            for key in sorted(set(held_runs) - set(runs)):
-                if scan.covers(key[0]):
-                    items.retire(held_runs[key], f"{said}: {written} no longer runs "
-                                 f"{key[0]} {key[1]}.")
+                      f"{run.purl}.", revises=revises)
+        for key in gone:
+            items.retire(held_runs[key], f"{said}: {written} no longer runs {key[0]} {key[1]}.")
     if scan.full_scope:
         for host in sorted(set(held.assets) - set(scan.assets)):
             gone = held.assets[host]
@@ -799,9 +806,10 @@ def credential_state(text: str, held_rows: list[Row]) -> dict[str, Any]:
         state = read_credential(text)
     except SecretShape as error:
         item = {"kind": "secret_shape", "why": str(error),
-                "repair": "Nothing was proposed. The Capture's bytes are retained: tell the "
-                          "maintainer, rotate anything it exposed, and acquire an allow-listed "
-                          "body (key ids or fp: fingerprints only)."}
+                "repair": "Nothing was proposed, but the Capture's bytes are retained: rotate "
+                          "anything it exposed, erase its body (cruxible capture erase; the "
+                          "contract authorizes it), and acquire an allow-listed body (key ids "
+                          "or fp: fingerprints only)."}
         return {**zero, "credential": "", "read": "", "items": [], "inbox": [item],
                 "posted": 1}
     held = held_credentials(held_rows).get((state["issuer"].casefold(), state["name"]))
@@ -1165,12 +1173,13 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
         elif exposed and patch.verification == "verified":
             out.answer("RQ2", subject, "found", "running again after it was verified", {
                 "kind": "patch_regressed", **found, "patch": ref})
-        elif exposed and patch.progress == "completed":
-            out.answer("RQ2", subject, "found", "claimed completed, still running", {
-                "kind": "patch_disputed", **found, "patch": ref, "why": "claimed_but_running"})
         elif exposed and patch.bound.path in overdue:
             out.answer("RQ2", subject, "found", "past due", {
                 "kind": "patch_overdue", **found, "patch": ref, "due_at": patch.due_at})
+        elif exposed and patch.progress == "completed":
+            out.unknown("RQ2", subject, "claimed completed; no scan has read it since",
+                        params.inventory_pull, {"covering": asset.hostname},
+                        about=asset.hostname)
         elif exposed:
             out.answer("RQ2", subject, "pending", "approved, on schedule")
         elif patch.verification == "verified" and asset.covers(release.product):
