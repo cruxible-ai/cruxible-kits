@@ -2330,11 +2330,13 @@ LOG_DOC = "security/log-sources.md"
 INCIDENT_NOTE = "incidents/php2shell.md"
 #: How long step 37's exception holds: long enough to approve it and ask once.
 EXCEPTION_SECONDS = 75
-LOG_DOC_TEXT = (
-    "# storefront\n\nstorefront/nginx-access and storefront/php-fpm: Loki, 30-day retention, "
-    "the platform team.\n\n# partner-portal\n\npartner-portal/apache: the host's "
-    "/var/log/apache2, 90-day retention, the partner team.\n\n# ops-wiki\n\nops-wiki/nginx: "
-    "the host's /var/log/nginx, 14-day retention, the ops team.\n")
+#: One section per service under one heading (a doc append adds one heading subtree).
+LOG_DOC_SECTIONS = {
+    "storefront": "storefront/nginx-access and storefront/php-fpm: Loki, 30-day retention, "
+                  "the platform team.",
+    "partner-portal": "partner-portal/apache: the host's /var/log/apache2, 90-day retention, "
+                      "the partner team.",
+    "ops-wiki": "ops-wiki/nginx: the host's /var/log/nginx, 14-day retention, the ops team."}
 CREDENTIALS = {"aws": ("aws-iam/111122223333", "storefront-app", "storefront"),
                "stripe": ("stripe", "storefront-live", "storefront"),
                "postgres": ("postgres/partners-db", "portal", "partner-portal"),
@@ -2533,7 +2535,8 @@ def test_35_inventory_and_listing(gate: Gate) -> None:
         # Where its logs live: pointers only, each citing the service's section of LOG_DOC.
         changes += [{"op": "add", "subject": {"created": label},
                      "field": "security.service.log_source", "value": source,
-                     "evidence": {"kind": "section", "file": LOG_DOC, "section": [name],
+                     "evidence": {"kind": "section", "file": LOG_DOC,
+                                  "section": ["Log sources", name],
                                   "own_words": True}} for source in SERVICE_LOGS[name]]
     serves = {"storefront-a": "storefront", "storefront-b": "storefront", "app-1": "partner-portal",
               "wiki-1": "ops-wiki"}
@@ -2559,7 +2562,9 @@ def test_35_inventory_and_listing(gate: Gate) -> None:
     gate.values["incident_subjects"] = _write_created(gate, RESPONDER, "incident-context", {
         "because": "Acme's services, where their logs live, the workloads and hosts serving "
                    "them, and the credentials each uses (non-secret identities only).",
-        "changes": changes, "docs": [{"op": "append", "file": LOG_DOC, "text": LOG_DOC_TEXT}]},
+        "changes": changes, "docs": [{"op": "append", "file": LOG_DOC, "text": "# Log sources\n\n"
+                                      + "".join(f"## {name}\n\n{text}\n\n" for name, text
+                                                in LOG_DOC_SECTIONS.items())}]},
         LEAD)
     held = gate.claims("security.service", "security.service.log_source")
     assert sorted(held) == sorted(gate.values["incident_subjects"][f"svc-{name}"].rsplit(
@@ -2791,13 +2796,13 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
              "value": expires},
             {"op": "set", "subject": {"created": label}, "field": "security.exception.approval",
              "value": "approved", "evidence": {"kind": "section", "file": INCIDENT_NOTE,
-                                               "section": ["Exception: app-1"],
+                                               "section": ["Exception for app-1"],
                                                "own_words": True}}]
     _write_created(gate, RESPONDER, "exception-app-1", {
         "because": "app-1's upgrade waits for the partner's maintenance window; the WAF rule "
                    "blocks the exploit path meanwhile.", "changes": changes,
         "docs": [{"op": "append", "file": INCIDENT_NOTE, "text": (
-            f"# Exception: app-1\n\nThe Debian build stays until {expires}: the partner's "
+            f"# Exception for app-1\n\nThe Debian build stays until {expires}: the partner's "
             "maintenance window; a WAF rule blocks `?-d` query strings meanwhile.\n")}]}, LEAD)
     excepted = f"{HOSTS['app-1']}: php8.2 8.2.20-1~deb12u1"
     summary = _respond(gate)
