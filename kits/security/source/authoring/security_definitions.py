@@ -1,9 +1,9 @@
 """Author the security kit's definitions in a fresh authoring instance.
 
-    python security_definitions.py definitions [--release 1.2.0|1.2.1]
-    python security_definitions.py procedures  [--release 1.2.0|1.2.1]
+    python security_definitions.py definitions [--release 1.3.0|1.3.1]
+    python security_definitions.py procedures  [--release 1.3.0|1.3.1]
 
-``1.2.1`` is the release gate's upgrade variant (``source/variants/1.2.1-gate``,
+``1.3.1`` is the release gate's upgrade variant (``source/variants/1.3.1-gate``,
 never published); any other release is the base.
 
 ``definitions`` proposes and activates the CaptureContracts, ClaimTypes, the
@@ -107,13 +107,17 @@ GH_API_CONTRACT = "security.github-api-v1"
 ASSET_CONTRACT = "security.release-asset-v1"
 SARIF_CONTRACT = "security.sarif-v1"
 REPRO_CONTRACT = "security.reproduction-v1"
+#: Incident response (1.3.0): what runs where, a log read, a credential's key state.
+INVENTORY_CONTRACT = "security.runtime-inventory-v1"
+LOG_CONTRACT = "security.log-read-v1"
+CREDENTIAL_CONTRACT = "security.credential-state-v1"
 #: The system model's pull contracts: every fact about the organization's systems
 #: cites a Capture under one of them.
 SYSTEM_CONTRACTS = (REPO_CONTRACT, PYPI_CONTRACT, GH_RELEASE_CONTRACT, GH_API_CONTRACT,
                     ASSET_CONTRACT)
 POLICY = "security.acquisition"
-RELEASE = "1.2.0"  # the kit release
-VARIANT = "1.2.1"  # the release gate's upgrade variant (not published)
+RELEASE = "1.3.0"  # the kit release
+VARIANT = "1.3.1"  # the release gate's upgrade variant (not published)
 WEB_PROVIDER = "cruxible-provider-web"
 ANALYSIS_PROVIDER = "security-analysis-provider"
 SOURCES_PROVIDER = "security-sources-provider"
@@ -122,6 +126,10 @@ KEV_MAX_BYTES = 4_194_304  # the catalog is ~1.7 MB; web.fetch defaults to 256 K
 CVE_MAX_BYTES = 1_048_576
 GITHUB_MAX_BYTES = 4_194_304
 ASSET_MAX_BYTES = 33_554_432  # security.release-asset's ceiling
+#: The built-in workspace.file structures at most 1 MiB (core
+#: providers/builtin_workspace_file.py MAX_STRUCTURED_BYTES): every workspace-file
+#: Procedure's budget says so.
+WORKSPACE_FILE_MAX_BYTES = 1_048_576
 DATE = {"type": "string", "pattern": r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"}
 DATETIME = {
     "format": "date-time",
@@ -139,7 +147,7 @@ COMMIT = {"type": "string", "pattern": r"^[0-9a-f]{40}$"}
 FULL_NAME = {"type": "string", "pattern": r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"}
 PERMISSION = {"type": "string", "pattern": r"^[A-Za-z*_-]+:[A-Za-z_-]+$"}
 REGISTRIES = ("ghcr", "github_pages", "github_release", "pypi")
-COVERAGE_SCOPES = ("ci.workflows", "registry.files", "release.manifest")
+COVERAGE_SCOPES = ("ci.workflows", "inventory.runtime", "registry.files", "release.manifest")
 #: Coverage reads unknown unless re-read within twice the pull cadence (6 h cron).
 COVERAGE_STALE_AFTER_HOURS = 12
 #: The canonical form of every name key: two spellings of one name are one key.
@@ -159,7 +167,8 @@ SELF_SOURCE_CONTRACT = "playbill.coordinator-self-source-v1"
 #: every other kit contract: http_response
 EVIDENCE_KINDS = {SBOM_CONTRACT: "sbom_document", WORKSPACE_EVIDENCE_CONTRACT: "workspace_file",
                   SELF_SOURCE_CONTRACT: "self_asserted", SARIF_CONTRACT: "sarif_log",
-                  REPRO_CONTRACT: "test_report"}
+                  REPRO_CONTRACT: "test_report", INVENTORY_CONTRACT: "inventory_scan",
+                  LOG_CONTRACT: "log_query", CREDENTIAL_CONTRACT: "credential_state"}
 #: What an analyst's judgment may cite: their own words, or a workspace file
 #: retained by security.evidence-acquire.
 JUDGMENT_EVIDENCE = (SELF_SOURCE_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT)
@@ -202,7 +211,8 @@ CLAIM_TYPES: list[ClaimRow] = [
      "normative", (), ("trim", "upper"),
      "The CVE this assessment is about; with release_id, the assessment's key."),
     ("security.asset.hostname", ("security.asset",), "literal", TEXT, "one", "normative", (),
-     ("trim", "casefold"), "The asset's hostname; its key."),
+     ("trim", "casefold"), "The asset's hostname (a host, or a workload such as "
+     "k8s:prod/storefront-a); its key."),
     ("security.product.name", ("security.product",), "literal", TEXT, "one", "normative", (),
      NAME_FORM, "The product's name; its key."),
     ("security.supplier.name", ("security.supplier",), "literal", TEXT, "one", "normative", (),
@@ -224,9 +234,10 @@ CLAIM_TYPES: list[ClaimRow] = [
     ("security.release.product", ("security.release",), "subject", ("security.product",), "one",
      "sourced", (SBOM_CONTRACT,), (), "The product this release is a version of."),
     ("security.release.component", ("security.release",), "literal", PURL, "many",
-     "observation", (SBOM_CONTRACT,), ("trim",),
+     "observation", (INVENTORY_CONTRACT, SBOM_CONTRACT), ("trim",),
      "A component of the release, as its package URL with version (purl@version), observed "
-     "in an SBOM."),
+     "in an SBOM; for a runtime a scan observed running, the runtime's own purl (OSV decides "
+     "distro builds by it)."),
     ("security.product.supplied_by", ("security.product",), "subject", ("security.supplier",),
      "one", "sourced", (SBOM_CONTRACT,), (), "The supplier of the product."),
     ("security.service.criticality", ("security.service",), "literal",
@@ -321,7 +332,11 @@ CLAIM_TYPES: list[ClaimRow] = [
      "When this work item is next reviewed."),
     ("security.work.verification", WORK, "literal",
      {"enum": ["failed", "inconclusive", "verified"], "type": "string"}, "one", "observation",
-     (OUTPUT_CONTRACT,), (), "Whether the work was verified, as observed from retained evidence."),
+     (CREDENTIAL_CONTRACT, INVENTORY_CONTRACT, OUTPUT_CONTRACT), (),
+     "Whether the work was verified, as observed from retained evidence: a patch by a full "
+     "runtime-inventory scan (the asset no longer runs the affected release), a rotation by a "
+     "separate state read of the credential (the old key revoked, a new one issued). A "
+     "self-report (remediation.progress completed) never sets it."),
 ]
 # 1.1.0 adds the CWE identifiers KEV lists (a gate fixture for kit upgrades).
 CLAIM_TYPES_1_1: list[ClaimRow] = [
@@ -371,11 +386,12 @@ SYSTEM: list[ClaimRow] = [
     ("security.change.commit_sha", ("security.change",), "literal", COMMIT, "one", "normative",
      (), ("trim", "casefold"), "The commit SHA; with repo_ref, the change's key."),
     ("security.coverage.source", ("security.coverage",), "literal", TEXT, "one", "normative",
-     (), ("trim",), "The fully read source (host/owner/repo@ref:path, or registry/name); with "
-     "scope, the coverage's key."),
+     (), ("trim",), "The fully read source (host/owner/repo@ref:path, registry/name, or an "
+     "inventory scope's name); with scope, the coverage's key."),
     ("security.coverage.scope", ("security.coverage",), "literal",
      {"enum": list(COVERAGE_SCOPES), "type": "string"}, "one", "normative", (), (),
-     "What was read in full: ci.workflows, release.manifest or registry.files."),
+     "What was read in full: ci.workflows, release.manifest, registry.files, or "
+     "inventory.runtime (every asset of one inventory scope, with what it runs)."),
     ("security.signal.detector", ("security.signal",), "literal", TEXT, "one", "normative", (),
      ("trim",), "What observed the signal (a question such as security.hq5, or manual); with "
      "fingerprint, the signal's key."),
@@ -443,10 +459,11 @@ SYSTEM: list[ClaimRow] = [
      (PYPI_CONTRACT, REPO_CONTRACT), (), "What the source belongs to: a repository, or a "
      "registry target."),
     ("security.coverage.revision", ("security.coverage",), "literal", TEXT, "one",
-     "observation", (PYPI_CONTRACT, REPO_CONTRACT), ("trim",),
-     "The revision every file was read at: a commit SHA, or the digest of a registry's served "
-     "file set, re-read on every pull and stale 12 h after the last. Absence inside current "
-     "coverage is an answer; outside it, unknown."),
+     "observation", (INVENTORY_CONTRACT, PYPI_CONTRACT, REPO_CONTRACT), ("trim",),
+     "The revision every file was read at: a commit SHA, the digest of a registry's served "
+     "file set, or the digest of a full runtime-inventory scan's (asset, runs) set; re-read on "
+     "every pull and stale 12 h after the last. Absence inside current coverage is an answer; "
+     "outside it, unknown."),
     # Policy and investigation.
     ("security.target.publish_gate", ("security.target",), "literal", TEXT, "many",
      "normative", (), ("trim",), "A trigger the organization allows to publish to the target "
@@ -533,10 +550,120 @@ FINDINGS: list[ClaimRow] = [
      "The finding this work item answers (a remediation fixes it; an approved exception "
      "accepts its risk)."),
 ]
+# Incident response (1.3.0): patch, audit, rotate. Cruxible holds what needs doing and
+# why, who approved it and the evidence it is done; the user's agent acts with its own
+# tools. Closure is evidence (a scan, a separate state read), never a self-report.
+# Secrets never enter: credentials carry non-secret key ids only.
+ROTATION_POLICIES = {
+    "all_exposed": "Rotate every credential a service of an exposed asset uses.",
+    "on_found_or_unknown": "Rotate the credentials of a service whose audit found "
+    "exploitation or cannot rule it out (unknown).",
+}
+AUDIT_RESULTS = {
+    "exploited": "The window's logs show exploitation: cite the decisive read.",
+    "inconclusive": "The logs cannot decide it (a gap, a missing source, ambiguous matches).",
+    "not_exploited": "Every stated log source was read in full over the window and shows no "
+    "exploitation; counts as none only when the reads cover [window_start, window_end].",
+}
+INCIDENT_KIND = ("security.incident",)
+AUDIT_KIND = ("security.audit",)
+CREDENTIAL_KIND = ("security.credential",)
+CRED_FACT = (CREDENTIAL_CONTRACT,)
+RESPONSE: list[ClaimRow] = [
+    # The incident: the CVEs of one response and the window it is answered over.
+    ("security.incident.name", INCIDENT_KIND, "literal", TEXT, "one", "normative", (),
+     NAME_FORM, "The incident's name (PHP2Shell); its key."),
+    ("security.incident.vulnerability", INCIDENT_KIND, "subject", ("security.vulnerability",),
+     "many", "normative", (), (), "A CVE this incident responds to: one response, one audit "
+     "per service, however many CVEs."),
+    ("security.incident.window_start", INCIDENT_KIND, "literal", DATETIME, "one", "normative",
+     (), (), "The start of the exposure window (the lead's call, e.g. the earliest known "
+     "exploitation minus a margin): audits read from it, rotations must post-date it."),
+    ("security.incident.rotation_policy", INCIDENT_KIND, "literal",
+     {"enum": sorted(ROTATION_POLICIES), "type": "string"}, "one", "normative", (), (),
+     "What raises a rotation: on_found_or_unknown (a service's audit found or cannot rule out "
+     "exploitation) or all_exposed."),
+    ("security.incident.status", INCIDENT_KIND, "literal",
+     {"enum": ["closed", "open"], "type": "string"}, "one", "normative", (), (),
+     "Whether the incident is open; close it only after its respond Line posts "
+     "ready_to_close."),
+    # What runs where: observed by a runtime-inventory scan, beside the declared installs.
+    ("security.asset.runs", ("security.asset",), "subject", ("security.release",), "many",
+     "observation", (INVENTORY_CONTRACT,), (), "A release a runtime-inventory scan observed "
+     "running on the asset (beside the declared installs). A full scan retires a run it no "
+     "longer sees."),
+    ("security.asset.scanned_in", ("security.asset",), "subject", ("security.coverage",),
+     "many", "observation", (INVENTORY_CONTRACT,), (), "The inventory scope coverage that read "
+     "the asset: its runs are complete there while that coverage is current."),
+    ("security.coverage.looked_for", ("security.coverage",), "literal", TEXT, "many",
+     "observation", (INVENTORY_CONTRACT,), NAME_FORM, "A product a full runtime-inventory "
+     "scan looked for (php), or * for everything: absence of an affected run is an answer "
+     "only for a product the scan looked for."),
+    # The audit: were we exploited during the window, for one service.
+    ("security.audit.incident_ref", AUDIT_KIND, "literal", TEXT, "one", "normative", (),
+     NAME_FORM, "The incident's name; with service_ref, the audit's key."),
+    ("security.audit.service_ref", AUDIT_KIND, "literal", TEXT, "one", "normative", (),
+     NAME_FORM, "The service's name; with incident_ref, the audit's key."),
+    ("security.audit.incident", AUDIT_KIND, "subject", INCIDENT_KIND, "one", "sourced",
+     (LOG_CONTRACT,), (), "The incident the audit answers (the key's incident_ref as a "
+     "Subject)."),
+    ("security.audit.service", AUDIT_KIND, "subject", ("security.service",), "one", "sourced",
+     (LOG_CONTRACT,), (), "The service the audit answers for (the key's service_ref as a "
+     "Subject)."),
+    ("security.audit.log_source", AUDIT_KIND, "literal", TEXT, "many", "normative", (),
+     ("trim",), "A log source that must be read in full over the window "
+     "(storefront/nginx-access). Stating it is what asks the question."),
+    ("security.audit.read", AUDIT_KIND, "literal", TEXT, "many", "observation",
+     (LOG_CONTRACT,), ("trim",), "One complete read of a log source, as SOURCE FROM/TO (ISO "
+     "8601, Z): the tool searched every record in the interval. Only the log import writes "
+     "these; an incomplete read is posted, never recorded."),
+    ("security.audit.window_end", AUDIT_KIND, "literal", DATETIME, "one", "normative", (), (),
+     "When the service's last affected asset was verified patched (the verifying scan's "
+     "time): the audit's window is [incident.window_start, window_end]."),
+    ("security.audit.result", AUDIT_KIND, "literal",
+     {"enum": sorted(AUDIT_RESULTS), "type": "string"}, "one", "normative",
+     (LOG_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT), (),
+     "The auditor's judgment: exploited, not_exploited or inconclusive, citing the decisive "
+     "log read (or a workspace file); own words are refused. Reasoning goes in a section of "
+     "the incident's note. A disagreeing auditor contends (set --contend): while the slot "
+     "reads conflict the answer is unknown. Never settled by a Mandate."),
+    # The credential: a logical credential; its keys rotate under it. Non-secret only.
+    ("security.credential.issuer", CREDENTIAL_KIND, "literal", TEXT, "one", "normative", (),
+     ("trim", "casefold"), "Who issues the credential (aws-iam/111122223333, stripe, "
+     "postgres/partners-db); with name, the credential's key."),
+    ("security.credential.name", CREDENTIAL_KIND, "literal", TEXT, "one", "normative", (),
+     ("trim",), "The credential's name at its issuer (storefront-app); with issuer, its key."),
+    ("security.credential.used_by", CREDENTIAL_KIND, "subject", ("security.service",), "many",
+     "normative", (), (), "A service that uses the credential: whoever compromised the service "
+     "could read it."),
+    ("security.credential.reaches", CREDENTIAL_KIND, "subject", ("security.service",), "many",
+     "normative", (), (), "A service the credential grants access to: the blast radius."),
+    ("security.credential.key_id", CREDENTIAL_KIND, "literal", TEXT, "one", "observation",
+     CRED_FACT, ("trim",), "The current key's non-secret id: the issuer's key id, or fp: and "
+     "16 hex of the secret's sha256. Never the secret."),
+    ("security.credential.issued_at", CREDENTIAL_KIND, "literal", DATETIME, "one",
+     "observation", CRED_FACT, (), "When the current key was issued, as the issuer states it: "
+     "a rotation must post-date incident.window_start."),
+    ("security.credential.issued_by", CREDENTIAL_KIND, "literal", TEXT, "one", "observation",
+     CRED_FACT, ("trim",), "Who issued the current key, as the issuer states it."),
+    ("security.credential.revoked_key", CREDENTIAL_KIND, "literal", TEXT, "many",
+     "observation", CRED_FACT, ("trim",), "A key id a separate state read observed revoked or "
+     "deleted."),
+    # Rotation linkage on a remediation (a patch has work.asset + work.assessment).
+    ("security.work.credential", WORK, "subject", CREDENTIAL_KIND, "one", "normative", (), (),
+     "The credential this work item rotates."),
+    ("security.work.audit", WORK, "subject", AUDIT_KIND, "one", "normative", (), (),
+     "The audit whose answer raised this work item (a rotation)."),
+    ("security.remediation.revokes_key", ("security.remediation",), "literal", TEXT, "one",
+     "normative", (), ("trim",), "The key id a rotation must retire: the credential's key_id "
+     "when the rotation was raised."),
+]
 #: predicate -> {member: description} for the enum ClaimTypes that describe their values.
 MEMBERS = {"security.assessment.justification": JUSTIFICATIONS,
            "security.finding.verdict": VERDICTS,
-           "security.finding.justification": FINDING_JUSTIFICATIONS}
+           "security.finding.justification": FINDING_JUSTIFICATIONS,
+           "security.incident.rotation_policy": ROTATION_POLICIES,
+           "security.audit.result": AUDIT_RESULTS}
 
 #: predicate -> evidence freshness horizon in hours.
 #: Only the revision carries freshness: it is restated on every pull (an unchanged
@@ -569,13 +696,17 @@ SUBJECT_KINDS: dict[str, tuple[tuple[str, ...], str] | None] = {
     "security.signal": (("security.signal.detector", "security.signal.fingerprint"), "unique"),
     "security.finding": (("security.finding.repo_ref", "security.finding.weakness",
                           "security.finding.locus"), "unique"),
+    "security.incident": (("security.incident.name",), "unique"),
+    "security.audit": (("security.audit.incident_ref", "security.audit.service_ref"), "unique"),
+    "security.credential": (("security.credential.issuer", "security.credential.name"),
+                            "unique"),
 }
 SUBJECT_KIND_DESCRIPTIONS = {
     "security.vulnerability": "A CVE, named by its id. Tracked when it has a watch_reason or an "
     "affected/inconclusive assessment; existing alone tracks nothing.",
     "security.release": "One version of a product, named by product name and version.",
     "security.assessment": "Whether one release is affected by one CVE: one per pair.",
-    "security.asset": "A host, named by its hostname.",
+    "security.asset": "A host or workload (k8s:prod/storefront-a), named by its hostname.",
     "security.product": "A software product, named by its name.",
     "security.supplier": "A product's supplier, named by its name.",
     "security.team": "An accountable team, named by its name.",
@@ -599,6 +730,14 @@ SUBJECT_KIND_DESCRIPTIONS = {
     "security.finding": "One weakness of one kind at one place in one repository's code, named "
     "by repository, weakness (CWE) and locus (path#symbol, snippet or line hash): every finder "
     "that reports it meets on the key.",
+    "security.incident": "One response to one or more CVEs (PHP2Shell), named by its name: its "
+    "window, rotation policy and status; its respond Line asks the five questions.",
+    "security.audit": "Were we exploited during an incident's window, for one service: named "
+    "by incident and service. Its log sources, complete reads and result answer it in three "
+    "states.",
+    "security.credential": "A logical credential (an API key, a database login), named by "
+    "issuer and name: where it is used, what it reaches, and its current key's non-secret id. "
+    "Its keys rotate under it; a secret never enters.",
 }
 
 
@@ -653,7 +792,8 @@ def _evidence(role: str, contracts: tuple[str, ...]) -> tuple[
 
 
 def claim_types(release: str) -> list[ClaimType]:
-    rows = CLAIM_TYPES + SYSTEM + FINDINGS + (CLAIM_TYPES_1_1 if release == VARIANT else [])
+    rows = (CLAIM_TYPES + SYSTEM + FINDINGS + RESPONSE
+            + (CLAIM_TYPES_1_1 if release == VARIANT else []))
     result = []
     for predicate, kinds, obj, shape, cardinality, role, contracts, form, description in rows:
         roles, default_role, rules, requirement = _evidence(role, contracts)
@@ -1099,7 +1239,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         _all(_cmp("vulnerability", "security.vulnerability.kev_listed", True, "boolean"),
              _any(_missing("assessment", "security.assessment.status"),
                   _cmp("assessment", "security.assessment.status", "inconclusive")))))
-    return q + system_queries() + finding_queries()
+    return q + system_queries() + finding_queries() + response_queries()
 
 
 # --- the system model's queries ------------------------------------------------
@@ -1398,6 +1538,270 @@ def finding_queries() -> list[QueryDefinitionSpec]:
     return q
 
 
+# --- incident response's queries -------------------------------------------------
+
+INC = "security.incident."
+AUD = "security.audit."
+CRED = "security.credential."
+INVENTORY_SCOPE = "inventory.runtime"
+INCIDENT_PARAM = (_param("incident"),)
+ON_INCIDENT = _is("incident", INC + "name", "incident")
+EXPOSED = _any(_cmp("assessment", "security.assessment.status", "affected"),
+               _cmp("assessment", "security.assessment.status", "inconclusive"))
+NOT_VERIFIED = _any(_missing("patch", "security.work.verification"),
+                    QueryComparisonFilter(
+                        left=QueryClaimValueRef(binding="patch",
+                                                predicate="security.work.verification"),
+                        operator="ne", right=QueryLiteralRef(value="verified"),
+                        value_type="string"))
+
+
+def _inventory_coverage(binding: str, source: str) -> QueryTraversalStep:
+    """``source``'s inventory coverage: the asset's ``scanned_in`` of scope inventory.runtime."""
+
+    return _hop(binding, source, "security.asset.scanned_in", "coverage",
+                where=_cmp(binding, "security.coverage.scope", INVENTORY_SCOPE))
+
+
+def _cves(*, required: bool) -> list[QueryTraversalStep]:
+    """The incident's CVEs and the assessments that find them in a release (affected or
+    inconclusive), with the release."""
+
+    return [
+        _hop("vulnerability", "incident", INC + "vulnerability", "vulnerability",
+             required=required),
+        _hop("assessment", "vulnerability", "security.assessment.vulnerability", "assessment",
+             reverse=True, required=required, where=EXPOSED),
+        _hop("release", "assessment", "security.assessment.release", "release",
+             required=required)]
+
+
+def _incident_fields() -> list[QueryProjectionField]:
+    return [_field("incident", "incident"),
+            _field("window_start", "incident", INC + "window_start"),
+            _field("rotation_policy", "incident", INC + "rotation_policy"),
+            _field("incident_status", "incident", INC + "status")]
+
+
+def _cve_fields() -> list[QueryProjectionField]:
+    return [_field("assessment", "assessment"), _field("release", "release"),
+            _field("cve_id", "vulnerability", "security.vulnerability.cve_id"),
+            _field("status", "assessment", "security.assessment.status"),
+            _role("status_role", "assessment", "security.assessment.status"),
+            _field("product_name", "release", "security.release.product_name"),
+            _field("version", "release", "security.release.version")]
+
+
+def _coverage_fields(prefix: str, binding: str) -> list[QueryProjectionField]:
+    return [_field(f"{prefix}coverage", binding),
+            _field(f"{prefix}coverage_revision", binding, "security.coverage.revision"),
+            _field(f"{prefix}looked_for", binding, "security.coverage.looked_for")]
+
+
+def _patch_query(name: str, description: str, where: Any) -> QueryDefinitionSpec:
+    hops = _cves(required=True) + [
+        _hop("patch", "assessment", "security.work.assessment", "remediation", reverse=True,
+             required=True),
+        _hop("asset", "patch", "security.work.asset", "asset", required=True),
+        _hop("target", "patch", "security.remediation.target_release", "release"),
+        _hop("owner", "patch", "security.work.owner", "team"),
+        _inventory_coverage("coverage", "asset"),
+        _hop("service", "asset", "security.asset.serves", "service")]
+    fields = _incident_fields() + _cve_fields() + _coverage_fields("", "coverage") + [
+        _field("patch", "patch"), _field("asset", "asset"), _field("target", "target"),
+        _field("owner", "owner"), _field("service", "service"),
+        _field("progress", "patch", "security.remediation.progress"),
+        _field("verification", "patch", "security.work.verification"),
+        _field("due_at", "patch", "security.remediation.due_at"),
+        _field("target_version", "target", "security.release.version"),
+        _field("hostname", "asset", "security.asset.hostname"),
+        _field("internet_exposed", "asset", "security.asset.internet_exposed"),
+        _field("service_name", "service", "security.service.name")]
+    return _query(name, description, "incident", "incident", hops, fields,
+                  _all(ON_INCIDENT, where) if where is not None else ON_INCIDENT,
+                  parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000,
+                  orderings=(_order("asset", "security.asset.internet_exposed", "boolean"),))
+
+
+def response_queries() -> list[QueryDefinitionSpec]:
+    q: list[QueryDefinitionSpec] = []
+    in_scope = _all(_is("coverage", "security.coverage.source", "scope"),
+                    _cmp("coverage", "security.coverage.scope", INVENTORY_SCOPE))
+    scope = (_param("scope"),)
+    q.append(_query(
+        "security.inventory_index", "One inventory scope's coverage (source = the scope's "
+        "name, stale or current) with every asset scanned in it and every release each runs, "
+        "with the Claims behind them: the runtime-inventory import's tap", "coverage",
+        "coverage",
+        [_hop("asset", "coverage", "security.asset.scanned_in", "asset", reverse=True),
+         _hop("run", "asset", "security.asset.runs", "release")],
+        [_field("coverage", "coverage"), _field("asset", "asset"), _field("run", "run"),
+         _field("source", "coverage", "security.coverage.source"),
+         _field("revision", "coverage", "security.coverage.revision"),
+         _field("looked_for", "coverage", "security.coverage.looked_for"),
+         _field("hostname", "asset", "security.asset.hostname"),
+         _field("run_product", "run", "security.release.product_name"),
+         _field("run_version", "run", "security.release.version")],
+        in_scope, parameters=scope, max_results=2000, paths_per_result=1000, evaluation=HELD,
+        includes=(_include("runs", "asset", "security.asset.runs"),
+                  _include("scanned_in", "asset", "security.asset.scanned_in"),
+                  _include("looked_for", "coverage", "security.coverage.looked_for"))))
+    q.append(_query(
+        "security.inventory_patches", "Every patch (a remediation with work.asset and "
+        "work.assessment) of an asset scanned in one inventory scope, with its progress, "
+        "verification and the release it moves the asset off: the import's verification "
+        "tap", "coverage", "coverage",
+        [_hop("asset", "coverage", "security.asset.scanned_in", "asset", reverse=True,
+              required=True),
+         _hop("patch", "asset", "security.work.asset", "remediation", reverse=True,
+              required=True),
+         _hop("assessment", "patch", "security.work.assessment", "assessment", required=True),
+         _hop("affected", "assessment", "security.assessment.release", "release",
+              required=True)],
+        [_field("coverage", "coverage"), _field("asset", "asset"), _field("patch", "patch"),
+         _field("affected", "affected"),
+         _field("hostname", "asset", "security.asset.hostname"),
+         _field("progress", "patch", "security.remediation.progress"),
+         _field("verification", "patch", "security.work.verification"),
+         _field("cve_id", "assessment", "security.assessment.cve_id"),
+         _field("affected_product", "affected", "security.release.product_name"),
+         _field("affected_version", "affected", "security.release.version")],
+        in_scope, parameters=scope, max_results=2000, paths_per_result=1000, evaluation=HELD))
+    # RQ1: the incident's CVEs, the releases assessed affected or inconclusive, the assets
+    # observed running them (with their inventory coverage and services), and the assets
+    # that only declare installing them.
+    q.append(_query(
+        "security.incident_exposure", "RQ1 for one incident (parameter incident, its name): "
+        "every release assessed affected or inconclusive by one of its CVEs, every asset a scan "
+        "observed running it with its inventory coverage and services, and every asset that "
+        "only declares installing it", "incident", "incident",
+        _cves(required=False) + [
+            _hop("asset", "release", "security.asset.runs", "asset", reverse=True),
+            _inventory_coverage("coverage", "asset"),
+            _hop("service", "asset", "security.asset.serves", "service"),
+            _hop("declared", "release", "security.asset.installs", "asset", reverse=True),
+            _inventory_coverage("declared_coverage", "declared")],
+        _incident_fields() + _cve_fields() + _coverage_fields("", "coverage")
+        + _coverage_fields("declared_", "declared_coverage") + [
+            _field("asset", "asset"), _field("service", "service"),
+            _field("declared", "declared"),
+            _field("hostname", "asset", "security.asset.hostname"),
+            _field("internet_exposed", "asset", "security.asset.internet_exposed"),
+            _field("service_name", "service", "security.service.name"),
+            _field("declared_hostname", "declared", "security.asset.hostname"),
+            _field("components", "release", "security.release.component")],
+        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000))
+    # RQ2: every patch of the incident; the open ones; the overdue ones (the query clock).
+    q.append(_patch_query(
+        "security.incident_patches", "RQ2 for one incident: every patch of an asset for one of "
+        "its CVEs (work.asset + work.assessment), with progress, verification, due date, target "
+        "release, the asset's coverage and services: the respond Line's tap", None))
+    q.append(_patch_query(
+        "security.open_patches", "The incident's patches no scan has verified yet, "
+        "internet-facing assets first", NOT_VERIFIED))
+    q.append(_patch_query(
+        "security.overdue_patches", "The incident's unverified patches past their due_at at the "
+        "query's evaluation time", _all(NOT_VERIFIED, QueryComparisonFilter(
+            left=QueryClaimValueRef(binding="patch", predicate="security.remediation.due_at"),
+            operator="lte", right=QueryEvaluationTimeRef(), value_type="timestamp"))))
+    # RQ3: every audit of the incident, with its window, sources, reads and result.
+    q.append(_query(
+        "security.audit_status", "RQ3 for one incident: every audit (one per service) with "
+        "its log sources, complete reads, window end and result (conflict while disputed); the "
+        "respond Line unions the reads per source against the window", "incident", "incident",
+        [_hop("audit", "incident", AUD + "incident", "audit", reverse=True, required=True),
+         _hop("service", "audit", AUD + "service", "service")],
+        _incident_fields() + [
+            _field("audit", "audit"), _field("service", "service"),
+            _field("service_ref", "audit", AUD + "service_ref"),
+            _field("service_name", "service", "security.service.name"),
+            _field("log_source", "audit", AUD + "log_source"),
+            _field("read", "audit", AUD + "read"),
+            _field("window_end", "audit", AUD + "window_end"),
+            _field("result", "audit", AUD + "result")],
+        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000))
+    # RQ4: every credential a service of an audit of the incident uses, with its rotations.
+    q.append(_query(
+        "security.incident_credentials", "RQ4 for one incident: every credential an audited "
+        "service uses, with its current key (non-secret id, issued_at: before window_start = "
+        "not rotated since exposure) and its rotations' progress and verification",
+        "incident", "incident",
+        [_hop("audit", "incident", AUD + "incident", "audit", reverse=True, required=True),
+         _hop("service", "audit", AUD + "service", "service", required=True),
+         _hop("credential", "service", CRED + "used_by", "credential", reverse=True,
+              required=True),
+         _hop("rotation", "credential", "security.work.credential", "remediation",
+              reverse=True),
+         _hop("rotation_audit", "rotation", "security.work.audit", "audit")],
+        _incident_fields() + [
+            _field("audit", "audit"), _field("service", "service"),
+            _field("credential", "credential"), _field("rotation", "rotation"),
+            _field("rotation_audit", "rotation_audit"),
+            _field("service_name", "service", "security.service.name"),
+            _field("issuer", "credential", CRED + "issuer"),
+            _field("name", "credential", CRED + "name"),
+            _field("key_id", "credential", CRED + "key_id"),
+            _field("issued_at", "credential", CRED + "issued_at"),
+            _field("issued_by", "credential", CRED + "issued_by"),
+            _field("progress", "rotation", "security.remediation.progress"),
+            _field("verification", "rotation", "security.work.verification"),
+            _field("revokes_key", "rotation", "security.remediation.revokes_key"),
+            _field("due_at", "rotation", "security.remediation.due_at")],
+        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000))
+    # The credential import's tap: every credential's key state and its rotations.
+    q.append(_query(
+        "security.rotation_work", "Every credential with its current key state and every "
+        "rotation of it, with the window its incident opened: the credential import's tap",
+        "credential", "credential",
+        [_hop("rotation", "credential", "security.work.credential", "remediation",
+              reverse=True),
+         _hop("rotation_audit", "rotation", "security.work.audit", "audit"),
+         _hop("rotation_incident", "rotation_audit", AUD + "incident", "incident")],
+        [_field("credential", "credential"), _field("rotation", "rotation"),
+         _field("issuer", "credential", CRED + "issuer"),
+         _field("name", "credential", CRED + "name"),
+         _field("key_id", "credential", CRED + "key_id"),
+         _field("issued_at", "credential", CRED + "issued_at"),
+         _field("issued_by", "credential", CRED + "issued_by"),
+         _field("revoked_key", "credential", CRED + "revoked_key"),
+         _field("progress", "rotation", "security.remediation.progress"),
+         _field("verification", "rotation", "security.work.verification"),
+         _field("revokes_key", "rotation", "security.remediation.revokes_key"),
+         _field("window_start", "rotation_incident", INC + "window_start")],
+        max_results=2000, paths_per_result=1000))
+    # The incident status page: one row per (CVE, exposed asset, credential of its service),
+    # every state as held. An empty cell is unknown (nothing recorded), never none.
+    q.append(_query(
+        "security.incident_status", "The incident status page: per CVE, every asset observed "
+        "running an affected release, with its service, inventory coverage, patch progress and "
+        "verification, the service's audit result, and each credential the service uses with "
+        "its rotation's verification. Empty is unknown; none needs the respond Line's answer",
+        "incident", "incident",
+        _cves(required=True) + [
+            _hop("asset", "release", "security.asset.runs", "asset", reverse=True,
+                 required=True),
+            _inventory_coverage("coverage", "asset"),
+            _hop("service", "asset", "security.asset.serves", "service"),
+            _hop("patch", "asset", "security.work.asset", "remediation", reverse=True),
+            _hop("audit", "service", AUD + "service", "audit", reverse=True,
+                 where=_is("audit", AUD + "incident_ref", "incident")),
+            _hop("credential", "service", CRED + "used_by", "credential", reverse=True),
+            _hop("rotation", "credential", "security.work.credential", "remediation",
+                 reverse=True)],
+        [_field("cve", "vulnerability", "security.vulnerability.cve_id"),
+         _field("exposure", "assessment", "security.assessment.status"),
+         _field("host", "asset", "security.asset.hostname"),
+         _field("service", "service", "security.service.name"),
+         _field("coverage", "coverage", "security.coverage.revision"),
+         _field("patch", "patch", "security.remediation.progress"),
+         _field("patch_verified", "patch", "security.work.verification"),
+         _field("audit", "audit", AUD + "result"),
+         _field("credential", "credential", CRED + "name"),
+         _field("rotation_verified", "rotation", "security.work.verification")],
+        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=500, paths_per_result=500))
+    return q
+
+
 # --- CaptureContracts and the acquisition policy -------------------------------
 
 
@@ -1428,6 +1832,12 @@ def capture_contracts() -> list[CaptureContract]:
         # Code findings: a scan's SARIF log, and a reproduction's test report.
         derived(SARIF_CONTRACT, "sarif.log", ["external"], "sarif_log"),
         derived(REPRO_CONTRACT, "security.reproduction", ["external"], "test_report"),
+        # Incident response: what runs where, one log read, one credential's key state.
+        # Each is a workspace file the user's agent writes from its own tools.
+        derived(INVENTORY_CONTRACT, "security.inventory", ["external"], "inventory_scan"),
+        derived(LOG_CONTRACT, "security.log-read", ["external"], "log_query"),
+        derived(CREDENTIAL_CONTRACT, "security.credential-state", ["external"],
+                "credential_state"),
     ]
     for item in raw:
         if item["identity"]["name"] == ASSET_CONTRACT:
@@ -1441,9 +1851,11 @@ def acquisition_policy() -> SourceAcquisitionPolicy:
     `record` (CVE record), `epss`, `osv`, `sbom` and `evidence` (an analyst's
     workspace file), the system model's `snapshot` (a repository), `registry`
     (PyPI), `release`, `asset` and `history` (GitHub), and the code findings' `sarif`
-    (a scan's log) and `reproduction` (a PoC run's report). Each is required, at most
-    24 h old, refused when stale, unavailable or oversized. Network Captures replay as
-    attested; workspace files (the SBOM, evidence, SARIF, reproductions) replay
+    (a scan's log) and `reproduction` (a PoC run's report), and incident response's
+    `inventory` (a runtime-inventory scan), `log` (one log read) and `credential` (one
+    credential's key state). Each is required, at most 24 h old, refused when stale,
+    unavailable or oversized. Network Captures replay as attested; workspace files (the
+    SBOM, evidence, SARIF, reproductions, inventories, log reads, credential states) replay
     exactly."""
 
     def rule(alias: str, replayability: str = "attested_only") -> dict[str, Any]:
@@ -1465,10 +1877,12 @@ def acquisition_policy() -> SourceAcquisitionPolicy:
         {
             "coherence": {"kind": "independent"},
             "identity": {"kind": "SourceAcquisitionPolicy", "name": POLICY},
-            "inputs": [rule("asset"), rule("catalog"), rule("epss"), rule("evidence", "exact"),
-                       rule("history"), rule("osv"), rule("record"), rule("registry"),
-                       rule("release"), rule("reproduction", "exact"),
-                       rule("sarif", "exact"), rule("sbom", "exact"), rule("snapshot")],
+            "inputs": [rule("asset"), rule("catalog"), rule("credential", "exact"),
+                       rule("epss"), rule("evidence", "exact"), rule("history"),
+                       rule("inventory", "exact"), rule("log", "exact"), rule("osv"),
+                       rule("record"), rule("registry"), rule("release"),
+                       rule("reproduction", "exact"), rule("sarif", "exact"),
+                       rule("sbom", "exact"), rule("snapshot")],
         }
     )
 
@@ -1665,6 +2079,50 @@ SARIF_RESULT = _contract("security-sarif-result", items=_J, inbox=_J, repo_ref=_
                          revisions=_J, full=_J, **_SARIF_COUNTS)
 SARIF_SUMMARY = _contract("security-sarif-summary", repo_ref=_S, tools=_J, revisions=_J,
                           full=_J, **_SARIF_COUNTS)
+# Incident response.
+INVENTORY_INPUT = _contract("security-inventory-import-input", scope=_S)
+_INVENTORY_COUNTS = _ints("mine", "assets", "runs", "added", "retired", "revised", "restated",
+                          "verified", "failed", "changed", "proposes")
+INVENTORY_REQUEST = _contract("security-runtime-inventory-request", inventory_text=_S, held=_J,
+                              patches=_J, scope=_S, truncated=_J)
+INVENTORY_RESULT = _contract("security-runtime-inventory-result", items=_J, scope=_S,
+                             format=_S, coverage=_S, revision=_S, regressions=_J,
+                             **_INVENTORY_COUNTS)
+INVENTORY_SUMMARY = _contract("security-runtime-inventory-summary", scope=_S, format=_S,
+                              coverage=_S, revision=_S, regressions=_J, **_INVENTORY_COUNTS)
+LOG_INPUT = _contract("security-log-import-input", incident=_S)
+_LOG_COUNTS = _ints("mine", "recordable", "matches", "added", "changed", "posted")
+LOG_REQUEST = _contract("security-log-read-request", read_text=_S, held=_J, incident=_S,
+                        truncated=_J)
+LOG_RESULT = _contract("security-log-read-result", items=_J, inbox=_J, incident=_S,
+                       service=_S, source=_S, read=_S, **_LOG_COUNTS)
+LOG_SUMMARY = _contract("security-log-read-summary", incident=_S, service=_S, source=_S,
+                        read=_S, **_LOG_COUNTS)
+_CREDENTIAL_COUNTS = _ints("keys", "added", "revised", "verified", "failed", "changed",
+                           "posted")
+CREDENTIAL_REQUEST = _contract("security-credential-state-request", state_text=_S, held=_J,
+                               truncated=_J)
+CREDENTIAL_RESULT = _contract("security-credential-state-result", items=_J, inbox=_J,
+                              credential=_S, read=_S, **_CREDENTIAL_COUNTS)
+CREDENTIAL_SUMMARY = _contract("security-credential-state-summary", credential=_S, read=_S,
+                               **_CREDENTIAL_COUNTS)
+RESPOND_INPUT = _contract("security-respond-input", incident=_S, inventory_pull=_S,
+                          log_pull=_S, credential_pull=_S, record_pull=_S)
+RESPOND_REQUEST = _contract("security-respond-request", exposure=_J, patches=_J, overdue=_J,
+                            audits=_J, credentials=_J, params=_J, truncated=_J)
+_RESPOND_COUNTS = _ints("posted", "found", "none", "unknown", "ready_to_close")
+RESPOND_RESULT = _contract("security-respond-result", items=_J, answers=_J, incident=_S,
+                           status=_S, **_RESPOND_COUNTS)
+RESPOND_SUMMARY = _contract("security-respond-summary", answers=_J, incident=_S, status=_S,
+                            **_RESPOND_COUNTS)
+#: respond's taps, in order: alias -> QueryDefinition.
+RESPOND_QUERIES = {
+    "exposure": "security.incident_exposure",
+    "patches": "security.incident_patches",
+    "overdue": "security.overdue_patches",
+    "audits": "security.audit_status",
+    "credentials": "security.incident_credentials",
+}
 
 
 def _seconds(value: int) -> CanonicalDuration:
@@ -1859,8 +2317,8 @@ def _file_acquire(cx: Cruxible, name: str, alias: str, contract: str, logical_so
         contract_out=FILE_SUMMARY,
         returns="summary",
         acquisition_policy=POLICY,
-        budget=_budget(60, 1, 16_777_216),
-        hard_caps=_caps(120, 1, 16_777_216, 1),
+        budget=_budget(60, 1, WORKSPACE_FILE_MAX_BYTES),
+        hard_caps=_caps(120, 1, WORKSPACE_FILE_MAX_BYTES, 1),
     ).bind(**{alias: builtin})
     return sequence.build()
 
@@ -1888,14 +2346,14 @@ def sbom_acquire(cx: Cruxible) -> Any:
         description=(
             "Read one CycloneDX JSON SBOM from the attached workspace (input.relative_path) and "
             "retain it under security.cyclonedx-sbom-v1; security.sbom-import reads it when it "
-            "lands."
+            "lands. At most 1 MiB (the built-in workspace.file's limit)."
         ),
         contract_in=PATH_INPUT,
         contract_out=FILE_SUMMARY,
         returns="summary",
         acquisition_policy=POLICY,
-        budget=_budget(60, 1, 16_777_216),
-        hard_caps=_caps(120, 1, 16_777_216, 1),
+        budget=_budget(60, 1, WORKSPACE_FILE_MAX_BYTES),
+        hard_caps=_caps(120, 1, WORKSPACE_FILE_MAX_BYTES, 1),
     ).bind(sbom=builtin)
     return sequence.build()
 
@@ -1924,14 +2382,15 @@ def evidence_acquire(cx: Cruxible) -> Any:
         description=(
             "Read one workspace file an analyst cites for a judgment (input.relative_path: code, "
             "a config, an analysis note) and retain it under security.workspace-evidence-v1; "
-            "cite the Capture with `cruxible set ... --capture CAP-...`."
+            "cite the Capture with `cruxible set ... --capture CAP-...`. At most 1 MiB (the "
+            "built-in workspace.file's limit)."
         ),
         contract_in=PATH_INPUT,
         contract_out=FILE_SUMMARY,
         returns="summary",
         acquisition_policy=POLICY,
-        budget=_budget(60, 1, 16_777_216),
-        hard_caps=_caps(120, 1, 16_777_216, 1),
+        budget=_budget(60, 1, WORKSPACE_FILE_MAX_BYTES),
+        hard_caps=_caps(120, 1, WORKSPACE_FILE_MAX_BYTES, 1),
     ).bind(evidence=builtin)
     return sequence.build()
 
@@ -2576,6 +3035,253 @@ def harden_procedure(cx: Cruxible) -> Any:
     return sequence.build()
 
 
+# --- incident response: acquire, import, respond ----------------------------------
+
+
+def inventory_acquire(cx: Cruxible) -> Any:
+    return _file_acquire(
+        cx, "security.inventory-acquire", "inventory", INVENTORY_CONTRACT, "security.inventory",
+        "Read one runtime-inventory scan from the attached workspace (input.relative_path, at "
+        f"most 1 MiB) and retain it under {INVENTORY_CONTRACT}; the scope's "
+        "security.inventory-import Line reads it when it lands. Either the kit's tool-neutral "
+        "body {scope, looked_for, coverage: full|partial, assets: [{hostname, runs: "
+        "[purl@version]}]} with no timestamps (an unchanged fleet is the same bytes), or a "
+        "CycloneDX JSON SBOM of one asset (Syft, Trivy) annotated with metadata properties "
+        "cruxible.scope and cruxible.asset.")
+
+
+def log_acquire(cx: Cruxible) -> Any:
+    return _file_acquire(
+        cx, "security.log-acquire", "log", LOG_CONTRACT, "security.log-read",
+        "Read one log read from the attached workspace (input.relative_path, at most 1 MiB): "
+        "{audit: {incident, service}, source, query, from, to, complete, records_scanned, "
+        "matches: [{at, summary}]}, written by the agent from its own log tool's answer, match "
+        f"summaries redacted. Retained under {LOG_CONTRACT}; the incident's "
+        "security.log-import Line reads it when it lands. complete means every record in "
+        "[from, to] was searched: no sampling, no result cap, retention reaching from.")
+
+
+def credential_acquire(cx: Cruxible) -> Any:
+    return _file_acquire(
+        cx, "security.credential-acquire", "credential", CREDENTIAL_CONTRACT,
+        "security.credential-state",
+        "Read one credential's key state from the attached workspace (input.relative_path): "
+        "{issuer, name, read: receipt|state_read, keys: [{key_id, state: "
+        "active|inactive|revoked|deleted, created_at, revoked_at, last_used_at, created_by}]} "
+        "and nothing else: key ids or fp: fingerprints, never a secret. Retained under "
+        f"{CREDENTIAL_CONTRACT}; security.credential-import reads it when it lands. A receipt "
+        "is what the issuer returned to the rotating agent; a state_read is a later, separate "
+        "listing, acquired by someone other than the rotator.")
+
+
+def inventory_import(cx: Cruxible) -> Any:
+    """One Line per inventory scope (parameter scope): both taps are keyed by it."""
+
+    builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
+    parse = cx.provider_interface("security.runtime-inventory", provider=ANALYSIS_PROVIDER)
+    sequence = Sequence(
+        [
+            Source("inventory", capture_contract=INVENTORY_CONTRACT, next="held",
+                   request=_workspace_file("security.inventory", "inventory.json")),
+            StateTap("held", query="security.inventory_index", next="patches",
+                     parameters={"scope": "$input.scope"}),
+            StateTap("patches", query="security.inventory_patches", next="parse",
+                     parameters={"scope": "$input.scope"}),
+            Call("parse", contract_in=INVENTORY_REQUEST, contract_out=INVENTORY_RESULT,
+                 next="summary",
+                 input={"inventory_text": "$steps.inventory.content.text",
+                        "held": "$steps.held.result.rows",
+                        "patches": "$steps.patches.result.rows", "scope": "$input.scope",
+                        "truncated": {"held": "$steps.held.truncated",
+                                      "patches": "$steps.patches.truncated"}}),
+            _project(INVENTORY_SUMMARY, "parse", "mine"),
+            Guard("mine", predicate=_changed("parse", "mine"), on_true="changed",
+                  on_false="other", refusal_code="other_scope",
+                  message="The landed inventory is another scope's."),
+            Guard("changed", predicate=_changed("parse", "proposes"), on_true="propose",
+                  on_false="nochange", refusal_code="no_change",
+                  message="The scan changes nothing inventory holds."),
+            ProposeChangeSet("propose", candidate_templates={"items": "$steps.parse.items"},
+                             result=Output("summary")),
+            Halt("nochange", reason="no_change"),
+            Halt("other", reason="other_scope"),
+        ],
+        name="security.inventory-import",
+        description=(
+            "Read the runtime-inventory Capture that triggered the Line "
+            f"({INVENTORY_CONTRACT}) for the Line's scope (parameter scope) and propose what "
+            "changed: each asset by key and asset.scanned_in the scope's coverage, each "
+            "release it runs (by product name and version, with its purl as "
+            "release.component) as asset.runs; a full scan retires runs it no longer sees (of "
+            "the products it looked for) and restates the coverage revision (an unchanged "
+            "scan re-observes it: freshness moves, nothing is proposed). For each open patch "
+            "of a scanned asset: verification verified when a full scan shows the affected "
+            "release no longer running, failed when it is claimed completed and a scan still "
+            "shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, "
+            "cruxible.asset) reads as that asset's complete run set, never as the scope's "
+            "coverage. Halts other_scope for another scope's scan, no_change when nothing "
+            "changed. Runs as a Line with trigger_input inventory."
+        ),
+        contract_in=INVENTORY_INPUT,
+        contract_out=INVENTORY_SUMMARY,
+        returns="summary",
+        activation_policy="drain",
+        acquisition_policy=POLICY,
+        budget=_budget(120, 2, WORKSPACE_FILE_MAX_BYTES),
+        hard_caps=_caps(300, 2, WORKSPACE_FILE_MAX_BYTES, 5000),
+    ).bind(inventory=builtin, parse=parse)
+    return sequence.build()
+
+
+def log_import(cx: Cruxible) -> Any:
+    """One Line per incident (parameter incident): its tap is the incident's audits."""
+
+    builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
+    parse = cx.provider_interface("security.log-reads", provider=ANALYSIS_PROVIDER)
+    sequence = Sequence(
+        [
+            Source("log", capture_contract=LOG_CONTRACT, next="held",
+                   request=_workspace_file("security.log-read", "log-read.json")),
+            StateTap("held", query="security.audit_status", next="parse",
+                     parameters={"incident": "$input.incident"}),
+            Call("parse", contract_in=LOG_REQUEST, contract_out=LOG_RESULT, next="summary",
+                 input={"read_text": "$steps.log.content.text",
+                        "held": "$steps.held.result.rows", "incident": "$input.incident",
+                        "truncated": "$steps.held.truncated"}),
+            _project(LOG_SUMMARY, "parse", "mine"),
+            Guard("mine", predicate=_changed("parse", "mine"), on_true="recordable",
+                  on_false="other", refusal_code="other_incident",
+                  message="The landed log read is another incident's."),
+            Guard("recordable", predicate=_changed("parse", "recordable"), on_true="changed",
+                  on_false="post", refusal_code="read_not_recordable",
+                  message="The read is incomplete, or its audit is not stated: posted."),
+            Guard("changed", predicate=_changed("parse"), on_true="propose",
+                  on_false="nochange", refusal_code="no_change",
+                  message="The audit already holds this read."),
+            ProposeChangeSet("propose", candidate_templates={"items": "$steps.parse.items"},
+                             result=Output("summary")),
+            PostInbox("post", input={"items": Output("parse", "inbox")}, max_items=10),
+            Halt("nochange", reason="no_change"),
+            Halt("other", reason="other_incident"),
+        ],
+        name="security.log-import",
+        description=(
+            f"Read the log-read Capture that triggered the Line ({LOG_CONTRACT}) for the Line's "
+            "incident (parameter incident, its name) and propose the audit by key (incident, "
+            "service) with its twins and one security.audit.read (SOURCE FROM/TO) for a "
+            "complete read. An incomplete read is posted (read_incomplete) and never becomes a "
+            "read: it is a finding about the logs, not about the attacker. Never a result. "
+            "Halts other_incident for another incident's read. Runs as a Line with "
+            "trigger_input log."
+        ),
+        contract_in=LOG_INPUT,
+        contract_out=LOG_SUMMARY,
+        returns="summary",
+        activation_policy="drain",
+        acquisition_policy=POLICY,
+        budget=_budget(60, 2, WORKSPACE_FILE_MAX_BYTES),
+        hard_caps=_caps(120, 2, WORKSPACE_FILE_MAX_BYTES, 100),
+    ).bind(log=builtin, parse=parse)
+    return sequence.build()
+
+
+def credential_import(cx: Cruxible) -> Any:
+    builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
+    parse = cx.provider_interface("security.credential-state", provider=ANALYSIS_PROVIDER)
+    sequence = Sequence(
+        [
+            Source("credential", capture_contract=CREDENTIAL_CONTRACT, next="held",
+                   request=_workspace_file("security.credential-state", "credential.json")),
+            StateTap("held", query="security.rotation_work", next="parse"),
+            Call("parse", contract_in=CREDENTIAL_REQUEST, contract_out=CREDENTIAL_RESULT,
+                 next="summary",
+                 input={"state_text": "$steps.credential.content.text",
+                        "held": "$steps.held.result.rows",
+                        "truncated": "$steps.held.truncated"}),
+            _project(CREDENTIAL_SUMMARY, "parse", "allowed"),
+            Guard("allowed", predicate=GuardPredicate(
+                      left=PredicateOperand(kind="step", alias="parse", path=("posted",)),
+                      operator="eq", right=PredicateOperand(kind="literal", value=0)),
+                  on_true="changed", on_false="post", refusal_code="secret_shape",
+                  message="The body is not the credential-state allow-list."),
+            Guard("changed", predicate=_changed("parse"), on_true="propose",
+                  on_false="nochange", refusal_code="no_change",
+                  message="The read changes no held key state."),
+            ProposeChangeSet("propose", candidate_templates={"items": "$steps.parse.items"},
+                             result=Output("summary")),
+            PostInbox("post", input={"items": Output("parse", "inbox")}, max_items=10),
+            Halt("nochange", reason="no_change"),
+        ],
+        name="security.credential-import",
+        description=(
+            f"Read the credential-state Capture that triggered the Line ({CREDENTIAL_CONTRACT}) "
+            "and propose what changed: the credential's current key_id, issued_at and "
+            "issued_by from a receipt or a state read; revoked_key and a rotation's "
+            "verification only from a state read (verified: the rotation's revokes_key is "
+            "revoked or deleted and an active key issued after the incident's window_start; "
+            "failed: claimed completed while revokes_key is still there). A body outside the "
+            "allow-list, or a key id shaped like a secret, proposes nothing and is posted "
+            "(secret_shape). Runs as a Line with trigger_input credential."
+        ),
+        contract_in=EMPTY,
+        contract_out=CREDENTIAL_SUMMARY,
+        returns="summary",
+        activation_policy="drain",
+        acquisition_policy=POLICY,
+        budget=_budget(60, 2, WORKSPACE_FILE_MAX_BYTES),
+        hard_caps=_caps(120, 2, WORKSPACE_FILE_MAX_BYTES, 500),
+    ).bind(credential=builtin, parse=parse)
+    return sequence.build()
+
+
+def respond_procedure(cx: Cruxible) -> Any:
+    classify = cx.provider_interface("security.respond", provider=ANALYSIS_PROVIDER)
+    names = list(RESPOND_QUERIES)
+    taps = [StateTap(alias, query=RESPOND_QUERIES[alias], parameters={
+                "incident": "$input.incident"},
+                next=names[index + 1] if index + 1 < len(names) else "classify")
+            for index, alias in enumerate(names)]
+    sequence = Sequence(
+        [
+            *taps,
+            Call("classify", contract_in=RESPOND_REQUEST, contract_out=RESPOND_RESULT,
+                 next="summary", input={
+                     **{alias: f"$steps.{alias}.result.rows" for alias in names},
+                     "params": "$input",
+                     "truncated": {alias: f"$steps.{alias}.truncated" for alias in names}}),
+            _project(RESPOND_SUMMARY, "classify", "posted"),
+            Guard("posted", predicate=_changed("classify", "posted"), on_true="post",
+                  on_false="quiet", refusal_code="nothing_to_post",
+                  message="Nothing to post: every answer is none, or the incident is closed."),
+            PostInbox("post", input={"items": Output("classify", "items")}, max_items=200),
+            Halt("quiet", reason="nothing_to_post"),
+        ],
+        name="security.respond",
+        description=(
+            "Ask one incident's five questions (parameter incident, its name) and answer each "
+            "in three states: found (posted), none (run summary only) or unknown (posted as a "
+            "gap naming the pull or statement that would answer it). RQ1 which deployments run "
+            "an affected release; RQ2 is each exposure patched (missing, overdue, disputed; "
+            "none only when a full scan verified it); RQ3 were we exploited in the window, per "
+            "service (none only for not_exploited with complete reads of every stated log "
+            "source covering the window); RQ4 which credentials warrant rotation (posted with "
+            "the audit and patch state; rotating after a verified patch is the recommended "
+            "order, the agent's call), and is each rotation verified by a separate state read; "
+            "RQ5 can the incident close (ready_to_close, with any unknown audit as accepted "
+            "residue). A closed incident posts nothing. Observe-only. Runs as a Line "
+            "(parameters incident, inventory_pull, log_pull, credential_pull, record_pull): "
+            "daily, on a landing, after a window closes, or line run."
+        ),
+        contract_in=RESPOND_INPUT,
+        contract_out=RESPOND_SUMMARY,
+        returns="summary",
+        activation_policy="drain",
+        budget=_budget(120, 1, 1_048_576),
+        hard_caps=_caps(300, 1, 1_048_576, 200),
+    ).bind(classify=classify)
+    return sequence.build()
+
+
 def _backlog_measurement() -> dict[str, Any]:
     return {
         "name": "kev-backlog-cleared",
@@ -2684,7 +3390,8 @@ def procedures(cx: Cruxible, release: str) -> None:
     draft = cx.changes(rationale=f"security kit {release}: acquisition Blueprints, triage, "
                        "attention, SBOM import and applicability Procedures; the system "
                        "model's pull Blueprints, parse Procedures and hardening Procedure; "
-                       "the code findings' acquisition, import and attention Procedures.")
+                       "the code findings' acquisition, import and attention Procedures; "
+                       "incident response's acquisition, import and respond Procedures.")
     draft.procedure(definition=kev_acquire(cx, release))
     draft.procedure(definition=cve_record_acquire(cx))
     draft.procedure(definition=epss_acquire(cx))
@@ -2708,6 +3415,13 @@ def procedures(cx: Cruxible, release: str) -> None:
     draft.procedure(definition=reproduction_acquire(cx))
     draft.procedure(definition=sarif_import(cx))
     draft.procedure(definition=sarif_attention(cx))
+    draft.procedure(definition=inventory_acquire(cx))
+    draft.procedure(definition=log_acquire(cx))
+    draft.procedure(definition=credential_acquire(cx))
+    draft.procedure(definition=inventory_import(cx))
+    draft.procedure(definition=log_import(cx))
+    draft.procedure(definition=credential_import(cx))
+    draft.procedure(definition=respond_procedure(cx))
     submit(cx, draft, "procedures")
 
 
