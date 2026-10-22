@@ -503,7 +503,7 @@ approved it, and the evidence that it is done.
 
 | Question | Where the answer comes from |
 |---|---|
-| RQ1 Which deployments run an affected release? | `security.incident_exposure` (parameter `incident`, its name): assets a scan observed running a release assessed affected |
+| RQ1 Which deployments run an affected release? | `security.incident_exposure` (parameter `incident`, its name): assets a scan observed running a release assessed affected; `security.scanned_runs`: every other release a scan observed, answered for each incident CVE |
 | RQ2 Is each exposure patched? | `security.open_patches` (internet-facing first), `security.overdue_patches` (past `due_at` at the query's evaluation time), `security.incident_exceptions` (approved risk exceptions not yet expired) |
 | RQ3 Were we exploited during the window? | `security.audit_status`: per service, the audit's log sources and the service's (`service_log_source`), complete reads, `window_end` and `result` |
 | RQ4 Which credentials need rotating? | `security.incident_credentials`: each credential an audited service uses, its current key (`issued_at` before `window_start` = not rotated since exposure) and its rotations |
@@ -669,11 +669,16 @@ incident field.
 
 `security.respond` answers each question **found** (posted), **none** (the run
 summary) or **unknown** (posted as a gap `{subject, pull, input}` naming the pull or
-statement that answers it):
+statement that answers it). Unknown is never none: RQ1 pairs every incident CVE
+with every release a scan observed on an asset, so a release nobody assessed
+(Homebrew's `gh`, an upstream binary as `pkg:generic`) stays unknown and posted
+until a source or an analyst answers it, and the Line never halts
+`nothing_to_post` while such a pair is open. An incident's CVEs are watched (KEV,
+EPSS and OSV read them) from the moment it names them.
 
 | # | found | none | unknown |
 |---|---|---|---|
-| RQ1 | `exposed`: a scan observed the asset running a release assessed affected | a current full scan that looked for the product shows no affected run | an asset that declares installing it, or a patched one, under no current coverage; an inconclusive assessment (an analyst's judgment answers it) |
+| RQ1 | `exposed`: a scan observed the asset running a release assessed affected | a current full scan that looked for the product shows no affected run; a release a scan observed that is assessed `not_affected`, or that nobody assessed while OSV answered all its current components and none is a package OSV says the CVE affects (the answer `cites` those Claims) | an asset that declares installing it, or a patched one, under no current coverage; an inconclusive assessment (an analyst's judgment answers it); a release a scan observed that nobody assessed for the CVE otherwise, with the next step in order: the CVE's record (`record_pull`, when none was read), "OSV doesn't index N components of this release" (a judgment, a product alias, or a re-scan with a purl type OSV indexes), the OSV Line (`osv_line`, when OSV hasn't answered its current components), an analyst's judgment |
 | RQ2 | `patch_missing`; `patch_overdue`; `patch_disputed` (verification `failed`, or claimed `completed` while still running); `patch_regressed` (verified, then seen running again) | `verification` `verified` and no affected run, under current coverage | a claimed patch no scan has read since; an approved one on schedule is *pending*, and a missing or overdue one under an accepted risk is *excepted* (both summary only) |
 | RQ3 | `exploited`: the result `exploited` | `not_exploited`, `window_end` stated, and for every `log_source` the union of its complete reads covers [`incident.window_start`, `window_end`] | no audit (the gap names the service's `log_source` list as `sources`), no log source, a source the service lists that the audit does not state, window open, no result, `inconclusive`, `conflict`, or an uncovered interval (named per source) |
 | RQ4 | `rotate {credential, services: {audit, patch}, key_id, because}` for each credential a warranted service uses (`on_found_or_unknown`: RQ3 found or unknown; `all_exposed`: every exposed service); `rotation_disputed` | a rotation a state read verified, the current key issued after `window_start`; a credential no warranted service uses | claimed rotated, no separate state read yet |

@@ -110,7 +110,9 @@ STEPS = {
           "services' log sources",
     "37": "G3 G4 G5: an exception holds RQ2 excepted until it expires; patches close only on "
           "a scan; a claim waits; the scan disagrees; unchanged",
-    "38": "G2 G6: 8.3.36 not_affected, OSV decides the fixed Debian build; stale coverage unknown",
+    "38": "G2 G6 K1: OSV decides the fixed Debian build and states coverage; the unassessed "
+          "8.3.36 reads unknown (generic not indexed), never none; the records decide it; stale "
+          "coverage unknown",
     "39": "G7 G9: audits seeded from the services' log sources (one left out is named); audit "
           "three states with the uncovered interval named; own words refused",
     "40": "G8: a contended result is conflict, RQ3 unknown, RQ4 raises its rotation",
@@ -2952,17 +2954,7 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
 
     _incident_ready(gate)
     _ack_all(gate)  # each step reads only what it posts
-    # G2: the upstream fix is decided by the CVE record's ranges, the distro fix by OSV.
-    before = {r["run"] for r in gate.runs("security.cve-applicability")}
-    gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
-        "record-again", {"url": f"https://cveawg.mitre.org/api/cve/{PHP2SHELL[0]}"}),
-        who=RESPONDER)
-    run = _wait_for_run(gate, "security.cve-applicability", before, 180)
-    proposal = _proposal(gate, run)
-    assert proposal, gate.out("get", run["run"])[-1500:]
-    review = gate.out("proposal", "review", proposal)
-    assert "php8.2" not in review, review[-2000:]
-    _approve(gate, proposal, LEAD)
+    # G2: the distro fix is decided by OSV, the upstream fix by the CVE records' ranges.
     run, out = gate.run_line("security.osv-applicability")
     proposal = gate.egress(run).get("proposal_id")
     assert proposal, out[-1500:]
@@ -2970,16 +2962,53 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     held = _assessments(gate)
     fixed = _release_id(gate, "php", "8.3.36")
     debian_fixed = _release_id(gate, "debian/php8.2", "8.2.29-1~deb12u1")
-    assert held[(fixed, PHP2SHELL[0])][0] == "not_affected", held
     for cve in PHP2SHELL:
         assert held[(debian_fixed, cve)] == ("not_affected", "vulnerable_code_not_present"), held
+    coverage = {(_field(r, "product_name"), _field(r, "version")): _field(r, "osv_coverage")
+                for r in gate.rows("security.release_inventory")}
+    assert coverage[("php", "8.3.36")] == (
+        "partial: 0 of 1 components answered; not indexed: generic 1"), coverage
+    assert coverage[("debian/php8.2", "8.2.29-1~deb12u1")] == (
+        "complete: 1 of 1 components answered"), coverage
+    # K1: the fixed upstream build is on every storefront workload, and nobody has assessed
+    # it for either CVE. OSV never answers pkg:generic, so it is unknown, never none, and
+    # the gap says why and what answers it.
+    summary = _respond(gate)
+    assert _states(summary, "RQ1")[f"{HOSTS['storefront-a']}: php 8.3.36"] == "unknown", (
+        summary["answers"])
+    unindexed = [g["payload"] for g in _respond_posts(gate, "gap")
+                 if g["payload"]["subject"] == "php 8.3.36"]
+    assert [(g["pull"], g["input"]["osv_not_indexed"], g["input"]["cves"]) for g in unindexed
+            ] == [("statement", {"generic": 1}, list(PHP2SHELL))], unindexed
+    # The Debian libraries the Syft SBOM listed: OSV answered them and PHP2Shell's
+    # packages (OSV's word) are not among them: none, citing those Claims.
+    libs = {s: a for s, a in ((a["subject"], a) for a in summary["answers"]
+                               if a["question"] == "RQ1") if "debian/lib" in s}
+    assert libs and {a["state"] for a in libs.values()} == {"none"}, libs
+    assert all(a.get("cites") for a in libs.values()), libs
+    # The gap's next step: re-read the records now that the fixed build exists.
+    for cve in PHP2SHELL:
+        before = {r["run"] for r in gate.runs("security.cve-applicability")}
+        gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
+            f"record-again-{cve}", {"url": f"https://cveawg.mitre.org/api/cve/{cve}"}),
+            who=RESPONDER)
+        run = _wait_for_run(gate, "security.cve-applicability", before, 180)
+        proposal = _proposal(gate, run)
+        assert proposal, gate.out("get", run["run"])[-1500:]
+        review = gate.out("proposal", "review", proposal)
+        assert "php8.2" not in review, review[-2000:]
+        _approve(gate, proposal, LEAD)
+    held = _assessments(gate)
+    for cve in PHP2SHELL:
+        assert held[(fixed, cve)][0] == "not_affected", held
     # G6: 13 h on (stale_after 12 h) every coverage revision reads absent: none turns unknown.
     later = (datetime.now(UTC) + timedelta(hours=13)).isoformat().replace("+00:00", "Z")
     taps = {alias: _respond_rows(gate.json(
-        "query", "--name", query, "--all", "--param", f"incident={INCIDENT_NAME}",
+        "query", "--name", query, "--all", *(() if alias == "hosts" else (
+            "--param", f"incident={INCIDENT_NAME}")),
         "--evaluation-time", later)["rows"]) for alias, query in (
-            ("exposure", "security.incident_exposure"), ("patches", "security.incident_patches"),
-            ("overdue", "security.overdue_patches"),
+            ("exposure", "security.incident_exposure"), ("hosts", "security.scanned_runs"),
+            ("patches", "security.incident_patches"), ("overdue", "security.overdue_patches"),
             ("exceptions", "security.incident_exceptions"), ("audits", "security.audit_status"),
             ("credentials", "security.incident_credentials"))}
     stale = respond({**taps, "params": {"incident": INCIDENT_NAME}, "truncated": {}})
@@ -2988,10 +3017,15 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     assert {g["subject"] for g in stale["items"] if g["kind"] == "gap"} >= set(HOSTS.values())
     now = _respond(gate)
     assert set(_states(now, "RQ2").values()) == {"none"}, now["answers"]
-    record("38", f"re-reading {PHP2SHELL[0]}'s record proposed php 8.3.36 not_affected and no "
-           "Debian build; OSV proposed debian/php8.2 8.2.29-1~deb12u1 not_affected "
-           "(vulnerable_code_not_present) for both CVEs; at +13 h the coverage revisions read "
-           "absent and RQ2 answers turn unknown x4, each naming its asset's scan; none now")
+    assert set(_states(now, "RQ1").values()) == {"none"}, now["answers"]
+    record("38", "OSV proposed debian/php8.2 8.2.29-1~deb12u1 not_affected "
+           "(vulnerable_code_not_present) for both CVEs and each release's OSV coverage "
+           "(php 8.3.36 partial: generic not indexed); respond read the unassessed php 8.3.36 "
+           f"RQ1 unknown naming OSV's unindexed type ({len(libs)} Debian libraries none, citing "
+           "coverage, component and package Claims); re-reading both records proposed php "
+           "8.3.36 not_affected and no Debian build; at +13 h the coverage revisions read "
+           "absent and RQ2 answers turn unknown x4, each naming its asset's scan; RQ1 and RQ2 "
+           "none now")
 
 
 def _claim_ids_of(gate: Gate, kind: str, field: str) -> dict[str, list[dict[str, Any]]]:

@@ -107,10 +107,12 @@ from .common import (
     InputError,
     Row,
     claim_item,
+    coverage_text,
     cve_token,
     key_ref,
     match_token,
     once_per,
+    parse_coverage,
     parse_rows,
     replacing,
     sorted_items,
@@ -388,20 +390,6 @@ def package_purl(package: tuple[str, str]) -> str:
     """A package as a purl without version (``pkg:deb/debian/php8.2``)."""
 
     return f"pkg:{package[0]}/{package[1]}"
-
-
-def coverage_text(total: int, answered: int, not_indexed: Mapping[str, int],
-                  unanswered: int) -> str:
-    """The release's OSV coverage, one value: ``complete: N of N components answered``, or
-    ``partial: A of N components answered; not indexed: brew 1, generic 2; unanswered K``."""
-
-    state = "complete" if answered == total and total else "partial"
-    text = f"{state}: {answered} of {total} components answered"
-    if not_indexed:
-        text += "; not indexed: " + ", ".join(f"{t} {n}" for t, n in sorted(not_indexed.items()))
-    if unanswered:
-        text += f"; unanswered {unanswered}"
-    return text
 
 
 def _cves(record_id: str, record: Mapping[str, Any] | None) -> set[str]:
@@ -866,18 +854,8 @@ def coverage_skipped(text: object) -> set[str] | None:
     """The purl types a release's OSV coverage says OSV did not index, or None when there
     is no coverage (OSV never answered it)."""
 
-    if not isinstance(text, str) or ":" not in text:
-        return None
-    state, _, rest = text.partition(":")
-    if state not in {"complete", "partial"}:
-        return None
-    skipped: set[str] = set()
-    for clause in rest.split(";"):
-        clause = clause.strip()
-        if clause.startswith("not indexed:"):
-            for item in clause.removeprefix("not indexed:").split(","):
-                skipped.add(item.strip().split(" ", 1)[0])
-    return skipped
+    coverage = parse_coverage(text)
+    return None if coverage is None else set(coverage.not_indexed)
 
 
 def _candidates(releases: Iterable[tuple[Bound, Row]], sources: Iterable[Row],

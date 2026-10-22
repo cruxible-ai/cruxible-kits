@@ -334,3 +334,53 @@ def sorted_items(items: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Items in a stable order, so the same inputs produce the same proposal bytes."""
 
     return sorted(items, key=lambda item: json.dumps(item, sort_keys=True))
+
+
+# --- OSV coverage ---------------------------------------------------------------
+
+_COVERAGE = re.compile(r"^(complete|partial): (\d+) of (\d+) components answered"
+                       r"(?:; not indexed: ([^;]+))?(?:; unanswered (\d+))?$")
+
+
+@dataclass(frozen=True)
+class OsvCoverage:
+    """A release's ``security.release.osv_coverage``: did OSV answer every component?"""
+
+    complete: bool
+    answered: int
+    total: int
+    #: purl type -> components of it OSV does not index (never asked)
+    not_indexed: dict[str, int] = field(default_factory=dict)
+    #: components asked whose answer is missing or truncated
+    unanswered: int = 0
+
+
+def coverage_text(total: int, answered: int, not_indexed: Mapping[str, int],
+                  unanswered: int) -> str:
+    """The release's OSV coverage, one value: ``complete: N of N components answered``, or
+    ``partial: A of N components answered; not indexed: brew 1, generic 2; unanswered K``."""
+
+    state = "complete" if answered == total and total else "partial"
+    text = f"{state}: {answered} of {total} components answered"
+    if not_indexed:
+        text += "; not indexed: " + ", ".join(f"{t} {n}" for t, n in sorted(not_indexed.items()))
+    if unanswered:
+        text += f"; unanswered {unanswered}"
+    return text
+
+
+def parse_coverage(text: object) -> OsvCoverage | None:
+    """The coverage a ``coverage_text`` value states, or None (no coverage, or not one)."""
+
+    match = _COVERAGE.match(text.strip()) if isinstance(text, str) else None
+    if match is None:
+        return None
+    skipped: dict[str, int] = {}
+    for item in (match.group(4) or "").split(","):
+        purl_type, _, count = item.strip().partition(" ")
+        if purl_type and count.isdigit():
+            skipped[purl_type] = int(count)
+    return OsvCoverage(complete=match.group(1) == "complete", answered=int(match.group(2)),
+                       total=int(match.group(3)), not_indexed=skipped,
+                       unanswered=int(match.group(5) or 0))
+

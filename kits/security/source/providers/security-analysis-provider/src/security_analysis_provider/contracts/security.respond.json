@@ -8,6 +8,9 @@
         "exposure": {
           "type": "json"
         },
+        "hosts": {
+          "type": "json"
+        },
         "patches": {
           "type": "json"
         },

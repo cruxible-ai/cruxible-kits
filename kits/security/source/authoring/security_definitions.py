@@ -362,8 +362,8 @@ CLAIM_TYPES: list[ClaimRow] = [
     ("security.vulnerability.watch_reason", ("security.vulnerability",), "literal", TEXT,
      "one", "normative", (), (),
      "The decision to track the vulnerability, and why. A vulnerability is tracked when it has "
-     "one, or when an affected or inconclusive assessment links it to a release in inventory; "
-     "a bare vulnerability Subject is tracked by nothing."),
+     "one, when an affected or inconclusive assessment links it to a release in inventory, or "
+     "when an incident responds to it; a bare vulnerability Subject is tracked by nothing."),
     # Remediation work.
     ("security.control.activation", ("security.control",), "literal",
      {"enum": ["declared_active", "planned", "retired"], "type": "string"}, "one", "normative",
@@ -769,8 +769,9 @@ SUBJECT_KINDS: dict[str, tuple[tuple[str, ...], str] | None] = {
                             "unique"),
 }
 SUBJECT_KIND_DESCRIPTIONS = {
-    "security.vulnerability": "A CVE, named by its id. Tracked when it has a watch_reason or an "
-    "affected/inconclusive assessment; existing alone tracks nothing.",
+    "security.vulnerability": "A CVE, named by its id. Tracked when it has a watch_reason, an "
+    "affected/inconclusive assessment or an incident responding to it; existing alone tracks "
+    "nothing.",
     "security.release": "One version of a product, named by product name and version.",
     "security.assessment": "Whether one release is affected by one CVE: one per pair.",
     "security.asset": "A host or workload (k8s:prod/storefront-a), named by its hostname.",
@@ -1292,6 +1293,10 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
     # inconclusive assessment links it to a release in inventory.
     tracked_hop = _hop("assessment", "vulnerability", "security.assessment.vulnerability",
                        "assessment", reverse=True)
+    # An incident responding to the CVE watches it too: its questions need the CVE's KEV,
+    # EPSS, OSV packages and record.
+    incident_hop = _hop("incident", "vulnerability", "security.incident.vulnerability",
+                        "incident", reverse=True)
     tracked = _any(
         QueryClaimPresenceFilter(binding="vulnerability",
                                  predicate="security.vulnerability.watch_reason"),
@@ -1299,12 +1304,15 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
                                       predicate="security.assessment.release"),
              _any(_cmp("assessment", "security.assessment.status", "affected"),
                   _cmp("assessment", "security.assessment.status", "inconclusive"))),
+        QueryClaimPresenceFilter(binding="incident", predicate="security.incident.name"),
     )
     # The triage and applicability Procedures' state tap.
     q.append(_query(
-        "security.watched_vulnerabilities", "Every watched vulnerability (a watch_reason, or an "
-        "affected or inconclusive assessment of a release in inventory) with its current KEV "
-        "and EPSS Claims", "vulnerability", "vulnerability", [tracked_hop],
+        "security.watched_vulnerabilities", "Every watched vulnerability (a watch_reason, an "
+        "affected or inconclusive assessment of a release in inventory, or an incident "
+        "responding to it) with its current KEV and EPSS Claims, its record's title and the "
+        "packages OSV says it affects", "vulnerability", "vulnerability",
+        [tracked_hop, incident_hop],
         [_field("vulnerability", "vulnerability"),
          _field("cve_id", "vulnerability", "security.vulnerability.cve_id"),
          _field("title", "vulnerability", "security.vulnerability.title"),
@@ -1709,15 +1717,15 @@ def _inventory_coverage(binding: str, source: str) -> QueryTraversalStep:
                 where=_cmp(binding, "security.coverage.scope", INVENTORY_SCOPE))
 
 
-def _cves(*, required: bool) -> list[QueryTraversalStep]:
+def _cves(*, required: bool, exposed: bool = True) -> list[QueryTraversalStep]:
     """The incident's CVEs and the assessments that find them in a release (affected or
-    inconclusive), with the release."""
+    inconclusive; every assessment when not ``exposed``), with the release."""
 
     return [
         _hop("vulnerability", "incident", INC + "vulnerability", "vulnerability",
              required=required),
         _hop("assessment", "vulnerability", "security.assessment.vulnerability", "assessment",
-             reverse=True, required=required, where=EXPOSED),
+             reverse=True, required=required, where=EXPOSED if exposed else None),
         _hop("release", "assessment", "security.assessment.release", "release",
              required=required)]
 
@@ -1814,15 +1822,17 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("affected_product", "affected", "security.release.product_name"),
          _field("affected_version", "affected", "security.release.version")],
         in_scope, parameters=scope, max_results=2000, paths_per_result=1000, evaluation=HELD))
-    # RQ1: the incident's CVEs, the releases assessed affected or inconclusive, the assets
-    # observed running them (with their inventory coverage and services), and the assets
-    # that only declare installing them.
+    # RQ1: the incident's CVEs (with whether a record of each was read and the packages
+    # OSV says it affects), every release assessed for one of them, the assets observed
+    # running it (with their inventory coverage and services), and the assets that only
+    # declare installing it.
     q.append(_query(
         "security.incident_exposure", "RQ1 for one incident (parameter incident, its name): "
-        "every release assessed affected or inconclusive by one of its CVEs, every asset a scan "
-        "observed running it with its inventory coverage and services, and every asset that "
-        "only declares installing it", "incident", "incident",
-        _cves(required=False) + [
+        "each of its CVEs with its record's title and the packages OSV says it affects, every "
+        "release assessed for one of them (any status), every asset a scan observed running "
+        "it with its inventory coverage and services, and every asset that only declares "
+        "installing it", "incident", "incident",
+        _cves(required=False, exposed=False) + [
             _hop("asset", "release", "security.asset.runs", "asset", reverse=True),
             _inventory_coverage("coverage", "asset"),
             _hop("service", "asset", "security.asset.serves", "service"),
@@ -1837,8 +1847,30 @@ def response_queries() -> list[QueryDefinitionSpec]:
             _field("service_name", "service", "security.service.name"),
             _field("service_log_source", "service", "security.service.log_source"),
             _field("declared_hostname", "declared", "security.asset.hostname"),
-            _field("components", "release", "security.release.component")],
-        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000))
+            _field("components", "release", "security.release.component"),
+            _field("cve_title", "vulnerability", "security.vulnerability.title"),
+            _field("cve_packages", "vulnerability", "security.vulnerability.package")],
+        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000,
+        includes=(_include("package", "vulnerability", "security.vulnerability.package"),)))
+    # RQ1's enumeration: every release a scan observed running on an asset of any
+    # inventory scope, with its components and OSV coverage. The respond Line pairs each
+    # with every incident CVE: a pair nobody assessed is none only from evidence.
+    q.append(_query(
+        "security.scanned_runs", "Every asset an inventory scope's scan read and every "
+        "release it runs, with the release's components and OSV coverage: the respond Line "
+        "answers each incident CVE x each of these releases (none only when OSV answered "
+        "every component and none is a package OSV says the CVE affects)", "asset", "asset",
+        [_hop("coverage", "asset", "security.asset.scanned_in", "coverage", required=True,
+              where=_cmp("coverage", "security.coverage.scope", INVENTORY_SCOPE)),
+         _hop("release", "asset", "security.asset.runs", "release", required=True)],
+        [_field("asset", "asset"), _field("coverage", "coverage"), _field("release", "release"),
+         _field("hostname", "asset", "security.asset.hostname"),
+         _field("product_name", "release", "security.release.product_name"),
+         _field("version", "release", "security.release.version"),
+         _field("components", "release", "security.release.component"),
+         _field("osv_coverage", "release", "security.release.osv_coverage")],
+        max_results=2000, paths_per_result=1000,
+        includes=(_include("component", "release", "security.release.component"),)))
     # RQ2: every patch of the incident; the open ones; the overdue ones (the query clock).
     q.append(_patch_query(
         "security.incident_patches", "RQ2 for one incident: every patch of an asset for one of "
@@ -2303,9 +2335,10 @@ CREDENTIAL_RESULT = _contract("security-credential-state-result", items=_J, inbo
 CREDENTIAL_SUMMARY = _contract("security-credential-state-summary", credential=_S, read=_S,
                                **_CREDENTIAL_COUNTS)
 RESPOND_INPUT = _contract("security-respond-input", incident=_S, inventory_pull=_S,
-                          log_pull=_S, credential_pull=_S, record_pull=_S)
-RESPOND_REQUEST = _contract("security-respond-request", exposure=_J, patches=_J, overdue=_J,
-                            exceptions=_J, audits=_J, credentials=_J, params=_J,
+                          log_pull=_S, credential_pull=_S, record_pull=_S,
+                          osv_line=PropertySchema(type="string", optional=True))
+RESPOND_REQUEST = _contract("security-respond-request", exposure=_J, hosts=_J, patches=_J,
+                            overdue=_J, exceptions=_J, audits=_J, credentials=_J, params=_J,
                             truncated=_J)
 _RESPOND_COUNTS = _ints("posted", "found", "none", "unknown", "ready_to_close")
 RESPOND_RESULT = _contract("security-respond-result", items=_J, answers=_J, incident=_S,
@@ -2315,6 +2348,7 @@ RESPOND_SUMMARY = _contract("security-respond-summary", answers=_J, incident=_S,
 #: respond's taps, in order: alias -> QueryDefinition.
 RESPOND_QUERIES = {
     "exposure": "security.incident_exposure",
+    "hosts": "security.scanned_runs",
     "patches": "security.incident_patches",
     "overdue": "security.overdue_patches",
     "exceptions": "security.incident_exceptions",
@@ -3466,9 +3500,10 @@ def credential_import(cx: Cruxible) -> Any:
 def respond_procedure(cx: Cruxible) -> Any:
     classify = cx.provider_interface("security.respond", provider=ANALYSIS_PROVIDER)
     names = list(RESPOND_QUERIES)
-    taps = [StateTap(alias, query=RESPOND_QUERIES[alias], parameters={
-                "incident": "$input.incident"},
-                next=names[index + 1] if index + 1 < len(names) else "classify")
+    # Every tap but the scanned runs (RQ1's enumeration, instance-wide) is the incident's.
+    taps = [StateTap(alias, query=RESPOND_QUERIES[alias],
+                     parameters=None if alias == "hosts" else {"incident": "$input.incident"},
+                     next=names[index + 1] if index + 1 < len(names) else "classify")
             for index, alias in enumerate(names)]
     sequence = Sequence(
         [
@@ -3481,7 +3516,8 @@ def respond_procedure(cx: Cruxible) -> Any:
             _project(RESPOND_SUMMARY, "classify", "posted"),
             Guard("posted", predicate=_changed("classify", "posted"), on_true="post",
                   on_false="quiet", refusal_code="nothing_to_post",
-                  message="Nothing to post: every answer is none, or the incident is closed."),
+                  message="Nothing to post: no question is found or unknown (every answer "
+                          "rests on evidence of none), or the incident is closed."),
             PostInbox("post", input={"items": Output("classify", "items")}, max_items=200),
             Halt("quiet", reason="nothing_to_post"),
         ],
@@ -3490,7 +3526,12 @@ def respond_procedure(cx: Cruxible) -> Any:
             "Ask one incident's five questions (parameter incident, its name) and answer each "
             "in three states: found (posted), none (run summary only) or unknown (posted as a "
             "gap naming the pull or statement that would answer it). RQ1 which deployments run "
-            "an affected release; RQ2 is each exposure patched (missing, overdue, disputed; "
+            "an affected release: every release a scan observed on an asset, for each incident "
+            "CVE: its assessment; with none, none only when OSV answered every component and "
+            "none is a package OSV says the CVE affects (citing those Claims), else unknown "
+            "naming the next step (the CVE record pull when no record was read; the purl types "
+            "OSV does not index; the OSV Line; an analyst's judgment last), so an unanswered "
+            "pair is never silent; RQ2 is each exposure patched (missing, overdue, disputed; "
             "none only when a full scan verified it; excepted while an approved exception for "
             "each of its CVEs has not expired, then missing again); RQ3 were we exploited in the window, per "
             "service (none only for not_exploited with complete reads of every stated log "
@@ -3499,8 +3540,8 @@ def respond_procedure(cx: Cruxible) -> Any:
             "order, the agent's call), and is each rotation verified by a separate state read; "
             "RQ5 can the incident close (ready_to_close, with any unknown audit as accepted "
             "residue). A closed incident posts nothing. Observe-only. Runs as a Line "
-            "(parameters incident, inventory_pull, log_pull, credential_pull, record_pull): "
-            "daily, on a landing, after a window closes, or line run."
+            "(parameters incident, inventory_pull, log_pull, credential_pull, record_pull, "
+            "optional osv_line): daily, on a landing, after a window closes, or line run."
         ),
         contract_in=RESPOND_INPUT,
         contract_out=RESPOND_SUMMARY,

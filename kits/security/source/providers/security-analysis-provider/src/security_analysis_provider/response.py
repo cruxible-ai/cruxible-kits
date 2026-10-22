@@ -68,7 +68,18 @@ states, from the rows of ``security.incident_exposure``,
   that only declares installing it, or a patched one, under no current coverage
   is unknown (a gap naming the inventory pull); a current full coverage that looked
   for the product and shows no affected run is none. An inconclusive assessment is
-  unknown (an analyst's judgment answers it).
+  unknown (an analyst's judgment answers it). Every other release a scan observed
+  on an asset (rows of ``security.scanned_runs``) is answered for each incident CVE
+  too: a ``not_affected`` assessment is none; with no assessment, none only when
+  the release's OSV coverage is complete for its current components and OSV says
+  the CVE affects packages none of which is a component (the answer cites the
+  coverage, component and package Claims: K1's emulation of an inverse Claim);
+  otherwise unknown, with a gap naming the next step in order: the CVE record pull
+  (``record_pull`` with its url) when no record of it was read (no title); "OSV
+  doesn't index N components of this release" (a statement, with the alternatives:
+  a product alias, a re-scan with a purl type OSV indexes); the OSV Line
+  (``osv_line``) when OSV has not answered the release's current components; an
+  analyst's judgment last. So an incident with an unanswered pair always posts.
 - RQ2 is each exposure patched: ``patch_missing``, ``patch_overdue``,
   ``patch_disputed`` (a scan read it after the claim and still shows the release:
   verification failed), ``patch_regressed`` (verified, then seen running again)
@@ -118,13 +129,16 @@ from urllib.parse import unquote
 from cruxible_provider_runtime.errors import RefusalCode
 from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunContext
 
+from .applicability import purl_package
 from .common import (
     Bound,
     InputError,
     Row,
     claim_item,
+    cve_token,
     key_ref,
     name_form,
+    parse_coverage,
     parse_rows,
     replacing,
     retirement_item,
@@ -912,7 +926,9 @@ class CredentialState:
 
 # --- respond: the five questions ------------------------------------------------------
 
-RESPOND_TAPS = ("exposure", "patches", "overdue", "exceptions", "audits", "credentials")
+RESPOND_TAPS = ("exposure", "hosts", "patches", "overdue", "exceptions", "audits",
+                "credentials")
+CVE_RECORD_URL = "https://cveawg.mitre.org/api/cve/"
 
 
 @dataclass
@@ -922,6 +938,7 @@ class Params:
     log_pull: str = "security.log-acquire"
     credential_pull: str = "security.credential-acquire"
     record_pull: str = "security.cve-record-acquire"
+    osv_line: str = "security.osv-applicability"
 
 
 def _params(value: object) -> Params:
@@ -930,7 +947,7 @@ def _params(value: object) -> Params:
         return defaults
     return Params(**{name: str(value.get(name) or getattr(defaults, name))
                      for name in ("incident", "inventory_pull", "log_pull", "credential_pull",
-                                  "record_pull")})
+                                  "record_pull", "osv_line")})
 
 
 @dataclass
@@ -952,8 +969,35 @@ class Release:
     label: str
     product: str
     status: str
+    #: the incident CVEs it is assessed affected or inconclusive for
     cves: set[str] = field(default_factory=set)
     assessments: set[str] = field(default_factory=set)
+    #: incident CVE -> its assessment's status (any)
+    statuses: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class Cve:
+    """One incident CVE: whether a record of it was read, what OSV says it affects."""
+
+    cve: str
+    title: bool = False
+    #: (type, name) -> the package Claim's ID
+    packages: dict[tuple[str, str], str] = field(default_factory=dict)
+
+
+@dataclass
+class Scanned:
+    """One release a scan observed running on one asset, with what OSV said about it."""
+
+    asset: Bound
+    hostname: str
+    release: Bound
+    label: str
+    #: component purl -> its Claim's ID
+    components: dict[str, str]
+    coverage: str | None
+    coverage_claim: str | None
 
 
 @dataclass
@@ -1036,27 +1080,122 @@ class _Answers:
         self.gaps: dict[str, dict[str, Any]] = {}
 
     def answer(self, question: str, subject: str, state: str, why: str,
-               post: dict[str, Any] | None = None) -> None:
-        self.answers.append({"question": question, "subject": subject, "state": state,
-                             "why": why})
+               post: dict[str, Any] | None = None, *, cites: list[str] | None = None) -> None:
+        answer: dict[str, Any] = {"question": question, "subject": subject, "state": state,
+                                  "why": why}
+        if cites:
+            answer["cites"] = cites
+        self.answers.append(answer)
         if post is not None:
             self.posts.append({"question": question, "incident": self.params.incident, **post})
 
+    def gap(self, subject: str, pull: str, payload: dict[str, Any]) -> None:
+        """One gap item per (what it is about, pull, input) however many answers wait on it."""
+
+        gap = {"kind": "gap", "incident": self.params.incident, "subject": subject,
+               "pull": pull, "input": payload}
+        self.gaps.setdefault(json.dumps(gap, sort_keys=True), gap)
+
     def unknown(self, question: str, subject: str, why: str, pull: str,
                 payload: dict[str, Any], *, about: str | None = None) -> None:
-        """An unknown answer and its gap: one item per (what it is about, pull, input)
-        however many questions wait on it."""
+        """An unknown answer and its gap."""
 
-        gap = {"kind": "gap", "incident": self.params.incident, "subject": about or subject,
-               "pull": pull, "input": payload}
-        key = json.dumps(gap, sort_keys=True)
-        self.gaps.setdefault(key, gap)
+        self.gap(about or subject, pull, payload)
         self.answers.append({"question": question, "subject": subject, "state": "unknown",
                              "why": why, "pull": pull})
 
     def states(self, question: str, subject: str | None = None) -> set[str]:
         return {a["state"] for a in self.answers if a["question"] == question
                 and (subject is None or a["subject"] == subject)}
+
+
+@dataclass
+class _Verdict:
+    state: str
+    why: str
+    cites: list[str] = field(default_factory=list)
+    #: the gaps that answer it, the next step first: {subject, pull, payload}
+    gaps: list[dict[str, Any]] = field(default_factory=list)
+
+
+#: The order an unassessed pair's next step is named in: the CVE's record first, then
+#: what OSV does not index, then the OSV Line, an analyst's judgment last.
+_STEPS = ("record", "not_indexed", "osv", "judgment")
+
+
+def _pair_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve],
+                  params: Params) -> _Verdict:
+    """RQ1 for one scanned release, over every incident CVE (K1's emulation of an inverse
+    Claim: none only from evidence, never from an empty answer)."""
+
+    components = {purl: purl_package(purl) for purl in item.components}
+    packages = {package for package in components.values() if package is not None}
+    coverage = parse_coverage(item.coverage)
+    current = coverage is not None and coverage.total == len(components)
+    nones: list[str] = []
+    cites: set[str] = set()
+    waits: dict[str, list[str]] = {}
+    for cve in sorted(cves):
+        known = cves[cve]
+        status = held.statuses.get(cve) if held is not None else None
+        if status == "not_affected":
+            nones.append(f"{cve}: assessed not_affected")
+            continue
+        if status is not None:  # inconclusive or affected: answered with the exposure
+            waits.setdefault("judgment", []).append(cve)
+            continue
+        shared = packages & set(known.packages)
+        if coverage is not None and coverage.complete and current and known.packages and (
+                not shared):
+            nones.append(f"{cve}: OSV answered all {coverage.total} components and none is a "
+                         "package OSV says it affects")
+            cites.update(claim for claim in (item.coverage_claim, *item.components.values(),
+                                             *known.packages.values()) if claim)
+            continue
+        if not known.title:
+            step = "record"
+        elif coverage is not None and coverage.not_indexed:
+            step = "not_indexed"
+        elif coverage is None or not current or not coverage.complete or shared:
+            step = "osv"
+        else:
+            step = "judgment"
+        waits.setdefault(step, []).append(cve)
+    if not waits:
+        return _Verdict("none", "; ".join(nones), sorted(cites))
+    label = item.label
+    why: list[str] = []
+    gaps: list[dict[str, Any]] = []
+    for step in _STEPS:
+        waiting = sorted(waits.get(step, ()))
+        if not waiting:
+            continue
+        named = ", ".join(waiting)
+        if step == "record":
+            why.append(f"{named}: no record of it read yet")
+            gaps += [{"subject": cve, "pull": params.record_pull,
+                      "payload": {"url": CVE_RECORD_URL + cve}} for cve in waiting]
+        elif step == "not_indexed":
+            assert coverage is not None
+            skipped = sum(coverage.not_indexed.values())
+            types = ", ".join(f"{t} {n}" for t, n in sorted(coverage.not_indexed.items()))
+            why.append(f"{named}: OSV doesn't index {skipped} component"
+                       f"{'s' if skipped != 1 else ''} of this release ({types})")
+            gaps.append({"subject": label, "pull": "statement", "payload": {
+                "state": "security.assessment.status", "release": label, "cves": waiting,
+                "osv_not_indexed": dict(sorted(coverage.not_indexed.items())),
+                # Or: a product alias the record names (then re-acquire the record), or a
+                # re-scan naming the component by a purl type OSV indexes.
+                "alternatives": ["security.release.product_alias", params.inventory_pull]}})
+        elif step == "osv":
+            why.append(f"{named}: OSV has not answered this release's components for it")
+            gaps.append({"subject": label, "pull": params.osv_line,
+                         "payload": {"release": label}})
+        else:
+            why.append(f"{named}: no source decides it (an analyst's judgment answers it)")
+            gaps.append({"subject": label, "pull": "statement", "payload": {
+                "state": "security.assessment.status", "release": label, "cves": waiting}})
+    return _Verdict("unknown", "; ".join(why + nones), [], gaps)
 
 
 def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -1075,7 +1214,9 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
         return {**base, "items": [], "answers": [], "posted": 0, "found": 0, "none": 0,
                 "unknown": 0, "ready_to_close": 0}
 
-    # RQ1 inputs: releases, assets running them, assets declaring them.
+    # RQ1 inputs: the incident's CVEs, every release assessed for one (any status), the
+    # assets running the exposed ones, the assets declaring them.
+    cves: dict[str, Cve] = {}
     releases: dict[str, Release] = {}
     running: dict[str, Asset] = {}
     runs: set[tuple[str, str]] = set()  # (asset path, release path)
@@ -1085,19 +1226,36 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
         for row in rows[name]:
             _service_sources(service_sources, row)
     for row in rows["exposure"]:
+        cve = cve_token(row.value("cve_id"))
+        if cve is not None:
+            known = cves.setdefault(cve, Cve(cve=cve))
+            known.title = known.title or bool(row.value("cve_title"))
+            for item in row.included("package"):
+                package = purl_package(str(item.value)) if isinstance(item.value, str) else None
+                if package is not None:
+                    known.packages.setdefault(package, item.claim_id)
+            for value in _list(row.value("cve_packages")):
+                package = purl_package(str(value))
+                if package is not None:
+                    known.packages.setdefault(package, "")
         release, assessment = row.subject("release"), row.subject("assessment")
         if release is None or assessment is None:
             continue
         held = releases.setdefault(release.path, Release(
             bound=release, label=f"{row.value('product_name')} {row.value('version')}",
-            product=str(row.value("product_name") or ""), status="affected"))
-        if row.value("status") == "inconclusive" and held.status != "affected":
-            held.status = "inconclusive"
-        elif row.value("status") == "affected":
+            product=str(row.value("product_name") or ""), status="not_affected"))
+        status = row.value("status")
+        if cve is not None and isinstance(status, str):
+            held.statuses[cve] = status
+            if status in ("affected", "inconclusive"):
+                held.cves.add(cve)
+                held.assessments.add(_ref(assessment))
+        if "affected" in held.statuses.values():
             held.status = "affected"
-        if isinstance(row.value("cve_id"), str):
-            held.cves.add(row.value("cve_id"))
-        held.assessments.add(_ref(assessment))
+        elif "inconclusive" in held.statuses.values():
+            held.status = "inconclusive"
+        if status not in ("affected", "inconclusive"):
+            continue
         asset = row.subject("asset")
         if asset is not None:
             entry = running.setdefault(asset.path, Asset(
@@ -1115,6 +1273,21 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
                 entry.looked_for.update(name_form(v) for v in _list(
                     row.value("declared_looked_for")))
             names.add(release.path)
+    # RQ1's enumeration: every release a scan observed running on an asset.
+    scanned: dict[tuple[str, str], Scanned] = {}
+    for row in rows["hosts"]:
+        asset, release = row.subject("asset"), row.subject("release")
+        if asset is None or release is None or (asset.path, release.path) in scanned:
+            continue
+        components = {str(item.value): item.claim_id for item in row.included("component")
+                      if isinstance(item.value, str)}
+        for value in _list(row.value("components")):
+            components.setdefault(str(value), "")
+        scanned[(asset.path, release.path)] = Scanned(
+            asset=asset, hostname=str(row.value("hostname") or _ref(asset)), release=release,
+            label=f"{row.value('product_name')} {row.value('version')}",
+            components=components, coverage=row.value("osv_coverage"),
+            coverage_claim=row.claim_id(release, "security.release.osv_coverage"))
     # RQ2 inputs: every patch of the incident, with its asset; the overdue ones.
     patches: dict[str, Patch] = {}
     patched: dict[str, Asset] = {}
@@ -1197,6 +1370,32 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
         else:
             out.unknown("RQ1", subject, "no current inventory coverage", params.inventory_pull,
                         {"covering": asset.hostname}, about=asset.hostname)
+
+    # RQ1 for every other release a scan observed: each incident CVE x the release. A
+    # pair with an assessment uses it; a pair nobody assessed is none only from evidence
+    # (OSV answered every current component and none is a package OSV says the CVE
+    # affects), else unknown naming the next step. Never silent.
+    verdicts: dict[str, _Verdict] = {}
+    for key in sorted(scanned):
+        if key in runs:
+            continue  # answered above: it runs a release assessed affected or inconclusive
+        item = scanned[key]
+        held = releases.get(item.release.path)
+        if held is not None and held.status in ("affected", "inconclusive"):
+            continue
+        if not cves:
+            break
+        verdict = verdicts.get(item.release.path)
+        if verdict is None:
+            verdict = verdicts[item.release.path] = _pair_verdict(item, held, cves, params)
+        subject = f"{item.hostname}: {item.label}"
+        if verdict.state == "none":
+            out.answer("RQ1", subject, "none", verdict.why, cites=verdict.cites)
+            continue
+        for gap in verdict.gaps:
+            out.gap(**gap)
+        out.answers.append({"question": "RQ1", "subject": subject, "state": "unknown",
+                            "why": verdict.why, "pull": verdict.gaps[0]["pull"]})
 
     # RQ2.
     by_exposure: dict[tuple[str, str], list[Patch]] = {}
