@@ -248,3 +248,44 @@ def test_release_asset_follows_github_redirect_and_keeps_the_served_bytes() -> N
 
 def test_the_registration_verifies() -> None:
     load_registration(Path(security_sources_provider.__file__).parent)
+
+
+# --- retries: a slow origin answers or fails, never half-answers ------------------
+
+
+def test_a_timed_out_or_throttled_exchange_is_retried_with_backoff(monkeypatch: Any) -> None:
+    from security_sources_provider import sources
+
+    waits: list[float] = []
+    monkeypatch.setattr(sources, "_sleep", waits.append)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.ReadTimeout("slow", request=request)
+        if calls["n"] == 2:
+            return httpx.Response(503, content=b"busy", request=request)
+        return httpx.Response(200, content=json.dumps({"results": [{}]}).encode(),
+                              request=request)
+
+    provider = OsvQuery(lambda: httpx.MockTransport(handler))
+    result = provider(_context("security.osv-query", {
+        "releases": _rows("components", ["pkg:pypi/requests@2.32.3"]), "watched": []}))
+    material = _material(result)
+    assert calls["n"] == 3 and waits == [1.0, 2.0]
+    assert [e["status"] for e in material["exchanges"]] == [200]
+
+
+def test_a_timeout_on_every_attempt_fails_the_run(monkeypatch: Any) -> None:
+    from security_sources_provider import sources
+
+    monkeypatch.setattr(sources, "_sleep", lambda _s: None)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("down", request=request)
+
+    provider = OsvQuery(lambda: httpx.MockTransport(handler))
+    result = provider(_context("security.osv-query", {
+        "releases": _rows("components", ["pkg:pypi/requests@2.32.3"]), "watched": []}))
+    assert result.status == "error" and "Timeout" in result.error.message

@@ -22,7 +22,7 @@ from cruxible_provider_runtime.registration import INTERFACE_DOMAIN, load_regist
 
 ROOT = Path(__file__).resolve().parent
 MODULE = ROOT / "src" / "security_analysis_provider"
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 
 def _b64(data: bytes) -> str:
@@ -230,6 +230,59 @@ INTERFACES: dict[str, tuple[str, str, str, list[dict[str, Any]], dict[str, Any],
          "truncated": False},
         "sarif=present;size=small",
         "sarif=present;size=small",
+    ),
+    "security.runtime-inventory": (
+        "response:RuntimeInventory",
+        "response:classify_inventory",
+        "A runtime-inventory scan (the kit body or a CycloneDX SBOM of one asset) and what "
+        "one scope's coverage holds.",
+        [
+            _dimension("inventory", "whether an inventory text is present",
+                       {"present": "a text"}),
+            _dimension("size", "how large the scan is",
+                       {"small": "at most 1 MiB", "large": "more"}),
+        ],
+        {"inventory_text": json.dumps({"scope": "fixture", "looked_for": ["*"],
+                                       "coverage": "full", "assets": []}),
+         "held": [], "patches": [], "scope": "fixture", "truncated": {}},
+        "inventory=present;size=small",
+        "inventory=present;size=small",
+    ),
+    "security.log-reads": (
+        "response:LogReads",
+        "response:classify_log",
+        "One log read and the incident's audits.",
+        [_dimension("read", "whether a log read text is present", {"present": "a text"})],
+        {"read_text": json.dumps({"audit": {"incident": "fixture", "service": "fixture"},
+                                  "source": "fixture/log", "from": "2026-01-01T00:00:00Z",
+                                  "to": "2026-01-02T00:00:00Z", "complete": True}),
+         "held": [], "incident": "fixture", "truncated": False},
+        "read=present",
+        "read=present",
+    ),
+    "security.credential-state": (
+        "response:CredentialState",
+        "response:classify_credential",
+        "One credential's key state (non-secret ids only) and every held credential.",
+        [_dimension("state", "whether a credential-state text is present",
+                    {"present": "a text"})],
+        {"state_text": json.dumps({"issuer": "fixture", "name": "fixture", "read": "receipt",
+                                   "keys": [{"key_id": "fp:0000000000000000",
+                                             "state": "active"}]}),
+         "held": [], "truncated": False},
+        "state=present",
+        "state=present",
+    ),
+    "security.respond": (
+        "response:Respond",
+        "response:classify_respond",
+        "One incident's exposure, patch, audit and credential rows.",
+        [_dimension("rows", "how many rows the request carries", {
+            "small": "at most 5000 rows", "large": "more than 5000 rows"})],
+        {"exposure": [], "patches": [], "overdue": [], "audits": [], "credentials": [],
+         "params": {}, "truncated": {}},
+        "rows=small",
+        "rows=*",
     ),
     "security.harden": (
         "harden:Harden",

@@ -1,0 +1,68 @@
+{
+  "interface_id": "security.log-reads",
+  "version": 1,
+  "effect_class": "pure",
+  "contracts": {
+    "input": {
+      "fields": {
+        "read_text": {
+          "type": "string"
+        },
+        "held": {
+          "type": "json"
+        },
+        "incident": {
+          "type": "string"
+        },
+        "truncated": {
+          "type": "json"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": {
+      "fields": {
+        "items": {
+          "type": "json"
+        },
+        "inbox": {
+          "type": "json"
+        },
+        "incident": {
+          "type": "string"
+        },
+        "service": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "read": {
+          "type": "string"
+        },
+        "mine": {
+          "type": "integer"
+        },
+        "recordable": {
+          "type": "integer"
+        },
+        "matches": {
+          "type": "integer"
+        },
+        "added": {
+          "type": "integer"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "posted": {
+          "type": "integer"
+        }
+      },
+      "allow_extra": false
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

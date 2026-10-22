@@ -20,7 +20,7 @@ from cruxible_provider_runtime.registration import INTERFACE_DOMAIN, load_regist
 
 ROOT = Path(__file__).resolve().parent
 MODULE = ROOT / "src" / "security_sources_provider"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 
 def _dimension(name: str, description: str, classes: dict[str, str]) -> dict[str, Any]:

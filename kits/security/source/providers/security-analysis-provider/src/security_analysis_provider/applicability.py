@@ -40,6 +40,24 @@ the entry's version ranges (``version``, ``lessThan``/``lessThanOrEqual``,
 ``changes``; a ``lessThan`` ending in ``*`` is open-ended) and ``defaultStatus``.
 Conservatively: a version the ranges cannot order, a product that only
 partially matches, or a vendor that contradicts the supplier -> ``inconclusive``.
+The CNA's ``affected`` entries are read with every ADP container's (CISA's
+vulnrichment adds them where the CNA states none); a null or absent container,
+list or field is no data, never an answer.
+
+The record may also be an NVD API 2.0 answer for one CVE (``vulnerabilities[0].cve``):
+its ``configurations[].nodes[].cpeMatch[]`` (each null or absent tolerated: no CPE
+data is no answer) become affected entries by CPE vendor and product, with
+``versionStart*``/``versionEnd*`` as the range (a start-excluding bound is read as
+inclusive: toward affected) and versions outside every range not affected. The
+answer must be complete: ``totalResults`` zero (NVD does not know the CVE) or
+more results than the page holds is refused, so a truncated or empty page reads as
+unknown, never as none.
+
+A release that is itself a package of an OSV ecosystem (a component purl of a
+type OSV indexes -- deb, rpm, apk, pypi, npm ... -- whose name and version are the
+release's) is OSV's to decide: the record analysis skips it, so the two
+Procedures never flip one assessment between them (a distro build's version does
+not order against upstream ranges, and its backports are in the distro advisory).
 """
 
 from __future__ import annotations
@@ -302,7 +320,11 @@ def _record_packages(record: Mapping[str, Any]) -> set[tuple[str, str]]:
 
 
 def _cves(record_id: str, record: Mapping[str, Any] | None) -> set[str]:
-    ids = {record_id, *((record or {}).get("aliases") or ())}
+    """The CVE ids an OSV record is: its id, aliases, and the upstream ids a distro record
+    (DEBIAN-CVE-..., UBUNTU-CVE-...) names."""
+
+    ids = {record_id, *((record or {}).get("aliases") or ()),
+           *((record or {}).get("upstream") or ())}
     return {cve for item in ids if (cve := cve_token(item))}
 
 
@@ -559,6 +581,102 @@ def _product_decision(affected: Mapping[str, Any], version_text: str) -> tuple[s
     return "inconclusive", "no range covers it and the record states no default"
 
 
+#: purl types OSV indexes: a release that is one of these packages is OSV's to decide.
+OSV_ECOSYSTEM_TYPES = frozenset({
+    "alpm", "apk", "bitnami", "cargo", "composer", "conan", "cran", "deb", "gem", "golang",
+    "hackage", "hex", "maven", "npm", "nuget", "pub", "pypi", "rpm", "swift"})
+
+
+def osv_owned(row: Row) -> bool:
+    """Whether the release is itself a package of an OSV ecosystem (its own purl)."""
+
+    product = match_token(row.value("product_name"))
+    version = str(row.value("version") or "").strip()
+    for purl in row.value("components") or ():
+        if not isinstance(purl, str) or "@" not in purl:
+            continue
+        parsed = purl_package(purl)
+        if parsed is None or parsed[0] not in OSV_ECOSYSTEM_TYPES:
+            continue
+        name = parsed[1].rsplit("/", 1)[-1]
+        if match_token(name) == product and purl.split("?", 1)[0].rsplit("@", 1)[1] == version:
+            return True
+    return False
+
+
+_CPE = re.compile(r"^cpe:2\.3:[aho]:([^:]*):([^:]*):([^:]*):")
+
+
+def _nvd_affected(record: Mapping[str, Any]) -> tuple[str, list[Mapping[str, Any]]]:
+    """(CVE id, CVE 5-shaped affected entries) of an NVD API 2.0 answer for one CVE."""
+
+    total, start = record.get("totalResults"), record.get("startIndex") or 0
+    items = record.get("vulnerabilities") or []
+    if not isinstance(total, int) or not isinstance(items, list) or not isinstance(start, int):
+        raise InputError("the NVD answer states no totalResults: completeness unknown")
+    if total == 0:
+        raise InputError("NVD does not know the CVE (totalResults 0): no answer, not a "
+                         "not_affected")
+    if start + len(items) < total or len(items) != 1:
+        raise InputError(f"the NVD answer is incomplete or not one CVE ({len(items)} of "
+                         f"{total} from {start}): it would read a missing range as none")
+    cve_body = (items[0] or {}).get("cve") or {}
+    cve = cve_token(cve_body.get("id"))
+    if cve is None:
+        raise InputError("the NVD answer names no CVE id")
+    entries: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for configuration in cve_body.get("configurations") or ():
+        for node in (configuration or {}).get("nodes") or ():
+            for match in (node or {}).get("cpeMatch") or ():
+                if not isinstance(match, Mapping) or match.get("vulnerable") is not True:
+                    continue
+                parsed = _CPE.match(str(match.get("criteria") or ""))
+                if parsed is None:
+                    continue
+                vendor, product, version = (unquote_cpe(part) for part in parsed.groups())
+                low = match.get("versionStartIncluding") or match.get("versionStartExcluding")
+                if version not in ("*", "-", ""):
+                    entry: dict[str, Any] = {"version": version, "status": "affected"}
+                elif match.get("versionEndExcluding"):
+                    entry = {"version": low or "0", "lessThan": match["versionEndExcluding"],
+                             "status": "affected"}
+                elif match.get("versionEndIncluding"):
+                    entry = {"version": low or "0",
+                             "lessThanOrEqual": match["versionEndIncluding"],
+                             "status": "affected"}
+                else:
+                    entry = {"version": low or "0", "lessThan": "*", "status": "affected"}
+                entries.setdefault((vendor, product), []).append(entry)
+    return cve, [{"vendor": vendor, "product": product, "versions": versions,
+                  "defaultStatus": "unaffected"}
+                 for (vendor, product), versions in sorted(entries.items())]
+
+
+def unquote_cpe(part: str) -> str:
+    """A CPE 2.3 formatted-string component with its backslash escapes removed."""
+
+    return re.sub(r"\\(.)", r"\1", part)
+
+
+def _record_affected(record: Mapping[str, Any]) -> tuple[str, list[Mapping[str, Any]]]:
+    """(CVE id, affected entries) of a CVE JSON 5 record or an NVD API 2.0 answer."""
+
+    if "vulnerabilities" in record and "cveMetadata" not in record:
+        return _nvd_affected(record)
+    cve = cve_token((record.get("cveMetadata") or {}).get("cveId"))
+    containers = record.get("containers") or {}
+    if cve is None or not isinstance(containers, Mapping):
+        raise InputError("the Capture body is not a CVE JSON 5 record")
+    cna = containers.get("cna") or {}
+    if not isinstance(cna, Mapping):
+        raise InputError("the Capture body is not a CVE JSON 5 record")
+    affected = [entry for entry in cna.get("affected") or () if isinstance(entry, Mapping)]
+    for adp in containers.get("adp") or ():
+        if isinstance(adp, Mapping):
+            affected += [e for e in adp.get("affected") or () if isinstance(e, Mapping)]
+    return cve, affected
+
+
 class CveApplicability:
     """The ``security.cve-applicability`` implementation."""
 
@@ -571,10 +689,9 @@ class CveApplicability:
                 record = json.loads(base64.b64decode(str(raw), validate=True))
             except (binascii.Error, ValueError) as error:
                 raise InputError("the CVE record Capture body is not JSON") from error
-            cve = cve_token((record.get("cveMetadata") or {}).get("cveId"))
-            cna = (record.get("containers") or {}).get("cna") or {}
-            if cve is None or not isinstance(cna, Mapping):
-                raise InputError("the Capture body is not a CVE JSON 5 record")
+            if not isinstance(record, Mapping):
+                raise InputError("the Capture body is not a CVE record")
+            cve, affected_entries = _record_affected(record)
             releases = _releases(parse_rows(context.input.get("releases")))
             watched_rows = parse_rows(context.input.get("watched"))
             held = _held(parse_rows(context.input.get("assessments")))
@@ -586,11 +703,9 @@ class CveApplicability:
             product = match_token(row.value("product_name"))
             supplier = match_token(row.value("supplier_name"))
             version = str(row.value("version") or "")
-            if not product:
+            if not product or osv_owned(row):
                 continue
-            for affected in cna.get("affected") or ():
-                if not isinstance(affected, Mapping):
-                    continue
+            for affected in affected_entries:
                 named = match_token(affected.get("product"))
                 vendor = match_token(affected.get("vendor"))
                 label = f"{affected.get('vendor')} {affected.get('product')}"

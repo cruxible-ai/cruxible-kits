@@ -1,0 +1,86 @@
+{
+  "interface_id": "security.runtime-inventory",
+  "version": 1,
+  "effect_class": "pure",
+  "contracts": {
+    "input": {
+      "fields": {
+        "inventory_text": {
+          "type": "string"
+        },
+        "held": {
+          "type": "json"
+        },
+        "patches": {
+          "type": "json"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "truncated": {
+          "type": "json"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": {
+      "fields": {
+        "items": {
+          "type": "json"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "coverage": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "regressions": {
+          "type": "json"
+        },
+        "mine": {
+          "type": "integer"
+        },
+        "assets": {
+          "type": "integer"
+        },
+        "runs": {
+          "type": "integer"
+        },
+        "added": {
+          "type": "integer"
+        },
+        "retired": {
+          "type": "integer"
+        },
+        "revised": {
+          "type": "integer"
+        },
+        "restated": {
+          "type": "integer"
+        },
+        "verified": {
+          "type": "integer"
+        },
+        "failed": {
+          "type": "integer"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "proposes": {
+          "type": "integer"
+        }
+      },
+      "allow_extra": false
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

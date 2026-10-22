@@ -1,0 +1,16 @@
+{
+  "scope": "prod",
+  "looked_for": [
+    "php",
+    "php8.2"
+  ],
+  "coverage": "partial",
+  "assets": [
+    {
+      "hostname": "k8s:prod/storefront-b",
+      "runs": [
+        "pkg:generic/php@8.3.10"
+      ]
+    }
+  ]
+}

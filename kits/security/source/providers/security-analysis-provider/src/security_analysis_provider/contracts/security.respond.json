@@ -1,0 +1,68 @@
+{
+  "interface_id": "security.respond",
+  "version": 1,
+  "effect_class": "pure",
+  "contracts": {
+    "input": {
+      "fields": {
+        "exposure": {
+          "type": "json"
+        },
+        "patches": {
+          "type": "json"
+        },
+        "overdue": {
+          "type": "json"
+        },
+        "audits": {
+          "type": "json"
+        },
+        "credentials": {
+          "type": "json"
+        },
+        "params": {
+          "type": "json"
+        },
+        "truncated": {
+          "type": "json"
+        }
+      },
+      "allow_extra": false
+    },
+    "output": {
+      "fields": {
+        "items": {
+          "type": "json"
+        },
+        "answers": {
+          "type": "json"
+        },
+        "incident": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "posted": {
+          "type": "integer"
+        },
+        "found": {
+          "type": "integer"
+        },
+        "none": {
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        },
+        "ready_to_close": {
+          "type": "integer"
+        }
+      },
+      "allow_extra": false
+    }
+  },
+  "refusals": [
+    "provider_declined"
+  ]
+}

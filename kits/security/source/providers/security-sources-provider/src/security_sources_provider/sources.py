@@ -39,6 +39,12 @@ URL serves (``https://github.com/OWNER/REPO/releases/download/TAG/NAME``,
 following GitHub's redirect to its asset host) and retains them with their
 digest: what the release really serves. (web.fetch leaves archives to the
 document plane, so the kit reads them here.)
+
+Every exchange retries a timeout, and a 429/502/503/504 answer, up to
+``ATTEMPTS`` times with exponential backoff (``BACKOFF_SECONDS``): a slow origin
+yields its answer or, after the last attempt, a failed run, never a partial one
+read as complete. A truncated OSV answer (a ``next_page_token``) is retained as
+it came; the applicability analysis reads that package as unanswered.
 """
 
 from __future__ import annotations
@@ -47,6 +53,7 @@ import base64
 import hashlib
 import json
 import re
+import time
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -96,6 +103,39 @@ _ASSET_URL = re.compile(
 
 #: Builds the client a run uses. Tests and the release gate pass a transport.
 TransportFactory = Callable[[], httpx.BaseTransport | None]
+#: Attempts per exchange, and the backoff before each retry (doubling).
+ATTEMPTS = 3
+BACKOFF_SECONDS = 1.0
+RETRY_STATUSES = frozenset({429, 502, 503, 504})
+_sleep = time.sleep
+
+
+class RetryingTransport(httpx.BaseTransport):
+    """Retry a timed-out or transiently refused exchange with exponential backoff."""
+
+    def __init__(self, inner: httpx.BaseTransport) -> None:
+        self._inner = inner
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        delay = BACKOFF_SECONDS
+        for attempt in range(1, ATTEMPTS + 1):
+            last = attempt == ATTEMPTS
+            try:
+                response = self._inner.handle_request(request)
+            except httpx.TimeoutException:
+                if last:
+                    raise
+            else:
+                if response.status_code not in RETRY_STATUSES or last:
+                    return response
+                response.read()
+                response.close()
+            _sleep(delay)
+            delay *= 2
+        raise AssertionError("unreachable")  # pragma: no cover
+
+    def close(self) -> None:
+        self._inner.close()
 
 
 def _sha256(data: bytes) -> str:
@@ -115,7 +155,7 @@ def _client(
     return httpx.Client(
         base_url=base_url,
         timeout=timeout,
-        transport=transport,
+        transport=RetryingTransport(transport or httpx.HTTPTransport()),
         follow_redirects=False,
         headers={"user-agent": USER_AGENT},
         event_hooks={"request": [record]},

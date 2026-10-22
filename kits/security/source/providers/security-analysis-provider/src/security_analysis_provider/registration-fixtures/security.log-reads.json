@@ -1,0 +1,12 @@
+[
+  {
+    "canonical_input": {
+      "held": [],
+      "incident": "fixture",
+      "read_text": "{\"audit\": {\"incident\": \"fixture\", \"service\": \"fixture\"}, \"source\": \"fixture/log\", \"from\": \"2026-01-01T00:00:00Z\", \"to\": \"2026-01-02T00:00:00Z\", \"complete\": true}",
+      "truncated": false
+    },
+    "fixture_id": "log-reads-fixture",
+    "measured_bucket_id": "read=present"
+  }
+]

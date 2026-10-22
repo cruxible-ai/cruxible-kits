@@ -1,0 +1,28 @@
+{
+  "scope": "prod",
+  "looked_for": [
+    "php",
+    "php8.2"
+  ],
+  "coverage": "full",
+  "assets": [
+    {
+      "hostname": "app-1.acme.internal",
+      "runs": [
+        "pkg:deb/debian/php8.2@8.2.20-1~deb12u1"
+      ]
+    },
+    {
+      "hostname": "k8s:prod/storefront-b",
+      "runs": [
+        "pkg:generic/php@8.3.10"
+      ]
+    },
+    {
+      "hostname": "k8s:prod/storefront-a",
+      "runs": [
+        "pkg:generic/php@8.3.10"
+      ]
+    }
+  ]
+}

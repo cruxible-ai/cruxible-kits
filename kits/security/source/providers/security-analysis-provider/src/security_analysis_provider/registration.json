@@ -5,7 +5,7 @@
         "entrypoint": "security_analysis_provider.kev:classify_triage",
         "identity": "security.kev-catalog.input",
         "source": {
-          "digest": "sha256:b27e00e224c7bc93fb53c83a8faac39681ecde9023f1f5b96c180b05a7b1c33c",
+          "digest": "sha256:353ae9a918efa5ef0a0a9cbfe0e22d50724031e9f3ee9b9dbac77ba1c92ebc2f",
           "path": "kev.py"
         },
         "version": 1
@@ -31,7 +31,7 @@
         "entrypoint": "security_analysis_provider.kev:classify_attention",
         "identity": "security.kev-attention.input",
         "source": {
-          "digest": "sha256:b27e00e224c7bc93fb53c83a8faac39681ecde9023f1f5b96c180b05a7b1c33c",
+          "digest": "sha256:353ae9a918efa5ef0a0a9cbfe0e22d50724031e9f3ee9b9dbac77ba1c92ebc2f",
           "path": "kev.py"
         },
         "version": 1
@@ -109,7 +109,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_osv",
         "identity": "security.osv-applicability.input",
         "source": {
-          "digest": "sha256:f9e8b9fca11e96bb7dc6534fb92a270f6fb6db03c087d0d33d0b8c9d86a424ac",
+          "digest": "sha256:6023688a92ef5e0a508534791995722c6336edb803ca928dca4de16c555aad2a",
           "path": "applicability.py"
         },
         "version": 1
@@ -135,7 +135,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_cve",
         "identity": "security.cve-applicability.input",
         "source": {
-          "digest": "sha256:f9e8b9fca11e96bb7dc6534fb92a270f6fb6db03c087d0d33d0b8c9d86a424ac",
+          "digest": "sha256:6023688a92ef5e0a508534791995722c6336edb803ca928dca4de16c555aad2a",
           "path": "applicability.py"
         },
         "version": 1
@@ -236,6 +236,110 @@
     },
     {
       "classifier": {
+        "entrypoint": "security_analysis_provider.response:classify_inventory",
+        "identity": "security.runtime-inventory.input",
+        "source": {
+          "digest": "sha256:e50d3fc38c6648d6b829c6c73e0c78a25c72c1ea093ad96ab2b9b470ad967f28",
+          "path": "response.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:703f4081f537e4e0759040f364e9a1f5778db118b023c176b3ad6420cac03d7c",
+        "path": "contracts/security.runtime-inventory.json"
+      },
+      "fixtures": {
+        "digest": "sha256:6bbeaac6fac95601022fd8363cf131de2fe6dc742d254d1cc3bccf3eeb5cb9cc",
+        "path": "registration-fixtures/security.runtime-inventory.json"
+      },
+      "interface_digest": "sha256:ad6f3cd6a25952ec3cad8fa5640b707def3293906d53d57d5223de16209758a8",
+      "interface_id": "security.runtime-inventory",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:00fa5e508c52f81c2c75d92d12465ecee81204d32977fd89b05e4f3e40952e38",
+        "path": "vocab/security.runtime-inventory.json"
+      }
+    },
+    {
+      "classifier": {
+        "entrypoint": "security_analysis_provider.response:classify_log",
+        "identity": "security.log-reads.input",
+        "source": {
+          "digest": "sha256:e50d3fc38c6648d6b829c6c73e0c78a25c72c1ea093ad96ab2b9b470ad967f28",
+          "path": "response.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:a106577acadd6dfc3037cf9d8321670ca76f7b29c18ddcd4bafac238a1048042",
+        "path": "contracts/security.log-reads.json"
+      },
+      "fixtures": {
+        "digest": "sha256:39b3b3c3eb73353e58522acdc3bbb6f033ad14f08286b4a53c428bf12df099c1",
+        "path": "registration-fixtures/security.log-reads.json"
+      },
+      "interface_digest": "sha256:030fde6457cfe42c5eeab1aac3c656af5c4155bf6bcb3d9fc928b8b0d6c722a8",
+      "interface_id": "security.log-reads",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:30241c20e62611e18af3855028331d59812215b5129c1803675e0802c7700976",
+        "path": "vocab/security.log-reads.json"
+      }
+    },
+    {
+      "classifier": {
+        "entrypoint": "security_analysis_provider.response:classify_credential",
+        "identity": "security.credential-state.input",
+        "source": {
+          "digest": "sha256:e50d3fc38c6648d6b829c6c73e0c78a25c72c1ea093ad96ab2b9b470ad967f28",
+          "path": "response.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:57d7efe8d3134d63bd40df8458013072902841259a41bb2f43553a958807c205",
+        "path": "contracts/security.credential-state.json"
+      },
+      "fixtures": {
+        "digest": "sha256:d74414c7a9e94b5709b8543be3b376c93b852fae4f67ee9a2a8516d7c944134d",
+        "path": "registration-fixtures/security.credential-state.json"
+      },
+      "interface_digest": "sha256:0619eccce099f9ce65b891483c1875250fab607fd75f6668164903789851c159",
+      "interface_id": "security.credential-state",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:1112b2bc7c16468ddd864f78cfa7fa77cc7c2691130d62f871561a1ff1dbf01b",
+        "path": "vocab/security.credential-state.json"
+      }
+    },
+    {
+      "classifier": {
+        "entrypoint": "security_analysis_provider.response:classify_respond",
+        "identity": "security.respond.input",
+        "source": {
+          "digest": "sha256:e50d3fc38c6648d6b829c6c73e0c78a25c72c1ea093ad96ab2b9b470ad967f28",
+          "path": "response.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:a3d1b16773ff3637bf83c3dc1c8273f842d1c2948d3e01d8734f1ad762404a67",
+        "path": "contracts/security.respond.json"
+      },
+      "fixtures": {
+        "digest": "sha256:6992b42d7f6f84c13856af03499754c4ca61959384b832ca02ed64b3423c439a",
+        "path": "registration-fixtures/security.respond.json"
+      },
+      "interface_digest": "sha256:842bb8a78f6da6837e15fb4d3a7ea76af7fa1c9130670eb17b33597d261290ea",
+      "interface_id": "security.respond",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:a7c04ae53a8a6ee49cdca97d7290b060a6e8375dff65e9cc22cd579ef6ab1622",
+        "path": "vocab/security.respond.json"
+      }
+    },
+    {
+      "classifier": {
         "entrypoint": "security_analysis_provider.harden:classify",
         "identity": "security.harden.input",
         "source": {
@@ -262,7 +366,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:636b97a56bc7715267aea3c95c645bfdeb21b195d3d835e7d55296c35e5afd40",
+    "digest": "sha256:af32da2b94c07fa9b9c89807ba5f81f5d3e363962f6c3744a99f41d7e27177c1",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

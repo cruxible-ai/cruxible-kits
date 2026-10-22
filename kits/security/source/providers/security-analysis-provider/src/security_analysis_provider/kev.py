@@ -8,6 +8,9 @@ no items. A watched vulnerability the catalog does not list gets
 ``kev_listed = false`` once; its other KEV fields are left alone. A field whose
 held Claims conflict is skipped and reported, never overwritten.
 
+A catalog whose ``count`` disagrees with the entries it holds is incomplete and
+refused: a missing entry must never read as unlisted.
+
 ``KevAttention`` (``security.kev-attention``) finds catalog entries added in the
 last ``NEW_WINDOW_DAYS`` days (counted back from the catalog's own
 ``dateReleased``) whose vendor/product matches a release in inventory that has
@@ -80,6 +83,11 @@ def _catalog(payload: Mapping[str, Any]) -> tuple[dict[str, Any], str, Mapping[s
     catalog = decode_json(decode_base64(payload.get("catalog_base64"), "catalog_base64"), "catalog")
     if not isinstance(catalog, Mapping) or not isinstance(catalog.get("vulnerabilities"), list):
         raise InputError("the Capture body is not a KEV catalog")
+    count = catalog.get("count")
+    if isinstance(count, int) and count != len(catalog["vulnerabilities"]):
+        # A cut-off catalog would read every missing entry as unlisted: refuse it whole.
+        raise InputError(f"the KEV catalog states {count} entries but holds "
+                         f"{len(catalog['vulnerabilities'])}: incomplete, not an answer")
     index: dict[str, Any] = {}
     for entry in catalog["vulnerabilities"]:
         if isinstance(entry, Mapping):

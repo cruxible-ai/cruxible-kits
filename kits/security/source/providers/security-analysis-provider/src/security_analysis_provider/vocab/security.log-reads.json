@@ -1,0 +1,18 @@
+{
+  "description": "One log read and the incident's audits.",
+  "dimensions": [
+    {
+      "classes": [
+        {
+          "description": "a text",
+          "id": "present"
+        }
+      ],
+      "description": "whether a log read text is present",
+      "name": "read"
+    }
+  ],
+  "interface_id": "security.log-reads",
+  "status": "draft",
+  "version": 1
+}

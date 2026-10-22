@@ -1,0 +1,18 @@
+{
+  "issuer": "github/acme-ops",
+  "name": "wiki-deploy",
+  "read": "receipt",
+  "keys": [
+    {
+      "key_id": "key-80211457",
+      "state": "active",
+      "created_at": "2026-10-18T09:00:00Z",
+      "created_by": "ops"
+    },
+    {
+      "key_id": "key-71839201",
+      "state": "inactive",
+      "revoked_at": "2026-10-18T09:01:00Z"
+    }
+  ]
+}

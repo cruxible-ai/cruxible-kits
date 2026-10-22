@@ -1,0 +1,19 @@
+{
+  "issuer": "aws-iam/111122223333",
+  "name": "storefront-app",
+  "read": "state_read",
+  "keys": [
+    {
+      "key_id": "AKIAQ3EXAMPLENEWKEY2",
+      "state": "active",
+      "created_at": "2026-10-18T09:00:00Z",
+      "created_by": "ops",
+      "last_used_at": "2026-10-18T09:20:00Z"
+    },
+    {
+      "key_id": "AKIAQ3EXAMPLEOLDKEY1",
+      "state": "deleted",
+      "revoked_at": "2026-10-18T09:01:00Z"
+    }
+  ]
+}

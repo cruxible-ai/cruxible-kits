@@ -1,0 +1,22 @@
+{
+  "description": "One incident's exposure, patch, audit and credential rows.",
+  "dimensions": [
+    {
+      "classes": [
+        {
+          "description": "at most 5000 rows",
+          "id": "small"
+        },
+        {
+          "description": "more than 5000 rows",
+          "id": "large"
+        }
+      ],
+      "description": "how many rows the request carries",
+      "name": "rows"
+    }
+  ],
+  "interface_id": "security.respond",
+  "status": "draft",
+  "version": 1
+}

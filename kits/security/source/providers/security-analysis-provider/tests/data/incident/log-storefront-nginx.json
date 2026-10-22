@@ -1,0 +1,18 @@
+{
+  "audit": {
+    "incident": "PHP2Shell",
+    "service": "storefront"
+  },
+  "source": "storefront/nginx-access",
+  "query": "storefront/nginx-access: POST requests to *.php with php://input or allow_url_include in the query string, or responses from new .php files",
+  "from": "2026-09-01T00:00:00Z",
+  "to": "2026-10-17T00:00:00Z",
+  "complete": true,
+  "records_scanned": 48211907,
+  "matches": [
+    {
+      "at": "2026-10-03T02:14:09Z",
+      "summary": "POST /index.php?-d+allow_url_include%3d1 from 203.0.113.45 returned 200; next request GET /uploads/x5.php (new file)"
+    }
+  ]
+}
