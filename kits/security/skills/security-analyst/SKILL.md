@@ -88,6 +88,9 @@ cruxible query --name security.coverage_gaps --param vulnerability=security.vuln
   then set `status` and `justification` with role `normative`, citing that
   Capture, in one write with your reasoning as `because`. The README's
   [Analyst judgments](../../README.md#analyst-judgments) shows the exact write.
+  A retained file is kept for good (that contract can't be erased): never
+  retain one holding a secret, such as a config as deployed; cut the
+  credentials out first.
 - **Hand an assessment back** to the Procedures by retiring your normative
   status and justification; they never revise a normative one.
 - **Keep a CVE watched** after a `not_affected` judgment by stating a
@@ -128,6 +131,9 @@ cruxible query --name security.finder_record --param repo_ref=github.com/OWNER/R
 1. **Review the report.** A SARIF import proposes the finding by key
    (weakness and locus, never a line number) with `rule`, `reported_by` and
    `severity`. A dependency advisory is routed to the SBOM path, not a finding.
+   SARIF and reproduction reports are kept for good: never acquire a secret
+   scanner's SARIF (its snippets are the secrets) or a PoC report with tokens
+   or an environment dump in it.
 2. **Locate it.** Add `location` as a file citation of the sink line, so
    `next` reports `citation_drifted` when that code changes.
 3. **Decide.** A `verdict` needs a retained Capture: the code read
@@ -191,6 +197,11 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
   acquired, stop, rotate what it exposed and erase the Capture's body
   (`cruxible capture erase CAP-...`: the inventory, log-read and credential-state
   contracts authorize it), with a `--because` that never repeats the secret.
+  The preview names the Claims it backed; `next` then lists each as
+  `claim_evidence_erased`. Acquire a clean read and re-bind each onto it
+  (`cruxible rebind CLM-... --capture CAP-... --because "..."`) before you
+  report RQ1-RQ4 again: until then the respond Line doesn't answer for what
+  that scan covered.
 - **Close on the answer.** Close (`status` `closed`, with a Closure section)
   only after the respond Line posts `ready_to_close`, and name its residue
   (audits that stay unknown, and that their credentials were rotated).

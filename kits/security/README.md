@@ -38,6 +38,14 @@ An agent doing this work can load the [security analyst
 skill](skills/security-analyst/SKILL.md): the order to work these questions in,
 and the rules that keep its judgments reviewable.
 
+**Coming from the Cruxible quickstart?** You've done [Install and first
+answers](#install-and-first-answers), declared an incident and added its respond
+Line. To carry the response through (patches, log audits, key rotations, and
+the log import Line and re-ask Triggers the quickstart left out), continue at
+[Respond to an incident](#respond-to-an-incident). For your CI and registries,
+see [Your systems](#your-systems-the-hardening-questions); for scanner and
+reviewer findings in your own code, [Your code's findings](#your-codes-findings).
+
 ## How it models your world
 
 Four words carry the rest of this README. A **Subject** is one thing the kit
@@ -221,8 +229,8 @@ decides, `explained_by`, a publish gate) always stay with people and agents.
 
 ## Install and first answers
 
-1. **Install.** `cruxible kit add security:1.2.0` previews the change; commit it
-   at the coordinate the preview prints: `cruxible kit add security:1.2.0
+1. **Install.** `cruxible kit add security:1.3.0` previews the change; commit it
+   at the coordinate the preview prints: `cruxible kit add security:1.3.0
    --commit --at OID`. This installs the kit's definitions and its Providers
    (the packages its Procedures call to fetch and parse): the bundled
    `security-analysis-provider` (deterministic parsing and classification, no
@@ -240,7 +248,7 @@ decides, `explained_by`, a publish gate) always stay with people and agents.
    cron times; and Mandate expiry.
 3. **Submit it**: `cruxible authoring submit automation.json`, then review and
    activate it under your approval policy. It instantiates nine Blueprints and
-   authors seventeen disabled Lines, nineteen Triggers and eight propose-only
+   authors nineteen disabled Lines, twenty-one Triggers and eleven propose-only
    Mandates (a Mandate grants a Procedure the right to propose or settle within
    a scope).
 4. **Enable the vulnerability Lines**: `for l in kev-daily kev-triage
@@ -440,7 +448,9 @@ The gate's names, for `github.com/cruxible-ai/gate-app` (principals `scanner`,
    `versionControlProvenance: [{"repositoryUri": "https://github.com/cruxible-ai/gate-app",
    "revisionId": "<commit>"}]` and `properties: {"cruxible.coverage": "full"}` (every rule
    of the configuration over the whole repository; `partial` otherwise, which never
-   verifies a fix).
+   verifies a fix). SARIF carries code snippets, and `security.sarif-v1` keeps its
+   bytes for good: don't acquire a secret scanner's results (their snippets are
+   the secrets), and check a scan of code that embeds credentials before you do.
 2. **Report (a proposal).** `cruxible procedure run security.sarif-acquire` with
    `{"relative_path": "scans/semgrep.sarif"}` retains it under `security.sarif-v1`; the
    landing runs `security.sarif-import.gate-app` (parameter `repo_ref`), which proposes
@@ -455,7 +465,8 @@ The gate's names, for `github.com/cruxible-ai/gate-app` (principals `scanner`,
    the file with the guard, then set `verdict` `false_positive` and `justification`
    `sanitized`, citing that Capture, with a `Triage` section in `findings/<id>.md`.
 5. **Confirm.** The reviewer adds a failing PoC test, retains its report
-   (`security.reproduction-acquire`), and in one write appends `findings/<id>.md#Reproduction`,
+   (`security.reproduction-acquire`; kept for good, so strip tokens and
+   environment dumps from it first), and in one write appends `findings/<id>.md#Reproduction`,
    sets `reproduction` (that section, own words), `verdict` `confirmed` citing the PoC
    Capture (`contend: true` when a contrary verdict stands), and `affects`
    `security.release/gate-app--1.0.0`. While both contend, the verdict reads `conflict`
@@ -529,7 +540,31 @@ exposed, and erase the Capture's body. The three incident contracts
 `cruxible capture erase CAP-... --because "..."` (preview, then `--commit --at`)
 removes the bytes and keeps the envelope and an erasure record; never put the
 secret in `--because`. A Capture under any other kit contract keeps its bytes.
-<!-- update: capture erasure -->
+
+The preview names every Claim that cites the Capture, and erasing changes what
+they rest on:
+
+- **A refused credential read** (`secret_shape`) is cited by nothing, since
+  nothing was proposed from it. Erasing it is the whole repair; then acquire an
+  allow-listed body.
+- **A scan or log read that was imported** is cited by the Claims its import
+  proposed (for a one-host scan, eight: the asset and what it runs, the scope's
+  coverage, and the release's component). Once erased, they read `stale` and
+  `cruxible next` lists each as `claim_evidence_erased`. Acquire a clean copy
+  under the same contract (the secret removed, match summaries redacted) and
+  re-bind each Claim the preview named onto it: `cruxible rebind CLM-...
+  --capture CAP-... --because "..."`. An unchanged scan proposes nothing, so the
+  re-bind is what moves them.
+  <!-- update: erased-scan-answers -->
+  Until then, the respond Line stops answering RQ1 and RQ2 for that host
+  (neither found nor unknown), so repair them straight away.
+  <!-- update: erased-evidence-retire -->
+  A Claim that hasn't been re-bound can't be retired or revised. Fields that
+  cite the scan without needing it as evidence (an asset's `hostname`, a
+  coverage's `scope` and `source`) can't be re-bound either, and stay `stale`.
+
+See [Erasing a Capture that holds a
+secret](https://docs.cruxible.ai/evidence-and-admission/#erasing-a-capture-that-holds-a-secret).
 
 ### The evidence each action lands
 
@@ -844,6 +879,9 @@ The workflow, for a proposed `affected` or `inconclusive` you have reviewed:
    file in the workspace (code, a config, an analysis note) and
    `echo '{"relative_path": "analysis/jinja2.md"}' > ev.json; cruxible procedure run
    security.evidence-acquire ev.json`; note its `Capture evidence: sha256:...`.
+   Its bytes are kept for good (`security.workspace-evidence-v1` can't be
+   erased), so check the file holds no secret first: retain a config with its
+   credentials cut out, never as deployed.
 3. Record the judgment in one write (`cruxible write judgment.json`), with your
    reasoning as its `because`:
 
@@ -1022,9 +1060,11 @@ Mandates stay propose-only.
   reads every held credential (`security.rotation_work`). Respond and the log import
   read one incident's rows. A landing costs one import per scope or incident Line.
 - **Secret slips.** A credential-state body is an allow-list, but its bytes are
-  retained before the import refuses it; the incident contracts authorize
+  retained before the import refuses it; the three incident contracts authorize
   erasure (`cruxible capture erase`): see [Respond to an
-  incident](#respond-to-an-incident).
+  incident](#respond-to-an-incident). Every other kit contract (SBOM, evidence,
+  SARIF, reproduction and the public-source reads) keeps its bytes for good, so
+  check a file for secrets before you acquire it.
 
 ## For maintainers
 
