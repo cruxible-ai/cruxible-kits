@@ -47,7 +47,7 @@
       {
         "as": "inventory",
         "capture_contract": {
-          "artifact_digest": "sha256:44b08b1c98e2f586e455e404a94af68e395dedba1307ddf077a3094fb581db55",
+          "artifact_digest": "sha256:3c6c569ab1c02bf11f76178beb1cfa328684c2cb33e4fbf01300b08431d2e2ab",
           "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
@@ -147,7 +147,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:a84bcbefa0f8327549e3851348d2563ff8f81360b12a9d092e018d0bdf99aad6",
+        "implementation_digest": "sha256:f09389fe148050cc164831c503d0a0cefe9756fe0cac194aee797fe853c7e1e0",
         "input": {
           "held": "$steps.held.result.rows",
           "inventory_text": "$steps.inventory.content.text",
@@ -171,11 +171,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:ad3c9a3c130dfbf89a6405ddd9cce6ee1ef7370145e9459d8221463502951b24",
+          "artifact_digest": "sha256:396fb88f3d4bd273acdbc30f2a9a8969eb0b7b98c5d4a6f42f28c113d01c4a99",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/4d2a01dfdcba66df6821ce4d340ace13be2693cab6adc51aac761c28aadc96ce"
+            "name": "security-analysis-provider/2e77219d2d0f5596d255126cf35ea217c8fe91fa29bc73aa53e78b9f9b08f7fa"
           }
         }
       },
@@ -307,7 +307,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:78a3e1148b101ab1a33ea95cdebca2e4847be74da0250a7e33e5334ec95ca39f",
+  "definition_digest": "sha256:559a1bad28ae05d5667fbe6cb3dee3af2cb69a94b17f8878d278901e14e7d22b",
   "identity": {
     "kind": "Procedure",
     "name": "security.inventory-import"
@@ -809,7 +809,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:44b08b1c98e2f586e455e404a94af68e395dedba1307ddf077a3094fb581db55",
+      "artifact_digest": "sha256:3c6c569ab1c02bf11f76178beb1cfa328684c2cb33e4fbf01300b08431d2e2ab",
       "role": "capture-contract",
       "target": {
         "kind": "CaptureContract",
@@ -857,11 +857,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:ad3c9a3c130dfbf89a6405ddd9cce6ee1ef7370145e9459d8221463502951b24",
+      "artifact_digest": "sha256:396fb88f3d4bd273acdbc30f2a9a8969eb0b7b98c5d4a6f42f28c113d01c4a99",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/4d2a01dfdcba66df6821ce4d340ace13be2693cab6adc51aac761c28aadc96ce"
+        "name": "security-analysis-provider/2e77219d2d0f5596d255126cf35ea217c8fe91fa29bc73aa53e78b9f9b08f7fa"
       }
     },
     {

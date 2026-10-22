@@ -1,7 +1,8 @@
 # PHP2Shell: where we stand
 
-The incident status page: one row per CVE, exposed asset and credential of its
-service, rendered from `security.incident_status` (parameter `incident`). An empty
+The incident status page: one row per CVE, patch raised for an exposed asset and
+credential of the asset's service, rendered from `security.incident_status`
+(parameter `incident`). An empty
 cell is unknown (nothing recorded), never none; the respond Line
 (`security.respond.php2shell`) posts the derived answers. Catalog this page and stamp
 the block:

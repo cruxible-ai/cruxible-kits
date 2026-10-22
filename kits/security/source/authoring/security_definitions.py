@@ -48,7 +48,11 @@ from cruxible_client.contracts.acquisition_policies import SourceAcquisitionPoli
 from cruxible_client.contracts.artifacts import ArtifactIdentity, ArtifactLifecycle, ArtifactRef
 from cruxible_client.contracts.authoring.inputs import BlueprintInput, QueryDefinitionInput
 from cruxible_client.contracts.canonical import canonical_bytes
-from cruxible_client.contracts.captures import CanonicalDuration, CaptureContract
+from cruxible_client.contracts.captures import (
+    CanonicalDuration,
+    CaptureContract,
+    capture_component_pin,
+)
 from cruxible_client.contracts.claim_types import (
     ClaimEvidenceFreshness,
     ClaimFreshnessDuration,
@@ -111,6 +115,8 @@ REPRO_CONTRACT = "security.reproduction-v1"
 INVENTORY_CONTRACT = "security.runtime-inventory-v1"
 LOG_CONTRACT = "security.log-read-v1"
 CREDENTIAL_CONTRACT = "security.credential-state-v1"
+#: Contracts whose Captures may carry a secret by accident: erasure-authorized.
+ERASABLE_CONTRACTS = (INVENTORY_CONTRACT, LOG_CONTRACT, CREDENTIAL_CONTRACT)
 #: The system model's pull contracts: every fact about the organization's systems
 #: cites a Capture under one of them.
 SYSTEM_CONTRACTS = (REPO_CONTRACT, PYPI_CONTRACT, GH_RELEASE_CONTRACT, GH_API_CONTRACT,
@@ -266,6 +272,11 @@ CLAIM_TYPES: list[ClaimRow] = [
      "Why a not_affected release is not affected (the VEX/CSAF justification): an observation "
      "from a source, or (normative) an analyst's judgment. Required in practice with every "
      "not_affected status; core cannot require it."),
+    ("security.assessment.component", ("security.assessment",), "literal", PURL, "many",
+     "observation", (OSV_CONTRACT,), ("trim",),
+     "The release's component that brings the vulnerability in (purl@version), as OSV's "
+     "answer for that component states it: which dependency an affected release needs to "
+     "change."),
     ("security.assessment.expected_status", ("security.assessment",), "literal",
      {"enum": ["affected", "not_affected"], "type": "string"}, "one", "normative", (), (),
      "An agent's stated bet on the assessment's status before a source observes it; "
@@ -1022,6 +1033,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
          _field("expected_status", "assessment", "security.assessment.expected_status"),
          _role("status_role", "assessment", "security.assessment.status")],
         max_results=2000,
+        includes=(_include("component", "assessment", "security.assessment.component"),),
     ))
     # Applicability for one vulnerability: every installed release with its assessment.
     applicability = [
@@ -1087,6 +1099,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
            _field("version", "release", "security.release.version"),
            _field("internet_exposed", "asset", "security.asset.internet_exposed"),
            _field("criticality", "service", "security.service.criticality"),
+           _field("component", "assessment", "security.assessment.component"),
            _role("status_role", "assessment", "security.assessment.status")]
         + [_field(name, "vulnerability", "security.vulnerability." + name)
            for name in VULNERABILITY_FACTS],
@@ -1138,7 +1151,8 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
                 _all(expired, _cmp(kind, "security.exception.approval", "approved"))))
     # Vulnerability-scoped worklists.
     triage_fields = applicability_fields + [
-        _field("vulnerability", "vulnerability")] + [
+        _field("vulnerability", "vulnerability"),
+        _field("component", "assessment", "security.assessment.component")] + [
         _field(name, "vulnerability", "security.vulnerability." + name)
         for name in VULNERABILITY_FACTS]
     q.append(_query("security.triage", "Applicability, exposure, KEV and EPSS facts for one "
@@ -1769,20 +1783,20 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("revokes_key", "rotation", "security.remediation.revokes_key"),
          _field("window_start", "rotation_incident", INC + "window_start")],
         max_results=2000, paths_per_result=1000))
-    # The incident status page: one row per (CVE, exposed asset, credential of its service),
-    # every state as held. An empty cell is unknown (nothing recorded), never none.
+    # The incident status page: one row per (CVE, patch, credential of the patched asset's
+    # service), every state as held. An empty cell is unknown (nothing recorded), never none.
     q.append(_query(
-        "security.incident_status", "The incident status page: per CVE, every asset observed "
-        "running an affected release, with its service, inventory coverage, patch progress and "
-        "verification, the service's audit result, and each credential the service uses with "
-        "its rotation's verification. Empty is unknown; none needs the respond Line's answer",
-        "incident", "incident",
+        "security.incident_status", "The incident status page: per CVE, every patch raised "
+        "for an exposed asset, with the asset, its service and inventory coverage, the patch's "
+        "progress and verification, the service's audit result, and each credential the "
+        "service uses with its rotation's verification. Empty is unknown; none needs the "
+        "respond Line's answer", "incident", "incident",
         _cves(required=True) + [
-            _hop("asset", "release", "security.asset.runs", "asset", reverse=True,
-                 required=True),
+            _hop("patch", "assessment", "security.work.assessment", "remediation",
+                 reverse=True, required=True),
+            _hop("asset", "patch", "security.work.asset", "asset", required=True),
             _inventory_coverage("coverage", "asset"),
             _hop("service", "asset", "security.asset.serves", "service"),
-            _hop("patch", "asset", "security.work.asset", "remediation", reverse=True),
             _hop("audit", "service", AUD + "service", "audit", reverse=True,
                  where=_is("audit", AUD + "incident_ref", "incident")),
             _hop("credential", "service", CRED + "used_by", "credential", reverse=True),
@@ -1839,10 +1853,19 @@ def capture_contracts() -> list[CaptureContract]:
         derived(CREDENTIAL_CONTRACT, "security.credential-state", ["external"],
                 "credential_state"),
     ]
+    erasure = capture_component_pin("erasure-rule", "playbill.capture-erasure-authority-v1")
     for item in raw:
         if item["identity"]["name"] == ASSET_CONTRACT:
             # The retained bundle is the asset base64-encoded inside canonical JSON.
             item["selection_budget"]["max_bytes"] = ASSET_MAX_BYTES * 2
+        if item["identity"]["name"] in ERASABLE_CONTRACTS:
+            # A secret that slips into one of these can be erased (`cruxible capture erase`).
+            item["retention_erasure_policy"].update(
+                erasure="authorized_by_rule", erasure_rule_digest=erasure.artifact_digest)
+            pins = [*item.get("pins", []), erasure.model_dump(mode="json")]
+            item["pins"] = sorted(pins, key=lambda pin: (pin["role"],
+                                                        f"{pin['target']['kind']}:"
+                                                        f"{pin['target']['name']}"))
     return [CaptureContract.model_validate(item) for item in raw]
 
 

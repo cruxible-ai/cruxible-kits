@@ -47,7 +47,7 @@
       {
         "as": "log",
         "capture_contract": {
-          "artifact_digest": "sha256:1fc935d1dd6e515708ff2e84a1525574c43a7647259ff511c703b84c464b0c9d",
+          "artifact_digest": "sha256:40f02b2df14ffac0bbacda3fb94fde2873dcdf13683a77b4b41e766b91929bf4",
           "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
@@ -115,7 +115,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:f478527fe663d67fd7261debbab9eedcc728f43ff61ae732b6633fdff86f7493",
+  "definition_digest": "sha256:2d7ac13c4621ff7f120a80dbfc1c70d4ad83a71cdfad748a76da95d0186ccc8e",
   "identity": {
     "kind": "Procedure",
     "name": "security.log-acquire"
@@ -195,7 +195,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:1fc935d1dd6e515708ff2e84a1525574c43a7647259ff511c703b84c464b0c9d",
+      "artifact_digest": "sha256:40f02b2df14ffac0bbacda3fb94fde2873dcdf13683a77b4b41e766b91929bf4",
       "role": "capture-contract",
       "target": {
         "kind": "CaptureContract",

@@ -73,6 +73,14 @@
   "parameters": [],
   "pins": [
     {
+      "artifact_digest": "sha256:50cad6a7bdd0c69d47056aa29a6e1ca16cefa0d66b3233c8ab093e47b15a9d44",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.component"
+      }
+    },
+    {
       "artifact_digest": "sha256:3943580408f5ba36b2d327ff765256478de74163a43928debd3d910d3dae0304",
       "role": "claim-type",
       "target": {
@@ -213,6 +221,16 @@
           "field": "subject_id",
           "kind": "subject_field",
           "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "component",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "assessment",
+          "kind": "claim_value",
+          "predicate": "security.assessment.component",
+          "tag": "playbill-query-claim-value-ref-v1"
         }
       },
       {

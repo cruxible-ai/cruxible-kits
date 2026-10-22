@@ -47,7 +47,7 @@
       {
         "as": "inventory",
         "capture_contract": {
-          "artifact_digest": "sha256:44b08b1c98e2f586e455e404a94af68e395dedba1307ddf077a3094fb581db55",
+          "artifact_digest": "sha256:3c6c569ab1c02bf11f76178beb1cfa328684c2cb33e4fbf01300b08431d2e2ab",
           "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
@@ -115,7 +115,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:2de37f7329dc97bfb92b40941769a0304ecb54c657babf0d7ccfb3a7f0dffc90",
+  "definition_digest": "sha256:615120ec8007b7c71d561a227a732a68443423b3fd39ff09e94018d7f67a8ed6",
   "identity": {
     "kind": "Procedure",
     "name": "security.inventory-acquire"
@@ -195,7 +195,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:44b08b1c98e2f586e455e404a94af68e395dedba1307ddf077a3094fb581db55",
+      "artifact_digest": "sha256:3c6c569ab1c02bf11f76178beb1cfa328684c2cb33e4fbf01300b08431d2e2ab",
       "role": "capture-contract",
       "target": {
         "kind": "CaptureContract",

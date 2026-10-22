@@ -188,8 +188,9 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
   audit and patch state and never gates the rotation on the patch.
 - **Never put a secret in a file.** Record only the allow-listed fields: key ids
   or `fp:` fingerprints, states, times, who. If a secret slips into a file you
-  acquired, stop, rotate what it exposed and tell the maintainer: the Capture is
-  retained.
+  acquired, stop, rotate what it exposed and erase the Capture's body
+  (`cruxible capture erase CAP-...`: the inventory, log-read and credential-state
+  contracts authorize it), with a `--because` that never repeats the secret.
 - **Close on the answer.** Close (`status` `closed`, with a Closure section)
   only after the respond Line posts `ready_to_close`, and name its residue
   (audits that stay unknown, and that their credentials were rotated).

@@ -17,7 +17,7 @@ settled by your review, or automatically by automation that has earned it.
 
 | Question | Where the answer comes from |
 |---|---|
-| Which of my releases are exposed to a vulnerability attackers exploit, and which first? | `security.urgent_exposures`: releases assessed affected (by OSV per SBOM component, or by a CVE record's version ranges), KEV-listed first, then by EPSS score |
+| Which of my releases are exposed to a vulnerability attackers exploit, and which first? | `security.urgent_exposures`: releases assessed affected (by OSV per SBOM component, or by a CVE record's version ranges), KEV-listed first, then by EPSS score; `component` names the dependency OSV found it in |
 | Is release X affected by this KEV entry? | `security.triage` for the CVE: each release's assessment, with the CVE's KEV and EPSS facts |
 | Which internet-facing hosts run an affected, KEV-listed release? | `security.kev_exposure`: your inventory of hosts and what they install, joined to the assessments |
 | What can publish to PyPI without a `v*` tag? | `security.publish_paths` (HQ1): jobs in your repository's workflows that can publish to the target, whose triggers the target's publish gate does not allow |
@@ -167,7 +167,7 @@ its window; a credential is a key you may need to rotate, by its non-secret id.
 | `security` 1.3.0 | Count |
 |---|---|
 | [Kinds of thing it models](reference.md#what-it-models) | 23 |
-| [Fields (ClaimTypes) across them](reference.md#what-it-models) | 130 |
+| [Fields (ClaimTypes) across them](reference.md#what-it-models) | 131 |
 | [Evidence sources (Capture contracts)](reference.md#where-evidence-comes-from) | 17 |
 | [Procedures / Blueprints](reference.md#what-runs-on-its-own) | 21 / 9 |
 | [Queries](reference.md#what-you-can-ask) | 44 |
@@ -497,7 +497,7 @@ already has:
 
 | Step | What happens | Evidence |
 |---|---|---|
-| 1. What needs doing | The incident's respond Line posts one inbox item per open question (a re-sighting returns it to unread) | `cruxible inbox list --line security.respond.<incident>` |
+| 1. What needs doing | The incident's respond Line posts one inbox item per open question (a repeat sighting is counted on the same item; a changed answer is a new item) | `cruxible inbox list --line security.respond.<incident>` |
 | 2. The plan | A `security.remediation`: a **patch** has `work.asset`, `work.assessment` and `target_release`; a **rotation** has `work.credential`, `work.audit` and `revokes_key` (the `key_id` held when it was raised); both carry `owner` and `due_at` | normative, with its `because` |
 | 3. Approval | Under `independent_approval_required` someone other than its creator approves it (`creator_forbidden` refuses the creator) | the signed approval |
 | 4. The act | Outside Cruxible: act only on an accepted remediation | |
@@ -523,7 +523,12 @@ used (`used_by`) and what it reaches (`reaches`), its current key's id
 field, or a key id shaped like a secret (longer than 40 characters, a known secret
 prefix, high entropy), refuses the whole body and posts `secret_shape`, echoing no
 value. The bytes are already retained when that happens: stop, rotate whatever it
-exposed, and tell the maintainer.
+exposed, and erase the Capture's body. The three incident contracts
+(`security.runtime-inventory-v1`, `security.log-read-v1` and
+`security.credential-state-v1`) declare `erasure: authorized_by_rule`, so
+`cruxible capture erase CAP-... --because "..."` (preview, then `--commit --at`)
+removes the bytes and keeps the envelope and an erasure record; never put the
+secret in `--because`. A Capture under any other kit contract keeps its bytes.
 <!-- update: capture erasure -->
 
 ### The evidence each action lands
@@ -542,7 +547,9 @@ What each import proposes:
   beside the declared `installs`. A **full** kit scan restates the coverage
   revision (the digest of its `looked_for` and (asset, runs) set: an unchanged
   fleet, in any order, is a re-observation and proposes nothing, while freshness
-  moves), retires runs it no longer sees of the products it looked for, and
+  moves), retires runs it no longer sees of the products it looked for (a new
+  version of a product revises the run it replaces; a run with nothing replacing it
+  retires on the next read that stages nothing else for that asset), and
   proposes `verification` `verified` on an open patch whose asset no longer runs
   the affected release; a scan that still shows it on a patch claimed `completed`
   proposes `failed`. A **partial** scan only adds. A CycloneDX SBOM is one asset's
@@ -599,8 +606,10 @@ approval). Rename `php2shell` and the window for yours:
 ]}
 ```
 
-The window-close Triggers re-ask a day after a landing, so an unverified patch or
-rotation returns to unread. The log import's propose Mandate
+The window-close Triggers re-ask a day after a landing: an unverified patch or
+rotation is sighted again (an item you acknowledged keeps your decision and counts
+the recurrence, `recurred_since_disposition` in `cruxible inbox get`), and an answer
+that changed is a new item. The log import's propose Mandate
 (`security.log-import-propose`) is in [the example automation](examples/automation.json),
 beside `security.inventory-import.prod` (one Line per inventory scope) and
 `security.credential-import`. No Mandate covers `audit.result`, `audit.window_end`,
@@ -656,12 +665,14 @@ prod scope; `github/acme-ops/wiki-deploy`). Principals `responder`, `ops` (acts)
 
 ### An incident status page
 
-`security.incident_status` (parameter `incident`) is one row per CVE, exposed asset
-and credential of its service, with every state as held: `exposure` (the
-assessment), `coverage` (the scope revision; empty: no current coverage),
-`patch` and `patch_verified`, `audit` (the result; `(conflicted)` while disputed),
+`security.incident_status` (parameter `incident`) is one row per CVE, patch raised
+for an exposed asset, and credential of the asset's service, with every state as
+held: `exposure` (the assessment), `host` and `service`, `coverage` (the scope
+revision; empty: no current coverage), `patch` (progress) and `patch_verified`,
+`audit` (the result; `(conflicted)` while disputed), `credential` and
 `rotation_verified`. An empty cell is unknown, never none; none is the respond
-Line's answer. Render it into a page with a projection block, which `next` flags
+Line's answer. An exposure nobody has raised a patch for is not a row yet: the
+respond Line posts it (`patch_missing`). Render it into a page with a projection block, which `next` flags
 when the state behind it moves and `block sync` brings back in step
 ([example page](examples/incident-status.md)):
 
@@ -873,7 +884,8 @@ matching (the product name equal to KEV's product or vendor + product, or the
 supplier equal to KEV's vendor with one product name containing the other): a
 false match costs an inbox item. The payload stays the same while the situation
 does, so a daily re-sighting counts on the same item; an item you acknowledged
-is unread again at the next sighting while the gap stays open. Close the gap
+keeps your decision and counts each recurrence (`recurred_since_disposition`)
+while the gap stays open. Close the gap
 (assess the release, or state a `watch_reason`) to stop it.
 
 ## Predictions: the applicability bet
@@ -1010,7 +1022,8 @@ Mandates stay propose-only.
   reads every held credential (`security.rotation_work`). Respond and the log import
   read one incident's rows. A landing costs one import per scope or incident Line.
 - **Secret slips.** A credential-state body is an allow-list, but its bytes are
-  retained before the import refuses it: see [Respond to an
+  retained before the import refuses it; the incident contracts authorize
+  erasure (`cruxible capture erase`): see [Respond to an
   incident](#respond-to-an-incident).
 
 ## For maintainers

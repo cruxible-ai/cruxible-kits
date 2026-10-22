@@ -34,7 +34,20 @@
     "kind": "QueryDefinition",
     "name": "security.assessment_index"
   },
-  "includes": [],
+  "includes": [
+    {
+      "binding": "included_component",
+      "direction": "forward",
+      "from_binding": "assessment",
+      "many": true,
+      "max_items": 500,
+      "name": "component",
+      "orderings": [],
+      "predicate": "security.assessment.component",
+      "tag": "playbill-query-include-v1",
+      "where": null
+    }
+  ],
   "lifecycle": {
     "predecessor_digest": null,
     "state": "live"
@@ -49,6 +62,14 @@
   "orderings": [],
   "parameters": [],
   "pins": [
+    {
+      "artifact_digest": "sha256:50cad6a7bdd0c69d47056aa29a6e1ca16cefa0d66b3233c8ab093e47b15a9d44",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.assessment.component"
+      }
+    },
     {
       "artifact_digest": "sha256:0b62bdc6ed1ef9c6f669fc5f7c52f232a53bb6ef7a33e1ce5275901d460644f2",
       "role": "claim-type",

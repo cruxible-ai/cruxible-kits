@@ -9,7 +9,7 @@ Kit `security` version **1.3.0**, defining every name under `security.`.
 | Definitions | Count | Notes |
 |---|---|---|
 | Subject kinds | 23 | [What it models](#what-it-models) |
-| ClaimTypes | 130 | 10 shared by several kinds |
+| ClaimTypes | 131 | 10 shared by several kinds |
 | Capture contracts | 17 | [Where evidence comes from](#where-evidence-comes-from) |
 | Procedures | 21 | - |
 | Blueprints | 9 | you bind each one's Provider slots |
@@ -117,7 +117,7 @@ flowchart LR
   c_security_observation_output_v1 == "1" ==> k_security_remediation
   c_security_observation_output_v1 -. "1" .-> k_security_signal
   c_security_observation_output_v1 == "4" ==> k_security_vulnerability
-  c_security_osv_query_v1 -. "4" .-> k_security_assessment
+  c_security_osv_query_v1 == "5, 1 captured" ==> k_security_assessment
   c_security_osv_query_v1 -. "1" .-> k_security_finding
   c_security_pypi_release_v1 == "6, 5 captured" ==> k_security_artifact
   c_security_pypi_release_v1 == "2" ==> k_security_coverage
@@ -253,6 +253,7 @@ Key: `release_id` + `cve_id` (uniqueness `unique`).
 
 | Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
 |---|---|---|---|---|---|---|---|---|
+| `component` | The release's component that brings the vulnerability in (purl@version), as OSV's answer for that component states it: which dependency an affected release needs to change. | text `^pkg:[a-z0-9.+-]+/.+@.+$` | many | observation | `security.osv-query-v1` | yes | - | all held |
 | `cve_id` | The CVE this assessment is about; with release_id, the assessment's key. | text `^CVE-[0-9]{4}-[0-9]{4,}$` | one | normative | - | no | - | unresolved |
 | `expected_status` | An agent's stated bet on the assessment's status before a source observes it; predictions test it against security.assessment.status. | `affected` / `not_affected` | one | normative | - | no | - | unresolved |
 | `justification` | Why a not_affected release is not affected (the VEX/CSAF justification): an observation from a source, or (normative) an analyst's judgment. Required in practice with every not_affected status; core cannot require it. | one of 5 (below) | one | normative (or observation) | own word, `security.cve-record-http-v1`, `security.observation-output-v1`, `security.osv-query-v1`, `security.workspace-evidence-v1` | no (per rule) | - | unresolved |
@@ -624,7 +625,7 @@ One row per Capture contract. **Produced by**: the Procedures and Blueprints tha
 | `security.kev-http-v1` | cisa.kev.catalog (http_response) | observed | Blueprint `security.kev-acquire` (slot `web.fetch`; Line `security.kev-daily`) | `security.kev-attention`, `security.kev-triage` | 6 ClaimTypes; 6 require a Capture |
 | `security.log-read-v1` | security.log-read (log_query) | observed | Procedure `security.log-acquire` (core's built-in `workspace.file`; direct run); Procedure `security.log-import` (core's built-in `workspace.file`; direct run) | - | 4 ClaimTypes; 2 require a Capture |
 | `security.observation-output-v1` | security.observation (http_response) | observed | Blueprint `security.epss-acquire` (its run's output; Line `security.epss-daily`); Blueprint `security.kev-acquire` (its run's output; Line `security.kev-daily`) | - | 8 ClaimTypes; 5 require a Capture |
-| `security.osv-query-v1` | osv.dev.query (http_response) | observed | Blueprint `security.osv-applicability` (slot `security.osv-query`; Line `security.osv-applicability`) | - | 5 ClaimTypes; 0 require a Capture |
+| `security.osv-query-v1` | osv.dev.query (http_response) | observed | Blueprint `security.osv-applicability` (slot `security.osv-query`; Line `security.osv-applicability`) | - | 6 ClaimTypes; 1 requires a Capture |
 | `security.pypi-release-v1` | pypi.release (http_response) | observed | Blueprint `security.registry-acquire` (slot `security.pypi-release`; Line `security.registry-pull.cruxible`, `security.registry-pull.cruxible-client`) | `security.harden`, `security.registry-parse.cruxible`, `security.registry-parse.cruxible-client` | 11 ClaimTypes; 7 require a Capture |
 | `security.release-asset-v1` | github.release.asset (http_response) | observed | Blueprint `security.asset-fetch` (slot `security.release-asset`; direct run) | - | 3 ClaimTypes; 1 requires a Capture |
 | `security.repo-snapshot-v1` | github.repo.snapshot (http_response) | observed | Blueprint `security.repo-acquire` (slot `security.repo-snapshot`; Line `security.repo-pull.cruxible-ci`) | `security.harden`, `security.repo-parse.cruxible-ci` | 17 ClaimTypes; 14 require a Capture |
@@ -716,7 +717,7 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.incident_credentials` | RQ4 for one incident: every credential an audited service uses, with its current key (non-secret id, issued_at: before window_start = not rotated since exposure) and its rotations' progress and verification. | `incident` (string) |
 | `security.incident_exposure` | RQ1 for one incident (parameter incident, its name): every release assessed affected or inconclusive by one of its CVEs, every asset a scan observed running it with its inventory coverage and services, and every asset that only declares installing it. | `incident` (string) |
 | `security.incident_patches` | RQ2 for one incident: every patch of an asset for one of its CVEs (work.asset + work.assessment), with progress, verification, due date, target release, the asset's coverage and services: the respond Line's tap. | `incident` (string) |
-| `security.incident_status` | The incident status page: per CVE, every asset observed running an affected release, with its service, inventory coverage, patch progress and verification, the service's audit result, and each credential the service uses with its rotation's verification. Empty is unknown; none needs the respond Line's answer. | `incident` (string) |
+| `security.incident_status` | The incident status page: per CVE, every patch raised for an exposed asset, with the asset, its service and inventory coverage, the patch's progress and verification, the service's audit result, and each credential the service uses with its rotation's verification. Empty is unknown; none needs the respond Line's answer. | `incident` (string) |
 | `security.incomplete_work` | Remediation actions missing accountable information. | - |
 | `security.inventory_context` | Assets with their releases, products, suppliers, services and owning teams. | - |
 | `security.inventory_index` | One inventory scope's coverage (source = the scope's name, stale or current) with every asset scanned in it and every release each runs, with the Claims behind them: the runtime-inventory import's tap. | `scope` (string) |
