@@ -78,7 +78,8 @@ STEPS = {
     "08": "OSV applicability: affected / not_affected + justification; re-run no_change",
     "09": "analyst judgment: normative not_affected + VEX justification citing a workspace file",
     "10": "applicability bets stated before the record lands",
-    "11": "CVE record -> applicability by version range; bets settle True/False",
+    "11": "CVE record -> applicability by version range (no partial match); the record's title; "
+          "bets settle True/False",
     "12": "KEV cadence -> triage proposes (capped) and attention posts an inbox item",
     "13": "accept; Claims cite the Capture; floor; no_change; inbox dedupes a sighting",
     "14": "EPSS -> triage; urgent_exposures orders KEV first, then EPSS",
@@ -846,12 +847,16 @@ def test_11_cve_applicability(gate: Gate) -> None:
     gate.activate(egress["proposal_id"])
     held = _assessments(gate)
     decided = {r: held.get((r, LOG4SHELL)) for r in LOG4J_RELEASES}
+    # Apache Log4j (1.x) only partly matches the record's Apache Log4j2: matching is by
+    # data, so a partial name match is no assessment (respond reads such a pair unknown).
     assert decided == {
         "apache-log4j2--2.14.1": ("affected", None),
         "apache-log4j2--2.17.1": ("not_affected", "vulnerable_code_not_present"),
         "apache-log4j2--2.12.2": ("not_affected", "vulnerable_code_not_present"),
-        "apache-log4j--1.2.17": ("inconclusive", None),
+        "apache-log4j--1.2.17": None,
     }, decided
+    titles = gate.claims("security.vulnerability", "security.vulnerability.title")
+    assert "Log4j2" in str(titles["cve-2021-44228"][0]), titles
     statuses = gate.claims("security.assessment", "security.assessment.status")
     ids = gate.values["assessment_ids"]
     right = statuses[ids[("apache-log4j2--2.17.1", LOG4SHELL)]][1]

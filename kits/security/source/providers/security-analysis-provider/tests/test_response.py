@@ -735,10 +735,14 @@ INVENTORY_RELEASES = _releases(
                             ["pkg:deb/debian/php8.2@8.2.20-1~deb12u1"]))
 
 
+COLLECTIONS = json.loads((Path(__file__).resolve().parents[3] / "authoring" / "data" /
+                          "cve_collections.json").read_text())
+
+
 def _decide(record: bytes) -> Any:
     return _context(CveApplicability(), {
         "record_base64": base64.b64encode(record).decode(), "releases": INVENTORY_RELEASES,
-        "watched": [], "assessments": []})
+        "watched": [], "assessments": [], "sources": [], "collections": COLLECTIONS})
 
 
 def _status(output: Any) -> dict[str, str]:

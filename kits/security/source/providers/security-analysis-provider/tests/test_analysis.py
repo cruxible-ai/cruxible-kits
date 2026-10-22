@@ -629,21 +629,130 @@ def test_cve_record_decides_matching_products_by_range_and_flags_ambiguity() -> 
     ]
     output = _run(
         CveApplicability(),
-        {"record_base64": record, "releases": releases, "watched": [], "assessments": []},
+        {"record_base64": record, "releases": releases, "watched": [], "assessments": [],
+         "sources": [], "collections": COLLECTIONS},
     )
     status = {
         json.loads(s[0])["release_id"]: s[2]
         for s in _statements(output["items"])
         if s[1] == "status"
     }
+    # "log4j2" only partly matches "Apache Log4j2": no match, no assessment (never a guess).
     assert status == {
         "apache log4j2--2.14.1": "affected",
         "apache log4j2--2.12.2": "not_affected",
         "apache log4j2--2.17.1": "not_affected",
-        "log4j2--2.14.1": "inconclusive",
         "apache log4j2--2.14.0": "inconclusive",
     }
     assert output["cve_id"] == "CVE-2021-44228"
+    # The record's title marks the CVE read (stated with the vulnerability it creates).
+    (title,) = [s for s in _statements(output["items"]) if s[1] == "title"]
+    assert title[0] == json.dumps({"cve_id": "CVE-2021-44228"}) and "Log4j2" in title[2]
+
+
+#: The kit data cve-applicability carries.
+COLLECTIONS = json.loads((Path(__file__).resolve().parents[3] / "authoring" / "data" /
+                          "cve_collections.json").read_text())
+GH_CVE = "CVE-2026-110311"
+
+
+def _gh_record(**entry: object) -> str:
+    affected = {"vendor": "cli", "product": "cli", "defaultStatus": "unaffected",
+                "versions": [{"version": "2.40.0", "lessThan": "2.97.0", "status": "affected",
+                              "versionType": "semver"}], **entry}
+    record = {"cveMetadata": {"cveId": GH_CVE},
+              "containers": {"cna": {"title": "gh auth status prints a token suffix",
+                                     "descriptions": [{"lang": "en", "value": "..."}],
+                                     "affected": [affected]}}}
+    return base64.b64encode(json.dumps(record).encode()).decode()
+
+
+def _decide(record: str, releases: list[dict[str, Any]], *, sources: list[Any] | None = None,
+            watched: list[dict[str, Any]] | None = None) -> dict[str, str]:
+    output = _run(CveApplicability(), {
+        "record_base64": record, "releases": releases, "watched": watched or [],
+        "assessments": [], "sources": sources or [], "collections": COLLECTIONS})
+    return {json.loads(s[0])["release_id"]: s[2] for s in _statements(output["items"])
+            if s[1] == "status"}
+
+
+def test_a_record_matches_a_go_module_by_collection_url_and_package_name() -> None:
+    go = _release("github.com/cli/cli/v2", "v2.86.0",
+                  ["pkg:golang/github.com/cli/cli/v2@v2.86.0"])
+    fixed = _release("github.com/cli/cli/v2", "v2.97.0",
+                     ["pkg:golang/github.com/cli/cli/v2@v2.97.0"])
+    app = _release("tooling", "1.0", ["pkg:golang/github.com/cli/cli/v2@v2.90.1",
+                                      "pkg:pypi/httpx@0.28.1"])
+    brew = _release("gh", "2.86.0", ["pkg:brew/gh@2.86.0"])
+    record = _gh_record(collectionURL="https://pkg.go.dev",
+                        packageName="github.com/cli/cli/v2")
+    output = _run(CveApplicability(), {
+        "record_base64": record, "releases": [go, fixed, app, brew], "watched": [],
+        "assessments": [], "sources": [], "collections": COLLECTIONS})
+    found = {}
+    for s_ in _statements(output["items"]):
+        if s_[1] in {"status", "component"}:
+            found.setdefault(json.loads(s_[0])["release_id"], []).append(s_[2])
+    # Decided by the component's own version; Homebrew's gh is not named (no assessment).
+    assert {release: sorted(values) for release, values in found.items()} == {
+        "github.com/cli/cli/v2--v2.86.0": ["affected",
+                                           "pkg:golang/github.com/cli/cli/v2@v2.86.0"],
+        "github.com/cli/cli/v2--v2.97.0": ["not_affected"],
+        "tooling--1.0": ["affected", "pkg:golang/github.com/cli/cli/v2@v2.90.1"]}
+
+
+def test_an_analysts_alias_and_a_source_repository_name_a_release() -> None:
+    record = _gh_record(repo="https://github.com/cli/cli")
+    # Homebrew's gh is named only once an analyst states what it is.
+    plain = _release("gh", "2.86.0", ["pkg:brew/gh@2.86.0"])
+    assert _decide(record, [plain]) == {}
+    aliased = _release("gh", "2.86.0", ["pkg:brew/gh@2.86.0"], aliases=["cli/cli"])
+    assert _decide(record, [aliased]) == {"gh--2.86.0": "affected"}
+    for alias in ("https://github.com/cli/cli", "cpe:2.3:a:github:cli"):
+        record_cpe = _gh_record(cpes=["cpe:2.3:a:github:cli:*:*:*:*:*:*:*:*"], vendor="x",
+                                product="y")
+        release = _release("gh", "2.86.0", ["pkg:brew/gh@2.86.0"], aliases=[alias])
+        expected = {"gh--2.86.0": "affected"}
+        assert _decide(record_cpe if alias.startswith("cpe") else record, [release]) == (
+            expected), alias
+    # A release the system model knows is published from the repository.
+    built = _release("cli-build", "2.80.0")
+    sources = [_row({"release": ("security.release", "cli-build--2.80.0"),
+                     "repo": ("security.repo", "github.com--cli-cli")},
+                    forge_host="github.com", full_name="cli/cli")]
+    assert _decide(record, [built], sources=sources) == {"cli-build--2.80.0": "affected"}
+
+
+def test_github_style_version_constraints_are_read_as_written() -> None:
+    record = _gh_record(versions=[{"version": ">= 2.40.0, < 2.97.0", "status": "affected"}])
+    releases = [_release("gh", v, ["pkg:brew/gh@" + v], aliases=["cli/cli"])
+                for v in ("2.39.0", "2.86.0", "2.97.0")]
+    assert _decide(record, releases) == {"gh--2.39.0": "not_affected",
+                                         "gh--2.86.0": "affected", "gh--2.97.0": "not_affected"}
+
+
+def test_a_release_osv_answered_for_is_osvs_once_osv_knows_the_cve() -> None:
+    record = _gh_record(collectionURL="https://pkg.go.dev", packageName="github.com/cli/cli/v2")
+    go = _release("github.com/cli/cli/v2", "v2.86.0",
+                  ["pkg:golang/github.com/cli/cli/v2@v2.86.0"], coverage=COMPLETE[1])
+    known = [_vuln(GH_CVE, packages=["pkg:golang/github.com/cli/cli/v2"])]
+    assert _decide(record, [go], watched=known) == {}
+    # OSV does not know the CVE (no package): the record decides, whatever OSV answered.
+    assert _decide(record, [go], watched=[_vuln(GH_CVE)]) == {
+        "github.com/cli/cli/v2--v2.86.0": "affected"}
+    # A held title is not restated; a changed one revises it.
+    watched = [_vuln(GH_CVE, {"title": "CLM-title"},
+                     title="gh auth status prints a token suffix")]
+    output = _run(CveApplicability(), {
+        "record_base64": record, "releases": [], "watched": watched, "assessments": [],
+        "sources": [], "collections": COLLECTIONS})
+    assert output["items"] == []
+    watched[0]["fields"] = [f for f in watched[0]["fields"] if f["name"] != "title"] + [
+        {"name": "title", "state": "present", "value": "old title"}]
+    (item,) = _run(CveApplicability(), {
+        "record_base64": record, "releases": [], "watched": watched, "assessments": [],
+        "sources": [], "collections": COLLECTIONS})["items"]
+    assert item["revises"] == "CLM-title"
 
 
 def test_the_registration_verifies() -> None:

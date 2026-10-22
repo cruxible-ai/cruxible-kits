@@ -1,0 +1,38 @@
+{
+  "description": "How a CVE JSON 5 affected entry's collectionURL names a package: the collection URL (matched as a prefix, case-insensitive, on a path boundary) -> the purl type its packageName is a name of, the namespace a distribution's names carry, the separator a collection writes between namespace and name (Maven's group:artifact), and whether the collection is a forge whose packageName is a repository (owner/name). The CVE record matcher compares the resulting package with each release's component purls (full namespace and name), and a forge repository with the release's source repository. A collection missing here names no package. Edit it by authoring a successor of the cve-applicability Procedure; keep the sources.",
+  "sources": [
+    "https://cveproject.github.io/cve-schema/schema/docs/ (CVE JSON 5.1: affected[].collectionURL, packageName, repo, cpes; the collectionURL examples)",
+    "https://github.com/package-url/purl-spec/blob/main/PURL-TYPES.rst (purl types, their namespaces and name forms)"
+  ],
+  "collections": {
+    "https://anaconda.org": {"type": "conda"},
+    "https://bitbucket.org": {"type": "bitbucket", "repository": true},
+    "https://brew.sh": {"type": "brew"},
+    "https://cocoapods.org": {"type": "cocoapods"},
+    "https://cran.r-project.org/web/packages": {"type": "cran"},
+    "https://crates.io": {"type": "cargo"},
+    "https://formulae.brew.sh": {"type": "brew"},
+    "https://github.com": {"type": "github", "repository": true},
+    "https://gitlab.com": {"type": "gitlab", "repository": true},
+    "https://golang.org/pkg": {"type": "golang"},
+    "https://hackage.haskell.org": {"type": "hackage"},
+    "https://hex.pm": {"type": "hex"},
+    "https://hub.docker.com": {"type": "docker"},
+    "https://luarocks.org": {"type": "luarocks"},
+    "https://nuget.org/packages": {"type": "nuget"},
+    "https://packages.debian.org": {"type": "deb", "namespace": "debian"},
+    "https://packages.ubuntu.com": {"type": "deb", "namespace": "ubuntu"},
+    "https://packagist.org": {"type": "composer"},
+    "https://pkg.go.dev": {"type": "golang"},
+    "https://proxy.golang.org": {"type": "golang"},
+    "https://pub.dev/packages": {"type": "pub"},
+    "https://pypi.org": {"type": "pypi"},
+    "https://pypi.python.org": {"type": "pypi"},
+    "https://registry.npmjs.org": {"type": "npm"},
+    "https://repo.maven.apache.org/maven2": {"type": "maven", "name_separator": ":"},
+    "https://repo1.maven.org/maven2": {"type": "maven", "name_separator": ":"},
+    "https://rubygems.org": {"type": "gem"},
+    "https://www.npmjs.com": {"type": "npm"},
+    "https://www.nuget.org/packages": {"type": "nuget"}
+  }
+}

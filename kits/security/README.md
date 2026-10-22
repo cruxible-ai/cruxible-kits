@@ -896,13 +896,44 @@ query --name security.assessment_index` shows any assessment without one.
   be keyed; the run's result lists it under `unkeyed`.
 - **`security.cve-applicability`** (vendor products, by CVE record). When a CVE
   record lands (`cruxible procedure run security.cve-record-acquire` with
-  `{"url": "https://cveawg.mitre.org/api/cve/CVE-..."}`), every release whose
-  product name equals an `affected` entry's product (letters and digits,
-  case-insensitive) and whose supplier matches the vendor (or is unset) is
-  decided by the entry's version ranges (`version`, `lessThan`,
-  `lessThanOrEqual`, `changes`; a `lessThan` ending in `*` is open-ended) and
-  `defaultStatus`. Conservative: a partial product match, a contradicting
-  vendor, or a version the ranges cannot order -> `inconclusive`, never a guess.
+  `{"url": "https://cveawg.mitre.org/api/cve/CVE-..."}`), each `affected` entry
+  is matched to releases by data, never by a partial name:
+  - its `collectionURL` + `packageName` against each component purl's full
+    namespace and name (`https://pkg.go.dev` + `github.com/cli/cli/v2` names
+    `pkg:golang/github.com/cli/cli/v2@v2.86.0`; decided by that component's
+    version, which the assessment names as its `component`). Which purl type a
+    collection names is kit data carried in the Procedure, citing the CVE schema
+    and the purl spec; edit it by authoring a successor of your
+    `security.cve-applicability`;
+  - its `repo` against the release's source repository, where the system model
+    knows it (`security.release_sources`: the repository a target serving the
+    release is published from) or a forge purl names it (`pkg:github/cli/cli`);
+  - its vendor/product, `packageName`, `repo` or `cpes` against the release's
+    **product aliases** (`security.release.product_alias`, below);
+  - its product against the release's product name (letters and digits,
+    case-insensitive), with a supplier that matches the vendor or is unset.
+
+  A matched release is decided by the entry's version ranges (`version`,
+  `lessThan`, `lessThanOrEqual`, `changes`; a `lessThan` ending in `*` is
+  open-ended; a `version` written as comparisons, `< 2.97.0`, as GitHub's CNA
+  writes them, is read as written) and `defaultStatus`. Conservative: a
+  contradicting vendor, or a version the ranges cannot order -> `inconclusive`. A
+  release the record doesn't name gets no assessment at all: an incident's
+  respond Line reads that pair unknown, never none. The run also states the
+  record's `title` for the CVE (a record of it was read). A release OSV answered
+  for (its `osv_coverage`) is OSV's to decide once OSV knows the CVE
+  (`security.vulnerability.package`), so the two Procedures never flip an
+  assessment between them.
+
+  **Product aliases.** When a record names your product differently (GitHub's
+  CNA writes `cli/cli` for what Homebrew calls `gh`), state it once, citing
+  evidence you retained with `security.evidence-acquire` (the Homebrew formula's
+  JSON, whose source URL is `github.com/cli/cli`): `cruxible add
+  security.release/gh--2.86.0 product_alias cli/cli --capture CAP-... --because
+  "Homebrew's gh formula builds github.com/cli/cli"`. An alias is
+  vendor/product as a record names it, a purl without version, a repository URL
+  or a CPE prefix (`cpe:2.3:a:github:cli`). Re-acquire the record afterwards: the
+  matcher reads aliases like the release's own name.
 
 A pair whose held answer is unchanged proposes nothing, so a daily re-run is
 quiet; a changed answer revises the held Claims and retires a justification an

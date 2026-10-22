@@ -183,12 +183,14 @@ INTERFACES: dict[str, tuple[str, str, str, list[dict[str, Any]], dict[str, Any],
     "security.cve-applicability": (
         "applicability:CveApplicability",
         "applicability:classify_cve",
-        "A CVE record Capture body, the releases, the watched CVEs and held assessments.",
+        "A CVE record Capture body, the releases (with their source repositories), the "
+        "watched CVEs, held assessments and the collectionURL map.",
         [
             _dimension("record", "whether a record body is present", {"present": "a base64 body"}),
             _dimension("inventory", "how many releases the request carries", SIZE),
         ],
-        {"record_base64": _RECORD, "releases": [], "watched": [], "assessments": []},
+        {"record_base64": _RECORD, "releases": [], "watched": [], "assessments": [],
+         "sources": [], "collections": {"collections": {"https://pypi.org": {"type": "pypi"}}}},
         "record=present;inventory=small",
         "record=present;inventory=*",
     ),

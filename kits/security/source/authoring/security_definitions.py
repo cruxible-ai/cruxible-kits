@@ -160,6 +160,12 @@ OSV_COVERAGE = {"type": "string", "pattern": (
 #: Kit data (cited, editable by authoring a successor of the Procedure that carries it):
 #: which OSV ecosystem answers for a purl type.
 PURL_OSV_ECOSYSTEMS = json.loads((DATA / "purl_osv_ecosystems.json").read_text())
+#: Kit data: how a CVE record's collectionURL names a package (cve-applicability carries it).
+CVE_COLLECTIONS = json.loads((DATA / "cve_collections.json").read_text())
+#: Another name a release's product goes by in vulnerability records.
+ALIAS = {"type": "string", "pattern": (
+    r"^(pkg:[a-z0-9.+-]+/[^@?#\s]+|cpe:2\.3:[aho]:[^:\s]+:[^:\s]+|https?://\S+"
+    r"|[^/\s][^/]*/[^/]*[^/\s])$")}
 SHA256 = {"type": "string", "pattern": r"^sha256:[0-9a-f]{64}$"}
 COMMIT = {"type": "string", "pattern": r"^[0-9a-f]{40}$"}
 FULL_NAME = {"type": "string", "pattern": r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"}
@@ -293,10 +299,21 @@ CLAIM_TYPES: list[ClaimRow] = [
      "from a source, or (normative) an analyst's judgment. Required in practice with every "
      "not_affected status; core cannot require it."),
     ("security.assessment.component", ("security.assessment",), "literal", PURL, "many",
-     "observation", (OSV_CONTRACT,), ("trim",),
-     "The release's component that brings the vulnerability in (purl@version), as OSV's "
-     "answer for that component states it: which dependency an affected release needs to "
-     "change."),
+     "judged", (CVE_CONTRACT, OSV_CONTRACT), ("trim",),
+     "The release's component that brings the vulnerability in (purl@version): which "
+     "dependency an affected release needs to change. An observation is a source's word (OSV's "
+     "answer for the component, or a CVE record whose packageName names it); a normative Claim "
+     "is an analyst's, citing their own words or a workspace file "
+     "(security.workspace-evidence-v1, via security.evidence-acquire)."),
+    ("security.release.product_alias", ("security.release",), "literal", ALIAS, "many",
+     "normative", (WORKSPACE_EVIDENCE_CONTRACT,), ("trim",),
+     "Another name the release's product goes by in vulnerability records, as an analyst "
+     "states it citing evidence (a workspace file retained by security.evidence-acquire: the "
+     "formula, the project page): vendor/product as a CVE record's affected entry names it "
+     "(cli/cli for a Homebrew gh release), a package URL without version "
+     "(pkg:golang/github.com/cli/cli/v2), a repository URL (https://github.com/cli/cli) or a "
+     "CPE prefix (cpe:2.3:a:github:cli). security.cve-applicability matches a record by it "
+     "as by the release's own name; re-acquire the record after stating it."),
     ("security.release.osv_coverage", ("security.release",), "literal", OSV_COVERAGE, "one",
      "observation", (OSV_CONTRACT,), ("trim",),
      "Whether OSV answered for every component of the release, as the OSV query Capture shows: "
@@ -1069,8 +1086,8 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
     # Every release with its key, product, supplier and SBOM components: the
     # import, applicability and attention Procedures' state tap.
     q.append(_query(
-        "security.release_inventory", "Every release with its product, supplier, components "
-        "and OSV coverage",
+        "security.release_inventory", "Every release with its product, supplier, components, "
+        "OSV coverage and product aliases",
         "release", "release",
         [_hop("product", "release", "security.release.product", "product"),
          _hop("supplier", "product", "security.product.supplied_by", "supplier")],
@@ -1080,7 +1097,8 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
          _field("version", "release", "security.release.version"),
          _field("supplier_name", "supplier", "security.supplier.name"),
          _field("components", "release", "security.release.component"),
-         _field("osv_coverage", "release", "security.release.osv_coverage")],
+         _field("osv_coverage", "release", "security.release.osv_coverage"),
+         _field("product_alias", "release", "security.release.product_alias")],
         max_results=2000,
     ))
     # Every assessment with its key, status (and its role: normative is an analyst's
@@ -1289,6 +1307,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         "and EPSS Claims", "vulnerability", "vulnerability", [tracked_hop],
         [_field("vulnerability", "vulnerability"),
          _field("cve_id", "vulnerability", "security.vulnerability.cve_id"),
+         _field("title", "vulnerability", "security.vulnerability.title"),
          _field("watch_reason", "vulnerability", "security.vulnerability.watch_reason")] + [
             _field(name, "vulnerability", "security.vulnerability." + name)
             for name in ("kev_listed", "kev_date_added", "kev_due_date", "kev_ransomware_use",
@@ -1467,6 +1486,20 @@ def system_queries() -> list[QueryDefinitionSpec]:
              _is("target", "security.target.name", "name")),
         parameters=(_param("name"), _param("registry")), max_results=2000,
         paths_per_result=1000))
+    # The CVE record matcher's repository identities: the repository each release is
+    # published from, where the system model knows it.
+    q.append(_query(
+        "security.release_sources", "Every release a registry target serves (an artifact of "
+        "it), with the repository that target is published from: the CVE record matcher "
+        "compares an affected entry's repo with it", "release", "release",
+        [_hop("artifact", "release", "security.artifact.release", "artifact", reverse=True,
+              required=True),
+         _hop("target", "artifact", "security.artifact.target", "target", required=True),
+         _hop("repo", "target", "security.target.source_repo", "repo", required=True)],
+        [_field("release", "release"), _field("repo", "repo"),
+         _field("forge_host", "repo", "security.repo.forge_host"),
+         _field("full_name", "repo", "security.repo.full_name")],
+        max_results=2000, paths_per_result=1000))
     # The five hardening questions, each over the gated targets only (stating a
     # publish gate is what asks them), each row carrying its coverage's state.
     publish_path = _target_hops() + [
@@ -2167,6 +2200,8 @@ CVE_REQUEST = _contract(
     releases=PropertySchema(type="json"),
     watched=PropertySchema(type="json"),
     assessments=PropertySchema(type="json"),
+    sources=PropertySchema(type="json"),
+    collections=PropertySchema(type="json"),
 )
 CVE_RESULT = _contract(
     "security-cve-applicability-result",
@@ -2904,14 +2939,20 @@ def cve_applicability(cx: Cruxible) -> Any:
             Source("record", capture_contract=CVE_CONTRACT, next="releases",
                    request=_fetch("https://cveawg.mitre.org/api/cve/", "cve.record",
                                   CVE_MAX_BYTES)),
-            StateTap("releases", query="security.release_inventory", next="watched"),
+            StateTap("releases", query="security.release_inventory", next="sources"),
+            StateTap("sources", query="security.release_sources", next="watched"),
             StateTap("watched", query="security.watched_vulnerabilities", next="assessments"),
             StateTap("assessments", query="security.assessment_index", next="decide"),
+            # The collectionURL map is kit data (its sources cited): edit it by authoring a
+            # successor of this Procedure.
             Call("decide", contract_in=CVE_REQUEST, contract_out=CVE_RESULT, next="summary",
                  input={"record_base64": "$steps.record.retrieved.body_base64",
                         "releases": "$steps.releases.result.rows",
+                        "sources": "$steps.sources.result.rows",
                         "watched": "$steps.watched.result.rows",
-                        "assessments": "$steps.assessments.result.rows"}),
+                        "assessments": "$steps.assessments.result.rows",
+                        "collections": {"collections": CVE_COLLECTIONS["collections"],
+                                        "sources": CVE_COLLECTIONS["sources"]}}),
             _project(CVE_SUMMARY, "decide", "changed"),
             Guard("changed", predicate=_changed("decide"), on_true="propose",
                   on_false="nochange", refusal_code="no_change",
@@ -2923,10 +2964,15 @@ def cve_applicability(cx: Cruxible) -> Any:
         name="security.cve-applicability",
         description=(
             "Read the CVE record Capture that triggered the Line (security.cve-record-http-v1) "
-            "and propose an assessment for every release whose product (and supplier) the "
-            "record's affected entries name: affected / not_affected by the record's version "
-            "ranges, inconclusive when the match or the ranges are ambiguous. Propose-only. "
-            "Runs as a Line with trigger_input record."
+            "and propose an assessment for every release an affected entry names by data: its "
+            "collectionURL + packageName (the kit's collectionURL map, carried here) as a "
+            "component's full namespace and name, its repo as the release's source repository, "
+            "its CPEs, packageName or vendor/product as a product alias an analyst stated "
+            "(security.release.product_alias), or its product as the release's product name "
+            "(with the supplier): affected / not_affected by the record's version ranges, "
+            "inconclusive when the ranges or the vendor are ambiguous; no partial match. A "
+            "release OSV answered for, of a CVE OSV knows, is OSV's. States the record's title "
+            "for the CVE. Propose-only. Runs as a Line with trigger_input record."
         ),
         contract_in=EMPTY,
         contract_out=CVE_SUMMARY,
