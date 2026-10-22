@@ -3111,7 +3111,10 @@ def test_40_contended_audit(gate: Gate) -> None:
     assert "claim_conflicted" in {row["reason"] for row in gate.json("next")["items"]}
     summary = _respond(gate)
     assert _states(summary, "RQ3")["partner-portal"] == "unknown", summary["answers"]
-    rotate = {p["payload"]["credential"] for p in _respond_posts(gate, "rotate")}
+    # Step 39's run before the results already posted this rotate (audit unknown, patch
+    # verified) and its item was acknowledged there: the same payload is a re-sighting.
+    rotate = {p["payload"]["credential"] for status in ("unread", "acknowledged")
+              for p in _respond_posts(gate, "rotate", status=status)}
     assert "postgres/partners-db/portal" in rotate, rotate
     wrong = [c["claim"] for c in _claim_ids_of(gate, "security.audit", "result")[
         audit.rsplit("/", 1)[-1]] if c["value"] == "inconclusive"]
