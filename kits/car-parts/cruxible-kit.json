@@ -57,8 +57,12 @@
       "path": "claim-types/catalog.part/replaces.json"
     },
     {
-      "artifact_digest": "sha256:8d7b4f28bd682c4f968b68c495a9cd6c501a040720fec59e7471c470284b8b7b",
+      "artifact_digest": "sha256:5eb0bd9c12d91a6f3f58a87f6d45742f0a98b07794a87f12d9285c028d4abf6c",
       "path": "claim-types/catalog.part/title.json"
+    },
+    {
+      "artifact_digest": "sha256:20e6c435732859142e072cb380b5c1c34e5f8b53d3236a56a7a0f6374f9709d5",
+      "path": "claim-types/catalog.part/weight_grams.json"
     },
     {
       "artifact_digest": "sha256:ae9344e04317baa9956c8c1d8df8be6a0e503871e8b5a9ac2e1031c7d0d4df0c",
@@ -77,7 +81,7 @@
       "path": "claim-types/catalog.vehicle/year.json"
     },
     {
-      "artifact_digest": "sha256:3c8ac4a71ac89fe608a2993fb87c8fe46fa44250ce23b4883903ccffe96f607a",
+      "artifact_digest": "sha256:0ef5cfacd12ed3336e26c1ac90e285c7fb6aeb024b12db94b8735b40458c50ed",
       "path": "query-definitions/catalog.parts_for_vehicle.json"
     },
     {
@@ -104,14 +108,14 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:56542b566100db8fadfd4bfcea8f0fe58e37de444885906f3914ec1cc225d085",
-      "generation_root": "sha256:73e4c1389553c0208855659f615b3f6e724568631d51320651f64424b583d678",
-      "git_oid": "883a1eb078a7cc1f2aa74ce34e5b7554fd8e7b04",
-      "semantic_root": "sha256:3cb1d8903a27e0e077c20364b45dc81ac45f636db75ae06f1e8278bcb689eaac",
+      "generation_root": "sha256:8f3c486ca100c0529c4692290e6d381d7d46bdd68f0d538979f8b4918f16ba39",
+      "git_oid": "65585bab0e0716fcf92f71ab108118125eb96154",
+      "semantic_root": "sha256:26b8b0d599429566f6411f91ac76fe047ba935828d9d6ad2cbb4655aab8d9083",
       "tag": "playbill-accepted-coordinate-v1"
     },
     "instance_id": "inst_8caac8865a3a490c",
     "principal_id": "robertmalone"
   },
   "tag": "playbill-kit-manifest-v1",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

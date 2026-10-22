@@ -74,7 +74,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:8d7b4f28bd682c4f968b68c495a9cd6c501a040720fec59e7471c470284b8b7b",
+      "artifact_digest": "sha256:5eb0bd9c12d91a6f3f58a87f6d45742f0a98b07794a87f12d9285c028d4abf6c",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",

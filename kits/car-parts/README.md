@@ -42,3 +42,9 @@ cruxible query --name catalog.parts_for_vehicle --param vehicle=honda-civic-2019
 ```
 
 The kit carries definitions only: no values, Lines or automation.
+
+## Upgrading
+
+1.1.0 adds `catalog.part.weight_grams` and rewords the description of
+`catalog.part.title`. An instance that edited `catalog.part.title` keeps its
+version with `--keep ClaimType:catalog.part.title`.

@@ -12,7 +12,7 @@
   "attestation_consequence_policy": null,
   "cardinality": "one",
   "default_role": "observation",
-  "description": "What the part is.",
+  "description": "The part name as the supplier lists it.",
   "evidence_admission_policy": {
     "rules": [
       {
