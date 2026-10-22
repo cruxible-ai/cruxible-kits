@@ -178,7 +178,7 @@ its window; a credential is a key you may need to rotate, by its non-secret id.
 | `security` 1.3.0 | Count |
 |---|---|
 | [Kinds of thing it models](reference.md#what-it-models) | 23 |
-| [Fields (ClaimTypes) across them](reference.md#what-it-models) | 131 |
+| [Fields (ClaimTypes) across them](reference.md#what-it-models) | 132 |
 | [Evidence sources (Capture contracts)](reference.md#where-evidence-comes-from) | 17 |
 | [Procedures / Blueprints](reference.md#what-runs-on-its-own) | 21 / 9 |
 | [Queries](reference.md#what-you-can-ask) | 44 |

@@ -85,6 +85,7 @@ from cruxible_client.contracts.query.grammar import (
     QueryEvaluationTimeRef,
     QueryInclude,
     QueryLiteralRef,
+    QueryNegationFilter,
     QueryOrdering,
     QueryParameterDeclaration,
     QueryParameterRef,
@@ -579,9 +580,9 @@ ROTATION_POLICIES = {
 AUDIT_RESULTS = {
     "exploited": "The window's logs show exploitation: cite the decisive read.",
     "inconclusive": "The logs cannot decide it (a gap, a missing source, ambiguous matches).",
-    "not_exploited": "Every stated log source (the audit's, which include the service's) was "
-    "read in full over the window and shows no exploitation; counts as none only when the "
-    "reads cover [window_start, window_end].",
+    "not_exploited": "Every stated log source (the audit's, which must include every source "
+    "the service lists) was read in full over the window and shows no exploitation; counts as "
+    "none only when the reads cover [window_start, window_end].",
 }
 INCIDENT_KIND = ("security.incident",)
 AUDIT_KIND = ("security.audit",)
@@ -982,6 +983,32 @@ def _order(binding: str, predicate: str, value_type: str) -> QueryOrdering:
 VULNERABILITY_FACTS = ("kev_listed", "kev_due_date", "epss_score", "epss_percentile")
 
 
+def _also_observed() -> QueryTraversalStep:
+    """``asset_run``: the declaring ``asset`` itself, when a scan also observed it running
+    ``release`` (declared and observed); empty when only declared. It reads the release's
+    own observed hosts, never the asset's every run."""
+
+    return _hop("asset_run", "release", "security.asset.runs", "asset", reverse=True,
+                where=QueryComparisonFilter(
+                    left=QuerySubjectFieldRef(binding="asset_run", field="subject_id"),
+                    operator="eq",
+                    right=QuerySubjectFieldRef(binding="asset", field="subject_id"),
+                    value_type="string"))
+
+
+def _observed_only() -> QueryTraversalStep:
+    """``observed``: a host a scan observed running ``release`` that does not declare
+    installing it (the assessment's own release reference is the one compared)."""
+
+    declares = QueryComparisonFilter(
+        left=QueryClaimValueRef(binding="observed", predicate="security.asset.installs"),
+        operator="eq",
+        right=QueryClaimValueRef(binding="assessment", predicate="security.assessment.release"),
+        value_type="subject_reference")
+    return _hop("observed", "release", "security.asset.runs", "asset", reverse=True,
+                where=QueryNegationFilter(operand=declares))
+
+
 def query_definitions(release: str) -> list[QueryDefinitionSpec]:
     q: list[QueryDefinitionSpec] = []
     vuln_ref = QueryParameterRef(parameter="vulnerability")
@@ -1092,23 +1119,37 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         max_results=500 if release == VARIANT else 100,
     ))
     # Urgent exposures: every release assessed affected, KEV-listed first, then by EPSS,
-    # with the assets that install it.
+    # with the hosts that declare installing it (asset; asset_observed when a scan also
+    # sees it there) and the hosts only a scan sees running it (observed). A traversal
+    # binds one predicate, so the two lanes are separate columns: a release with both
+    # kinds pairs each declaring host with each scan-only one.
     q.append(_query(
         "security.urgent_exposures", "Every release assessed affected, KEV-listed first, then by "
-        "EPSS score, with the assets that install it", "assessment", "assessment",
+        "EPSS score, with the hosts that declare installing it (asset; asset_observed is set "
+        "when a scan also observed it running there: declared and observed) and the hosts a "
+        "scan observed running it that declare nothing about it (observed: observed only). "
+        "A release with both kinds pairs each declaring host with each observed-only one",
+        "assessment", "assessment",
         [_hop("vulnerability", "assessment", "security.assessment.vulnerability",
               "vulnerability", required=True),
          _hop("release", "assessment", "security.assessment.release", "release", required=True),
          _hop("asset", "release", "security.asset.installs", "asset", reverse=True),
+         _also_observed(),
          _hop("service", "asset", "security.asset.serves", "service"),
-         _hop("team", "service", "security.service.owned_by", "team")],
+         _hop("team", "service", "security.service.owned_by", "team"),
+         _observed_only(),
+         _hop("observed_service", "observed", "security.asset.serves", "service"),
+         _hop("observed_team", "observed_service", "security.service.owned_by", "team")],
         [_field(b, b) for b in ("assessment", "vulnerability", "release", "asset", "service",
-                                "team")]
-        + [_field("cve_id", "vulnerability", "security.vulnerability.cve_id"),
+                                "team", "observed", "observed_service", "observed_team")]
+        + [_field("asset_observed", "asset_run"),
+           _field("cve_id", "vulnerability", "security.vulnerability.cve_id"),
            _field("product_name", "release", "security.release.product_name"),
            _field("version", "release", "security.release.version"),
            _field("internet_exposed", "asset", "security.asset.internet_exposed"),
            _field("criticality", "service", "security.service.criticality"),
+           _field("observed_internet_exposed", "observed", "security.asset.internet_exposed"),
+           _field("observed_criticality", "observed_service", "security.service.criticality"),
            _field("component", "assessment", "security.assessment.component"),
            _role("status_role", "assessment", "security.assessment.status")]
         + [_field(name, "vulnerability", "security.vulnerability." + name)
@@ -1116,7 +1157,7 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         _cmp("assessment", "security.assessment.status", "affected"),
         orderings=(_order("vulnerability", "security.vulnerability.kev_listed", "boolean"),
                    _order("vulnerability", "security.vulnerability.epss_score", "decimal")),
-        max_results=500,
+        max_results=500, paths_per_result=1000,
     ))
     # Operations worklists.
     rh = [
@@ -1162,11 +1203,16 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
     # Vulnerability-scoped worklists.
     triage_fields = applicability_fields + [
         _field("vulnerability", "vulnerability"),
+        _field("asset_observed", "asset_run"),
         _field("component", "assessment", "security.assessment.component")] + [
         _field(name, "vulnerability", "security.vulnerability." + name)
         for name in VULNERABILITY_FACTS]
     q.append(_query("security.triage", "Applicability, exposure, KEV and EPSS facts for one "
-                    "vulnerability", "asset", "asset", applicability, triage_fields,
+                    "vulnerability, per host that declares installing a release "
+                    "(asset_observed is set when a scan also observed it running there; "
+                    "hosts only a scan sees are in security.urgent_exposures and an "
+                    "incident's RQ1)", "asset", "asset", applicability[:1] + [_also_observed()]
+                    + applicability[1:], triage_fields,
                     parameters=(VULNERABILITY_PARAMETER,)))
     q.append(_query(
         "security.coverage_gaps", "Installed releases unassessed or inconclusive for one "

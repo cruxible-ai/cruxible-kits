@@ -113,7 +113,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:88f5dcea56f4ab493a6a238840ef1ee8d3b79b285ff535d7dfaa052d8895757d",
+        "implementation_digest": "sha256:6ab783a48f4bc5a86d1311d3a7565636dad0747895b8c8f3223e5e3f56d2a01c",
         "input": {
           "daily_base64": "$steps.epss.retrieved.body_base64",
           "watched": "$steps.watched.result.rows"
@@ -131,11 +131,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:a67d1f87efccf8843e55419742b8396b04ceda363c24e99d089d9de19ee47578",
+          "artifact_digest": "sha256:b996953668f2cf63603a20836ba946e4fcda0965d9fa264e1cab29ac26ddcfc3",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/4113601dcc254e6a03493de0e58d09ae86ca8ce7c0380a61d1660110c439c625"
+            "name": "security-analysis-provider/f89479bc659a8bfb47f313ac6346305b6feade4825a9f939723649b30654ac91"
           }
         }
       },
@@ -216,7 +216,7 @@
     "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:4b8b6387fbd2a0ab90c7f1274161ba09e587f30c307fcd5c6f76d0a15eb36db3",
+  "definition_digest": "sha256:d0f35ea68588b6b64bbdc6f034a7316d9adfc9da98bf9ac765067186dbacc629",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
@@ -471,11 +471,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:a67d1f87efccf8843e55419742b8396b04ceda363c24e99d089d9de19ee47578",
+      "artifact_digest": "sha256:b996953668f2cf63603a20836ba946e4fcda0965d9fa264e1cab29ac26ddcfc3",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/4113601dcc254e6a03493de0e58d09ae86ca8ce7c0380a61d1660110c439c625"
+        "name": "security-analysis-provider/f89479bc659a8bfb47f313ac6346305b6feade4825a9f939723649b30654ac91"
       }
     },
     {

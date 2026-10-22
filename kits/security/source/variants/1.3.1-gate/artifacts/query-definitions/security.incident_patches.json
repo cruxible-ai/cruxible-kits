@@ -230,6 +230,14 @@
       }
     },
     {
+      "artifact_digest": "sha256:e4908940fd79e87a29d82d940f25ad3c2864871998436373a26dab8265177a8a",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.service.log_source"
+      }
+    },
+    {
       "artifact_digest": "sha256:8c764d43db001b7ffb2a7534394394792b82253a10ab57f372263e959f3a4926",
       "role": "claim-type",
       "target": {
@@ -458,6 +466,16 @@
           "field": "subject_id",
           "kind": "subject_field",
           "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "service_log_source",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "service",
+          "kind": "claim_value",
+          "predicate": "security.service.log_source",
+          "tag": "playbill-query-claim-value-ref-v1"
         }
       },
       {

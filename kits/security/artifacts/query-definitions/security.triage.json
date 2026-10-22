@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "Applicability, exposure, KEV and EPSS facts for one vulnerability. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Applicability, exposure, KEV and EPSS facts for one vulnerability, per host that declares installing a release (asset_observed is set when a scan also observed it running there; hosts only a scan sees are in security.urgent_exposures and an incident's RQ1). Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "asset",
     "subject_id": null,
@@ -114,6 +114,14 @@
       }
     },
     {
+      "artifact_digest": "sha256:fa5bd366c62d970842eee6d493eb0fa5d50084244192292e1513e5715b17c6bb",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.runs"
+      }
+    },
+    {
       "artifact_digest": "sha256:ec3456c6a80c2313607ed1a1060293cc6b71bd18cffd449d5eb6c7466b500959",
       "role": "claim-type",
       "target": {
@@ -195,6 +203,16 @@
         "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "asset",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "asset_observed",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "asset_run",
           "field": "subject_id",
           "kind": "subject_field",
           "tag": "playbill-query-subject-field-ref-v1"
@@ -369,6 +387,35 @@
         "security.release"
       ],
       "where": null
+    },
+    {
+      "binding": "asset_run",
+      "direction": "reverse",
+      "from_binding": "release",
+      "predicate": "security.asset.runs",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.asset"
+      ],
+      "where": {
+        "kind": "comparison",
+        "left": {
+          "binding": "asset_run",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "binding": "asset",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      }
     },
     {
       "binding": "assessment",

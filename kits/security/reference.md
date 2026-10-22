@@ -9,7 +9,7 @@ Kit `security` version **1.3.0**, defining every name under `security.`.
 | Definitions | Count | Notes |
 |---|---|---|
 | Subject kinds | 23 | [What it models](#what-it-models) |
-| ClaimTypes | 131 | 10 shared by several kinds |
+| ClaimTypes | 132 | 10 shared by several kinds |
 | Capture contracts | 17 | [Where evidence comes from](#where-evidence-comes-from) |
 | Procedures | 21 | - |
 | Blueprints | 9 | you bind each one's Provider slots |
@@ -296,7 +296,7 @@ Key: `incident_ref` + `service_ref` (uniqueness `unique`).
 |---|---|---|---|---|---|---|---|---|
 | `incident` | The incident the audit answers (the key's incident_ref as a Subject). | Subject: `security.incident` | one | normative | own word, `security.log-read-v1` | no (per rule) | - | unresolved |
 | `incident_ref` | The incident's name; with service_ref, the audit's key. | text | one | normative | - | no | - | unresolved |
-| `log_source` | A log source that must be read in full over the window (storefront/nginx-access). Stating it is what asks the question. | text | many | normative | - | no | - | all held |
+| `log_source` | A log source this incident's audit reads in full over the window (storefront/nginx-access). Stating it is what asks the question. Start from the service's service.log_source list (the respond Line names it): a source the service lists and the audit does not state leaves the answer unknown. | text | many | normative | - | no | - | all held |
 | `read` | One complete read of a log source, as SOURCE FROM/TO (ISO 8601, Z): the tool searched every record in the interval. Only the log import writes these; an incomplete read is posted, never recorded. | text | many | observation | `security.log-read-v1` | yes | - | all held |
 | `result` | The auditor's judgment: exploited, not_exploited or inconclusive, citing the decisive log read (or a workspace file); own words are refused. Reasoning goes in a section of the incident's note. A disagreeing auditor contends (set --contend): while the slot reads conflict the answer is unknown. Never settled by a Mandate. | one of 3 (below) | one | normative | `security.log-read-v1`, `security.workspace-evidence-v1` | yes | - | unresolved |
 | `service` | The service the audit answers for (the key's service_ref as a Subject). | Subject: `security.service` | one | normative | own word, `security.log-read-v1` | no (per rule) | - | unresolved |
@@ -307,7 +307,7 @@ Key: `incident_ref` + `service_ref` (uniqueness `unique`).
 
 - `exploited`: The window's logs show exploitation: cite the decisive read.
 - `inconclusive`: The logs cannot decide it (a gap, a missing source, ambiguous matches).
-- `not_exploited`: Every stated log source was read in full over the window and shows no exploitation; counts as none only when the reads cover [window_start, window_end].
+- `not_exploited`: Every stated log source (the audit's, which must include every source the service lists) was read in full over the window and shows no exploitation; counts as none only when the reads cover [window_start, window_end].
 
 ### security.change
 
@@ -504,13 +504,14 @@ Key: `forge_host` + `full_name` (uniqueness `unique`).
 
 ### security.service
 
-A business service, named by its name.
+A business service, named by its name: its owning team, its criticality and where its logs live.
 
 Key: `name` (uniqueness `hint`).
 
 | Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
 |---|---|---|---|---|---|---|---|---|
 | `criticality` | How critical the service is to the organization. | `critical` / `standard` | one | normative | - | no | - | unresolved |
+| `log_source` | Where one of the service's logs lives, as a short identifier (caddy:app-1:/var/log/caddy/access.log): a pointer, nothing else. Retention, how to query it, who owns it and any reasoning go in a doc section the Claim cites, never in the value. An incident's audit of the service starts from this list (the respond Line names it); audit.log_source is the set that incident audits. | text | many | normative | - | no | - | all held |
 | `name` | The service's name; its key. | text | one | normative | - | no | - | unresolved |
 | `owned_by` | The team accountable for the service. | Subject: `security.team` | one | normative | - | no | - | unresolved |
 
@@ -703,7 +704,7 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 |---|---|---|
 | `security.applicability_coverage` | Every installed release with its assessment for one vulnerability. | `vulnerability` (subject reference) |
 | `security.assessment_index` | Every assessment with its key, status, the status's role (normative: an analyst's judgment) and justification. | - |
-| `security.audit_status` | RQ3 for one incident: every audit (one per service) with its log sources, complete reads, window end and result (conflict while disputed); the respond Line unions the reads per source against the window. | `incident` (string) |
+| `security.audit_status` | RQ3 for one incident: every audit (one per service) with its log sources and the service's (service_log_source), complete reads, window end and result (conflict while disputed); the respond Line unions the reads per source against the window. | `incident` (string) |
 | `security.change_impact` | Asset links to one vulnerability's assessments and remediation. | `vulnerability` (subject reference) |
 | `security.controls` | Compensating controls and evidence. | - |
 | `security.coverage_gaps` | Installed releases unassessed or inconclusive for one vulnerability. | `vulnerability` (subject reference) |
@@ -741,7 +742,7 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.shared_dependencies` | HQ4: every publishing job of a gated target, with the actions and secrets it runs on. | - |
 | `security.source_facts` | Every workflow read from one source (host/owner/repo@ref) and its jobs, with each many-valued fact's Claims: the repo parse's tap. | `source` (string) |
 | `security.supplier_concentration` | Shared component and supplier dependencies. | - |
-| `security.triage` | Applicability, exposure, KEV and EPSS facts for one vulnerability. | `vulnerability` (subject reference) |
+| `security.triage` | Applicability, exposure, KEV and EPSS facts for one vulnerability, per host that declares installing a release (asset_observed is set when a scan also observed it running there; hosts only a scan sees are in security.urgent_exposures and an incident's RQ1). | `vulnerability` (subject reference) |
 | `security.unverified_fixes` | Findings with a fix commit (fixed_by) that no full scan or passing PoC has verified fixed yet. | - |
-| `security.urgent_exposures` | Every release assessed affected, KEV-listed first, then by EPSS score, with the assets that install it. | - |
+| `security.urgent_exposures` | Every release assessed affected, KEV-listed first, then by EPSS score, with the hosts that declare installing it (asset; asset_observed is set when a scan also observed it running there: declared and observed) and the hosts a scan observed running it that declare nothing about it (observed: observed only). A release with both kinds pairs each declaring host with each observed-only one. | - |
 | `security.watched_vulnerabilities` | Every watched vulnerability (a watch_reason, or an affected or inconclusive assessment of a release in inventory) with its current KEV and EPSS Claims. | - |

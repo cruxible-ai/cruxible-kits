@@ -77,7 +77,7 @@
       "member": "inconclusive"
     },
     {
-      "description": "Every stated log source was read in full over the window and shows no exploitation; counts as none only when the reads cover [window_start, window_end].",
+      "description": "Every stated log source (the audit's, which must include every source the service lists) was read in full over the window and shows no exploitation; counts as none only when the reads cover [window_start, window_end].",
       "member": "not_exploited"
     }
   ],

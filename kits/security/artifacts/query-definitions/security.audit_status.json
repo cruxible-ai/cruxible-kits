@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "RQ3 for one incident: every audit (one per service) with its log sources, complete reads, window end and result (conflict while disputed); the respond Line unions the reads per source against the window. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "RQ3 for one incident: every audit (one per service) with its log sources and the service's (service_log_source), complete reads, window end and result (conflict while disputed); the respond Line unions the reads per source against the window. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "incident",
     "subject_id": null,
@@ -66,7 +66,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:c835b70519bac5abaeea3accd7609e983dcaac6c43220e847e98056d23fa48c1",
+      "artifact_digest": "sha256:567b0926c2e075d585580a9f61042290131f7b2bfbe6e598f689929126e5d758",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -82,7 +82,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:e1d72618e3e1ef293e39f74c4bb390f425674caa31696c2f8babec7300d2c11c",
+      "artifact_digest": "sha256:91e35eaab2f6a893a2e0906aa0545d7aa7671b6b15b64a9213b2b4c423003b04",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -143,6 +143,14 @@
       "target": {
         "kind": "ClaimType",
         "name": "security.incident.window_start"
+      }
+    },
+    {
+      "artifact_digest": "sha256:e4908940fd79e87a29d82d940f25ad3c2864871998436373a26dab8265177a8a",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.service.log_source"
       }
     },
     {
@@ -234,6 +242,16 @@
           "field": "subject_id",
           "kind": "subject_field",
           "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "service_log_source",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "service",
+          "kind": "claim_value",
+          "predicate": "security.service.log_source",
+          "tag": "playbill-query-claim-value-ref-v1"
         }
       },
       {

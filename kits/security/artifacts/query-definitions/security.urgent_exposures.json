@@ -3,12 +3,12 @@
   "dedupe": "path",
   "default_budgets": {
     "max_paths": 20000,
-    "max_paths_per_result": 100,
+    "max_paths_per_result": 1000,
     "max_results": 500,
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "Every release assessed affected, KEV-listed first, then by EPSS score, with the assets that install it. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Every release assessed affected, KEV-listed first, then by EPSS score, with the hosts that declare installing it (asset; asset_observed is set when a scan also observed it running there: declared and observed) and the hosts a scan observed running it that declare nothing about it (observed: observed only). A release with both kinds pairs each declaring host with each observed-only one. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "assessment",
     "subject_id": null,
@@ -121,6 +121,14 @@
       }
     },
     {
+      "artifact_digest": "sha256:fa5bd366c62d970842eee6d493eb0fa5d50084244192292e1513e5715b17c6bb",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.runs"
+      }
+    },
+    {
       "artifact_digest": "sha256:ec3456c6a80c2313607ed1a1060293cc6b71bd18cffd449d5eb6c7466b500959",
       "role": "claim-type",
       "target": {
@@ -224,6 +232,16 @@
         }
       },
       {
+        "name": "asset_observed",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "asset_run",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
         "name": "component",
         "tag": "playbill-query-projection-field-v1",
         "value": {
@@ -301,6 +319,56 @@
           "kind": "claim_value",
           "predicate": "security.vulnerability.kev_listed",
           "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "observed",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "observed",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "observed_criticality",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "observed_service",
+          "kind": "claim_value",
+          "predicate": "security.service.criticality",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "observed_internet_exposed",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "observed",
+          "kind": "claim_value",
+          "predicate": "security.asset.internet_exposed",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "observed_service",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "observed_service",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "observed_team",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "observed_team",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
         }
       },
       {
@@ -418,6 +486,35 @@
       "where": null
     },
     {
+      "binding": "asset_run",
+      "direction": "reverse",
+      "from_binding": "release",
+      "predicate": "security.asset.runs",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.asset"
+      ],
+      "where": {
+        "kind": "comparison",
+        "left": {
+          "binding": "asset_run",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        },
+        "operator": "eq",
+        "right": {
+          "binding": "asset",
+          "field": "subject_id",
+          "kind": "subject_field",
+          "tag": "playbill-query-subject-field-ref-v1"
+        },
+        "tag": "playbill-query-comparison-filter-v1",
+        "value_type": "string"
+      }
+    },
+    {
       "binding": "service",
       "direction": "forward",
       "from_binding": "asset",
@@ -433,6 +530,63 @@
       "binding": "team",
       "direction": "forward",
       "from_binding": "service",
+      "predicate": "security.service.owned_by",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.team"
+      ],
+      "where": null
+    },
+    {
+      "binding": "observed",
+      "direction": "reverse",
+      "from_binding": "release",
+      "predicate": "security.asset.runs",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.asset"
+      ],
+      "where": {
+        "kind": "not",
+        "operand": {
+          "kind": "comparison",
+          "left": {
+            "binding": "observed",
+            "kind": "claim_value",
+            "predicate": "security.asset.installs",
+            "tag": "playbill-query-claim-value-ref-v1"
+          },
+          "operator": "eq",
+          "right": {
+            "binding": "assessment",
+            "kind": "claim_value",
+            "predicate": "security.assessment.release",
+            "tag": "playbill-query-claim-value-ref-v1"
+          },
+          "tag": "playbill-query-comparison-filter-v1",
+          "value_type": "subject_reference"
+        },
+        "tag": "playbill-query-negation-filter-v1"
+      }
+    },
+    {
+      "binding": "observed_service",
+      "direction": "forward",
+      "from_binding": "observed",
+      "predicate": "security.asset.serves",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.service"
+      ],
+      "where": null
+    },
+    {
+      "binding": "observed_team",
+      "direction": "forward",
+      "from_binding": "observed_service",
       "predicate": "security.service.owned_by",
       "required": false,
       "tag": "playbill-query-traversal-step-v1",

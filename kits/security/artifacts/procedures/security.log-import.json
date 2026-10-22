@@ -100,7 +100,7 @@
           "incident": "$input.incident"
         },
         "query": {
-          "artifact_digest": "sha256:2d15268ee4422c3eab467290572a5b2f06c8203b857f21c0488135c2e160570b",
+          "artifact_digest": "sha256:d88c2047bc88de2520bd915e1628644962e03d39c48c91b208fa898df56b59b3",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -128,7 +128,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:3bd1c3fe97399448135bb1a48794fa4e6913a55eb696bf7e226f650aad821889",
+        "implementation_digest": "sha256:2aae9f0fd7eb71591d34d9768d03efb70a85b7f679571b47e75d6d6fd865c8a2",
         "input": {
           "held": "$steps.held.result.rows",
           "incident": "$input.incident",
@@ -148,11 +148,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:a67d1f87efccf8843e55419742b8396b04ceda363c24e99d089d9de19ee47578",
+          "artifact_digest": "sha256:b996953668f2cf63603a20836ba946e4fcda0965d9fa264e1cab29ac26ddcfc3",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/4113601dcc254e6a03493de0e58d09ae86ca8ce7c0380a61d1660110c439c625"
+            "name": "security-analysis-provider/f89479bc659a8bfb47f313ac6346305b6feade4825a9f939723649b30654ac91"
           }
         }
       },
@@ -321,7 +321,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:bedcd4858283a45b15f6f023a19f13be94bd62376834ee115529725fb51aa2bd",
+  "definition_digest": "sha256:16e75761da1644714396196a9e2788ab19906b6c20a0339dc9be05276cdf4b6b",
   "identity": {
     "kind": "Procedure",
     "name": "security.log-import"
@@ -739,11 +739,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:a67d1f87efccf8843e55419742b8396b04ceda363c24e99d089d9de19ee47578",
+      "artifact_digest": "sha256:b996953668f2cf63603a20836ba946e4fcda0965d9fa264e1cab29ac26ddcfc3",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/4113601dcc254e6a03493de0e58d09ae86ca8ce7c0380a61d1660110c439c625"
+        "name": "security-analysis-provider/f89479bc659a8bfb47f313ac6346305b6feade4825a9f939723649b30654ac91"
       }
     },
     {
@@ -763,7 +763,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:2d15268ee4422c3eab467290572a5b2f06c8203b857f21c0488135c2e160570b",
+      "artifact_digest": "sha256:d88c2047bc88de2520bd915e1628644962e03d39c48c91b208fa898df56b59b3",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

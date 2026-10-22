@@ -239,7 +239,7 @@
         "entrypoint": "security_analysis_provider.response:classify_inventory",
         "identity": "security.runtime-inventory.input",
         "source": {
-          "digest": "sha256:2de543b796370909cf30e79d72aea9841fe96b375cd25431d0c2637b00841cf5",
+          "digest": "sha256:f18f8365a1532d7941da60f60c8b319741e4e1fe3aca6194867970a6f68d6c6f",
           "path": "response.py"
         },
         "version": 1
@@ -265,7 +265,7 @@
         "entrypoint": "security_analysis_provider.response:classify_log",
         "identity": "security.log-reads.input",
         "source": {
-          "digest": "sha256:2de543b796370909cf30e79d72aea9841fe96b375cd25431d0c2637b00841cf5",
+          "digest": "sha256:f18f8365a1532d7941da60f60c8b319741e4e1fe3aca6194867970a6f68d6c6f",
           "path": "response.py"
         },
         "version": 1
@@ -291,7 +291,7 @@
         "entrypoint": "security_analysis_provider.response:classify_credential",
         "identity": "security.credential-state.input",
         "source": {
-          "digest": "sha256:2de543b796370909cf30e79d72aea9841fe96b375cd25431d0c2637b00841cf5",
+          "digest": "sha256:f18f8365a1532d7941da60f60c8b319741e4e1fe3aca6194867970a6f68d6c6f",
           "path": "response.py"
         },
         "version": 1
@@ -317,7 +317,7 @@
         "entrypoint": "security_analysis_provider.response:classify_respond",
         "identity": "security.respond.input",
         "source": {
-          "digest": "sha256:2de543b796370909cf30e79d72aea9841fe96b375cd25431d0c2637b00841cf5",
+          "digest": "sha256:f18f8365a1532d7941da60f60c8b319741e4e1fe3aca6194867970a6f68d6c6f",
           "path": "response.py"
         },
         "version": 1

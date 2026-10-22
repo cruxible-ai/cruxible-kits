@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-subject-kind-v1",
-  "description": "A business service, named by its name.",
+  "description": "A business service, named by its name: its owning team, its criticality and where its logs live.",
   "identity": {
     "kind": "SubjectKind",
     "name": "security.service"
