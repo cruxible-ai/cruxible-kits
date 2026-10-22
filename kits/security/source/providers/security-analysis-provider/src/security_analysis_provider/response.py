@@ -24,9 +24,12 @@ and ``security.inventory_patches``):
   it never restates the scope's coverage revision, and proposes only when the
   asset's run set changed.
 
-A release is named by key: ``product_name`` the purl's name, ``version`` its
-version; ``release.component`` is the purl (qualifiers dropped), so OSV decides a
-distro build. A patch (a remediation with ``work.asset`` and ``work.assessment``)
+A release is named by key: ``product_name`` the purl's full namespace and name
+(``pkg:deb/debian/php8.2`` is ``debian/php8.2``, ``pkg:golang/github.com/cli/cli/v2``
+is ``github.com/cli/cli/v2``: no segment is dropped, so two packages never share a
+release key), ``version`` its version; ``release.component`` is the purl
+(qualifiers dropped), so OSV decides a distro build. ``looked_for`` names products
+the same way. A patch (a remediation with ``work.asset`` and ``work.assessment``)
 of a scanned asset is ``verified`` when a full read shows the asset no longer
 runs the assessment's release (for a product the scan looked for), ``failed``
 when it is claimed ``completed`` and a scan still shows it. A verified patch
@@ -228,7 +231,12 @@ class Run:
 
 
 def parse_purl(text: object) -> Run | None:
-    """A ``pkg:type/[namespace/]name@version`` purl as a run, or None."""
+    """A ``pkg:type/[namespace/]name@version`` purl as a run, or None.
+
+    The run's name is the purl's whole namespace and name, as written (percent
+    decoded): the identity a CVE record's packageName or OSV's package names, never
+    a last segment (``github.com/cli/cli/v2``, not ``v2``).
+    """
 
     if not isinstance(text, str) or not text.strip().startswith("pkg:"):
         return None
@@ -241,8 +249,8 @@ def parse_purl(text: object) -> Run | None:
     segments = [s for s in rest.split("/") if s]
     if not purl_type or not segments or not version:
         return None
-    name = unquote(segments[-1]).strip()
-    if not name:
+    name = "/".join(unquote(segment).strip() for segment in segments)
+    if not segments[-1].strip():
         return None
     return Run(purl=f"pkg:{purl_type.lower()}/{'/'.join(segments)}@{version}", name=name,
                version=version)

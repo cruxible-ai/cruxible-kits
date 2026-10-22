@@ -625,8 +625,9 @@ def osv_owned(row: Row) -> bool:
         parsed = purl_package(purl)
         if parsed is None or parsed[0] not in OSV_ECOSYSTEM_TYPES:
             continue
-        name = parsed[1].rsplit("/", 1)[-1]
-        if match_token(name) == product and purl.split("?", 1)[0].rsplit("@", 1)[1] == version:
+        # The whole namespace and name: a release key holds both (never a last segment).
+        if (match_token(parsed[1]) == product
+                and purl.split("?", 1)[0].rsplit("@", 1)[1] == version):
             return True
     return False
 

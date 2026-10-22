@@ -2640,7 +2640,7 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
     _approve(gate, proposal, LEAD)
     held = _assessments(gate)
     php = _release_id(gate, "php", "8.3.10")
-    debian = _release_id(gate, "php8.2", "8.2.20-1~deb12u1")
+    debian = _release_id(gate, "debian/php8.2", "8.2.20-1~deb12u1")
     for cve in PHP2SHELL:
         assert held[(php, cve)][0] == "affected", held
         assert held[(debian, cve)][0] == "affected", held
@@ -2712,7 +2712,7 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
     summary = _respond(gate)
     rq1 = _states(summary, "RQ1")
     found = sorted(s for s, state in rq1.items() if state == "found")
-    assert found == [f"{HOSTS['app-1']}: php8.2 8.2.20-1~deb12u1",
+    assert found == [f"{HOSTS['app-1']}: debian/php8.2 8.2.20-1~deb12u1",
                      f"{HOSTS['storefront-a']}: php 8.3.10",
                      f"{HOSTS['storefront-b']}: php 8.3.10"], rq1
     assert rq1[f"{HOSTS['wiki-1']}: php 8.3.10"] == "unknown", rq1
@@ -2724,7 +2724,7 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
     assert _audit_asks(gate) == {name: list(SERVICE_LOGS[name])
                                  for name in ("partner-portal", "storefront")}
     record("36", "the CVE records' ranges proposed php 8.3.10 affected and never touched the "
-           "Debian build; OSV's distro advisory (upstream CVE ids) proposed php8.2 "
+           "Debian build; OSV's distro advisory (upstream CVE ids) proposed debian/php8.2 "
            "8.2.20-1~deb12u1 affected, citing the OSV Capture; PHP2Shell declared (incident, "
            "respond and log-import Lines, a window-close Trigger); urgent_exposures: php 8.3.10 "
            "declared on wiki-1 and observed only on storefront-a/-b, the Debian build observed "
@@ -2776,7 +2776,7 @@ def _verification(gate: Gate, remediation: str) -> Any:
 def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
     _incident_ready(gate)
     _ack_all(gate)  # each step reads only what it posts
-    php, debian = _release_id(gate, "php", "8.3.10"), _release_id(gate, "php8.2",
+    php, debian = _release_id(gate, "php", "8.3.10"), _release_id(gate, "debian/php8.2",
                                                                   "8.2.20-1~deb12u1")
     # An accepted risk: the lead excepts app-1's Debian build for both CVEs, briefly. While
     # it holds, RQ2 is excepted (no patch_missing) and the status page shows its expiry;
@@ -2804,7 +2804,7 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
         "docs": [{"op": "append", "file": INCIDENT_NOTE, "text": (
             f"# Exception for app-1\n\nThe Debian build stays until {expires}: the partner's "
             "maintenance window; a WAF rule blocks `?-d` query strings meanwhile.\n")}]}, LEAD)
-    excepted = f"{HOSTS['app-1']}: php8.2 8.2.20-1~deb12u1"
+    excepted = f"{HOSTS['app-1']}: debian/php8.2 8.2.20-1~deb12u1"
     summary = _respond(gate)
     rq2 = _states(summary, "RQ2")
     assert rq2[excepted] == "excepted" and rq2[f"{HOSTS['storefront-a']}: php 8.3.10"] == (
@@ -2822,7 +2822,7 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
                                       "2026-12-01T00:00:00Z"),
                "storefront-b": _patch(gate, "storefront-b", php, ("php", "8.3.36"),
                                       "2026-10-18T00:00:00Z"),
-               "app-1": _patch(gate, "app-1", debian, ("php8.2", "8.2.29-1~deb12u1"),
+               "app-1": _patch(gate, "app-1", debian, ("debian/php8.2", "8.2.29-1~deb12u1"),
                                "2026-12-01T00:00:00Z")}
     gate.values["patches"] = patches
     summary = _respond(gate)
@@ -2834,7 +2834,8 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
     summary = _respond(gate)
     rq2 = _states(summary, "RQ2")
     assert {rq2[f"{HOSTS[s]}: {label}"] for s, label in (
-        ("storefront-a", "php 8.3.10"), ("app-1", "php8.2 8.2.20-1~deb12u1"))} == {"unknown"}, rq2
+        ("storefront-a", "php 8.3.10"), ("app-1", "debian/php8.2 8.2.20-1~deb12u1"))} == {
+            "unknown"}, rq2
     # G4: the scanner's scan disagrees for storefront-b (still 8.3.10): failed, disputed.
     _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "prod-mid.json",
                        "inventory/prod.json", SCANNER, (PROD,))
@@ -2894,7 +2895,7 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
     rq2 = _states(summary, "RQ2")
     assert all(rq2[f"{HOSTS[s]}: {label}"] == "none" for s, label in (
         ("storefront-a", "php 8.3.10"), ("storefront-b", "php 8.3.10"), ("wiki-1", "php 8.3.10"),
-        ("app-1", "php8.2 8.2.20-1~deb12u1"))), rq2
+        ("app-1", "debian/php8.2 8.2.20-1~deb12u1"))), rq2
     assert not gate.rows("security.open_patches", incident=INCIDENT_NAME)
     record("37", f"an approved exception for app-1 (both CVEs, expiring {EXCEPTION_SECONDS} s "
            "on) made its RQ2 excepted and showed on the status page (excepted_until); past "
@@ -2962,7 +2963,7 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     _approve(gate, proposal, LEAD)
     held = _assessments(gate)
     fixed = _release_id(gate, "php", "8.3.36")
-    debian_fixed = _release_id(gate, "php8.2", "8.2.29-1~deb12u1")
+    debian_fixed = _release_id(gate, "debian/php8.2", "8.2.29-1~deb12u1")
     assert held[(fixed, PHP2SHELL[0])][0] == "not_affected", held
     for cve in PHP2SHELL:
         assert held[(debian_fixed, cve)] == ("not_affected", "vulnerable_code_not_present"), held
@@ -2982,7 +2983,7 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     now = _respond(gate)
     assert set(_states(now, "RQ2").values()) == {"none"}, now["answers"]
     record("38", f"re-reading {PHP2SHELL[0]}'s record proposed php 8.3.36 not_affected and no "
-           "php8.2 build; OSV proposed php8.2 8.2.29-1~deb12u1 not_affected "
+           "Debian build; OSV proposed debian/php8.2 8.2.29-1~deb12u1 not_affected "
            "(vulnerable_code_not_present) for both CVEs; at +13 h the coverage revisions read "
            "absent and RQ2 answers turn unknown x4, each naming its asset's scan; none now")
 

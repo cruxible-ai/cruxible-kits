@@ -2,7 +2,7 @@
   "scope": "prod",
   "looked_for": [
     "php",
-    "php8.2"
+    "debian/php8.2"
   ],
   "coverage": "partial",
   "assets": [

@@ -111,6 +111,12 @@ def _statements(items: list[dict[str, Any]]) -> list[tuple[Any, str, Any]]:
 COVERAGE = ("security.coverage", "prod--inventory.runtime")
 
 
+def _slug(name: str, version: str) -> str:
+    """A release id as core renders one from its key (the tests need only uniqueness)."""
+
+    return f"{name}--{version}".replace("/", "-").replace("~", "-")
+
+
 def _held_prod(revision_value: str | None = None, *, assets: dict[str, list[tuple[str, str]]]
                ) -> list[dict[str, Any]]:
     """inventory_index rows: the prod coverage, each asset scanned in it and its runs."""
@@ -118,19 +124,19 @@ def _held_prod(revision_value: str | None = None, *, assets: dict[str, list[tupl
     rows = []
     for index, (host, runs) in enumerate(sorted(assets.items())):
         asset = ("security.asset", f"asset-{index}")
-        run_items = [(("security.release", f"{n}--{v}"), f"CLM-run-{index}-{n}-{v}")
+        run_items = [(("security.release", _slug(n, v)), f"CLM-run-{index}-{n}-{v}")
                      for n, v in runs]
         for name, version in runs or [(None, None)]:
             bindings = {"coverage": COVERAGE, "asset": asset}
             if name:
-                bindings["run"] = ("security.release", f"{name}--{version}")
+                bindings["run"] = ("security.release", _slug(name, version))
             rows.append(_row(
                 bindings, claims={("coverage", "security.coverage.revision"): "CLM-rev"},
                 includes={"runs": run_items,
                           "scanned_in": [(COVERAGE, f"CLM-scanned-{index}")],
                           "looked_for": [("php", "CLM-looked-php"),
-                                         ("php8.2", "CLM-looked-php82")]},
-                source="prod", revision=revision_value, looked_for=["php", "php8.2"],
+                                         ("debian/php8.2", "CLM-looked-php82")]},
+                source="prod", revision=revision_value, looked_for=["php", "debian/php8.2"],
                 hostname=host,
                 run_product=name, run_version=version))
     return rows
@@ -141,9 +147,15 @@ def _held_prod(revision_value: str | None = None, *, assets: dict[str, list[tupl
 
 def test_purls_name_the_release_and_drop_qualifiers() -> None:
     run = parse_purl("pkg:deb/debian/libc6@2.36-9%2Bdeb12u7?arch=amd64&distro=debian-12")
-    assert run is not None and (run.name, run.version) == ("libc6", "2.36-9+deb12u7")
+    # The whole namespace and name is the identity: no segment is dropped.
+    assert run is not None and (run.name, run.version) == ("debian/libc6", "2.36-9+deb12u7")
     assert run.purl == "pkg:deb/debian/libc6@2.36-9+deb12u7"
     assert parse_purl("pkg:generic/php") is None and parse_purl("php@8") is None
+    # A Go major-version module keeps its path: the product is never "v2".
+    gh = parse_purl("pkg:golang/github.com/cli/cli/v2@v2.86.0")
+    assert gh is not None and (gh.name, gh.version) == ("github.com/cli/cli/v2", "v2.86.0")
+    scoped = parse_purl("pkg:npm/%40angular/core@17.0.0")
+    assert scoped is not None and scoped.name == "@angular/core"
 
 
 def test_a_first_full_scan_states_coverage_assets_and_runs() -> None:
@@ -152,10 +164,10 @@ def test_a_first_full_scan_states_coverage_assets_and_runs() -> None:
     statements = _statements(result["items"])
     runs = sorted(s[2]["key"]["product_name"] + " " + s[2]["key"]["version"]
                   for s in statements if s[1] == "runs")
-    assert runs == ["php 8.3.10", "php 8.3.10", "php8.2 8.2.20-1~deb12u1"]
+    assert runs == ["debian/php8.2 8.2.20-1~deb12u1", "php 8.3.10", "php 8.3.10"]
     components = sorted(s[2] for s in statements if s[1] == "component")
     assert components == ["pkg:deb/debian/php8.2@8.2.20-1~deb12u1", "pkg:generic/php@8.3.10"]
-    assert [s[2] for s in statements if s[1] == "looked_for"] == ["php", "php8.2"]
+    assert [s[2] for s in statements if s[1] == "looked_for"] == ["debian/php8.2", "php"]
     (rev,) = [s[2] for s in statements if s[1] == "revision"]
     assert rev == result["revision"] and rev.startswith("sha256:")
     assert sum(1 for s in statements if s[1] == "scanned_in") == 3
@@ -168,7 +180,7 @@ def test_an_unchanged_scan_restates_only_the_revision_in_any_order() -> None:
     first = _inventory(_text("prod-before.json"), [], [])
     held = _held_prod(first["revision"], assets={
         "k8s:prod/storefront-a": [("php", "8.3.10")], "k8s:prod/storefront-b": [("php", "8.3.10")],
-        "app-1.acme.internal": [("php8.2", "8.2.20-1~deb12u1")]})
+        "app-1.acme.internal": [("debian/php8.2", "8.2.20-1~deb12u1")]})
     again = _inventory(_text("prod-before-reordered.json"), held, [])
     assert again["revision"] == first["revision"]
     assert (again["changed"], again["restated"], again["proposes"]) == (0, 1, 1)
@@ -195,11 +207,11 @@ def _patch_row(patch: str, host: str, *, progress: str | None, verification: str
 def test_a_full_scan_retires_old_runs_verifies_patches_and_disputes_a_false_claim() -> None:
     held = _held_prod("sha256:old", assets={
         "k8s:prod/storefront-a": [("php", "8.3.10")], "k8s:prod/storefront-b": [("php", "8.3.10")],
-        "app-1.acme.internal": [("php8.2", "8.2.20-1~deb12u1")]})
+        "app-1.acme.internal": [("debian/php8.2", "8.2.20-1~deb12u1")]})
     patches = [_patch_row("rem-a", "k8s:prod/storefront-a", progress="completed"),
                _patch_row("rem-b", "k8s:prod/storefront-b", progress="completed"),
                _patch_row("rem-app", "app-1.acme.internal", progress="in_progress",
-                          affected=("php8.2", "8.2.20-1~deb12u1"))]
+                          affected=("debian/php8.2", "8.2.20-1~deb12u1"))]
     result = _inventory(_text("prod-mid.json"), held, patches)
     statements = _statements(result["items"])
     verifications = {s[0].rsplit("/", 1)[-1].removesuffix(".json"): s[2]
@@ -214,7 +226,7 @@ def test_a_full_scan_retires_old_runs_verifies_patches_and_disputes_a_false_clai
                for i in result["items"] if i.get("statement", {}).get("predicate") ==
                "security.asset.runs"}
     assert revised == {"CLM-run-1-php-8.3.10": "8.3.36",
-                       "CLM-run-0-php8.2-8.2.20-1~deb12u1": "8.2.29-1~deb12u1"}
+                       "CLM-run-0-debian/php8.2-8.2.20-1~deb12u1": "8.2.29-1~deb12u1"}
     assert any(s[1] == "revision" and s[2] == result["revision"] for s in statements)
     assert (result["verified"], result["failed"]) == (2, 1)
 
@@ -247,13 +259,13 @@ def test_a_cyclonedx_sbom_is_one_assets_complete_run_set() -> None:
     result = _inventory(_text("storefront-a.syft.cdx.json"), [], [])
     statements = _statements(result["items"])
     runs = sorted(s[2]["key"]["product_name"] for s in statements if s[1] == "runs")
-    assert runs == ["libc6", "libssl3", "libxml2", "php"]  # the OS entry has no purl
+    assert runs == ["debian/libc6", "debian/libssl3", "debian/libxml2", "php"]  # no OS purl
     assert not [s for s in statements if s[1] in ("revision", "looked_for")]
     assert result["coverage"] == "asset" and result["revision"] == ""
     # A re-scan with its own timestamp and serial number: the same run set, nothing proposed.
     held = _held_prod(None, assets={"k8s:prod/storefront-a": [
-        ("php", "8.3.10"), ("libc6", "2.36-9+deb12u7"), ("libxml2", "2.9.14+dfsg-1.3~deb12u1"),
-        ("libssl3", "3.0.15-1~deb12u1")]})
+        ("php", "8.3.10"), ("debian/libc6", "2.36-9+deb12u7"),
+        ("debian/libxml2", "2.9.14+dfsg-1.3~deb12u1"), ("debian/libssl3", "3.0.15-1~deb12u1")]})
     again = _inventory(_text("storefront-a.syft.rescan.cdx.json"), held, [])
     assert (again["proposes"], again["items"]) == (0, [])
     # The patched image: php's run is replaced, the patch on that asset verified.
@@ -270,10 +282,10 @@ def test_a_cyclonedx_sbom_is_one_assets_complete_run_set() -> None:
     statements = _statements(_inventory(json.dumps(gone), held, [patch])["items"])
     assert not [s for s in statements if s[0] == "retire"]  # waits: php is revised now
     held_after = _held_prod(None, assets={"k8s:prod/storefront-a": [
-        ("php", "8.3.36"), ("libc6", "2.36-9+deb12u7"), ("libxml2", "2.9.14+dfsg-1.3~deb12u1"),
-        ("libssl3", "3.0.15-1~deb12u1")]})
+        ("php", "8.3.36"), ("debian/libc6", "2.36-9+deb12u7"),
+        ("debian/libxml2", "2.9.14+dfsg-1.3~deb12u1"), ("debian/libssl3", "3.0.15-1~deb12u1")]})
     later = _statements(_inventory(json.dumps(gone), held_after)["items"])
-    assert later == [("retire", "CLM-run-0-libxml2-2.9.14+dfsg-1.3~deb12u1", "superseded")]
+    assert later == [("retire", "CLM-run-0-debian/libxml2-2.9.14+dfsg-1.3~deb12u1", "superseded")]
 
 
 def test_a_cyclonedx_sbom_without_its_annotations_is_refused() -> None:
@@ -404,7 +416,7 @@ INCIDENT = ("security.incident", "php2shell")
 INCIDENT_FIELDS = {"window_start": WINDOW[0], "rotation_policy": "on_found_or_unknown",
                    "incident_status": "open"}
 PHP = ("security.release", "php--8.3.10")
-DEB = ("security.release", "php8.2--8.2.20-1-deb12u1")
+DEB = ("security.release", "debian-php8.2--8.2.20-1-deb12u1")
 
 
 def _exposure(release: tuple[str, str], label: tuple[str, str], *, asset: str | None = None,
@@ -482,11 +494,11 @@ def test_rq1_and_rq2_exposure_found_declared_unknown_and_missing_patches() -> No
         _exposure(PHP, ("php", "8.3.10"), asset="k8s:prod/storefront-a", service="storefront",
                   declared="wiki-1"),
         _exposure(PHP, ("php", "8.3.10"), asset="k8s:prod/storefront-b", service="storefront"),
-        _exposure(DEB, ("php8.2", "8.2.20-1~deb12u1"), asset="app-1.acme.internal",
+        _exposure(DEB, ("debian/php8.2", "8.2.20-1~deb12u1"), asset="app-1.acme.internal",
                   service="partner-portal")])
     rq1 = _by(result, "RQ1")
     assert {s: a["state"] for s, a in rq1.items()} == {
-        "app-1.acme.internal: php8.2 8.2.20-1~deb12u1": "found",
+        "app-1.acme.internal: debian/php8.2 8.2.20-1~deb12u1": "found",
         "k8s:prod/storefront-a: php 8.3.10": "found",
         "k8s:prod/storefront-b: php 8.3.10": "found",
         "wiki-1: php 8.3.10": "unknown"}
@@ -554,14 +566,14 @@ def _exception(asset: str, release: tuple[str, str], cve: str, expires_at: str
 
 def test_an_active_exception_holds_rq2_until_it_expires() -> None:
     host = "app-1.acme.internal"
-    exposures = [_exposure(DEB, ("php8.2", "8.2.20-1~deb12u1"), asset=host,
+    exposures = [_exposure(DEB, ("debian/php8.2", "8.2.20-1~deb12u1"), asset=host,
                            service="partner-portal")]
-    second = _exposure(DEB, ("php8.2", "8.2.20-1~deb12u1"), asset=host, service="partner-portal")
+    second = _exposure(DEB, ("debian/php8.2", "8.2.20-1~deb12u1"), asset=host, service="partner-portal")
     for item in second["fields"]:
         if item["name"] == "cve_id":
             item["value"] = "CVE-2026-109619"
     exposures.append(second)
-    subject = f"{host}: php8.2 8.2.20-1~deb12u1"
+    subject = f"{host}: debian/php8.2 8.2.20-1~deb12u1"
     both = [_exception(host, DEB, cve, "2026-11-01T00:00:00Z")
             for cve in ("CVE-2026-109618", "CVE-2026-109619")]
     # Every one of the release's incident CVEs excepted: excepted, nothing posted for RQ2.
@@ -575,11 +587,11 @@ def test_an_active_exception_holds_rq2_until_it_expires() -> None:
         assert _by(missing, "RQ2")[subject]["state"] == "found"
         assert len(_posted(missing, "patch_missing")) == 1
     # An overdue patch under the exception is excepted too; a disputed one is not.
-    patch = _patch("rem-a", host, "partner-portal", DEB, ("php8.2", "8.2.20-1~deb12u1"),
+    patch = _patch("rem-a", host, "partner-portal", DEB, ("debian/php8.2", "8.2.20-1~deb12u1"),
                    progress="planned", due_at="2026-10-18T00:00:00Z")
     overdue = _ask(exposure=exposures, patches=[patch], overdue=[patch], exceptions=both)
     assert _by(overdue, "RQ2")[subject]["state"] == "excepted"
-    failed = _patch("rem-a", host, "partner-portal", DEB, ("php8.2", "8.2.20-1~deb12u1"),
+    failed = _patch("rem-a", host, "partner-portal", DEB, ("debian/php8.2", "8.2.20-1~deb12u1"),
                     progress="completed", verification="failed")
     disputed = _ask(exposure=exposures, patches=[failed], exceptions=both)
     assert len(_posted(disputed, "patch_disputed")) == 1
@@ -719,7 +731,7 @@ def _releases(*rows: tuple[str, str, list[str]]) -> list[dict[str, Any]]:
 
 INVENTORY_RELEASES = _releases(
     ("php", "8.3.10", ["pkg:generic/php@8.3.10"]), ("php", "8.3.36", ["pkg:generic/php@8.3.36"]),
-    ("php", "8.2.34", []), ("php8.2", "8.2.20-1~deb12u1",
+    ("php", "8.2.34", []), ("debian/php8.2", "8.2.20-1~deb12u1",
                             ["pkg:deb/debian/php8.2@8.2.20-1~deb12u1"]))
 
 
@@ -790,10 +802,10 @@ def test_a_distro_record_names_its_cve_upstream_and_a_truncated_page_is_inconclu
             {"vulns": [], "next_page_token": "page-2"}]}, {"purls": [old, new]}),
         *(_osv_exchange("GET", f"/v1/vulns/DEBIAN-{cve}", record)
           for cve, record in records.items())]}
-    releases = [_row({"release": ("security.release", "php8.2--a")}, product_name="php8.2",
-                     version="8.2.20-1~deb12u1", components=[old]),
-                _row({"release": ("security.release", "php8.2--b")}, product_name="php8.2",
-                     version="8.2.26-1~deb12u1", components=[new])]
+    releases = [_row({"release": ("security.release", "php8.2--a")},
+                     product_name="debian/php8.2", version="8.2.20-1~deb12u1", components=[old]),
+                _row({"release": ("security.release", "php8.2--b")},
+                     product_name="debian/php8.2", version="8.2.26-1~deb12u1", components=[new])]
     watched = [_row({"vulnerability": ("security.vulnerability", cve.lower())}, cve_id=cve)
                for cve in records]
     output = _context(OsvApplicability(), {"osv": osv, "releases": releases,

@@ -581,15 +581,18 @@ secret](https://docs.cruxible.ai/evidence-and-admission/#erasing-a-capture-that-
 
 | Contract | Acquired by | Body (a workspace file, at most 1 MiB) | Read by |
 |---|---|---|---|
-| `security.runtime-inventory-v1` | `security.inventory-acquire` | the kit body `{"scope", "looked_for": ["php", "php8.2"] or ["*"], "coverage": "full" or "partial", "assets": [{"hostname", "runs": ["pkg:generic/php@8.3.10"]}]}`, no timestamps; or a CycloneDX JSON SBOM of one asset (Syft, Trivy) with metadata properties `cruxible.scope` and `cruxible.asset` | `security.inventory-import.<scope>` (parameter `scope`) |
+| `security.runtime-inventory-v1` | `security.inventory-acquire` | the kit body `{"scope", "looked_for": ["php", "debian/php8.2"] or ["*"], "coverage": "full" or "partial", "assets": [{"hostname", "runs": ["pkg:generic/php@8.3.10"]}]}`, no timestamps; or a CycloneDX JSON SBOM of one asset (Syft, Trivy) with metadata properties `cruxible.scope` and `cruxible.asset` | `security.inventory-import.<scope>` (parameter `scope`) |
 | `security.log-read-v1` | `security.log-acquire` | `{"audit": {"incident", "service"}, "source", "query", "from", "to", "complete", "records_scanned", "matches": [{"at", "summary"}]}`; `complete` = every record in [from, to] searched (no sampling, no result cap, retention reaching `from`); redact match summaries | `security.log-import.<incident>` (parameter `incident`) |
 | `security.credential-state-v1` | `security.credential-acquire` | `{"issuer", "name", "read": "receipt" or "state_read", "keys": [{"key_id", "state": "active" / "inactive" / "revoked" / "deleted", "created_at", "revoked_at", "last_used_at", "created_by"}]}` and nothing else | `security.credential-import` |
 
 What each import proposes:
 
 - **Inventory.** Each asset by key and `asset.scanned_in` the scope's coverage;
-  each release it runs (`product_name` and `version` from the purl, the purl as
-  `release.component`, so OSV decides a distro build) as `asset.runs`, observed
+  each release it runs (`product_name` the purl's whole namespace and name, so
+  `pkg:deb/debian/php8.2@8.2.20-1~deb12u1` is `debian/php8.2` and
+  `pkg:golang/github.com/cli/cli/v2@v2.86.0` is `github.com/cli/cli/v2`, never a
+  last segment; `version` from the purl; the purl as `release.component`, so OSV
+  decides a distro build) as `asset.runs`, observed
   beside the declared `installs`. A **full** kit scan restates the coverage
   revision (the digest of its `looked_for` and (asset, runs) set: an unchanged
   fleet, in any order, is a re-observation and proposes nothing, while freshness
@@ -726,7 +729,7 @@ prod scope; `github/acme-ops/wiki-deploy`). Each service states its log sources
 | 3 | `responder` declares the incident; `lead` approves; Lines enabled | | |
 | 4 | `scanner` scans prod (a Syft SBOM of storefront-a, then the kit body for the scope) | respond: RQ1 found ×3, RQ1 unknown for wiki-1 (`inventory-acquire`), RQ2 `patch_missing` ×3 | `query --name security.incident_exposure --param incident=PHP2Shell` |
 | 4a | `responder` excepts app-1's Debian build for both CVEs until a set time; `lead` approves | RQ2 for app-1 *excepted*; the status page shows `excepted_until`; past it, `patch_missing` again | `query --name security.incident_exceptions --param incident=PHP2Shell` |
-| 5 | `responder` raises 3 patches (`target_release` php 8.3.36 / php8.2 8.2.29-1~deb12u1, `due_at`); `lead` approves | `ops` rebuilds the image, upgrades app-1 | `query --name security.open_patches --param incident=PHP2Shell` |
+| 5 | `responder` raises 3 patches (`target_release` php 8.3.36 / debian/php8.2 8.2.29-1~deb12u1, `due_at`); `lead` approves | `ops` rebuilds the image, upgrades app-1 | `query --name security.open_patches --param incident=PHP2Shell` |
 | 6 | `ops` sets `progress` `completed`; `scanner` scans prod and ops | `verified` ×3 (a claimed patch still running: `failed`, `patch_disputed`); the ops scan finds wiki-1 running 8.3.10: a 4th patch | open_patches empty after acceptance |
 | 7 | `auditor` states each service's audit from the gap's `sources` (the service's list; storefront's, stated without `php-fpm`, stays unknown naming it until added), runs the queries in your log tool, `log-acquire` each read | complete reads recorded; ops-wiki's read hits 14-day retention: `read_incomplete` | `query --name security.audit_status --param incident=PHP2Shell` |
 | 8 | `auditor` writes each result, citing the decisive read, with a section of `incidents/php2shell.md`, and `window_end`; `lead` approves | RQ3: storefront found, partner-portal none, ops-wiki unknown (its reads cover only 10-04 to 10-17) | `inbox list --line security.respond.php2shell` |

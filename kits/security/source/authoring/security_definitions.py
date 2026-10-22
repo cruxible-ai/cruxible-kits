@@ -208,7 +208,9 @@ CLAIM_TYPES: list[ClaimRow] = [
     ("security.vulnerability.cve_id", ("security.vulnerability",), "literal", CVE_ID, "one",
      "normative", (), ("trim", "upper"), "The CVE identifier; the vulnerability's key."),
     ("security.release.product_name", ("security.release",), "literal", TEXT, "one",
-     "normative", (), NAME_FORM, "The product's name; with version, the release's key."),
+     "normative", (), NAME_FORM, "The product's name; with version, the release's key. A "
+     "release a runtime scan observed is named by its purl's whole namespace and name "
+     "(debian/php8.2, github.com/cli/cli/v2), never a last segment."),
     ("security.release.version", ("security.release",), "literal", TEXT, "one", "normative", (),
      ("trim",), "The release's version string; with product_name, the release's key."),
     ("security.assessment.release_id", ("security.assessment",), "literal", TEXT, "one",
@@ -616,8 +618,9 @@ RESPONSE: list[ClaimRow] = [
      "the asset: its runs are complete there while that coverage is current."),
     ("security.coverage.looked_for", ("security.coverage",), "literal", TEXT, "many",
      "observation", (INVENTORY_CONTRACT,), NAME_FORM, "A product a full runtime-inventory "
-     "scan looked for (php), or * for everything: absence of an affected run is an answer "
-     "only for a product the scan looked for."),
+     "scan looked for, named as its releases are (php, debian/php8.2: a purl's namespace and "
+     "name), or * for everything: absence of an affected run is an answer only for a product "
+     "the scan looked for."),
     # The audit: were we exploited during the window, for one service.
     ("security.audit.incident_ref", AUDIT_KIND, "literal", TEXT, "one", "normative", (),
      NAME_FORM, "The incident's name; with service_ref, the audit's key."),
@@ -3237,8 +3240,9 @@ def inventory_import(cx: Cruxible) -> Any:
             "Read the runtime-inventory Capture that triggered the Line "
             f"({INVENTORY_CONTRACT}) for the Line's scope (parameter scope) and propose what "
             "changed: each asset by key and asset.scanned_in the scope's coverage, each "
-            "release it runs (by product name and version, with its purl as "
-            "release.component) as asset.runs; a full scan retires runs it no longer sees (of "
+            "release it runs (by product name, the purl's whole namespace and name, and "
+            "version, with its purl as release.component) as asset.runs; a full scan retires "
+            "runs it no longer sees (of "
             "the products it looked for) and restates the coverage revision (an unchanged "
             "scan re-observes it: freshness moves, nothing is proposed). For each open patch "
             "of a scanned asset: verification verified when a full scan shows the affected "
