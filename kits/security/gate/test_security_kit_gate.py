@@ -102,11 +102,16 @@ STEPS = {
     "32": "(c) confirm: PoC backs confirmed; finder cannot confirm its own; dispute resolves",
     "33": "(d) remediate: work.finding; HQ6 posts the confirmed finding the release serves",
     "34": "(e) fix: the citation drifts; a full re-scan verifies fixed; HQ6 clears; regression",
-    "35": "G14 G1: a Syft SBOM and the scope's scan land runs; re-scan no_change; KEV lists it",
-    "36": "G2: CVE ranges decide upstream php, OSV the Debian build; incident declared; G1 RQ1",
-    "37": "G3 G4 G5: patches close only on a scan; a claim waits; the scan disagrees; unchanged",
+    "35": "G14 G1: services state their log sources; a Syft SBOM and the scope's scan land runs; "
+          "re-scan no_change; KEV lists it",
+    "36": "G2: CVE ranges decide upstream php, OSV the Debian build; urgent_exposures shows "
+          "scan-only hosts as observed; incident declared; G1 RQ1; the audit gaps name the "
+          "services' log sources",
+    "37": "G3 G4 G5: an exception holds RQ2 excepted until it expires; patches close only on "
+          "a scan; a claim waits; the scan disagrees; unchanged",
     "38": "G2 G6: 8.3.36 not_affected, OSV decides the fixed Debian build; stale coverage unknown",
-    "39": "G7 G9: audit three states with the uncovered interval named; own words refused",
+    "39": "G7 G9: audits seeded from the services' log sources (one left out is named); audit "
+          "three states with the uncovered interval named; own words refused",
     "40": "G8: a contended result is conflict, RQ3 unknown, RQ4 raises its rotation",
     "41": "G10 G11 G12: receipts never verify, state reads do; secret refused; window re-asks",
     "42": "G13: ready_to_close with residue; closed; status page rendered; next empty",
@@ -438,8 +443,8 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 17, "ClaimType": 131, "Procedure": 21,
-              "ProviderInterface": 20, "QueryDefinition": 44, "SourceAcquisitionPolicy": 1,
+KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 17, "ClaimType": 132, "Procedure": 21,
+              "ProviderInterface": 20, "QueryDefinition": 45, "SourceAcquisitionPolicy": 1,
               "SubjectKind": 23}
 
 
@@ -2317,6 +2322,19 @@ PROD, OPS_SCOPE = "security.inventory-import.prod", "security.inventory-import.o
 CREDENTIAL_IMPORT = "security.credential-import"
 HOSTS = {"storefront-a": "k8s:prod/storefront-a", "storefront-b": "k8s:prod/storefront-b",
          "app-1": "app-1.acme.internal", "wiki-1": "wiki-1.ops.acme.internal"}
+#: Each service's standing log sources (service.log_source), each citing its section of
+#: LOG_DOC: retention, the tool and the owner live there, never in the value.
+SERVICE_LOGS = {"storefront": ("storefront/nginx-access", "storefront/php-fpm"),
+                "partner-portal": ("partner-portal/apache",), "ops-wiki": ("ops-wiki/nginx",)}
+LOG_DOC = "security/log-sources.md"
+INCIDENT_NOTE = "incidents/php2shell.md"
+#: How long step 37's exception holds: long enough to approve it and ask once.
+EXCEPTION_SECONDS = 75
+LOG_DOC_TEXT = (
+    "# storefront\n\nstorefront/nginx-access and storefront/php-fpm: Loki, 30-day retention, "
+    "the platform team.\n\n# partner-portal\n\npartner-portal/apache: the host's "
+    "/var/log/apache2, 90-day retention, the partner team.\n\n# ops-wiki\n\nops-wiki/nginx: "
+    "the host's /var/log/nginx, 14-day retention, the ops team.\n")
 CREDENTIALS = {"aws": ("aws-iam/111122223333", "storefront-app", "storefront"),
                "stripe": ("stripe", "storefront-live", "storefront"),
                "postgres": ("postgres/partners-db", "portal", "partner-portal"),
@@ -2483,6 +2501,25 @@ def _release_id(gate: Gate, product: str, version: str) -> str:
     raise AssertionError(f"no release {product} {version}")
 
 
+def _host_ids(gate: Gate) -> dict[str, str]:
+    """HOSTS' short names -> their asset Subject ids (query rows name a Subject by id)."""
+
+    return {short: gate.values["incident_subjects"][short].rsplit("/", 1)[-1] for short in HOSTS}
+
+
+def _audit_asks(gate: Gate) -> dict[str, list[str]]:
+    """service -> the log sources the respond Line's audit gap names (read or not)."""
+
+    asks: dict[str, list[str]] = {}
+    for status in ("acknowledged", "unread"):
+        for post in _respond_posts(gate, "gap", status=status):
+            ask = post["payload"].get("input") or {}
+            if ask.get("state") == "security.audit.log_source" and "sources" in ask and (
+                    "audit" in ask):
+                asks[post["payload"]["subject"]] = list(ask["sources"])
+    return asks
+
+
 def test_35_inventory_and_listing(gate: Gate) -> None:
     _incident_ready(gate)
     _ack_all(gate)
@@ -2493,6 +2530,11 @@ def test_35_inventory_and_listing(gate: Gate) -> None:
     for name, label in services.items():
         changes.append({"op": "create", "label": label, "subject_kind": "security.service",
                         "key": _key_of("security.service", name=name)})
+        # Where its logs live: pointers only, each citing the service's section of LOG_DOC.
+        changes += [{"op": "add", "subject": {"created": label},
+                     "field": "security.service.log_source", "value": source,
+                     "evidence": {"kind": "section", "file": LOG_DOC, "section": [name],
+                                  "own_words": True}} for source in SERVICE_LOGS[name]]
     serves = {"storefront-a": "storefront", "storefront-b": "storefront", "app-1": "partner-portal",
               "wiki-1": "ops-wiki"}
     for short, host in HOSTS.items():
@@ -2515,8 +2557,13 @@ def test_35_inventory_and_listing(gate: Gate) -> None:
             {"op": "add", "subject": {"created": f"cred-{short}"},
              "field": "security.credential.used_by", "value": {"created": services[service]}}]
     gate.values["incident_subjects"] = _write_created(gate, RESPONDER, "incident-context", {
-        "because": "Acme's services, the workloads and hosts serving them, and the credentials "
-                   "each uses (non-secret identities only).", "changes": changes}, LEAD)
+        "because": "Acme's services, where their logs live, the workloads and hosts serving "
+                   "them, and the credentials each uses (non-secret identities only).",
+        "changes": changes, "docs": [{"op": "append", "file": LOG_DOC, "text": LOG_DOC_TEXT}]},
+        LEAD)
+    held = gate.claims("security.service", "security.service.log_source")
+    assert sorted(held) == sorted(gate.values["incident_subjects"][f"svc-{name}"].rsplit(
+        "/", 1)[-1] for name in SERVICE_LOGS), held
     # The scanner arms the inventory and credential imports: their proposals are its.
     for line in (PROD, CREDENTIAL_IMPORT):
         gate.out("line", "enable", line, who=SCANNER)
@@ -2561,7 +2608,8 @@ def test_35_inventory_and_listing(gate: Gate) -> None:
     actor = gate.card(sbom_run).get("actor")
     assert actor and SCANNER in json.dumps(actor), gate.card(sbom_run)
     gate.values["scanner_actor"] = actor
-    record("35", "a Syft SBOM of k8s:prod/storefront-a landed its runs (php 8.3.10 and its "
+    record("35", "the services stated their log sources (pointers citing sections of "
+           f"{LOG_DOC}); a Syft SBOM of k8s:prod/storefront-a landed its runs (php 8.3.10 and its "
            "Debian packages) proposed by the scanner (its own approval creator_forbidden); "
            "the re-scanned image (new timestamp) halted no_change, head unchanged; the prod "
            f"scope's full scan added storefront-b and app-1; KEV lists {PHP2SHELL[0]}: "
@@ -2596,6 +2644,22 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
                         "--detail", "evidence")
     assert "security.osv-query-v1" in evidence, evidence
     gate.values.update(php_release=php, debian_release=debian)
+    # Exposure joins what scans observe too: storefront-a/-b and app-1 are known only from
+    # scans (observed), wiki-1 only declares php 8.3.10 (asset, not seen running).
+    ids = _host_ids(gate)
+    urgent = [r for r in gate.rows("security.urgent_exposures")
+              if _field(r, "cve_id") in PHP2SHELL]
+    php_rows = [r for r in urgent if _field(r, "release") == php]
+    assert {_field(r, "asset") for r in php_rows} == {ids["wiki-1"]}, php_rows
+    assert {_field(r, "asset_observed") for r in php_rows} == {None}, php_rows
+    assert {_field(r, "observed") for r in php_rows} == {ids["storefront-a"],
+                                                         ids["storefront-b"]}, php_rows
+    assert {_field(r, "observed_internet_exposed") for r in php_rows} == {True}, php_rows
+    storefront = gate.values["incident_subjects"]["svc-storefront"].rsplit("/", 1)[-1]
+    assert {_field(r, "observed_service") for r in php_rows} == {storefront}, php_rows
+    deb_rows = [r for r in urgent if _field(r, "release") == debian]
+    assert {(_field(r, "asset"), _field(r, "observed")) for r in deb_rows} == {
+        (None, ids["app-1"])}, deb_rows
     # Declare the incident: its Claims, its respond and log-import Lines (README template).
     incident = _write_created(gate, RESPONDER, "incident", {
         "because": "One response to PHP2Shell (CVE-2026-109618, CVE-2026-109619): "
@@ -2651,11 +2715,17 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
     assert gaps[HOSTS["wiki-1"]]["pull"] == "security.inventory-acquire", gaps
     assert len(_respond_posts(gate, "patch_missing")) == 3
     assert len(_respond_posts(gate, "exposed")) == 3
+    # No audit is stated yet: each exposed service's gap names its standing log sources.
+    assert _audit_asks(gate) == {name: list(SERVICE_LOGS[name])
+                                 for name in ("partner-portal", "storefront")}
     record("36", "the CVE records' ranges proposed php 8.3.10 affected and never touched the "
            "Debian build; OSV's distro advisory (upstream CVE ids) proposed php8.2 "
            "8.2.20-1~deb12u1 affected, citing the OSV Capture; PHP2Shell declared (incident, "
-           "respond and log-import Lines, a window-close Trigger); respond: RQ1 found x3, "
-           "wiki-1 unknown naming security.inventory-acquire, RQ2 patch_missing x3")
+           "respond and log-import Lines, a window-close Trigger); urgent_exposures: php 8.3.10 "
+           "declared on wiki-1 and observed only on storefront-a/-b, the Debian build observed "
+           "only on app-1; respond: RQ1 found x3, wiki-1 unknown naming "
+           "security.inventory-acquire, RQ2 patch_missing x3, the RQ3 gaps naming each "
+           "service's log sources")
 
 
 def _patch(gate: Gate, short: str, release: str, target: tuple[str, str], due: str) -> str:
@@ -2703,6 +2773,46 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
     _ack_all(gate)  # each step reads only what it posts
     php, debian = _release_id(gate, "php", "8.3.10"), _release_id(gate, "php8.2",
                                                                   "8.2.20-1~deb12u1")
+    # An accepted risk: the lead excepts app-1's Debian build for both CVEs, briefly. While
+    # it holds, RQ2 is excepted (no patch_missing) and the status page shows its expiry;
+    # past expires_at (the query clock) it is patch_missing again.
+    expires = (datetime.now(UTC) + timedelta(seconds=EXCEPTION_SECONDS)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+    changes: list[dict[str, Any]] = []
+    for index, cve in enumerate(PHP2SHELL):
+        label = f"exception-{index}"
+        changes += [
+            {"op": "create", "label": label, "subject_kind": "security.exception"},
+            {"op": "set", "subject": {"created": label}, "field": "security.work.asset",
+             "value": gate.values["incident_subjects"]["app-1"]},
+            {"op": "set", "subject": {"created": label}, "field": "security.work.assessment",
+             "value": f"security.assessment/{_assessment(gate, debian, cve)}"},
+            {"op": "set", "subject": {"created": label}, "field": "security.exception.expires_at",
+             "value": expires},
+            {"op": "set", "subject": {"created": label}, "field": "security.exception.approval",
+             "value": "approved", "evidence": {"kind": "section", "file": INCIDENT_NOTE,
+                                               "section": ["Exception: app-1"],
+                                               "own_words": True}}]
+    _write_created(gate, RESPONDER, "exception-app-1", {
+        "because": "app-1's upgrade waits for the partner's maintenance window; the WAF rule "
+                   "blocks the exploit path meanwhile.", "changes": changes,
+        "docs": [{"op": "append", "file": INCIDENT_NOTE, "text": (
+            f"# Exception: app-1\n\nThe Debian build stays until {expires}: the partner's "
+            "maintenance window; a WAF rule blocks `?-d` query strings meanwhile.\n")}]}, LEAD)
+    excepted = f"{HOSTS['app-1']}: php8.2 8.2.20-1~deb12u1"
+    summary = _respond(gate)
+    rq2 = _states(summary, "RQ2")
+    assert rq2[excepted] == "excepted" and rq2[f"{HOSTS['storefront-a']}: php 8.3.10"] == (
+        "found"), summary["answers"]
+    status = gate.rows("security.incident_status", incident=INCIDENT_NAME)
+    assert {_field(r, "excepted_until") for r in status
+            if _field(r, "host") == HOSTS["app-1"]} == {expires}, status
+    lapse = datetime.strptime(expires, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+    time.sleep(max(0.0, (lapse - datetime.now(UTC)).total_seconds()) + 2)
+    summary = _respond(gate)
+    assert _states(summary, "RQ2")[excepted] == "found", summary["answers"]
+    assert not [r for r in gate.rows("security.incident_status", incident=INCIDENT_NAME)
+                if _field(r, "host") == HOSTS["app-1"]]
     patches = {"storefront-a": _patch(gate, "storefront-a", php, ("php", "8.3.36"),
                                       "2026-12-01T00:00:00Z"),
                "storefront-b": _patch(gate, "storefront-b", php, ("php", "8.3.36"),
@@ -2764,6 +2874,12 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
     _approve(gate, _proposal(gate, runs[OPS_SCOPE]), LEAD)  # type: ignore[arg-type]
     summary = _respond(gate)
     assert _states(summary, "RQ1")[f"{HOSTS['wiki-1']}: php 8.3.10"] == "found", summary
+    # wiki-1 declares php 8.3.10 and the ops scan sees it running: declared and observed,
+    # never a second, observed-only row; the patched storefront workloads have left.
+    ids = _host_ids(gate)
+    rows = [r for r in gate.rows("security.urgent_exposures") if _field(r, "release") == php]
+    assert {(_field(r, "asset"), _field(r, "asset_observed"), _field(r, "observed"))
+            for r in rows} == {(ids["wiki-1"], ids["wiki-1"], None)}, rows
     patches["wiki-1"] = _patch(gate, "wiki-1", php, ("php", "8.3.36"), "2026-12-01T00:00:00Z")
     _progress(gate, patches["wiki-1"], "completed")
     _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "ops-after.json",
@@ -2775,12 +2891,15 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
         ("storefront-a", "php 8.3.10"), ("storefront-b", "php 8.3.10"), ("wiki-1", "php 8.3.10"),
         ("app-1", "php8.2 8.2.20-1~deb12u1"))), rq2
     assert not gate.rows("security.open_patches", incident=INCIDENT_NAME)
-    record("37", "storefront-b's patch (due 2026-10-18) posted patch_overdue; ops' completed "
+    record("37", f"an approved exception for app-1 (both CVEs, expiring {EXCEPTION_SECONDS} s "
+           "on) made its RQ2 excepted and showed on the status page (excepted_until); past "
+           "its expiry RQ2 was patch_missing again and the row left the page; "
+           "storefront-b's patch (due 2026-10-18) posted patch_overdue; ops' completed "
            "claims left RQ2 unknown (ops' own approval creator_forbidden); the scanner's scan "
            "proposed verified x2 and failed for storefront-b (patch_disputed); the fix's scan "
            "revised it verified; the same scan again: no proposal, head unchanged; the ops "
-           "scope's Line (prod's halted other_scope) found wiki-1 on 8.3.10, a 4th patch "
-           "verified; RQ2 none x4, open_patches empty")
+           "scope's Line (prod's halted other_scope) found wiki-1 on 8.3.10 (urgent_exposures: "
+           "declared and observed), a 4th patch verified; RQ2 none x4, open_patches empty")
 
 
 #: The incident queries' projected Subject fields, by the kind each binding holds.
@@ -2791,7 +2910,7 @@ RESPOND_BINDINGS = {
     "declared_coverage": "security.coverage", "patch": "security.remediation",
     "target": "security.release", "owner": "security.team", "audit": "security.audit",
     "credential": "security.credential", "rotation": "security.remediation",
-    "rotation_audit": "security.audit"}
+    "rotation_audit": "security.audit", "exception": "security.exception"}
 
 
 def _respond_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -2848,7 +2967,8 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
         "query", "--name", query, "--all", "--param", f"incident={INCIDENT_NAME}",
         "--evaluation-time", later)["rows"]) for alias, query in (
             ("exposure", "security.incident_exposure"), ("patches", "security.incident_patches"),
-            ("overdue", "security.overdue_patches"), ("audits", "security.audit_status"),
+            ("overdue", "security.overdue_patches"),
+            ("exceptions", "security.incident_exceptions"), ("audits", "security.audit_status"),
             ("credentials", "security.incident_credentials"))}
     stale = respond({**taps, "params": {"incident": INCIDENT_NAME}, "truncated": {}})
     rq2 = {s: state for s, state in _states(stale, "RQ2").items()}
@@ -2872,10 +2992,13 @@ def test_39_audit_three_states(gate: Gate) -> None:
     _ack_all(gate)  # each step reads only what it posts
     subjects = gate.values["incident_subjects"]
     incident = gate.values["incident"]
-    sources = {"storefront": "storefront/nginx-access", "partner-portal": "partner-portal/apache",
-               "ops-wiki": "ops-wiki/nginx"}
+    # The audits start from the services' lists, as each RQ3 gap names them (ops-wiki's
+    # came with wiki-1's patch). The auditor starts storefront on its access log alone.
+    asks = _audit_asks(gate)
+    assert asks == {name: list(sources) for name, sources in SERVICE_LOGS.items()}, asks
+    asks["storefront"] = ["storefront/nginx-access"]
     changes: list[dict[str, Any]] = []
-    for service, source in sources.items():
+    for service, listed in asks.items():
         label = f"audit-{service}"
         changes += [
             {"op": "create", "label": label, "subject_kind": "security.audit",
@@ -2883,15 +3006,24 @@ def test_39_audit_three_states(gate: Gate) -> None:
             {"op": "set", "subject": {"created": label}, "field": "security.audit.incident",
              "value": incident},
             {"op": "set", "subject": {"created": label}, "field": "security.audit.service",
-             "value": subjects[f"svc-{service}"]},
-            {"op": "add", "subject": {"created": label}, "field": "security.audit.log_source",
-             "value": source}]
+             "value": subjects[f"svc-{service}"]}]
+        changes += [{"op": "add", "subject": {"created": label},
+                     "field": "security.audit.log_source", "value": source}
+                    for source in listed]
     audits = _write_created(gate, AUDITOR, "audits", {
-        "because": "The log sources that must be read in full over PHP2Shell's window.",
-        "changes": changes}, LEAD)
-    gate.values["audits"] = {s: audits[f"audit-{s}"] for s in sources}
+        "because": "The log sources that must be read in full over PHP2Shell's window, from "
+                   "each service's log_source list.", "changes": changes}, LEAD)
+    gate.values["audits"] = {s: audits[f"audit-{s}"] for s in asks}
+    # The service lists php-fpm too: until the audit states it, storefront's RQ3 is unknown.
+    _respond(gate)
+    left_out = [g["payload"]["input"] for g in _respond_posts(gate, "gap")
+                if g["payload"]["subject"] == "storefront"
+                and g["payload"]["input"].get("state") == "security.audit.log_source"]
+    assert [ask.get("sources") for ask in left_out] == [["storefront/php-fpm"]], left_out
+    _ack_all(gate)
     _write_as(gate, AUDITOR, "audit-php-fpm", {
-        "because": "PHP-FPM's log records which scripts ran.",
+        "because": "storefront's log_source list names PHP-FPM's log, which records which "
+                   "scripts ran.",
         "subject": gate.values["audits"]["storefront"],
         "changes": [{"op": "add", "field": "security.audit.log_source",
                      "value": "storefront/php-fpm"}]}, approver=LEAD)
@@ -2947,7 +3079,9 @@ def test_39_audit_three_states(gate: Gate) -> None:
         "ops-wiki/nginx", WINDOW_START, "2026-10-04T00:00:00Z"), gap
     assert gap["pull"] == "security.log-acquire"
     assert [p["payload"]["service"] for p in _respond_posts(gate, "exploited")] == ["storefront"]
-    record("39", "the auditor stated four log sources; four complete reads recorded, ops-wiki's "
+    record("39", "the RQ3 gaps named each service's log sources and the audits started from "
+           "them; storefront's, stated without php-fpm, stayed unknown naming it until the "
+           "auditor added it; four complete reads recorded, ops-wiki's "
            "window read posted read_incomplete (14-day retention); an own-words result refused "
            "evidence_required; results citing the decisive reads with Audit sections: RQ3 "
            "storefront found, partner-portal none, ops-wiki unknown with ops-wiki/nginx "
