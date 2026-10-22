@@ -19,6 +19,14 @@ Approve one import before you acquire the next: two imports that touch the
 same release can't both land, and the second goes stale (acquire its file
 again).
 
+## Before you start
+
+- **`uv` on `PATH`.** The kit's bundled Providers install and run through uv;
+  without it, installing or running them fails (core reports
+  `network_disabled` without the real cause). Check `uv --version`.
+- **`npm`/`npx`** for JavaScript SBOMs, and Python 3.11+ (with `uvx`) for
+  Python ones.
+
 ## Ground rules
 
 - **Never put a secret in a Capture.** Every file you acquire is kept. Record
@@ -52,15 +60,24 @@ name any that are off and ask.
 ### 1. An SBOM per repository
 
 ~~~bash
-mkdir -p sboms
-uvx --from cyclonedx-bom cyclonedx-py requirements requirements.txt \
-    --pyproject pyproject.toml --of JSON -o sboms/myapp.cdx.json          # Python
+mkdir -p sboms intake
+# A uv project (Python): pin the lock to requirements, then build the SBOM from them.
+uv export --format requirements.txt --no-dev --no-hashes --no-emit-project \
+    > intake/myapp-requirements.txt
+uvx --from cyclonedx-bom cyclonedx-py requirements intake/myapp-requirements.txt \
+    --pyproject pyproject.toml --of JSON -o sboms/myapp.cdx.json
+# A JavaScript project (needs npm):
+npx @cyclonedx/cdxgen -t js -o sboms/web.cdx.json .
 ~~~
 
-<!-- maintainer: check the syft and uv lines (not run here) -->
+`cyclonedx-py requirements` ignores environment markers, so a Windows-only pin
+(`pywin32`) lands as a component too; drop it from the requirements file if you
+never ship it. `uv export --format cyclonedx1.5` doesn't work on every uv (0.8
+refuses it); the requirements route does.
+
+<!-- maintainer: check the syft line (not run here) -->
 ~~~bash
 syft dir:. -o cyclonedx-json > sboms/myapp.cdx.json                       # any ecosystem
-uv export --format cyclonedx1.5 > sboms/myapp.cdx.json                    # a uv project
 ~~~
 
 Check that `metadata.component` names the product and version people know it
@@ -155,7 +172,28 @@ outputs:
 - **`runs`** holds package URLs. Name your own software
   `pkg:generic/<product>@<version>`, matching the SBOM's `metadata.component`,
   so the host joins that release. Third-party packages keep their own purls
-  (`pkg:deb/debian/php8.2@8.2.20-1~deb12u1`).
+  (`pkg:deb/debian/php8.2@8.2.20-1~deb12u1`). The release is named by the purl's
+  whole namespace and name (`debian/php8.2`), and `looked_for` names products
+  the same way.
+- **Prefer a native purl OSV indexes.** OSV answers only for the purl types its
+  ecosystem list covers; the kit's map (carried in `security.osv-applicability`)
+  reads `pypi`, `npm`, `maven`, `golang`, `cargo`, `gem`, `nuget`, `composer`,
+  `pub`, `hex`, `hackage`, `cran`, `swift`, `conan`, `bitnami`,
+  `githubactions`, `deb/debian`, `deb/ubuntu`, `apk/alpine`, `apk/wolfi`,
+  `apk/chainguard` and `rpm/` for Red Hat, AlmaLinux, Rocky Linux, openSUSE,
+  SUSE, Mageia and openEuler, each only while OSV's captured `ecosystems.txt`
+  lists its ecosystem. `pkg:brew`, `pkg:generic`, `pkg:docker` and the rest
+  are never asked: their releases read `osv_coverage` `partial`, and an
+  incident keeps them **unknown**. So name a binary by what it is: a Go binary
+  by its module (`go version -m $(command -v gh)` prints `path
+  github.com/cli/cli/v2` and `mod ... v2.86.0`: run
+  `pkg:golang/github.com/cli/cli/v2@v2.86.0`), a Python or Node tool by its
+  PyPI or npm package. Keep `pkg:brew/<formula>@<version>` (from `brew list
+  --versions`) only where there's nothing better, and state a product alias
+  when a CVE record names its upstream (the analyst skill).
+  After the OSV run, `cruxible query --name security.release_inventory` shows
+  each release's `osv_coverage`; each OSV query Capture lists its
+  `not_indexed` components with why.
 - **`coverage: full`** only when the scan read every host of the scope for
   everything in `looked_for` (`["*"]`, or product names). That's what lets the
   kit answer **none** for the scope; a `partial` scan only adds.
@@ -256,6 +294,17 @@ proposes, and ask again.
       - {op: add, subject: {created: audit}, field: log_source, value: storefront/php-fpm}
     ~~~
 
+  - `security.cve-record-acquire` with `{"url": ...}`: no record of an incident
+    CVE was read yet. Acquire it with exactly that input.
+  - `statement` with `"state": "security.assessment.status"` and
+    `osv_not_indexed`: OSV doesn't index the release's components (a
+    `pkg:brew` or `pkg:generic` purl). Re-scan naming the binary by a purl OSV
+    indexes (above), state a product alias the record names, or record an
+    analyst's judgment (the analyst skill).
+  - `security.osv-applicability` with `{"release": ...}`: OSV hasn't answered
+    the release yet: `cruxible line run security.osv-applicability`.
+  - `statement` with `input.missing` (an audit): each piece is one thing to
+    state (`state`) or read (`source`, `from`, `to`).
   - Any other pull: its input is the body that Procedure reads ([The evidence
     each action lands](../../README.md#the-evidence-each-action-lands)).
 

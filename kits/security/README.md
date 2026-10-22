@@ -236,6 +236,13 @@ decides, `explained_by`, a publish gate) always stay with people and agents.
 
 ## Install and first answers
 
+Prerequisites: `uv` on `PATH` (the bundled Providers install and run through
+it), and `npm`/`npx` if you generate JavaScript SBOMs. The [security intake
+skill](skills/security-intake/SKILL.md) has the SBOM commands that work (a uv
+project: `uv export --format requirements.txt --no-dev --no-hashes
+--no-emit-project`, then `cyclonedx-py requirements`; JavaScript: `npx
+@cyclonedx/cdxgen`) and which purl types OSV answers for.
+
 1. **Install.** `cruxible kit add security:1.3.0` previews the change; commit it
    at the coordinate the preview prints: `cruxible kit add security:1.3.0
    --commit --at OID`. This installs the kit's definitions and its Providers
@@ -279,7 +286,9 @@ decides, `explained_by`, a publish gate) always stay with people and agents.
    changed supplier revises the held one. Superseded releases and components an
    SBOM no longer lists are kept; retire them yourself.
 6. **Ask OSV**: `cruxible line run security.osv-applicability`, then review and
-   activate its proposal: one assessment per (release, CVE) OSV relates.
+   activate its proposal: one assessment per (release, CVE) OSV relates, and
+   each release's `osv_coverage` (`partial` names the purl types OSV never
+   indexes, `pkg:brew` and `pkg:generic` among them).
 7. **KEV and EPSS**: `cruxible line run security.kev-daily` and `cruxible line
    run security.epss-daily`, then activate the two triage proposals. From here
    the cron Triggers repeat steps 6 and 7 daily.
