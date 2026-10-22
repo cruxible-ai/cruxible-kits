@@ -1,0 +1,19 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "A part in the catalog, named by its part number.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "catalog.part"
+  },
+  "identity_rule": {
+    "keys": [
+      "catalog.part.name"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [],
+  "allowed_subject_kinds": [
+    "catalog.part"
+  ],
+  "artifact_format": "playbill-claim-type-v7",
+  "attestation_consequence_policy": null,
+  "cardinality": "one",
+  "default_role": "observation",
+  "description": "The supplier's list price, in USD.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.foreign-source.quotes"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "evidence_kinds": [
+          "self_asserted"
+        ],
+        "rule_id": "own-words-or-file",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      }
+    ],
+    "tag": "playbill-claim-evidence-admission-policy-v3"
+  },
+  "evidence_freshness": {
+    "stale_after": {
+      "microseconds": 120000000,
+      "tag": "playbill-duration-v1"
+    },
+    "tag": "playbill-claim-evidence-freshness-v1"
+  },
+  "evidence_requirement": "captured",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "catalog.part.price"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": {
+    "minimum": 0,
+    "type": "integer"
+  },
+  "member_descriptions": [],
+  "object_kind": "literal",
+  "permitted_roles": [
+    "observation"
+  ],
+  "pins": [],
+  "predicate": "catalog.part.price",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "slot_policy": null,
+  "subject_scope": null
+}
