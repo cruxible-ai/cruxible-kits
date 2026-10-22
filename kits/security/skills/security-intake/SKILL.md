@@ -182,17 +182,39 @@ changes:
 ~~~
 
 `installs` is what a host is meant to run, beside what scans see it run.
-`security.urgent_exposures` joins it to show each exposure's host, service
-criticality and internet exposure. A host that declares a release but sits in
-no current scan is answered **unknown**, so declare the hosts nobody scans
-too.
+`security.urgent_exposures` shows both: `asset` is a host that declares the
+release (`asset_observed` set when a scan also sees it running there), and
+`observed` is a host only a scan sees, each with its service criticality and
+internet exposure. A host that declares a release but sits in no current scan
+is answered **unknown** in an incident, so declare the hosts nobody scans too.
 
 ### 5. Log sources
 
-The kit records log sources on an incident's audit, where stating one asks
-whether you were exploited; nothing holds them between incidents. So list them
-now in a note, `security/log-sources.md`: for each service, each source
-(`storefront/nginx-access`), the tool that queries it, and its retention.
+State where each service's logs live, so an incident's audit starts from the
+list instead of a hunt. The value is a pointer only, a short identifier such
+as `caddy:app-1:/var/log/caddy/access.log` or `storefront/nginx-access`.
+Retention, the tool and query that read it, and who owns it go in a section of
+`security/log-sources.md` that the Claim cites:
+
+~~~yaml
+because: Where storefront's logs live, from the platform runbook, 2026-10-22.
+changes:
+  - {op: add, subject: security.service/storefront, field: log_source, value: storefront/nginx-access,
+     evidence: {kind: section, file: security/log-sources.md, section: [storefront], own_words: true}}
+  - {op: add, subject: security.service/storefront, field: log_source, value: storefront/php-fpm,
+     evidence: {kind: section, file: security/log-sources.md, section: [storefront], own_words: true}}
+docs:
+  - op: append
+    file: security/log-sources.md
+    text: |
+      # storefront
+
+      storefront/nginx-access: Loki, `{app="storefront", log="access"}`, 30-day retention, platform team.
+      storefront/php-fpm: Loki, `{app="storefront", log="php-fpm"}`, 30-day retention, platform team.
+~~~
+
+`cruxible write intake/log-sources.yaml`. When a source moves or a new one
+appears, change the list the same way (`retire` an old value, `add` a new one).
 
 ### 6. Ask
 
@@ -213,11 +235,14 @@ proposes, and ask again.
   `pull` and `input` say what to fetch:
   - `security.inventory-acquire` with `{"covering": "HOST"}`: scan the scope
     that holds that host (add a scope if none does) and acquire it.
-  - `statement` with `"state": "security.audit.log_source"`: state the
-    service's log sources from your note, creating its audit:
+  - `statement` with `"state": "security.audit.log_source"`: create the
+    service's audit with the log sources its `input.sources` names (the
+    service's `log_source` list), or add the ones it names to an existing
+    audit. A source the service lists and its audit leaves out keeps the
+    answer unknown:
 
     ~~~yaml
-    because: storefront's logs to read in full over the window (security/log-sources.md).
+    because: storefront's logs to read in full over the window (its log_source list).
     changes:
       - op: create
         label: audit
@@ -228,6 +253,7 @@ proposes, and ask again.
       - {op: set, subject: {created: audit}, field: incident, value: security.incident/langflow-rce}
       - {op: set, subject: {created: audit}, field: service, value: security.service/storefront}
       - {op: add, subject: {created: audit}, field: log_source, value: storefront/nginx-access}
+      - {op: add, subject: {created: audit}, field: log_source, value: storefront/php-fpm}
     ~~~
 
   - Any other pull: its input is the body that Procedure reads ([The evidence

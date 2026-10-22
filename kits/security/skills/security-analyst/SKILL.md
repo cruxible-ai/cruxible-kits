@@ -72,7 +72,11 @@ cruxible query --name security.kev_exposure          # internet-facing hosts run
 
 Read the flags and `status_role` with each row: a value flagged `stale` or
 `contested`, or a status that is an observation nobody has reviewed, is part
-of the answer. An SBOM release with no assessment for a CVE means OSV relates
+of the answer. In `urgent_exposures`, `asset` is a host that declares
+installing the release (declared and observed when `asset_observed` is set)
+and `observed` a host only a scan sees running it; a release with both kinds
+pairs each declaring host with each scan-only one, so count hosts per column,
+not rows. `triage` lists declaring hosts only. An SBOM release with no assessment for a CVE means OSV relates
 none of its components to it, not that someone judged it safe.
 
 ## 3. Work the triage backlog
@@ -180,14 +184,24 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
   `work.audit` and `revokes_key` (the `key_id` held when you raise it). Approval
   is the authorization to act. Set `progress` `completed` when done: it never
   closes anything.
+- **Accept a risk only with an expiry.** When an exposure can't be patched
+  yet, raise a `security.exception` (`work.asset`, `work.assessment` for each
+  of the incident's CVEs on that release, `expires_at`, `approval` `approved`
+  citing a section of the incident's note that says why). While it holds, RQ2
+  reads *excepted* instead of `patch_missing`; at `expires_at` the exposure is
+  posted again. RQ1 still finds it, so it never closes the incident.
 - **Prove with a read you did not make.** A full inventory scan verifies a
   patch, a separate state read of the credential verifies a rotation. Whoever
   acted does not acquire the Capture that verifies the action; `cruxible get
   ProcedureRun:RUN-...` shows each acquiring run's `actor`. A receipt from the
   issuer records the new key id; it never verifies.
-- **Audit in three states.** State the log sources first (stating them asks the
-  question). `none` needs `not_exploited`, a `window_end`, and complete reads of
-  every source covering the whole window. An incomplete read is a finding about
+- **Audit in three states.** State the audit's log sources first (stating them
+  asks the question), starting from the service's `log_source` list: the
+  respond Line's gap names it (`input.sources`), and a listed source the audit
+  leaves out keeps the answer unknown. A source the service doesn't list yet:
+  add it to the service too, with its doc section. `none` needs
+  `not_exploited`, a `window_end`, and complete reads of every source covering
+  the whole window. An incomplete read is a finding about
   the logs, not about the attacker: report it as such. The result cites the
   decisive read; your reasoning goes in a section of the incident's note.
   Disagree by contending.

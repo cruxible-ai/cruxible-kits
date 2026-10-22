@@ -1,8 +1,8 @@
 # PHP2Shell: where we stand
 
-The incident status page: one row per CVE, patch raised for an exposed asset and
-credential of the asset's service, rendered from `security.incident_status`
-(parameter `incident`). An empty
+The incident status page: one row per CVE, patch raised for an exposed asset (or
+exception accepting its risk, until it expires) and credential of the asset's
+service, rendered from `security.incident_status` (parameter `incident`). An empty
 cell is unknown (nothing recorded), never none; the respond Line
 (`security.respond.php2shell`) posts the derived answers. Catalog this page and stamp
 the block:
@@ -13,7 +13,8 @@ the block:
       --params '{"incident": "PHP2Shell"}' --render
 
 `cruxible next` lists `projection_backing_stale` when the state behind it moves;
-`cruxible block sync --all` re-renders it. Write notes outside the block: a
+`cruxible block sync --all` re-renders it (also after an exception's expiry,
+which moves no state). Write notes outside the block: a
 projection block is never evidence.
 
 ## Exposure, patch, audit and rotation
