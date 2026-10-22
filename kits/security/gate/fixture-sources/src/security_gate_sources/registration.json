@@ -31,20 +31,20 @@
         "entrypoint": "security_gate_sources._sources:classify_osv",
         "identity": "security.osv-query.input",
         "source": {
-          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
+          "digest": "sha256:661d0bfee9dffb07babc3cd0955400003831676f4968d42ccd19e4bed18e7f98",
           "path": "_sources.py"
         },
         "version": 1
       },
       "definition": {
-        "digest": "sha256:97ad7625eeb03a6cc04268ea9ff3530aefd4c7ec70aa8786e777e120c94dfff4",
+        "digest": "sha256:696c2602cfee60374ce6abb3f9ee3794b676b24d27cde733356f1dd99293732d",
         "path": "contracts/security.osv-query.json"
       },
       "fixtures": {
-        "digest": "sha256:01d54d99b38e9d2d928b2353b8d6a72113be7174e77a91227a9e0fc8e9165bd5",
+        "digest": "sha256:cf28ae32515d7f454e9d3953beeb51a94bf6f840297fbe890751c984d8846198",
         "path": "registration-fixtures/security.osv-query.json"
       },
-      "interface_digest": "sha256:92a7c29cdc19ede3a1c55edab561b2e9ef3de2e70ca287e30a6c30f39f49c2ae",
+      "interface_digest": "sha256:9f6744d0260ce513dfa7fe7c8eaceb3ec1b7e4b660c5b01be09b805eb819a978",
       "interface_id": "security.osv-query",
       "predecessors": [],
       "vocabulary": {
@@ -54,10 +54,36 @@
     },
     {
       "classifier": {
+        "entrypoint": "security_gate_sources._sources:classify_ecosystems",
+        "identity": "security.osv-ecosystems.input",
+        "source": {
+          "digest": "sha256:661d0bfee9dffb07babc3cd0955400003831676f4968d42ccd19e4bed18e7f98",
+          "path": "_sources.py"
+        },
+        "version": 1
+      },
+      "definition": {
+        "digest": "sha256:d572aadb6e252cf40b2061b89dcffba805907415d845b96cebfb4ae330ddd198",
+        "path": "contracts/security.osv-ecosystems.json"
+      },
+      "fixtures": {
+        "digest": "sha256:d84a3f65aba7c004ae0565777e670293b7706add6044865daaf72355d66b6e10",
+        "path": "registration-fixtures/security.osv-ecosystems.json"
+      },
+      "interface_digest": "sha256:8a7b148641d017c2bd1a6cc60e1c99a5a9e8e6cff351ae27ae27479639198e51",
+      "interface_id": "security.osv-ecosystems",
+      "predecessors": [],
+      "vocabulary": {
+        "digest": "sha256:f327a51f3ee4e7edf2384c73304d12fc5d13b799b4eb00d0116047b9419d91c9",
+        "path": "vocab/security.osv-ecosystems.json"
+      }
+    },
+    {
+      "classifier": {
         "entrypoint": "security_gate_sources._sources:classify_epss",
         "identity": "security.epss-daily.input",
         "source": {
-          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
+          "digest": "sha256:661d0bfee9dffb07babc3cd0955400003831676f4968d42ccd19e4bed18e7f98",
           "path": "_sources.py"
         },
         "version": 1
@@ -83,7 +109,7 @@
         "entrypoint": "security_gate_sources._sources:classify_repo",
         "identity": "security.repo-snapshot.input",
         "source": {
-          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
+          "digest": "sha256:661d0bfee9dffb07babc3cd0955400003831676f4968d42ccd19e4bed18e7f98",
           "path": "_sources.py"
         },
         "version": 1
@@ -109,7 +135,7 @@
         "entrypoint": "security_gate_sources._sources:classify_pypi",
         "identity": "security.pypi-release.input",
         "source": {
-          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
+          "digest": "sha256:661d0bfee9dffb07babc3cd0955400003831676f4968d42ccd19e4bed18e7f98",
           "path": "_sources.py"
         },
         "version": 1
@@ -135,7 +161,7 @@
         "entrypoint": "security_gate_sources._sources:classify_asset",
         "identity": "security.release-asset.input",
         "source": {
-          "digest": "sha256:c02598f96e60114825e8151e17608e0c4ae9555b285159f8924e480e73b995d2",
+          "digest": "sha256:661d0bfee9dffb07babc3cd0955400003831676f4968d42ccd19e4bed18e7f98",
           "path": "_sources.py"
         },
         "version": 1
@@ -158,7 +184,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:0be7c71e6cdf5f82f1de95ca4f88e91c45b7165bcdae742dfaeb1e5bf7522514",
+    "digest": "sha256:342a0c215d8c6743a09af7d99056910c5c7dabc4ba5f6f073f8851e19e8a8498",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

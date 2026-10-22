@@ -14,14 +14,51 @@
     "trim"
   ],
   "cardinality": "many",
-  "default_role": "observation",
-  "description": "The release's component that brings the vulnerability in (purl@version), as OSV's answer for that component states it: which dependency an affected release needs to change.",
+  "default_role": "normative",
+  "description": "The release's component that brings the vulnerability in (purl@version): which dependency an affected release needs to change. An observation is a source's word (OSV's answer for the component, or a CVE record whose packageName names it); a normative Claim is an analyst's, citing their own words or a workspace file (security.workspace-evidence-v1, via security.evidence-acquire).",
   "evidence_admission_policy": {
     "rules": [
       {
         "admission": "direct",
         "attestation_requirement": "none",
         "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.workspace-evidence-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "evidence_kinds": [
+          "self_asserted",
+          "workspace_file"
+        ],
+        "rule_id": "analyst-judgment",
+        "subject_binding": "exact_claim_subject",
+        "tag": "playbill-claim-evidence-admission-rule-v3"
+      },
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.cve-record-http-v1"
+            }
+          },
           {
             "role": "capture-contract",
             "target": {
@@ -36,7 +73,7 @@
         "evidence_kinds": [
           "http_response"
         ],
-        "rule_id": "retained-security-evidence",
+        "rule_id": "source-verdict",
         "subject_binding": "exact_claim_subject",
         "tag": "playbill-claim-evidence-admission-rule-v3"
       }
@@ -44,7 +81,7 @@
     "tag": "playbill-claim-evidence-admission-policy-v3"
   },
   "evidence_freshness": null,
-  "evidence_requirement": "captured",
+  "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
     "name": "security.assessment.component"
@@ -60,6 +97,7 @@
   "member_descriptions": [],
   "object_kind": "literal",
   "permitted_roles": [
+    "normative",
     "observation"
   ],
   "pins": [],

@@ -18,7 +18,7 @@
   ],
   "cardinality": "many",
   "default_role": "observation",
-  "description": "A product a full runtime-inventory scan looked for (php), or * for everything: absence of an affected run is an answer only for a product the scan looked for.",
+  "description": "A product a full runtime-inventory scan looked for, named as its releases are (php, debian/php8.2: a purl's namespace and name), or * for everything: absence of an affected run is an answer only for a product the scan looked for.",
   "evidence_admission_policy": {
     "rules": [
       {

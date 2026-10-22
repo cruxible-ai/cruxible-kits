@@ -13,7 +13,7 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The environment the asset runs in.",
+  "description": "The environment the asset runs in: production, staging, development, a workstation (a developer's or maintainer's machine) or ci (a CI runner).",
   "evidence_admission_policy": {
     "rules": [],
     "tag": "playbill-claim-evidence-admission-policy-v3"
@@ -30,8 +30,11 @@
   },
   "literal_schema": {
     "enum": [
+      "ci",
+      "development",
       "production",
-      "staging"
+      "staging",
+      "workstation"
     ],
     "type": "string"
   },

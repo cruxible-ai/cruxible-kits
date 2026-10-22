@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "Every watched vulnerability (a watch_reason, or an affected or inconclusive assessment of a release in inventory) with its current KEV and EPSS Claims. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Every watched vulnerability (a watch_reason, an affected or inconclusive assessment of a release in inventory, or an incident responding to it) with its current KEV and EPSS Claims, its record's title and the packages OSV says it affects. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "vulnerability",
     "subject_id": null,
@@ -34,7 +34,20 @@
     "kind": "QueryDefinition",
     "name": "security.watched_vulnerabilities"
   },
-  "includes": [],
+  "includes": [
+    {
+      "binding": "included_package",
+      "direction": "forward",
+      "from_binding": "vulnerability",
+      "many": true,
+      "max_items": 500,
+      "name": "package",
+      "orderings": [],
+      "predicate": "security.vulnerability.package",
+      "tag": "playbill-query-include-v1",
+      "where": null
+    }
+  ],
   "lifecycle": {
     "predecessor_digest": null,
     "state": "live"
@@ -58,7 +71,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:af3ce1531dba3d67329952c3ce2833d90318c3f19e5bedea85b5dbc200fab2aa",
+      "artifact_digest": "sha256:559f0bb604462c15c52ac23d21338ea4be8fa0fa1221aa27d36a29aa99f4a645",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -71,6 +84,22 @@
       "target": {
         "kind": "ClaimType",
         "name": "security.assessment.vulnerability"
+      }
+    },
+    {
+      "artifact_digest": "sha256:5f6eed77486406c3935556c70ca39f086122298729de18016d04e5b3c3566f6f",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.incident.name"
+      }
+    },
+    {
+      "artifact_digest": "sha256:6795b146e12c06f6310f00a916d856aa552e421ce607ae17bf43e475ebfbbcc9",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.incident.vulnerability"
       }
     },
     {
@@ -130,7 +159,23 @@
       }
     },
     {
-      "artifact_digest": "sha256:dc74690486e48f688416ee120a2a8e0107ee0d8f27f02a2274efbf7fe4f96e32",
+      "artifact_digest": "sha256:2644e1c15e42d69f30fc149e5827a875399b434b5f95ff246426329b088849d0",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.package"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d47c864002cc5237c7e50ba606976ccb864b2a172cd78ca58680f25fe6152dac",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.title"
+      }
+    },
+    {
+      "artifact_digest": "sha256:4967c5ee940a5e364ee397fa6357cbc3a01a0eb1e925919d59ab0610131682a9",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -211,6 +256,16 @@
         }
       },
       {
+        "name": "title",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.title",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
         "name": "vulnerability",
         "tag": "playbill-query-projection-field-v1",
         "value": {
@@ -248,10 +303,29 @@
         "security.assessment"
       ],
       "where": null
+    },
+    {
+      "binding": "incident",
+      "direction": "reverse",
+      "from_binding": "vulnerability",
+      "predicate": "security.incident.vulnerability",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.incident"
+      ],
+      "where": null
     }
   ],
   "where": {
     "filters": [
+      {
+        "binding": "incident",
+        "kind": "claim_presence",
+        "negated": false,
+        "predicate": "security.incident.name",
+        "tag": "playbill-query-claim-presence-filter-v1"
+      },
       {
         "binding": "vulnerability",
         "kind": "claim_presence",

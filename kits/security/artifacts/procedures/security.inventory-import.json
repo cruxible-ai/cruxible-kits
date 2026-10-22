@@ -28,7 +28,7 @@
         "name": "security-runtime-inventory-summary"
       }
     },
-    "description": "Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
+    "description": "Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
     "graph_format": 6,
     "hard_caps": {
       "max_capture_bytes": 1048576,
@@ -100,7 +100,7 @@
           "scope": "$input.scope"
         },
         "query": {
-          "artifact_digest": "sha256:f4f9ecaff527a0921c7e66d564987d94fe73353c1c62a9c8d1aebf29c31dd179",
+          "artifact_digest": "sha256:a1f319603b2c343a90927eb6d536bbfd100afe13f83e0ce5f870dae7a749341e",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -119,7 +119,7 @@
           "scope": "$input.scope"
         },
         "query": {
-          "artifact_digest": "sha256:d86a5ddcc5530069563f692d4d4de47a86314407d3b47e31d3c7a03bb3e791fb",
+          "artifact_digest": "sha256:2c3a2f9814945d66a4a3f89134dd70c04ce018d8365ffc78e02620821f30f8d0",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -147,7 +147,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:c20067e94f296593dbe718aaf24ae3cf2ba0b870e1ec7e8bfbe4c8e0f598e2ab",
+        "implementation_digest": "sha256:2639316ef0952a9bafc07f6e26f1558be27882e3420f199546ec781bde112848",
         "input": {
           "held": "$steps.held.result.rows",
           "inventory_text": "$steps.inventory.content.text",
@@ -171,11 +171,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:ae535a0d8dd2bb213e84e7ac4913feab95b6f676274f25649bbcce0d531ea9f3",
+          "artifact_digest": "sha256:0e240143a6dbf895de2a08fa41332f622201c641b7934e7882e77ab71f119322",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/ea80b0785fae2a7e13564fb93fcefd4d6d065d00bec92f9826d20b80c0171544"
+            "name": "security-analysis-provider/6dd785c316124acf25bd1cceec5ad855fdc3ad0fbca562526fb92f0e1472b24d"
           }
         }
       },
@@ -307,7 +307,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:c3ffbf112815b9f3eba798b9bf445cf7b2073285ab45768e057a8a7f12dc7cd8",
+  "definition_digest": "sha256:e9d1c044539f96d791ada7c2fe3fdb9893ea855ef2e2b3171421fa35f0fff1d9",
   "identity": {
     "kind": "Procedure",
     "name": "security.inventory-import"
@@ -801,7 +801,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:c7e44b83205475966079c6591e8ba7e7578189f64c076533b3a3f129ff439031",
+      "artifact_digest": "sha256:1b55927e8f8549bd91de9b6562869038a6f4b400e42f2d615bb343c7064d3780",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",
@@ -857,11 +857,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:ae535a0d8dd2bb213e84e7ac4913feab95b6f676274f25649bbcce0d531ea9f3",
+      "artifact_digest": "sha256:0e240143a6dbf895de2a08fa41332f622201c641b7934e7882e77ab71f119322",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/ea80b0785fae2a7e13564fb93fcefd4d6d065d00bec92f9826d20b80c0171544"
+        "name": "security-analysis-provider/6dd785c316124acf25bd1cceec5ad855fdc3ad0fbca562526fb92f0e1472b24d"
       }
     },
     {
@@ -881,7 +881,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:f4f9ecaff527a0921c7e66d564987d94fe73353c1c62a9c8d1aebf29c31dd179",
+      "artifact_digest": "sha256:a1f319603b2c343a90927eb6d536bbfd100afe13f83e0ce5f870dae7a749341e",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -889,7 +889,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:d86a5ddcc5530069563f692d4d4de47a86314407d3b47e31d3c7a03bb3e791fb",
+      "artifact_digest": "sha256:2c3a2f9814945d66a4a3f89134dd70c04ce018d8365ffc78e02620821f30f8d0",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

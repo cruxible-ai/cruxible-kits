@@ -10,6 +10,12 @@
         },
         "watched": {
           "type": "json"
+        },
+        "ecosystems": {
+          "type": "json"
+        },
+        "purl_types": {
+          "type": "json"
         }
       },
       "allow_extra": false
@@ -28,6 +34,15 @@
           "type": "string"
         },
         "exchanges": {
+          "type": "json"
+        },
+        "not_indexed": {
+          "type": "json"
+        },
+        "osv_ecosystems": {
+          "type": "json"
+        },
+        "purl_types": {
           "type": "json"
         }
       }

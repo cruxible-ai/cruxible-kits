@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "The incident status page: per CVE, every patch raised for an exposed asset, and every exception accepting the risk until it expires (excepted_until), with the asset, its service and inventory coverage, the patch's progress and verification, the service's audit result, and each credential the service uses with its rotation's verification. Empty is unknown; none needs the respond Line's answer. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "The incident status page: per CVE and exposure, each patch or unexpired exception (excepted_until) with its asset, service, coverage, progress and verification, the audit result, and each credential's rotation progress and verification (pending is its own state). No host: no action yet. Empty is unknown. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "incident",
     "subject_id": null,
@@ -66,7 +66,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:af3ce1531dba3d67329952c3ce2833d90318c3f19e5bedea85b5dbc200fab2aa",
+      "artifact_digest": "sha256:559f0bb604462c15c52ac23d21338ea4be8fa0fa1221aa27d36a29aa99f4a645",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -114,7 +114,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:91e35eaab2f6a893a2e0906aa0545d7aa7671b6b15b64a9213b2b4c423003b04",
+      "artifact_digest": "sha256:c7bb3251a66a1f7fc3cdd38b29ba9c6acdb3f34b1f818a6ad56898107def9c79",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -343,6 +343,16 @@
         }
       },
       {
+        "name": "rotation",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "rotation",
+          "kind": "claim_value",
+          "predicate": "security.remediation.progress",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
         "name": "rotation_verified",
         "tag": "playbill-query-projection-field-v1",
         "value": {
@@ -449,7 +459,7 @@
       "direction": "reverse",
       "from_binding": "assessment",
       "predicate": "security.work.assessment",
-      "required": true,
+      "required": false,
       "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.exception",
@@ -523,7 +533,7 @@
       "direction": "forward",
       "from_binding": "work",
       "predicate": "security.work.asset",
-      "required": true,
+      "required": false,
       "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.asset"

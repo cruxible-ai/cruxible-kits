@@ -1,6 +1,23 @@
 [
   {
     "canonical_input": {
+      "ecosystems": {
+        "input_bucket": "list=osv",
+        "retrieved": {
+          "body_base64": "UHlQSQo=",
+          "body_sha256": "sha256:ec12c4fb4f4349fb77d91ef06644d46c1feec5d62c5d748d6c66abae7efea6e0",
+          "byte_count": 5,
+          "content_type": "text/plain",
+          "source": "fixture",
+          "status_code": 200,
+          "url": "https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt"
+        }
+      },
+      "purl_types": {
+        "osv_ecosystems": {
+          "pypi": "PyPI"
+        }
+      },
       "releases": [
         {
           "bindings": [],

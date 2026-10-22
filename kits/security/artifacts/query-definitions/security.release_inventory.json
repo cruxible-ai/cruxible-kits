@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "Every release with its product, supplier and components. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Every release with its product, supplier, components, OSV coverage and product aliases. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "release",
     "subject_id": null,
@@ -66,6 +66,14 @@
       }
     },
     {
+      "artifact_digest": "sha256:5119454899512509977ddbd371bb644e6c9fd53b330b51f408e43f3f22043214",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.release.osv_coverage"
+      }
+    },
+    {
       "artifact_digest": "sha256:be90dfcb4fc01f54a01f86f95ac00141c3cd769c5c833a4d9a68a9189ac60e11",
       "role": "claim-type",
       "target": {
@@ -74,7 +82,15 @@
       }
     },
     {
-      "artifact_digest": "sha256:59db3d9aefaaabe5c1d2f72cdcaaf9f302cb07ab7aacb7ee86223bb5441c1050",
+      "artifact_digest": "sha256:674242200de03d048d6d26312d2242161a976fe160e3308d99af36a6cf005d32",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.release.product_alias"
+      }
+    },
+    {
+      "artifact_digest": "sha256:aa855c4dd68ec712f33d3c25157a1fed051b2296396886a2a886b4e6ca36a6b8",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -111,6 +127,16 @@
         }
       },
       {
+        "name": "osv_coverage",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "kind": "claim_value",
+          "predicate": "security.release.osv_coverage",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
         "name": "product",
         "tag": "playbill-query-projection-field-v1",
         "value": {
@@ -118,6 +144,16 @@
           "field": "subject_id",
           "kind": "subject_field",
           "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "product_alias",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "kind": "claim_value",
+          "predicate": "security.release.product_alias",
+          "tag": "playbill-query-claim-value-ref-v1"
         }
       },
       {

@@ -5,7 +5,7 @@
     "annotations": {},
     "budget": {
       "max_capture_bytes": 67108864,
-      "max_provider_calls": 2,
+      "max_provider_calls": 3,
       "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
         "microseconds": 300000000,
@@ -21,19 +21,19 @@
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:2801d0b88c09035bccc8b969e0a0ff5e762ad2f962587416deec6f43cd1705dc",
+      "artifact_digest": "sha256:b5cfc73bfeefd0f103f690538a3598ad3d2f678d46cebd43621cd8d0535d9dc7",
       "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-osv-applicability-summary"
       }
     },
-    "description": "Ask OSV.dev about every SBOM component (purl@version) of every release and every watched CVE, retain the answer under security.osv-query-v1, and propose an assessment per (release, CVE) whose answer changed: affected (watching the CVE when it is new), not_affected with its VEX justification, or inconclusive. Propose-only; never settles. Runs as a Line (daily, or `line run` after an SBOM import is accepted).",
+    "description": "Retain OSV's ecosystem list (ecosystems.txt, under security.osv-ecosystems-v1), then ask OSV.dev about every SBOM component (purl@version) of every release whose ecosystem OSV indexes (by the kit's purl type map, carried in this Procedure; the rest are recorded not_indexed, never asked) and every watched CVE, retain the answer under security.osv-query-v1, and propose what changed: each release's OSV coverage (complete, or partial with the purl types not indexed), the packages OSV says each watched CVE affects, and an assessment per (release, CVE): affected (watching the CVE when it is new), not_affected with its VEX justification, or inconclusive. Propose-only; never settles. Runs as a Line (daily, or `line run` after an SBOM or inventory import is accepted).",
     "graph_format": 6,
     "hard_caps": {
       "max_capture_bytes": 67108864,
       "max_items": 5000,
-      "max_provider_calls": 2,
+      "max_provider_calls": 3,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
         "microseconds": 600000000,
@@ -52,7 +52,7 @@
         "node_id": "releases",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:9561bb7400de0748d27b8d74c87f40bce9176aeab448ed91df4180ab7fa52869",
+          "artifact_digest": "sha256:e6cfefc026d4855a82b172a5dd822c77addd545b989e7350810753f3c0126100",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -69,7 +69,7 @@
         "node_id": "watched",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:26cb0ddaf2c734b4a07174512398c9c799c4b7a9c25d2856e3c7fde60a60e12d",
+          "artifact_digest": "sha256:9d4b5b21fee1b1f7f19479a3073b2d2bcf2102318f8a26fadb2169f949d38546",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -82,11 +82,11 @@
         "as": "assessments",
         "budgets": null,
         "kind": "state_tap",
-        "next": "osv",
+        "next": "ecosystems",
         "node_id": "assessments",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:d7f2d926f59df399ca396c320fe2cecd2881f5765be80afb2380c06d7d36f7d6",
+          "artifact_digest": "sha256:11b28346912005a664f1f1808ae8bac446a75318804bafcce55a3aa1a6744a91",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -94,6 +94,35 @@
           }
         },
         "view": "typed_query"
+      },
+      {
+        "as": "ecosystems",
+        "capture_contract": {
+          "artifact_digest": "sha256:f18fb452db5eb443f6b33e67493bdd518e1e6a6cb5ceaf7743a279ef6e69b7c9",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.osv-ecosystems-v1"
+          }
+        },
+        "implementation_digest": null,
+        "interface": {
+          "artifact_digest": "sha256:7a4fb47a2846e0700df89f551ce26c0341b7be1aca54d0450b26ed93c29a83b9",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-ecosystems/001aa9db5fdcf4eef340f5c30f0f8d0ce34e5d22d71ed085df636fd99d69c225"
+          }
+        },
+        "interface_digest": "sha256:8a7b148641d017c2bd1a6cc60e1c99a5a9e8e6cff351ae27ae27479639198e51",
+        "kind": "source",
+        "next": "osv",
+        "node_id": "ecosystems",
+        "provider": {
+          "slot_name": "ecosystems",
+          "tag": "playbill-procedure-pin-slot-ref-v1"
+        },
+        "request": {}
       },
       {
         "as": "osv",
@@ -107,14 +136,14 @@
         },
         "implementation_digest": null,
         "interface": {
-          "artifact_digest": "sha256:251acceec4f0960e8dd6fac9488ba145fc5e963717ec6accf919616d832a46ce",
+          "artifact_digest": "sha256:9ffc16a88be4dd90abb24c36db64de9e1be4d48ec4be595a299869831cd9e8ae",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.osv-query/942851e225e944306cf5f223754a26f4fd6c84acbc26cc34ef118382ef3e9312"
+            "name": "security.osv-query/a12c0cc7a0f97a102296c6a22beaae67c96fab29f811ee3425ff55b0867b0a7c"
           }
         },
-        "interface_digest": "sha256:92a7c29cdc19ede3a1c55edab561b2e9ef3de2e70ca287e30a6c30f39f49c2ae",
+        "interface_digest": "sha256:9f6744d0260ce513dfa7fe7c8eaceb3ec1b7e4b660c5b01be09b805eb819a978",
         "kind": "source",
         "next": "decide",
         "node_id": "osv",
@@ -123,6 +152,44 @@
           "tag": "playbill-procedure-pin-slot-ref-v1"
         },
         "request": {
+          "ecosystems": "$steps.ecosystems",
+          "purl_types": {
+            "osv_ecosystems": {
+              "apk/alpine": "Alpine",
+              "apk/chainguard": "Chainguard",
+              "apk/wolfi": "Wolfi",
+              "bitnami": "Bitnami",
+              "cargo": "crates.io",
+              "composer": "Packagist",
+              "conan": "ConanCenter",
+              "cran": "CRAN",
+              "deb/debian": "Debian",
+              "deb/ubuntu": "Ubuntu",
+              "gem": "RubyGems",
+              "githubactions": "GitHub Actions",
+              "golang": "Go",
+              "hackage": "Hackage",
+              "hex": "Hex",
+              "maven": "Maven",
+              "npm": "npm",
+              "nuget": "NuGet",
+              "pub": "Pub",
+              "pypi": "PyPI",
+              "rpm/almalinux": "AlmaLinux",
+              "rpm/mageia": "Mageia",
+              "rpm/openeuler": "openEuler",
+              "rpm/opensuse": "openSUSE",
+              "rpm/redhat": "Red Hat",
+              "rpm/rocky-linux": "Rocky Linux",
+              "rpm/suse": "SUSE",
+              "swift": "SwiftURL"
+            },
+            "sources": [
+              "https://github.com/package-url/purl-spec/blob/main/PURL-TYPES.rst (purl types and their namespaces)",
+              "https://ossf.github.io/osv-schema/#defined-ecosystems (OSV ecosystem names and the purl type each uses)",
+              "https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt (what OSV indexes now: captured on every run)"
+            ]
+          },
           "releases": "$steps.releases.result.rows",
           "watched": "$steps.watched.result.rows"
         }
@@ -138,7 +205,7 @@
           }
         },
         "contract_out": {
-          "artifact_digest": "sha256:34d1f070c5e1188f10b434cb009b53593d8e4ddf424f75d911e5e25fe9e5e173",
+          "artifact_digest": "sha256:826559eb9a74e11db60fe0ed0f3cea710e369b8063b70cac01379bea2c5efe5b",
           "role": "contract-out",
           "target": {
             "kind": "Contract",
@@ -146,7 +213,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:416be406c90305ff527e8e69f83ead34175266f601717aaf8e1baa02385a608a",
+        "implementation_digest": "sha256:d54cec9be738245f8c2cc7de722ea09f4545fcb171dfc95abd027937cf3fe165",
         "input": {
           "assessments": "$steps.assessments.result.rows",
           "osv": "$steps.osv",
@@ -154,30 +221,30 @@
           "watched": "$steps.watched.result.rows"
         },
         "interface": {
-          "artifact_digest": "sha256:317dadefe00e69348b4994f0fac60a22192ea20dc13685a6fc25779699718e80",
+          "artifact_digest": "sha256:25b7f1739ace317f22ebeddaed4f65b9c38c32cec19555b13b11d7f0a3fdac93",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.osv-applicability/cd02d7da5e83f085dd2b337c570b2bc0fda31c708d0021e5e9af3ac897b5fa75"
+            "name": "security.osv-applicability/9cc4e08853fe1bd207495a440e32457ca5c693888e9eb8687fd2f5869fd5caee"
           }
         },
-        "interface_digest": "sha256:56110db3c06067e17b79c517a0c178a3f742ee0519ab4290530efe12a06c5620",
+        "interface_digest": "sha256:608761fe1c8c04726f66f74e6e124e18dc75ba5ac2728b284a3be41d2bf16242",
         "kind": "call",
         "next": "summary",
         "node_id": "decide",
         "provider": {
-          "artifact_digest": "sha256:ae535a0d8dd2bb213e84e7ac4913feab95b6f676274f25649bbcce0d531ea9f3",
+          "artifact_digest": "sha256:0e240143a6dbf895de2a08fa41332f622201c641b7934e7882e77ab71f119322",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/ea80b0785fae2a7e13564fb93fcefd4d6d065d00bec92f9826d20b80c0171544"
+            "name": "security-analysis-provider/6dd785c316124acf25bd1cceec5ad855fdc3ad0fbca562526fb92f0e1472b24d"
           }
         }
       },
       {
         "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:2801d0b88c09035bccc8b969e0a0ff5e762ad2f962587416deec6f43cd1705dc",
+          "artifact_digest": "sha256:b5cfc73bfeefd0f103f690538a3598ad3d2f678d46cebd43621cd8d0535d9dc7",
           "role": "contract-out",
           "target": {
             "kind": "Contract",
@@ -187,9 +254,11 @@
         "fields": {
           "affected": "$steps.decide.affected",
           "changed": "$steps.decide.changed",
+          "coverage": "$steps.decide.coverage",
           "inconclusive": "$steps.decide.inconclusive",
           "judged": "$steps.decide.judged",
           "not_affected": "$steps.decide.not_affected",
+          "packages": "$steps.decide.packages",
           "unchanged": "$steps.decide.unchanged",
           "unkeyed": "$steps.decide.unkeyed"
         },
@@ -251,7 +320,14 @@
     "pin_slots": [
       {
         "artifact_kind": "Provider",
-        "interface_digest": "sha256:92a7c29cdc19ede3a1c55edab561b2e9ef3de2e70ca287e30a6c30f39f49c2ae",
+        "interface_digest": "sha256:8a7b148641d017c2bd1a6cc60e1c99a5a9e8e6cff351ae27ae27479639198e51",
+        "pin_role": "provider",
+        "slot_name": "ecosystems",
+        "tag": "playbill-procedure-pin-slot-v1"
+      },
+      {
+        "artifact_kind": "Provider",
+        "interface_digest": "sha256:9f6744d0260ce513dfa7fe7c8eaceb3ec1b7e4b660c5b01be09b805eb819a978",
         "pin_role": "provider",
         "slot_name": "osv",
         "tag": "playbill-procedure-pin-slot-v1"
@@ -261,7 +337,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:199d3dfb55f0efdf90ae191aeb15e6aadf822b6badc7706a46f20093493d3fec",
+  "definition_digest": "sha256:15b0db2c5f986eb4818b05211ee0942b5fa1c0d2a78aa22789e0b0270942ba98",
   "identity": {
     "kind": "Blueprint",
     "name": "security.osv-applicability"
@@ -371,6 +447,17 @@
             "primary_key": false,
             "type": "integer"
           },
+          "coverage": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
           "inconclusive": {
             "default": null,
             "description": null,
@@ -405,6 +492,17 @@
             "type": "integer"
           },
           "not_affected": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "packages": {
             "default": null,
             "description": null,
             "enum": null,
@@ -472,6 +570,17 @@
             "primary_key": false,
             "type": "integer"
           },
+          "coverage": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
           "inconclusive": {
             "default": null,
             "description": null,
@@ -495,6 +604,17 @@
             "type": "integer"
           },
           "not_affected": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "packages": {
             "default": null,
             "description": null,
             "enum": null,
@@ -534,6 +654,14 @@
   ],
   "pins": [
     {
+      "artifact_digest": "sha256:f18fb452db5eb443f6b33e67493bdd518e1e6a6cb5ceaf7743a279ef6e69b7c9",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.osv-ecosystems-v1"
+      }
+    },
+    {
       "artifact_digest": "sha256:675cf750e2f9a8ca72e79685016692827846cbe0e8c2b5a4ece41a17eb483ef8",
       "role": "capture-contract",
       "target": {
@@ -558,7 +686,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:34d1f070c5e1188f10b434cb009b53593d8e4ddf424f75d911e5e25fe9e5e173",
+      "artifact_digest": "sha256:826559eb9a74e11db60fe0ed0f3cea710e369b8063b70cac01379bea2c5efe5b",
       "role": "contract-out",
       "target": {
         "kind": "Contract",
@@ -566,7 +694,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:2801d0b88c09035bccc8b969e0a0ff5e762ad2f962587416deec6f43cd1705dc",
+      "artifact_digest": "sha256:b5cfc73bfeefd0f103f690538a3598ad3d2f678d46cebd43621cd8d0535d9dc7",
       "role": "contract-out",
       "target": {
         "kind": "Contract",
@@ -574,31 +702,39 @@
       }
     },
     {
-      "artifact_digest": "sha256:ae535a0d8dd2bb213e84e7ac4913feab95b6f676274f25649bbcce0d531ea9f3",
+      "artifact_digest": "sha256:0e240143a6dbf895de2a08fa41332f622201c641b7934e7882e77ab71f119322",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/ea80b0785fae2a7e13564fb93fcefd4d6d065d00bec92f9826d20b80c0171544"
+        "name": "security-analysis-provider/6dd785c316124acf25bd1cceec5ad855fdc3ad0fbca562526fb92f0e1472b24d"
       }
     },
     {
-      "artifact_digest": "sha256:317dadefe00e69348b4994f0fac60a22192ea20dc13685a6fc25779699718e80",
+      "artifact_digest": "sha256:25b7f1739ace317f22ebeddaed4f65b9c38c32cec19555b13b11d7f0a3fdac93",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "security.osv-applicability/cd02d7da5e83f085dd2b337c570b2bc0fda31c708d0021e5e9af3ac897b5fa75"
+        "name": "security.osv-applicability/9cc4e08853fe1bd207495a440e32457ca5c693888e9eb8687fd2f5869fd5caee"
       }
     },
     {
-      "artifact_digest": "sha256:251acceec4f0960e8dd6fac9488ba145fc5e963717ec6accf919616d832a46ce",
+      "artifact_digest": "sha256:7a4fb47a2846e0700df89f551ce26c0341b7be1aca54d0450b26ed93c29a83b9",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "security.osv-query/942851e225e944306cf5f223754a26f4fd6c84acbc26cc34ef118382ef3e9312"
+        "name": "security.osv-ecosystems/001aa9db5fdcf4eef340f5c30f0f8d0ce34e5d22d71ed085df636fd99d69c225"
       }
     },
     {
-      "artifact_digest": "sha256:d7f2d926f59df399ca396c320fe2cecd2881f5765be80afb2380c06d7d36f7d6",
+      "artifact_digest": "sha256:9ffc16a88be4dd90abb24c36db64de9e1be4d48ec4be595a299869831cd9e8ae",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.osv-query/a12c0cc7a0f97a102296c6a22beaae67c96fab29f811ee3425ff55b0867b0a7c"
+      }
+    },
+    {
+      "artifact_digest": "sha256:11b28346912005a664f1f1808ae8bac446a75318804bafcce55a3aa1a6744a91",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -606,7 +742,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:9561bb7400de0748d27b8d74c87f40bce9176aeab448ed91df4180ab7fa52869",
+      "artifact_digest": "sha256:e6cfefc026d4855a82b172a5dd822c77addd545b989e7350810753f3c0126100",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -614,7 +750,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:26cb0ddaf2c734b4a07174512398c9c799c4b7a9c25d2856e3c7fde60a60e12d",
+      "artifact_digest": "sha256:9d4b5b21fee1b1f7f19479a3073b2d2bcf2102318f8a26fadb2169f949d38546",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

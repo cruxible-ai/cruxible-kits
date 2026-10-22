@@ -9,12 +9,12 @@ Kit `security` version **1.3.0**, defining every name under `security.`.
 | Definitions | Count | Notes |
 |---|---|---|
 | Subject kinds | 23 | [What it models](#what-it-models) |
-| ClaimTypes | 132 | 10 shared by several kinds |
-| Capture contracts | 17 | [Where evidence comes from](#where-evidence-comes-from) |
+| ClaimTypes | 135 | 10 shared by several kinds |
+| Capture contracts | 18 | [Where evidence comes from](#where-evidence-comes-from) |
 | Procedures | 21 | - |
 | Blueprints | 9 | you bind each one's Provider slots |
-| Queries | 45 | [What you can ask](#what-you-can-ask) |
-| Provider interfaces | 20 | - |
+| Queries | 47 | [What you can ask](#what-you-can-ask) |
+| Provider interfaces | 21 | - |
 | Acquisition policies | 1 | `security.acquisition` |
 | Example Lines | 19 | with 21 Triggers and 11 Mandates in `examples/automation.json`: [What runs on its own](#what-runs-on-its-own) |
 
@@ -24,7 +24,7 @@ Providers `kit add` installs:
 |---|---|---|---|
 | `cruxible-provider-web` | 0.2.2 | by name from the index | `search.web`, `web.fetch` |
 | `security-analysis-provider` | 1.3.0 | bundled wheel | `security.credential-state`, `security.cve-applicability`, `security.cyclonedx-components`, `security.epss-scores`, `security.harden`, `security.kev-attention`, `security.kev-catalog`, `security.log-reads`, `security.osv-applicability`, `security.registry-facts`, `security.respond`, `security.runtime-inventory`, `security.sarif-findings`, `security.workflow-facts` |
-| `security-sources-provider` | 1.2.0 | bundled wheel | `security.epss-daily`, `security.osv-query`, `security.pypi-release`, `security.release-asset`, `security.repo-snapshot` |
+| `security-sources-provider` | 1.2.0 | bundled wheel | `security.epss-daily`, `security.osv-ecosystems`, `security.osv-query`, `security.pypi-release`, `security.release-asset`, `security.repo-snapshot` |
 
 ### How evidence reaches each kind
 
@@ -97,7 +97,7 @@ flowchart LR
   c_security_credential_state_v1 == "4" ==> k_security_credential
   c_security_credential_state_v1 == "1" ==> k_security_exception
   c_security_credential_state_v1 == "1" ==> k_security_remediation
-  c_security_cve_record_http_v1 -. "4" .-> k_security_assessment
+  c_security_cve_record_http_v1 -. "5" .-> k_security_assessment
   c_security_cve_record_http_v1 -. "1" .-> k_security_finding
   c_security_cve_record_http_v1 == "2" ==> k_security_vulnerability
   c_security_cyclonedx_sbom_v1 -. "1" .-> k_security_product
@@ -117,8 +117,10 @@ flowchart LR
   c_security_observation_output_v1 == "1" ==> k_security_remediation
   c_security_observation_output_v1 -. "1" .-> k_security_signal
   c_security_observation_output_v1 == "4" ==> k_security_vulnerability
-  c_security_osv_query_v1 == "5, 1 captured" ==> k_security_assessment
+  c_security_osv_query_v1 -. "5" .-> k_security_assessment
   c_security_osv_query_v1 -. "1" .-> k_security_finding
+  c_security_osv_query_v1 == "1" ==> k_security_release
+  c_security_osv_query_v1 == "1" ==> k_security_vulnerability
   c_security_pypi_release_v1 == "6, 5 captured" ==> k_security_artifact
   c_security_pypi_release_v1 == "2" ==> k_security_coverage
   c_security_pypi_release_v1 -. "2" .-> k_security_signal
@@ -139,9 +141,10 @@ flowchart LR
   c_security_runtime_inventory_v1 == "1" ==> k_security_release
   c_security_runtime_inventory_v1 == "1" ==> k_security_remediation
   c_security_sarif_v1 == "6, 3 captured" ==> k_security_finding
-  c_security_workspace_evidence_v1 -. "2" .-> k_security_assessment
+  c_security_workspace_evidence_v1 -. "3" .-> k_security_assessment
   c_security_workspace_evidence_v1 == "1" ==> k_security_audit
   c_security_workspace_evidence_v1 == "3, 1 captured" ==> k_security_finding
+  c_security_workspace_evidence_v1 == "1" ==> k_security_release
   c_security_workspace_evidence_v1 -. "1" .-> k_security_signal
 ```
 
@@ -253,13 +256,13 @@ Key: `release_id` + `cve_id` (uniqueness `unique`).
 
 | Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
 |---|---|---|---|---|---|---|---|---|
-| `component` | The release's component that brings the vulnerability in (purl@version), as OSV's answer for that component states it: which dependency an affected release needs to change. | text `^pkg:[a-z0-9.+-]+/.+@.+$` | many | observation | `security.osv-query-v1` | yes | - | all held |
+| `component` | The release's component that brings the vulnerability in (purl@version): which dependency an affected release needs to change. An observation is a source's word (OSV's answer for the component, or a CVE record whose packageName names it); a normative Claim is an analyst's, citing their own words or a workspace file (security.workspace-evidence-v1, via security.evidence-acquire). | text `^pkg:[a-z0-9.+-]+/.+@.+$` | many | normative (or observation) | own word, `security.cve-record-http-v1`, `security.osv-query-v1`, `security.workspace-evidence-v1` | no (per rule) | - | all held |
 | `cve_id` | The CVE this assessment is about; with release_id, the assessment's key. | text `^CVE-[0-9]{4}-[0-9]{4,}$` | one | normative | - | no | - | unresolved |
 | `expected_status` | An agent's stated bet on the assessment's status before a source observes it; predictions test it against security.assessment.status. | `affected` / `not_affected` | one | normative | - | no | - | unresolved |
-| `justification` | Why a not_affected release is not affected (the VEX/CSAF justification): an observation from a source, or (normative) an analyst's judgment. Required in practice with every not_affected status; core cannot require it. | one of 5 (below) | one | normative (or observation) | own word, `security.cve-record-http-v1`, `security.observation-output-v1`, `security.osv-query-v1`, `security.workspace-evidence-v1` | no (per rule) | - | unresolved |
+| `justification` | Why a not_affected release is not affected (the VEX/CSAF justification): an observation from a source, or (normative) an analyst's judgment citing their own words or a workspace file (security.workspace-evidence-v1). Required in practice with every not_affected status; core cannot require it. | one of 5 (below) | one | normative (or observation) | own word, `security.cve-record-http-v1`, `security.observation-output-v1`, `security.osv-query-v1`, `security.workspace-evidence-v1` | no (per rule) | - | unresolved |
 | `release` | The release this applicability assessment is about. | Subject: `security.release` | one | normative | own word, `security.cve-record-http-v1`, `security.osv-query-v1` | no (per rule) | - | unresolved |
 | `release_id` | The id of the release this assessment is about; with cve_id, the assessment's key. | text | one | normative | - | no | - | unresolved |
-| `status` | Whether the release is affected by the vulnerability. An observation is a source's verdict (OSV, a CVE record) citing its Capture; a normative Claim is an analyst's judgment citing their own words or a workspace file, with their reasoning in its because. The kit's Procedures never revise a normative status; retire it to hand the assessment back to them. | `affected` / `inconclusive` / `not_affected` | one | normative (or observation) | own word, `security.cve-record-http-v1`, `security.observation-output-v1`, `security.osv-query-v1`, `security.workspace-evidence-v1` | no (per rule) | - | unresolved |
+| `status` | Whether the release is affected by the vulnerability. An observation is a source's verdict (OSV, a CVE record) citing its Capture; a normative Claim is an analyst's judgment citing their own words or a workspace file (security.workspace-evidence-v1, retained by security.evidence-acquire: a source's Capture is not citable for a judgment), with their reasoning in its because. The kit's Procedures never revise a normative status; retire it to hand the assessment back to them. | `affected` / `inconclusive` / `not_affected` | one | normative (or observation) | own word, `security.cve-record-http-v1`, `security.observation-output-v1`, `security.osv-query-v1`, `security.workspace-evidence-v1` | no (per rule) | - | unresolved |
 | `vulnerability` | The vulnerability this applicability assessment is about. | Subject: `security.vulnerability` | one | normative | own word, `security.cve-record-http-v1`, `security.osv-query-v1` | no (per rule) | - | unresolved |
 
 `justification` is one of:
@@ -278,7 +281,7 @@ Key: `hostname` (uniqueness `unique`).
 
 | Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
 |---|---|---|---|---|---|---|---|---|
-| `environment` | The environment the asset runs in. | `production` / `staging` | one | normative | - | no | - | unresolved |
+| `environment` | The environment the asset runs in: production, staging, development, a workstation (a developer's or maintainer's machine) or ci (a CI runner). | `ci` / `development` / `production` / `staging` / `workstation` | one | normative | - | no | - | unresolved |
 | `hostname` | The asset's hostname (a host, or a workload such as k8s:prod/storefront-a); its key. | text | one | normative | - | no | - | unresolved |
 | `installs` | A software release installed on the asset. | Subject: `security.release` | many | normative | - | no | - | all held |
 | `internet_exposed` | Whether the asset is reachable from the internet. | true / false | one | normative | - | no | - | unresolved |
@@ -298,7 +301,7 @@ Key: `incident_ref` + `service_ref` (uniqueness `unique`).
 | `incident_ref` | The incident's name; with service_ref, the audit's key. | text | one | normative | - | no | - | unresolved |
 | `log_source` | A log source this incident's audit reads in full over the window (storefront/nginx-access). Stating it is what asks the question. Start from the service's service.log_source list (the respond Line names it): a source the service lists and the audit does not state leaves the answer unknown. | text | many | normative | - | no | - | all held |
 | `read` | One complete read of a log source, as SOURCE FROM/TO (ISO 8601, Z): the tool searched every record in the interval. Only the log import writes these; an incomplete read is posted, never recorded. | text | many | observation | `security.log-read-v1` | yes | - | all held |
-| `result` | The auditor's judgment: exploited, not_exploited or inconclusive, citing the decisive log read (or a workspace file); own words are refused. Reasoning goes in a section of the incident's note. A disagreeing auditor contends (set --contend): while the slot reads conflict the answer is unknown. Never settled by a Mandate. | one of 3 (below) | one | normative | `security.log-read-v1`, `security.workspace-evidence-v1` | yes | - | unresolved |
+| `result` | The auditor's judgment: exploited, not_exploited or inconclusive, citing the decisive log read (security.log-read-v1) or a workspace file (security.workspace-evidence-v1); own words are refused. Reasoning goes in a section of the incident's note. A disagreeing auditor contends (set --contend): while the slot reads conflict the answer is unknown. Never settled by a Mandate. | one of 3 (below) | one | normative | `security.log-read-v1`, `security.workspace-evidence-v1` | yes | - | unresolved |
 | `service` | The service the audit answers for (the key's service_ref as a Subject). | Subject: `security.service` | one | normative | own word, `security.log-read-v1` | no (per rule) | - | unresolved |
 | `service_ref` | The service's name; with incident_ref, the audit's key. | text | one | normative | - | no | - | unresolved |
 | `window_end` | When the service's last affected asset was verified patched (the verifying scan's time): the audit's window is [incident.window_start, window_end]. | date-time | one | normative | - | no | - | unresolved |
@@ -341,7 +344,7 @@ Key: `source` + `scope` (uniqueness `unique`).
 
 | Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
 |---|---|---|---|---|---|---|---|---|
-| `looked_for` | A product a full runtime-inventory scan looked for (php), or * for everything: absence of an affected run is an answer only for a product the scan looked for. | text | many | observation | `security.runtime-inventory-v1` | yes | - | all held |
+| `looked_for` | A product a full runtime-inventory scan looked for, named as its releases are (php, debian/php8.2: a purl's namespace and name), or * for everything: absence of an affected run is an answer only for a product the scan looked for. | text | many | observation | `security.runtime-inventory-v1` | yes | - | all held |
 | `of` | What the source belongs to: a repository, or a registry target. | Subject: `security.repo`, `security.target` | one | observation | `security.pypi-release-v1`, `security.repo-snapshot-v1` | yes | - | unresolved |
 | `revision` | The revision every file was read at: a commit SHA, the digest of a registry's served file set, or the digest of a full runtime-inventory scan's (asset, runs) set; re-read on every pull and stale 12 h after the last. Absence inside current coverage is an answer; outside it, unknown. | text | one | observation | `security.pypi-release-v1`, `security.repo-snapshot-v1`, `security.runtime-inventory-v1` | yes | stale after 12 h | unresolved |
 | `scope` | What was read in full: ci.workflows, release.manifest, registry.files, or inventory.runtime (every asset of one inventory scope, with what it runs). | `ci.workflows` / `inventory.runtime` / `registry.files` / `release.manifest` | one | normative | - | no | - | unresolved |
@@ -472,8 +475,10 @@ Key: `product_name` + `version` (uniqueness `unique`).
 | Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
 |---|---|---|---|---|---|---|---|---|
 | `component` | A component of the release, as its package URL with version (purl@version), observed in an SBOM; for a runtime a scan observed running, the runtime's own purl (OSV decides distro builds by it). | text `^pkg:[a-z0-9.+-]+/.+@.+$` | many | observation | `security.cyclonedx-sbom-v1`, `security.runtime-inventory-v1` | yes | - | all held |
+| `osv_coverage` | Whether OSV answered for every component of the release, as the OSV query Capture shows: complete (N of N components answered), or partial with how many it answered, the purl types it does not index (brew, generic: never asked, since OSV's empty answer there would read as no advisories) and how many went unanswered. What OSV indexes is its own word (its ecosystems.txt, captured beside every query) read through the kit's purl type map. An empty OSV answer is a negative only under complete coverage. | text `^(complete\|partial): [0-9]+ of [0-9]+ components answered(; not indexed: [a-z0-9.+-]+ [0-9]+(, [a-z0-9.+-]+ [0-9]+)*)?(; unanswered [0-9]+)?$` | one | observation | `security.osv-query-v1` | yes | - | unresolved |
 | `product` | The product this release is a version of. | Subject: `security.product` | one | normative | own word, `security.cyclonedx-sbom-v1` | no (per rule) | - | unresolved |
-| `product_name` | The product's name; with version, the release's key. | text | one | normative | - | no | - | unresolved |
+| `product_alias` | Another name the release's product goes by in vulnerability records, as an analyst states it citing evidence (a workspace file retained by security.evidence-acquire: the formula, the project page): vendor/product as a CVE record's affected entry names it (cli/cli for a Homebrew gh release), a package URL without version (pkg:golang/github.com/cli/cli/v2), a repository URL (https://github.com/cli/cli) or a CPE prefix (cpe:2.3:a:github:cli). security.cve-applicability matches a record by it as by the release's own name; re-acquire the record after stating it. | text `^(pkg:[a-z0-9.+-]+/[^@?#\s]+\|cpe:2\.3:[aho]:[^:\s]+:[^:\s]+\|https?://\S+\|[^/\s][^/]*/[^/]*[^/\s])$` | many | normative | `security.workspace-evidence-v1` | yes | - | all held |
+| `product_name` | The product's name; with version, the release's key. A release a runtime scan observed is named by its purl's whole namespace and name (debian/php8.2, github.com/cli/cli/v2), never a last segment. | text | one | normative | - | no | - | unresolved |
 | `version` | The release's version string; with product_name, the release's key. | text | one | normative | - | no | - | unresolved |
 
 ### security.remediation
@@ -563,7 +568,7 @@ Key: `name` (uniqueness `hint`).
 
 ### security.vulnerability
 
-A CVE, named by its id. Tracked when it has a watch_reason or an affected/inconclusive assessment; existing alone tracks nothing.
+A CVE, named by its id. Tracked when it has a watch_reason, an affected/inconclusive assessment or an incident responding to it; existing alone tracks nothing.
 
 Key: `cve_id` (uniqueness `unique`).
 
@@ -576,9 +581,10 @@ Key: `cve_id` (uniqueness `unique`).
 | `kev_due_date` | The KEV remediation due date for federal agencies (dueDate). | text `^\d{4}-(0[1-9]\|1[0-2])-(0[1-9]\|[12]\d\|3[01])$` | one | observation | `security.kev-http-v1`, `security.observation-output-v1` | yes | - | unresolved |
 | `kev_listed` | Whether the CISA Known Exploited Vulnerabilities catalog lists the vulnerability. | true / false | one | observation | `security.kev-http-v1`, `security.observation-output-v1` | yes | - | unresolved |
 | `kev_ransomware_use` | Whether KEV reports known ransomware campaign use (knownRansomwareCampaignUse). | `known` / `unknown` | one | observation | `security.kev-http-v1`, `security.observation-output-v1` | yes | - | unresolved |
+| `package` | A package OSV's records say the vulnerability affects, as a package URL without version (pkg:deb/debian/php8.2, pkg:pypi/jinja2): OSV knows the CVE. A release whose components OSV answered in full and that holds none of these packages is not affected (an incident's RQ1 reads it none, citing both); with none stated, OSV's silence decides nothing. | text `^pkg:[a-z0-9.+-]+/[^@?#\s]+$` | many | observation | `security.osv-query-v1` | yes | - | all held |
 | `title` | The vulnerability's title as a retained source states it. | text | one | observation | `security.cve-record-http-v1`, `security.kev-http-v1` | yes | - | unresolved |
 | `vendor_product` | The affected vendor and product as a retained source states it. | text | one | observation | `security.cve-record-http-v1`, `security.kev-http-v1` | yes | - | unresolved |
-| `watch_reason` | The decision to track the vulnerability, and why. A vulnerability is tracked when it has one, or when an affected or inconclusive assessment links it to a release in inventory; a bare vulnerability Subject is tracked by nothing. | text | one | normative | - | no | - | unresolved |
+| `watch_reason` | The decision to track the vulnerability, and why. A vulnerability is tracked when it has one, when an affected or inconclusive assessment links it to a release in inventory, or when an incident responds to it; a bare vulnerability Subject is tracked by nothing. | text | one | normative | - | no | - | unresolved |
 
 ### security.workflow
 
@@ -618,7 +624,7 @@ One row per Capture contract. **Produced by**: the Procedures and Blueprints tha
 | Contract | Captures | Grade | Produced by | Landings start | Supports |
 |---|---|---|---|---|---|
 | `security.credential-state-v1` | security.credential-state (credential_state) | observed | Procedure `security.credential-acquire` (core's built-in `workspace.file`; direct run) | `security.credential-import` | 5 ClaimTypes; 5 require a Capture |
-| `security.cve-record-http-v1` | cve.record (http_response) | observed | Blueprint `security.cve-record-acquire` (slot `web.fetch`; direct run) | `security.cve-applicability` | 7 ClaimTypes; 2 require a Capture |
+| `security.cve-record-http-v1` | cve.record (http_response) | observed | Blueprint `security.cve-record-acquire` (slot `web.fetch`; direct run) | `security.cve-applicability` | 8 ClaimTypes; 2 require a Capture |
 | `security.cyclonedx-sbom-v1` | cyclonedx.sbom (sbom_document) | observed | Procedure `security.sbom-acquire` (core's built-in `workspace.file`; direct run) | `security.sbom-import` | 3 ClaimTypes; 1 requires a Capture |
 | `security.epss-daily-v1` | first.epss.daily (http_response) | observed | Blueprint `security.epss-acquire` (slot `security.epss-daily`; Line `security.epss-daily`) | `security.epss-triage` | 2 ClaimTypes; 2 require a Capture |
 | `security.github-api-v1` | github.api (http_response) | observed | Blueprint `security.history-acquire` (slot `web.fetch`; direct run) | - | 5 ClaimTypes; 1 requires a Capture |
@@ -626,14 +632,15 @@ One row per Capture contract. **Produced by**: the Procedures and Blueprints tha
 | `security.kev-http-v1` | cisa.kev.catalog (http_response) | observed | Blueprint `security.kev-acquire` (slot `web.fetch`; Line `security.kev-daily`) | `security.kev-attention`, `security.kev-triage` | 6 ClaimTypes; 6 require a Capture |
 | `security.log-read-v1` | security.log-read (log_query) | observed | Procedure `security.log-acquire` (core's built-in `workspace.file`; direct run); Procedure `security.log-import` (core's built-in `workspace.file`; direct run) | - | 4 ClaimTypes; 2 require a Capture |
 | `security.observation-output-v1` | security.observation (http_response) | observed | Blueprint `security.epss-acquire` (its run's output; Line `security.epss-daily`); Blueprint `security.kev-acquire` (its run's output; Line `security.kev-daily`) | - | 8 ClaimTypes; 5 require a Capture |
-| `security.osv-query-v1` | osv.dev.query (http_response) | observed | Blueprint `security.osv-applicability` (slot `security.osv-query`; Line `security.osv-applicability`) | - | 6 ClaimTypes; 1 requires a Capture |
+| `security.osv-ecosystems-v1` | osv.dev.ecosystems (http_response) | observed | Blueprint `security.osv-applicability` (slot `security.osv-ecosystems`; Line `security.osv-applicability`) | - | - |
+| `security.osv-query-v1` | osv.dev.query (http_response) | observed | Blueprint `security.osv-applicability` (slot `security.osv-query`; Line `security.osv-applicability`) | - | 8 ClaimTypes; 2 require a Capture |
 | `security.pypi-release-v1` | pypi.release (http_response) | observed | Blueprint `security.registry-acquire` (slot `security.pypi-release`; Line `security.registry-pull.cruxible`, `security.registry-pull.cruxible-client`) | `security.harden`, `security.registry-parse.cruxible`, `security.registry-parse.cruxible-client` | 11 ClaimTypes; 7 require a Capture |
 | `security.release-asset-v1` | github.release.asset (http_response) | observed | Blueprint `security.asset-fetch` (slot `security.release-asset`; direct run) | - | 3 ClaimTypes; 1 requires a Capture |
 | `security.repo-snapshot-v1` | github.repo.snapshot (http_response) | observed | Blueprint `security.repo-acquire` (slot `security.repo-snapshot`; Line `security.repo-pull.cruxible-ci`) | `security.harden`, `security.repo-parse.cruxible-ci` | 17 ClaimTypes; 14 require a Capture |
 | `security.reproduction-v1` | security.reproduction (test_report) | observed | Procedure `security.reproduction-acquire` (core's built-in `workspace.file`; direct run) | - | 3 ClaimTypes; 2 require a Capture |
 | `security.runtime-inventory-v1` | security.inventory (inventory_scan) | observed | Procedure `security.inventory-acquire` (core's built-in `workspace.file`; direct run) | `security.inventory-import.prod` | 6 ClaimTypes; 6 require a Capture |
 | `security.sarif-v1` | sarif.log (sarif_log) | observed | Procedure `security.sarif-acquire` (core's built-in `workspace.file`; direct run) | `security.sarif-attention.cruxible`, `security.sarif-import.cruxible` | 6 ClaimTypes; 3 require a Capture |
-| `security.workspace-evidence-v1` | security.analysis.evidence (workspace_file) | observed | Procedure `security.evidence-acquire` (core's built-in `workspace.file`; direct run) | - | 7 ClaimTypes; 2 require a Capture |
+| `security.workspace-evidence-v1` | security.analysis.evidence (workspace_file) | observed | Procedure `security.evidence-acquire` (core's built-in `workspace.file`; direct run) | - | 9 ClaimTypes; 3 require a Capture |
 
 ## What runs on its own
 
@@ -668,7 +675,7 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.asset-fetch` | Blueprint | retains a Capture | Read the bytes one GitHub release asset serves (input.url: its download URL, https://github.com/OWNER/REPO/releases/download/TAG/NAME) and retain them under security.release-asset-v1; the summary's body_digest is the served digest (security.artifact.sha256). | direct |
 | `security.credential-acquire` | Procedure | retains a Capture | Read one credential's key state from the attached workspace (input.relative_path): {issuer, name, read: receipt\|state_read, keys: [{key_id, state: active\|inactive\|revoked\|deleted, created_at, revoked_at, last_used_at, created_by}]} and nothing else: key ids or fp: fingerprints, never a secret. | direct |
 | `security.credential-import` | Procedure | proposes a ChangeSet, posts inbox items | Read the credential-state Capture that triggered the Line (security.credential-state-v1) and propose what changed: the credential's current key_id, issued_at and issued_by from a receipt or a state read; revoked_key and a rotation's verification only from a state read (verified: the rotation's revokes_key is revoked or deleted and an active key issued after the incident's window_start; failed: claimed completed while revokes_key is still there). | `security.credential-import` |
-| `security.cve-applicability` | Procedure | proposes a ChangeSet | Read the CVE record Capture that triggered the Line (security.cve-record-http-v1) and propose an assessment for every release whose product (and supplier) the record's affected entries name: affected / not_affected by the record's version ranges, inconclusive when the match or the ranges are ambiguous. | `security.cve-applicability` |
+| `security.cve-applicability` | Procedure | proposes a ChangeSet | Read the CVE record Capture that triggered the Line (security.cve-record-http-v1) and propose an assessment for every release an affected entry names by data: its collectionURL + packageName (the kit's collectionURL map, carried here) as a component's full namespace and name, its repo as the release's source repository, its CPEs, packageName or vendor/product as a product alias an analyst stated (security.release.product_alias), or its product as the release's product name (with the supplier): affected / not_affected by the record's version ranges, inconclusive when the ranges or the vendor are ambiguous; no partial match. | `security.cve-applicability` |
 | `security.cve-record-acquire` | Blueprint | retains a Capture | Fetch one CVE record (pass the full https://cveawg.mitre.org/api/cve/<CVE> URL as input.url) and retain it under security.cve-record-http-v1; security.cve-applicability reads it when it lands. | direct |
 | `security.epss-acquire` | Blueprint | retains a Capture | Fetch FIRST's current EPSS daily scores file (gzip CSV) and retain it under security.epss-daily-v1. | `security.epss-daily` |
 | `security.epss-triage` | Procedure | settles a ChangeSet | Read the EPSS daily file Capture that triggered the Line (security.epss-daily-v1) and the watched vulnerabilities, and settle epss_score and epss_percentile for each watched CVE whose scores changed, exactly as the file states them (or propose them under a propose cap). | `security.epss-triage` |
@@ -676,13 +683,13 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.harden` | Procedure | posts inbox items | Ask the six hardening questions (HQ1-HQ6) about every gated target (a target with a security.target.publish_gate) and answer each in three states: found (posted as a finding), none (a current coverage answers it; run summary only) or unknown (posted as one gap item per source, naming the pull: {source, pull, input}). | `security.harden` |
 | `security.history-acquire` | Blueprint | retains a Capture | Fetch one GitHub API answer about history (input.url: commits?path=...&sha=..., or actions/workflows/W/runs?branch=...) and retain it under security.github-api-v1: which commit changed a path, which runs ran. | direct |
 | `security.inventory-acquire` | Procedure | retains a Capture | Read one runtime-inventory scan from the attached workspace (input.relative_path, at most 1 MiB) and retain it under security.runtime-inventory-v1; the scope's security.inventory-import Line reads it when it lands. | direct |
-| `security.inventory-import` | Procedure | proposes a ChangeSet | Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). | `security.inventory-import.prod` |
+| `security.inventory-import` | Procedure | proposes a ChangeSet | Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). | `security.inventory-import.prod` |
 | `security.kev-acquire` | Blueprint | retains a Capture | Fetch the CISA KEV catalog (static JSON, no rendering) and retain it under security.kev-http-v1. | `security.kev-daily` |
 | `security.kev-attention` | Procedure | posts inbox items | Read the KEV catalog Capture that triggered the Line and post one inbox item per CVE added in the catalog's last 7 days whose vendor/product matches a release in inventory that nobody watches the CVE for or nobody has assessed: possibly exposed, nobody has looked. | `security.kev-attention` |
 | `security.kev-triage` | Procedure | settles a ChangeSet | Read the KEV catalog Capture that triggered the Line (security.kev-http-v1) and the watched vulnerabilities, and settle one observation Claim per KEV field that changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use) under a settle mandate, or propose it under a propose cap. | `security.kev-triage` |
 | `security.log-acquire` | Procedure | retains a Capture | Read one log read from the attached workspace (input.relative_path, at most 1 MiB): {audit: {incident, service}, source, query, from, to, complete, records_scanned, matches: [{at, summary}]}, written by the agent from its own log tool's answer, match summaries redacted. | direct |
 | `security.log-import` | Procedure | retains a Capture, proposes a ChangeSet, posts inbox items | Read the log-read Capture that triggered the Line (security.log-read-v1) for the Line's incident (parameter incident, its name) and propose the audit by key (incident, service) with its twins and one security.audit.read (SOURCE FROM/TO) for a complete read. | direct |
-| `security.osv-applicability` | Blueprint | retains a Capture, proposes a ChangeSet | Ask OSV.dev about every SBOM component (purl@version) of every release and every watched CVE, retain the answer under security.osv-query-v1, and propose an assessment per (release, CVE) whose answer changed: affected (watching the CVE when it is new), not_affected with its VEX justification, or inconclusive. | `security.osv-applicability` |
+| `security.osv-applicability` | Blueprint | retains a Capture, proposes a ChangeSet | Retain OSV's ecosystem list (ecosystems.txt, under security.osv-ecosystems-v1), then ask OSV.dev about every SBOM component (purl@version) of every release whose ecosystem OSV indexes (by the kit's purl type map, carried in this Procedure; the rest are recorded not_indexed, never asked) and every watched CVE, retain the answer under security.osv-query-v1, and propose what changed: each release's OSV coverage (complete, or partial with the purl types not indexed), the packages OSV says each watched CVE affects, and an assessment per (release, CVE): affected (watching the CVE when it is new), not_affected with its VEX justification, or inconclusive. | `security.osv-applicability` |
 | `security.registry-acquire` | Blueprint | retains a Capture | Read what PyPI serves for one project (input: project, versions = the newest N, default 3): each file's digest and provenance, retained under security.pypi-release-v1. | `security.registry-pull.cruxible`, `security.registry-pull.cruxible-client` |
 | `security.registry-parse` | Procedure | proposes a ChangeSet | Read the PyPI release Capture that triggered the Line (security.pypi-release-v1) for the Line's project (parameters: source pypi/PROJECT, project, versions) and propose what changed: each served file as an artifact with its digest, release, and (from provenance) the workflow at the commit that published it, its environment and the commit; the target's source repository; the coverage restated. | `security.registry-parse.cruxible`, `security.registry-parse.cruxible-client` |
 | `security.release-acquire` | Blueprint | retains a Capture | Fetch one GitHub release (input.url: https://api.github.com/repos/OWNER/REPO/releases/tags/TAG) and retain it under security.github-release-v1: its assets, their digests, uploader and update times. | direct |
@@ -717,9 +724,9 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.finding_settle_condition` | One finding by id with its key: the condition a settle grant on the SARIF import's report observations (rule, reported_by, severity) evaluates per changed Claim. Never grant the verdict, justification, verification or affects. | `finding_id` (string) |
 | `security.incident_credentials` | RQ4 for one incident: every credential an audited service uses, with its current key (non-secret id, issued_at: before window_start = not rotated since exposure) and its rotations' progress and verification. | `incident` (string) |
 | `security.incident_exceptions` | RQ2's accepted risks for one incident: every approved exception (work.asset + work.assessment) of an asset for one of its CVEs that has not expired at the query's evaluation time, with its expiry, owner and rationale: the respond Line's exception tap. | `incident` (string) |
-| `security.incident_exposure` | RQ1 for one incident (parameter incident, its name): every release assessed affected or inconclusive by one of its CVEs, every asset a scan observed running it with its inventory coverage and services, and every asset that only declares installing it. | `incident` (string) |
+| `security.incident_exposure` | RQ1 for one incident (parameter incident, its name): each of its CVEs with its record's title and the packages OSV says it affects, every release assessed for one of them (any status), every asset a scan observed running it with its inventory coverage and services, and every asset that only declares installing it. | `incident` (string) |
 | `security.incident_patches` | RQ2 for one incident: every patch of an asset for one of its CVEs (work.asset + work.assessment), with progress, verification, due date, target release, the asset's coverage and services: the respond Line's tap. | `incident` (string) |
-| `security.incident_status` | The incident status page: per CVE, every patch raised for an exposed asset, and every exception accepting the risk until it expires (excepted_until), with the asset, its service and inventory coverage, the patch's progress and verification, the service's audit result, and each credential the service uses with its rotation's verification. Empty is unknown; none needs the respond Line's answer. | `incident` (string) |
+| `security.incident_status` | The incident status page: per CVE and exposure, each patch or unexpired exception (excepted_until) with its asset, service, coverage, progress and verification, the audit result, and each credential's rotation progress and verification (pending is its own state). No host: no action yet. Empty is unknown. | `incident` (string) |
 | `security.incomplete_work` | Remediation actions missing accountable information. | - |
 | `security.inventory_context` | Assets with their releases, products, suppliers, services and owning teams. | - |
 | `security.inventory_index` | One inventory scope's coverage (source = the scope's name, stale or current) with every asset scanned in it and every release each runs, with the Claims behind them: the runtime-inventory import's tap. | `scope` (string) |
@@ -734,10 +741,12 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.publish_paths` | HQ1: every job that can publish to a gated target, with its workflow's triggers, beside the coverage of the target's repository. | - |
 | `security.published_findings` | HQ6: every confirmed finding not verified fixed that affects a release a gated target serves a file of, with the target, the artifact and the release. | - |
 | `security.registry_facts` | One target (by registry and name) with every artifact it serves and what each was published by and built from: the parse Procedures' tap. | `name` (string), `registry` (string) |
-| `security.release_inventory` | Every release with its product, supplier and components. | - |
+| `security.release_inventory` | Every release with its product, supplier, components, OSV coverage and product aliases. | - |
+| `security.release_sources` | Every release a registry target serves (an artifact of it), with the repository that target is published from: the CVE record matcher compares an affected entry's repo with it. | - |
 | `security.remediation_work` | Remediation actions and verification. | - |
 | `security.repo_targets` | One repository (by forge host and owner/repository) and the targets published from it: the repo parse's tap. | `forge_host` (string), `full_name` (string) |
 | `security.rotation_work` | Every credential with its current key state and every rotation of it, with the window its incident opened: the credential import's tap. | - |
+| `security.scanned_runs` | Every asset an inventory scope's scan read and every release it runs, with the release's components and OSV coverage: the respond Line answers each incident CVE x each of these releases (none only when OSV answered every component and none is a package OSV says the CVE affects). | - |
 | `security.served_vs_declared` | HQ5: every artifact a gated target serves, its served and declared digests, and the workflow and jobs that published it at the commit it was built from. | - |
 | `security.settle_condition` | One vulnerability by id with its CVE key; the condition the KEV and EPSS triage settle mandates evaluate per changed Claim (triage only changes watched ones). | `vulnerability_id` (string) |
 | `security.shared_dependencies` | HQ4: every publishing job of a gated target, with the actions and secrets it runs on. | - |
@@ -746,4 +755,4 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.triage` | Applicability, exposure, KEV and EPSS facts for one vulnerability, per host that declares installing a release (asset_observed is set when a scan also observed it running there; hosts only a scan sees are in security.urgent_exposures and an incident's RQ1). | `vulnerability` (subject reference) |
 | `security.unverified_fixes` | Findings with a fix commit (fixed_by) that no full scan or passing PoC has verified fixed yet. | - |
 | `security.urgent_exposures` | Every release assessed affected, KEV-listed first, then by EPSS score, with the hosts that declare installing it (asset; asset_observed is set when a scan also observed it running there: declared and observed) and the hosts a scan observed running it that declare nothing about it (observed: observed only). A release with both kinds pairs each declaring host with each observed-only one. | - |
-| `security.watched_vulnerabilities` | Every watched vulnerability (a watch_reason, or an affected or inconclusive assessment of a release in inventory) with its current KEV and EPSS Claims. | - |
+| `security.watched_vulnerabilities` | Every watched vulnerability (a watch_reason, an affected or inconclusive assessment of a release in inventory, or an incident responding to it) with its current KEV and EPSS Claims, its record's title and the packages OSV says it affects. | - |

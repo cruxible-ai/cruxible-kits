@@ -54,7 +54,7 @@
             "name": "security.repo-snapshot-v1"
           }
         },
-        "implementation_digest": "sha256:83dae38b905862340cb148a62d0f1dafa27fe153e73b8335ad43aafde5e5f1ca",
+        "implementation_digest": "sha256:cad67652385fbe4b114652076ff6ab155e29ccdc322ff49e8db2d922d590ac5c",
         "interface": {
           "artifact_digest": "sha256:d36742e86ee6c452416b8f7b51f168df199e578f4adb565a02d9091c89dac8a4",
           "role": "provider-interface",
@@ -68,11 +68,11 @@
         "next": "mine",
         "node_id": "snapshot",
         "provider": {
-          "artifact_digest": "sha256:2df1e135faba9a90c3da1589abec9d48d4d98c84623128f0fe8fa4ded664ac1a",
+          "artifact_digest": "sha256:21c3f660f86d896c9b88d9b15db4289c68de1aefec95e8977cb700af711eec81",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-sources-provider/26e54e2af956d13c2a08b6c366011dd578feb10a80d8ba3124529ed65a31e7de"
+            "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
           }
         },
         "request": {
@@ -216,7 +216,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:4b9149f4cb316183718bf62127326f6a739d002a61e13f45302bf431835281b8",
+        "implementation_digest": "sha256:84f65a766182688ac39f1624755d9834e67dee6d7dabba4fc00366910d9cf313",
         "input": {
           "coverage": "$steps.coverage.result.rows",
           "held": "$steps.held.result.rows",
@@ -237,11 +237,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:6397b10327bc588090bc910ae56f4ec6aa010ffad1b06a9b426288e94ebffec6",
+          "artifact_digest": "sha256:bdd36ab7d97ba0c7abd345ce7261437936157d2c76c0fc4f7d1680ce43432ebb",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/fb43c55050c12040b02ed24ca5c498ee2f50c90b2bce5a269918f0c4f61d8fbd"
+            "name": "security-analysis-provider/c446cec007c7ec4d853d028431ed90b5fd946635f8aa8df3dc09dcddb3097ea9"
           }
         }
       },
@@ -293,7 +293,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:61735c34aa4c31d13d98139a6e12ea20314d73a49f2f4630b366da6d909b144e",
+  "definition_digest": "sha256:de1b4a714bcaa3281d2771379afba0c0c373ae6790c3db280877e5d46205cddf",
   "identity": {
     "kind": "Procedure",
     "name": "security.repo-parse"
@@ -743,7 +743,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:c7e44b83205475966079c6591e8ba7e7578189f64c076533b3a3f129ff439031",
+      "artifact_digest": "sha256:1b55927e8f8549bd91de9b6562869038a6f4b400e42f2d615bb343c7064d3780",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",
@@ -791,19 +791,19 @@
       }
     },
     {
-      "artifact_digest": "sha256:6397b10327bc588090bc910ae56f4ec6aa010ffad1b06a9b426288e94ebffec6",
+      "artifact_digest": "sha256:bdd36ab7d97ba0c7abd345ce7261437936157d2c76c0fc4f7d1680ce43432ebb",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/fb43c55050c12040b02ed24ca5c498ee2f50c90b2bce5a269918f0c4f61d8fbd"
+        "name": "security-analysis-provider/c446cec007c7ec4d853d028431ed90b5fd946635f8aa8df3dc09dcddb3097ea9"
       }
     },
     {
-      "artifact_digest": "sha256:2df1e135faba9a90c3da1589abec9d48d4d98c84623128f0fe8fa4ded664ac1a",
+      "artifact_digest": "sha256:21c3f660f86d896c9b88d9b15db4289c68de1aefec95e8977cb700af711eec81",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-sources-provider/26e54e2af956d13c2a08b6c366011dd578feb10a80d8ba3124529ed65a31e7de"
+        "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
       }
     },
     {

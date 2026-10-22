@@ -18,7 +18,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The product's name; with version, the release's key.",
+  "description": "The product's name; with version, the release's key. A release a runtime scan observed is named by its purl's whole namespace and name (debian/php8.2, github.com/cli/cli/v2), never a last segment.",
   "evidence_admission_policy": {
     "rules": [],
     "tag": "playbill-claim-evidence-admission-policy-v3"
