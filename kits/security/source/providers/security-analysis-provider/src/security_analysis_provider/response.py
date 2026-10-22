@@ -75,7 +75,10 @@ states, from the rows of ``security.incident_exposure``,
   ``not_exploited`` is none only with ``window_end`` stated and, for every stated
   log source, complete reads whose union covers [window_start, window_end];
   anything else (no audit, no log source, window open, no result, inconclusive, a
-  contended result, an uncovered interval, named per source) is unknown.
+  contended result, an uncovered interval, named per source) is unknown. An audit
+  starts from the service's standing list (``service.log_source``): the gap that
+  asks for a missing audit names it (``sources``), and a source the service lists
+  that its audit does not state is unknown until the audit states it.
 - RQ4 which credentials warrant rotation: under ``on_found_or_unknown`` the
   credentials of a service whose RQ3 is found or unknown, under ``all_exposed``
   every credential an exposed service uses. ``rotate`` is posted with the
@@ -628,8 +631,9 @@ def log_reads(text: str, held_rows: list[Row], line_incident: str) -> dict[str, 
                 "posted": 1}
     if held is None:
         item = {"kind": "audit_not_stated", **posting,
-                "why": "no audit of this service is stated for the incident: state its log "
-                       "sources (security.audit.log_source), then acquire the read again"}
+                "why": "no audit of this service is stated for the incident: state it with "
+                       "its log sources (security.audit.log_source, from the service's "
+                       "service.log_source), then acquire the read again"}
         return {**summary, "items": [], "inbox": [item], "mine": 1, "recordable": 0,
                 "posted": 1}
     if label in held.reads:
@@ -969,6 +973,15 @@ class Credential:
     rotations: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
+def _service_sources(found: dict[str, set[str]], row: Row) -> None:
+    """The service's standing log sources (``service.log_source``) a tap row carries."""
+
+    service = row.subject("service")
+    if service is not None:
+        found.setdefault(service.path, set()).update(
+            str(v).strip() for v in _list(row.value("service_log_source")) if str(v).strip())
+
+
 def _merge(asset: Asset, row: Row, prefix: str, binding: str) -> None:
     if row.value(f"{prefix}coverage_revision") is not None:
         asset.current = True
@@ -1054,6 +1067,10 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
     running: dict[str, Asset] = {}
     runs: set[tuple[str, str]] = set()  # (asset path, release path)
     declared: dict[str, tuple[Asset, set[str]]] = {}
+    service_sources: dict[str, set[str]] = {}
+    for name in ("exposure", "patches", "audits"):
+        for row in rows[name]:
+            _service_sources(service_sources, row)
     for row in rows["exposure"]:
         release, assessment = row.subject("release"), row.subject("assessment")
         if release is None or assessment is None:
@@ -1220,11 +1237,15 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
     for path, name in sorted(services.items(), key=lambda item: item[1]):
         audit = by_service.get(path)
         statement = {"audit": {"incident": params.incident, "service": name}}
+        listed = sorted(service_sources.get(path, ()))
         if audit is None:
+            # The audit starts from the service's standing list: the gap names it.
             out.unknown("RQ3", name, "no audit stated", "statement",
-                        {"state": "security.audit.log_source", **statement})
+                        {"state": "security.audit.log_source", **statement,
+                         **({"sources": listed} if listed else {})})
             rq3[path] = "unknown"
             continue
+        unstated = sorted(set(listed) - audit.sources)
         state, result = audit.result
         if state == "conflict":
             out.unknown("RQ3", name, "contended result", "statement",
@@ -1232,9 +1253,14 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
         elif result == "exploited":
             out.answer("RQ3", name, "found", "the auditor found exploitation", {
                 "kind": "exploited", "service": name, "audit": _ref(audit.bound)})
-        elif not audit.sources:
+        elif not audit.sources and not unstated:
             out.unknown("RQ3", name, "no log source stated", "statement",
                         {"state": "security.audit.log_source", **statement})
+        elif unstated:
+            out.unknown("RQ3", name, f"the service lists {', '.join(unstated)}; the audit does "
+                        "not state it", "statement",
+                        {"state": "security.audit.log_source", **statement,
+                         "sources": unstated})
         elif audit.window_end is None:
             out.unknown("RQ3", name, "the window is open (no window_end)", "statement",
                         {"state": "security.audit.window_end", **statement})

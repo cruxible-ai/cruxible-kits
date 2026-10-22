@@ -251,6 +251,12 @@ CLAIM_TYPES: list[ClaimRow] = [
      "How critical the service is to the organization."),
     ("security.service.owned_by", ("security.service",), "subject", ("security.team",), "one",
      "normative", (), (), "The team accountable for the service."),
+    ("security.service.log_source", ("security.service",), "literal", TEXT, "many", "normative",
+     (), ("trim",), "Where one of the service's logs lives, as a short identifier "
+     "(caddy:app-1:/var/log/caddy/access.log): a pointer, nothing else. Retention, how to query "
+     "it, who owns it and any reasoning go in a doc section the Claim cites, never in the "
+     "value. An incident's audit of the service starts from this list (the respond Line names "
+     "it); audit.log_source is the set that incident audits."),
     # Applicability.
     ("security.assessment.release", ("security.assessment",), "subject", ("security.release",),
      "one", "sourced", (CVE_CONTRACT, OSV_CONTRACT), (),
@@ -573,8 +579,9 @@ ROTATION_POLICIES = {
 AUDIT_RESULTS = {
     "exploited": "The window's logs show exploitation: cite the decisive read.",
     "inconclusive": "The logs cannot decide it (a gap, a missing source, ambiguous matches).",
-    "not_exploited": "Every stated log source was read in full over the window and shows no "
-    "exploitation; counts as none only when the reads cover [window_start, window_end].",
+    "not_exploited": "Every stated log source (the audit's, which include the service's) was "
+    "read in full over the window and shows no exploitation; counts as none only when the "
+    "reads cover [window_start, window_end].",
 }
 INCIDENT_KIND = ("security.incident",)
 AUDIT_KIND = ("security.audit",)
@@ -622,8 +629,10 @@ RESPONSE: list[ClaimRow] = [
      (LOG_CONTRACT,), (), "The service the audit answers for (the key's service_ref as a "
      "Subject)."),
     ("security.audit.log_source", AUDIT_KIND, "literal", TEXT, "many", "normative", (),
-     ("trim",), "A log source that must be read in full over the window "
-     "(storefront/nginx-access). Stating it is what asks the question."),
+     ("trim",), "A log source this incident's audit reads in full over the window "
+     "(storefront/nginx-access). Stating it is what asks the question. Start from the "
+     "service's service.log_source list (the respond Line names it): a source the service "
+     "lists and the audit does not state leaves the answer unknown."),
     ("security.audit.read", AUDIT_KIND, "literal", TEXT, "many", "observation",
      (LOG_CONTRACT,), ("trim",), "One complete read of a log source, as SOURCE FROM/TO (ISO "
      "8601, Z): the tool searched every record in the interval. Only the log import writes "
@@ -721,7 +730,8 @@ SUBJECT_KIND_DESCRIPTIONS = {
     "security.product": "A software product, named by its name.",
     "security.supplier": "A product's supplier, named by its name.",
     "security.team": "An accountable team, named by its name.",
-    "security.service": "A business service, named by its name.",
+    "security.service": "A business service, named by its name: its owning team, its "
+    "criticality and where its logs live.",
     "security.remediation": "A remediation work item (minted id).",
     "security.exception": "A risk exception (minted id).",
     "security.control": "A compensating control (minted id).",
@@ -1630,7 +1640,8 @@ def _patch_query(name: str, description: str, where: Any) -> QueryDefinitionSpec
         _field("target_version", "target", "security.release.version"),
         _field("hostname", "asset", "security.asset.hostname"),
         _field("internet_exposed", "asset", "security.asset.internet_exposed"),
-        _field("service_name", "service", "security.service.name")]
+        _field("service_name", "service", "security.service.name"),
+        _field("service_log_source", "service", "security.service.log_source")]
     return _query(name, description, "incident", "incident", hops, fields,
                   _all(ON_INCIDENT, where) if where is not None else ON_INCIDENT,
                   parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000,
@@ -1702,6 +1713,7 @@ def response_queries() -> list[QueryDefinitionSpec]:
             _field("hostname", "asset", "security.asset.hostname"),
             _field("internet_exposed", "asset", "security.asset.internet_exposed"),
             _field("service_name", "service", "security.service.name"),
+            _field("service_log_source", "service", "security.service.log_source"),
             _field("declared_hostname", "declared", "security.asset.hostname"),
             _field("components", "release", "security.release.component")],
         ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000))
@@ -1721,14 +1733,16 @@ def response_queries() -> list[QueryDefinitionSpec]:
     # RQ3: every audit of the incident, with its window, sources, reads and result.
     q.append(_query(
         "security.audit_status", "RQ3 for one incident: every audit (one per service) with "
-        "its log sources, complete reads, window end and result (conflict while disputed); the "
-        "respond Line unions the reads per source against the window", "incident", "incident",
+        "its log sources and the service's (service_log_source), complete reads, window end "
+        "and result (conflict while disputed); the respond Line unions the reads per source "
+        "against the window", "incident", "incident",
         [_hop("audit", "incident", AUD + "incident", "audit", reverse=True, required=True),
          _hop("service", "audit", AUD + "service", "service")],
         _incident_fields() + [
             _field("audit", "audit"), _field("service", "service"),
             _field("service_ref", "audit", AUD + "service_ref"),
             _field("service_name", "service", "security.service.name"),
+            _field("service_log_source", "service", "security.service.log_source"),
             _field("log_source", "audit", AUD + "log_source"),
             _field("read", "audit", AUD + "read"),
             _field("window_end", "audit", AUD + "window_end"),

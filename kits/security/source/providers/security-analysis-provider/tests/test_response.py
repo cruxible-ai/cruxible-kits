@@ -590,6 +590,40 @@ def test_rq3_three_states_and_rq4_rotations() -> None:
     assert len(_posted(contended, "rotate")) == 1
 
 
+def test_an_audit_starts_from_the_services_log_sources() -> None:
+    listed = ["storefront/nginx-access", "storefront/php-fpm"]
+    exposure = _exposure(PHP, ("php", "8.3.10"), asset="k8s:prod/storefront-a",
+                         service="storefront")
+    exposure["fields"].append({"name": "service_log_source", "state": "present",
+                               "value": listed})
+    # No audit yet: the gap that asks for one names the service's standing list.
+    (gap,) = [g for g in _posted(_ask(exposure=[exposure]), "gap")
+              if g["subject"] == "storefront"]
+    assert gap["input"] == {"state": "security.audit.log_source", "sources": listed,
+                            "audit": {"incident": "PHP2Shell", "service": "storefront"}}
+    # An audit that leaves one of them out is unknown, naming it, however complete its reads.
+    partial = _audit("storefront", service_log_source=listed,
+                     log_source=["storefront/nginx-access"],
+                     read=[_full("storefront/nginx-access")], window_end=WINDOW[1],
+                     result="not_exploited")
+    result = _ask(exposure=[exposure], audits=[partial])
+    assert _by(result, "RQ3")["storefront"]["state"] == "unknown"
+    (gap,) = [g for g in _posted(result, "gap") if g["subject"] == "storefront"]
+    assert gap["input"]["sources"] == ["storefront/php-fpm"] and gap["pull"] == "statement"
+    # Stated and read in full over the window: none.
+    whole = _audit("storefront", service_log_source=listed, log_source=listed,
+                   read=[_full(source) for source in listed], window_end=WINDOW[1],
+                   result="not_exploited")
+    assert _by(_ask(exposure=[exposure], audits=[whole]), "RQ3")["storefront"]["state"] == "none"
+    # The audit's own extra source still needs its reads.
+    extra = _audit("storefront", service_log_source=listed,
+                   log_source=[*listed, "storefront/waf"],
+                   read=[_full(source) for source in listed], window_end=WINDOW[1],
+                   result="not_exploited")
+    (gap,) = [g for g in _posted(_ask(audits=[extra]), "gap") if g["subject"] == "storefront"]
+    assert gap["input"]["source"] == "storefront/waf"
+
+
 def test_rq4_rotation_states_and_rq5_ready_to_close_with_residue() -> None:
     audits = [_audit("ops-wiki", log_source=["ops-wiki/nginx"], window_end=WINDOW[1],
                      result="inconclusive")]
