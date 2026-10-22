@@ -319,6 +319,8 @@ def test_the_registration_verifies() -> None:
 def test_a_timed_out_or_throttled_exchange_is_retried_with_backoff(monkeypatch: Any) -> None:
     from security_sources_provider import sources
 
+    ecosystems = _ecosystems()  # read before the network is made slow
+
     waits: list[float] = []
     monkeypatch.setattr(sources, "_sleep", waits.append)
     calls = {"n": 0}
@@ -334,7 +336,8 @@ def test_a_timed_out_or_throttled_exchange_is_retried_with_backoff(monkeypatch: 
 
     provider = OsvQuery(lambda: httpx.MockTransport(handler))
     result = provider(_context("security.osv-query", {
-        "releases": _rows("components", ["pkg:pypi/requests@2.32.3"]), "watched": []}))
+        "releases": _rows("components", ["pkg:pypi/requests@2.32.3"]), "watched": [],
+        "ecosystems": ecosystems, "purl_types": PURL_TYPES}))
     material = _material(result)
     assert calls["n"] == 3 and waits == [1.0, 2.0]
     assert [e["status"] for e in material["exchanges"]] == [200]
@@ -343,6 +346,8 @@ def test_a_timed_out_or_throttled_exchange_is_retried_with_backoff(monkeypatch: 
 def test_a_timeout_on_every_attempt_fails_the_run(monkeypatch: Any) -> None:
     from security_sources_provider import sources
 
+    ecosystems = _ecosystems()  # read before the network is made slow
+
     monkeypatch.setattr(sources, "_sleep", lambda _s: None)
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -350,5 +355,6 @@ def test_a_timeout_on_every_attempt_fails_the_run(monkeypatch: Any) -> None:
 
     provider = OsvQuery(lambda: httpx.MockTransport(handler))
     result = provider(_context("security.osv-query", {
-        "releases": _rows("components", ["pkg:pypi/requests@2.32.3"]), "watched": []}))
+        "releases": _rows("components", ["pkg:pypi/requests@2.32.3"]), "watched": [],
+        "ecosystems": ecosystems, "purl_types": PURL_TYPES}))
     assert result.status == "error" and "Timeout" in result.error.message
