@@ -15,7 +15,7 @@
   ],
   "cardinality": "many",
   "default_role": "observation",
-  "description": "A component of the release, as its package URL with version (purl@version), observed in an SBOM.",
+  "description": "A component of the release, as its package URL with version (purl@version), observed in an SBOM; for a runtime a scan observed running, the runtime's own purl (OSV decides distro builds by it).",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -28,12 +28,20 @@
               "kind": "CaptureContract",
               "name": "security.cyclonedx-sbom-v1"
             }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.runtime-inventory-v1"
+            }
           }
         ],
         "claim_roles": [
           "observation"
         ],
         "evidence_kinds": [
+          "inventory_scan",
           "sbom_document"
         ],
         "rule_id": "retained-security-evidence",

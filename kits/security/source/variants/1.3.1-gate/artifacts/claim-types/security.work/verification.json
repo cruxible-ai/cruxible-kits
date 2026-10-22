@@ -15,7 +15,7 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "observation",
-  "description": "Whether the work was verified, as observed from retained evidence.",
+  "description": "Whether the work was verified, as observed from retained evidence: a patch by a full runtime-inventory scan (the asset no longer runs the affected release), a rotation by a separate state read of the credential (the old key revoked, a new one issued). A self-report (remediation.progress completed) never sets it.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -26,7 +26,21 @@
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
+              "name": "security.credential-state-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
               "name": "security.observation-output-v1"
+            }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.runtime-inventory-v1"
             }
           }
         ],
@@ -34,7 +48,9 @@
           "observation"
         ],
         "evidence_kinds": [
-          "http_response"
+          "credential_state",
+          "http_response",
+          "inventory_scan"
         ],
         "rule_id": "retained-security-evidence",
         "subject_binding": "exact_claim_subject",

@@ -1,0 +1,749 @@
+{
+  "activation_policy": "drain",
+  "artifact_format": "playbill-procedure-v2",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 1048576,
+      "max_provider_calls": 1,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 120000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:7364fe18676e2224f6b34a3b2b7be8992ef17e7a24e23406f72a126c579ea36c",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-respond-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:1d4c940dec1dea21e2a44e26dad835061387b1ee2dc05f9a44a8c66233ad3c54",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-respond-summary"
+      }
+    },
+    "description": "Ask one incident's five questions (parameter incident, its name) and answer each in three states: found (posted), none (run summary only) or unknown (posted as a gap naming the pull or statement that would answer it). RQ1 which deployments run an affected release; RQ2 is each exposure patched (missing, overdue, disputed; none only when a full scan verified it); RQ3 were we exploited in the window, per service (none only for not_exploited with complete reads of every stated log source covering the window); RQ4 which credentials warrant rotation (posted with the audit and patch state; rotating after a verified patch is the recommended order, the agent's call), and is each rotation verified by a separate state read; RQ5 can the incident close (ready_to_close, with any unknown audit as accepted residue). A closed incident posts nothing. Observe-only. Runs as a Line (parameters incident, inventory_pull, log_pull, credential_pull, record_pull): daily, on a landing, after a window closes, or line run.",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 1048576,
+      "max_items": 200,
+      "max_provider_calls": 1,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [],
+    "name": "security.respond",
+    "nodes": [
+      {
+        "as": "exposure",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "patches",
+        "node_id": "exposure",
+        "parameters": {
+          "incident": "$input.incident"
+        },
+        "query": {
+          "artifact_digest": "sha256:a3b0ac6d439c1b8905199da62a1a7e15596805273acd9c6fd3b9332bafa2e0cf",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.incident_exposure"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "patches",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "overdue",
+        "node_id": "patches",
+        "parameters": {
+          "incident": "$input.incident"
+        },
+        "query": {
+          "artifact_digest": "sha256:e2e6a5cacee2edb293035303dd72c2936a6f88898756bc40b2e42442ab7530a0",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.incident_patches"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "overdue",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "audits",
+        "node_id": "overdue",
+        "parameters": {
+          "incident": "$input.incident"
+        },
+        "query": {
+          "artifact_digest": "sha256:5196f79b1c8a6ef68924a4b5a532ac9dd3e6e5a60e02ff89a4c1acedb300c7a0",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.overdue_patches"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "audits",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "credentials",
+        "node_id": "audits",
+        "parameters": {
+          "incident": "$input.incident"
+        },
+        "query": {
+          "artifact_digest": "sha256:2d15268ee4422c3eab467290572a5b2f06c8203b857f21c0488135c2e160570b",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.audit_status"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "credentials",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "classify",
+        "node_id": "credentials",
+        "parameters": {
+          "incident": "$input.incident"
+        },
+        "query": {
+          "artifact_digest": "sha256:60c52b3ab378dc2c9f76eb54b7078f6d86e81a633ce85c740c22b332b2e5566c",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.incident_credentials"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "classify",
+        "contract_in": {
+          "artifact_digest": "sha256:20559bb54896559a76c59f32c882f65fe1d6e3e32d00711001a1b532bcefc4ba",
+          "role": "contract-in",
+          "target": {
+            "kind": "Contract",
+            "name": "security-respond-request"
+          }
+        },
+        "contract_out": {
+          "artifact_digest": "sha256:a1517e67519e59bec60c66967fdf35f0e578c72b1acb5097e52f2c05fc1692b6",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-respond-result"
+          }
+        },
+        "effect_policy": null,
+        "implementation_digest": "sha256:a42b25b55465ec30b2f07cbcf55969c831c9f9a94b51c34b397af9c4efe94dbf",
+        "input": {
+          "audits": "$steps.audits.result.rows",
+          "credentials": "$steps.credentials.result.rows",
+          "exposure": "$steps.exposure.result.rows",
+          "overdue": "$steps.overdue.result.rows",
+          "params": "$input",
+          "patches": "$steps.patches.result.rows",
+          "truncated": {
+            "audits": "$steps.audits.truncated",
+            "credentials": "$steps.credentials.truncated",
+            "exposure": "$steps.exposure.truncated",
+            "overdue": "$steps.overdue.truncated",
+            "patches": "$steps.patches.truncated"
+          }
+        },
+        "interface": {
+          "artifact_digest": "sha256:e57ba512de5bf0fc8a46e30cf07e5b31faf0a4c42dae07229a1c3eb3b3e132e1",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.respond/192d27d044efceffb9c1ea85fde7c578de355aec709d65255ac43f2d4229cc85"
+          }
+        },
+        "interface_digest": "sha256:842bb8a78f6da6837e15fb4d3a7ea76af7fa1c9130670eb17b33597d261290ea",
+        "kind": "call",
+        "next": "summary",
+        "node_id": "classify",
+        "provider": {
+          "artifact_digest": "sha256:b8dab9db5f717ee341ece56d4114f4b8dc5e2061ef6ab4c586b0891f21ab47a3",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "security-analysis-provider/4d5dacd557ee5dffecc96af5e73ce4734542c5bd716e0d889361c07d7e0bfcbc"
+          }
+        }
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:1d4c940dec1dea21e2a44e26dad835061387b1ee2dc05f9a44a8c66233ad3c54",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-respond-summary"
+          }
+        },
+        "fields": {
+          "answers": "$steps.classify.answers",
+          "found": "$steps.classify.found",
+          "incident": "$steps.classify.incident",
+          "none": "$steps.classify.none",
+          "posted": "$steps.classify.posted",
+          "ready_to_close": "$steps.classify.ready_to_close",
+          "status": "$steps.classify.status",
+          "unknown": "$steps.classify.unknown"
+        },
+        "kind": "project",
+        "next": "posted",
+        "node_id": "summary"
+      },
+      {
+        "kind": "guard",
+        "message": "Nothing to post: every answer is none, or the incident is closed.",
+        "node_id": "posted",
+        "on_false": "quiet",
+        "on_true": "post",
+        "predicate": {
+          "all_of": null,
+          "any_of": null,
+          "left": {
+            "alias": "classify",
+            "input_name": null,
+            "kind": "step",
+            "parameter_name": null,
+            "path": [
+              "posted"
+            ],
+            "tag": "playbill-predicate-operand-v1",
+            "value": null
+          },
+          "not_of": null,
+          "operator": "gt",
+          "right": {
+            "alias": null,
+            "input_name": null,
+            "kind": "literal",
+            "parameter_name": null,
+            "path": [],
+            "tag": "playbill-predicate-operand-v1",
+            "value": 0
+          },
+          "tag": "playbill-guard-predicate-v1"
+        },
+        "refusal_code": "nothing_to_post"
+      },
+      {
+        "input": {
+          "items": "$steps.classify.items"
+        },
+        "kind": "post_inbox",
+        "max_items": 200,
+        "node_id": "post"
+      },
+      {
+        "kind": "halt",
+        "node_id": "quiet",
+        "reason": "nothing_to_post"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:c8534d40026472780e64c70863309a0b22ef607824da7f9af993d31d172bf91d",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.respond"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-respond-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "credential_pull": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "incident": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "inventory_pull": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "log_pull": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "record_pull": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-respond-request"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "audits": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "credentials": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "exposure": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "overdue": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "params": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "patches": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "truncated": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-respond-result"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "answers": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "found": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "incident": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "items": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "none": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "posted": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "ready_to_close": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "status": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "unknown": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-respond-summary"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "answers": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "found": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "incident": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "none": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "posted": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "ready_to_close": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "status": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "unknown": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:7364fe18676e2224f6b34a3b2b7be8992ef17e7a24e23406f72a126c579ea36c",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-respond-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:20559bb54896559a76c59f32c882f65fe1d6e3e32d00711001a1b532bcefc4ba",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-respond-request"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a1517e67519e59bec60c66967fdf35f0e578c72b1acb5097e52f2c05fc1692b6",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-respond-result"
+      }
+    },
+    {
+      "artifact_digest": "sha256:1d4c940dec1dea21e2a44e26dad835061387b1ee2dc05f9a44a8c66233ad3c54",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-respond-summary"
+      }
+    },
+    {
+      "artifact_digest": "sha256:b8dab9db5f717ee341ece56d4114f4b8dc5e2061ef6ab4c586b0891f21ab47a3",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "security-analysis-provider/4d5dacd557ee5dffecc96af5e73ce4734542c5bd716e0d889361c07d7e0bfcbc"
+      }
+    },
+    {
+      "artifact_digest": "sha256:e57ba512de5bf0fc8a46e30cf07e5b31faf0a4c42dae07229a1c3eb3b3e132e1",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.respond/192d27d044efceffb9c1ea85fde7c578de355aec709d65255ac43f2d4229cc85"
+      }
+    },
+    {
+      "artifact_digest": "sha256:2d15268ee4422c3eab467290572a5b2f06c8203b857f21c0488135c2e160570b",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.audit_status"
+      }
+    },
+    {
+      "artifact_digest": "sha256:60c52b3ab378dc2c9f76eb54b7078f6d86e81a633ce85c740c22b332b2e5566c",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.incident_credentials"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a3b0ac6d439c1b8905199da62a1a7e15596805273acd9c6fd3b9332bafa2e0cf",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.incident_exposure"
+      }
+    },
+    {
+      "artifact_digest": "sha256:e2e6a5cacee2edb293035303dd72c2936a6f88898756bc40b2e42442ab7530a0",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.incident_patches"
+      }
+    },
+    {
+      "artifact_digest": "sha256:5196f79b1c8a6ef68924a4b5a532ac9dd3e6e5a60e02ff89a4c1acedb300c7a0",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.overdue_patches"
+      }
+    }
+  ]
+}

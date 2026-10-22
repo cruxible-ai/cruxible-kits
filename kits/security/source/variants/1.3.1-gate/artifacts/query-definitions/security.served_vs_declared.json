@@ -106,7 +106,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:d302b222262bee299e7b6a87054b38745b34e3e471fd65c5d30c93f11a28173c",
+      "artifact_digest": "sha256:b12cb691972a886c4790290b0aef7e807c3902767e158127326c99382905198c",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -114,7 +114,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:b307d0a375b6a266d2f18119911789c493c2a480cac5af84ebc0ad76af1cd3cd",
+      "artifact_digest": "sha256:726edfe034063117f9cb84614eb970a7832d4081eb50411ada9ce68244c6f746",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -122,7 +122,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:a6846a46b26a75d602958b58d4d881d7866ff6cf4175131275f973959d39a4f1",
+      "artifact_digest": "sha256:43e829e00eef2f22a2b458aa5583e86a94a42efe64b27dd3c063de52d30199d4",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",

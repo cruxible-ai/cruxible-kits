@@ -15,7 +15,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The fully read source (host/owner/repo@ref:path, or registry/name); with scope, the coverage's key.",
+  "description": "The fully read source (host/owner/repo@ref:path, registry/name, or an inventory scope's name); with scope, the coverage's key.",
   "evidence_admission_policy": {
     "rules": [],
     "tag": "playbill-claim-evidence-admission-policy-v3"

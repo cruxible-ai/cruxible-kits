@@ -16,7 +16,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The asset's hostname; its key.",
+  "description": "The asset's hostname (a host, or a workload such as k8s:prod/storefront-a); its key.",
   "evidence_admission_policy": {
     "rules": [],
     "tag": "playbill-claim-evidence-admission-policy-v3"

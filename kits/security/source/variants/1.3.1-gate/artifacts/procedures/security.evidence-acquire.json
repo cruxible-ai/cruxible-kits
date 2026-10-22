@@ -4,7 +4,7 @@
   "definition": {
     "annotations": {},
     "budget": {
-      "max_capture_bytes": 16777216,
+      "max_capture_bytes": 1048576,
       "max_provider_calls": 1,
       "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
@@ -28,10 +28,10 @@
         "name": "security-file-evidence"
       }
     },
-    "description": "Read one workspace file an analyst cites for a judgment (input.relative_path: code, a config, an analysis note) and retain it under security.workspace-evidence-v1; cite the Capture with `cruxible set ... --capture CAP-...`.",
+    "description": "Read one workspace file an analyst cites for a judgment (input.relative_path: code, a config, an analysis note) and retain it under security.workspace-evidence-v1; cite the Capture with `cruxible set ... --capture CAP-...`. At most 1 MiB (the built-in workspace.file's limit).",
     "graph_format": 6,
     "hard_caps": {
-      "max_capture_bytes": 16777216,
+      "max_capture_bytes": 1048576,
       "max_items": 1,
       "max_provider_calls": 1,
       "max_repeat_attempts": 1,
@@ -115,7 +115,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:651f4e0ceb82f9c3ef4cc7caa2b4bf75f7e04c3f42f89753e696c0156e38b914",
+  "definition_digest": "sha256:102c88f98b24fdac41049d636c9e33d6a3969f1c91b2d18b81354ede362c2e30",
   "identity": {
     "kind": "Procedure",
     "name": "security.evidence-acquire"
@@ -187,7 +187,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:33e5cfcf87f117af6e27dccb740749c852df43d3677700c359de016672800739",
+      "artifact_digest": "sha256:c7e44b83205475966079c6591e8ba7e7578189f64c076533b3a3f129ff439031",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",

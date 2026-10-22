@@ -4,7 +4,7 @@
   "definition": {
     "annotations": {},
     "budget": {
-      "max_capture_bytes": 16777216,
+      "max_capture_bytes": 1048576,
       "max_provider_calls": 1,
       "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
@@ -28,10 +28,10 @@
         "name": "security-file-evidence"
       }
     },
-    "description": "Read one CycloneDX JSON SBOM from the attached workspace (input.relative_path) and retain it under security.cyclonedx-sbom-v1; security.sbom-import reads it when it lands.",
+    "description": "Read one CycloneDX JSON SBOM from the attached workspace (input.relative_path) and retain it under security.cyclonedx-sbom-v1; security.sbom-import reads it when it lands. At most 1 MiB (the built-in workspace.file's limit).",
     "graph_format": 6,
     "hard_caps": {
-      "max_capture_bytes": 16777216,
+      "max_capture_bytes": 1048576,
       "max_items": 1,
       "max_provider_calls": 1,
       "max_repeat_attempts": 1,
@@ -115,7 +115,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:989c26eaf90b374c01324e95696a192e878d24578138a692790daf7224c23944",
+  "definition_digest": "sha256:cc56c7fd902ddb6e9b997e7ed4b6a1db70d0351b6c806ba45391e33a7be47242",
   "identity": {
     "kind": "Procedure",
     "name": "security.sbom-acquire"
@@ -187,7 +187,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:33e5cfcf87f117af6e27dccb740749c852df43d3677700c359de016672800739",
+      "artifact_digest": "sha256:c7e44b83205475966079c6591e8ba7e7578189f64c076533b3a3f129ff439031",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",

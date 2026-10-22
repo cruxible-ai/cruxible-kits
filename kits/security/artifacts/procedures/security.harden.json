@@ -52,7 +52,7 @@
         "node_id": "hq1",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:00558916299c88d6c44ad281d52ac2340184a277022fd8163023458bca6ac742",
+          "artifact_digest": "sha256:a2b557810e2b94fd2bc58acffac5da8758325116de03b4ecf74cc30b3da8c4cc",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -69,7 +69,7 @@
         "node_id": "hq2",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:f6294cc8b89fa77af025a7a3032fd695c1bc5da3e612431977a4ab8ce5240fc4",
+          "artifact_digest": "sha256:526cbd3f8885e45f36d2e104a5c02c615dc44af005aa576356853b1e1a733753",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -86,7 +86,7 @@
         "node_id": "hq3",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:de0dc5cbb718335622cb32bc99f47a81edc4247f455649c41b559b03d600ac0f",
+          "artifact_digest": "sha256:8b53ef6a1a4886b9fe7a98057385022f1734395ffc0e23fe78ade33c5e160e52",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -103,7 +103,7 @@
         "node_id": "hq4",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:4c0cc2c219b673ed791da9d9ffe07d49650e966b91061e0ab624554332a6dced",
+          "artifact_digest": "sha256:3dc54774c82bc5eea98659d504663265bfe5e53ab79b4ccde4bdc1383866a577",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -120,7 +120,7 @@
         "node_id": "hq5",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:b0133fd5756add7ff05082d01abc2efcd1aa432f10aac2646ed96c587e69de04",
+          "artifact_digest": "sha256:2b58bcf7862405951c7b967c788f9c94094a0213a8531c3450eea1de3c58b749",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -165,7 +165,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:14d374ab8deb66f01fb86a47a218d8ff32b8e8a17fe946e1c83a5a95057153a3",
+        "implementation_digest": "sha256:73193382fe899f071fb09257d41db9d4ebdf7a0f099da05aee9d156e3bc99c16",
         "input": {
           "hq1": "$steps.hq1.result.rows",
           "hq2": "$steps.hq2.result.rows",
@@ -196,11 +196,11 @@
         "next": "summary",
         "node_id": "classify",
         "provider": {
-          "artifact_digest": "sha256:cee0225ad93f7ce26902314c152c1e00194678b813b46b7209f262c649f9e80a",
+          "artifact_digest": "sha256:b8dab9db5f717ee341ece56d4114f4b8dc5e2061ef6ab4c586b0891f21ab47a3",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/9f506b6433f37d480f7f0e161e304d9efe0171fbb2afec5e5fa10e132497f727"
+            "name": "security-analysis-provider/4d5dacd557ee5dffecc96af5e73ce4734542c5bd716e0d889361c07d7e0bfcbc"
           }
         }
       },
@@ -282,7 +282,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:52bb2656def73403bbcef032c57f721352b78034469bbd8cdda7b14faab803c1",
+  "definition_digest": "sha256:3e33651723f5994ed1a215bd702c33593503f32d0c7c3d4b4695a314f8f07d2f",
   "identity": {
     "kind": "Procedure",
     "name": "security.harden"
@@ -687,11 +687,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:cee0225ad93f7ce26902314c152c1e00194678b813b46b7209f262c649f9e80a",
+      "artifact_digest": "sha256:b8dab9db5f717ee341ece56d4114f4b8dc5e2061ef6ab4c586b0891f21ab47a3",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/9f506b6433f37d480f7f0e161e304d9efe0171fbb2afec5e5fa10e132497f727"
+        "name": "security-analysis-provider/4d5dacd557ee5dffecc96af5e73ce4734542c5bd716e0d889361c07d7e0bfcbc"
       }
     },
     {
@@ -703,7 +703,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:f6294cc8b89fa77af025a7a3032fd695c1bc5da3e612431977a4ab8ce5240fc4",
+      "artifact_digest": "sha256:526cbd3f8885e45f36d2e104a5c02c615dc44af005aa576356853b1e1a733753",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -711,7 +711,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:de0dc5cbb718335622cb32bc99f47a81edc4247f455649c41b559b03d600ac0f",
+      "artifact_digest": "sha256:8b53ef6a1a4886b9fe7a98057385022f1734395ffc0e23fe78ade33c5e160e52",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -719,7 +719,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:00558916299c88d6c44ad281d52ac2340184a277022fd8163023458bca6ac742",
+      "artifact_digest": "sha256:a2b557810e2b94fd2bc58acffac5da8758325116de03b4ecf74cc30b3da8c4cc",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -735,7 +735,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:b0133fd5756add7ff05082d01abc2efcd1aa432f10aac2646ed96c587e69de04",
+      "artifact_digest": "sha256:2b58bcf7862405951c7b967c788f9c94094a0213a8531c3450eea1de3c58b749",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -743,7 +743,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:4c0cc2c219b673ed791da9d9ffe07d49650e966b91061e0ab624554332a6dced",
+      "artifact_digest": "sha256:3dc54774c82bc5eea98659d504663265bfe5e53ab79b4ccde4bdc1383866a577",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

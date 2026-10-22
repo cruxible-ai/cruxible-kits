@@ -1,0 +1,900 @@
+{
+  "activation_policy": "drain",
+  "artifact_format": "playbill-procedure-v2",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 1048576,
+      "max_provider_calls": 2,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 120000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:c0af113538e4acc6091ebfc58c43bfa99999bfe5371024ee2e2b9895511db317",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-inventory-import-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:758ba9b6c297f1946ab97713dcb6f43a28ed865701ecdf4c68e34f9a56babfa2",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-runtime-inventory-summary"
+      }
+    },
+    "description": "Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 1048576,
+      "max_items": 5000,
+      "max_provider_calls": 2,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [],
+    "name": "security.inventory-import",
+    "nodes": [
+      {
+        "as": "inventory",
+        "capture_contract": {
+          "artifact_digest": "sha256:44b08b1c98e2f586e455e404a94af68e395dedba1307ddf077a3094fb581db55",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.runtime-inventory-v1"
+          }
+        },
+        "implementation_digest": "sha256:67c337ac0a87cfe8ee42da30a21c4cce658a0ad6bb3944b39a81e921aaba843c",
+        "interface": {
+          "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "interface_digest": "sha256:faa92552bd6032d3280753881ce991501013b2eaa2005e0f974820f01248d866",
+        "kind": "source",
+        "next": "held",
+        "node_id": "inventory",
+        "provider": {
+          "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "cruxible-builtin"
+          }
+        },
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.inventory",
+          "relative_path": "inventory.json",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "as": "held",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "patches",
+        "node_id": "held",
+        "parameters": {
+          "scope": "$input.scope"
+        },
+        "query": {
+          "artifact_digest": "sha256:f4f9ecaff527a0921c7e66d564987d94fe73353c1c62a9c8d1aebf29c31dd179",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.inventory_index"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "patches",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "parse",
+        "node_id": "patches",
+        "parameters": {
+          "scope": "$input.scope"
+        },
+        "query": {
+          "artifact_digest": "sha256:d86a5ddcc5530069563f692d4d4de47a86314407d3b47e31d3c7a03bb3e791fb",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.inventory_patches"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "parse",
+        "contract_in": {
+          "artifact_digest": "sha256:7182be02635b79669fcee2a1e9499c488a01222e6e49d1f320bea7a3aa30748c",
+          "role": "contract-in",
+          "target": {
+            "kind": "Contract",
+            "name": "security-runtime-inventory-request"
+          }
+        },
+        "contract_out": {
+          "artifact_digest": "sha256:02b9d4de8eae350c9abf30eaa41e3a55e603613127951f1c27b3b52d643e58d4",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-runtime-inventory-result"
+          }
+        },
+        "effect_policy": null,
+        "implementation_digest": "sha256:d99cf2e2fd62b1d2288ee7a3eacd6aade2c28fa1e737605c57c0083ce1d03bd1",
+        "input": {
+          "held": "$steps.held.result.rows",
+          "inventory_text": "$steps.inventory.content.text",
+          "patches": "$steps.patches.result.rows",
+          "scope": "$input.scope",
+          "truncated": {
+            "held": "$steps.held.truncated",
+            "patches": "$steps.patches.truncated"
+          }
+        },
+        "interface": {
+          "artifact_digest": "sha256:4ec34a990974779f93d8638ee9ec59869d61f44bc75ae5808984bece97180d80",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.runtime-inventory/6ac2b08cfa295bb27e7f1044282a9e7289964c1f4ed2bb181268c944e9dab209"
+          }
+        },
+        "interface_digest": "sha256:ad6f3cd6a25952ec3cad8fa5640b707def3293906d53d57d5223de16209758a8",
+        "kind": "call",
+        "next": "summary",
+        "node_id": "parse",
+        "provider": {
+          "artifact_digest": "sha256:b8dab9db5f717ee341ece56d4114f4b8dc5e2061ef6ab4c586b0891f21ab47a3",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "security-analysis-provider/4d5dacd557ee5dffecc96af5e73ce4734542c5bd716e0d889361c07d7e0bfcbc"
+          }
+        }
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:758ba9b6c297f1946ab97713dcb6f43a28ed865701ecdf4c68e34f9a56babfa2",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-runtime-inventory-summary"
+          }
+        },
+        "fields": {
+          "added": "$steps.parse.added",
+          "assets": "$steps.parse.assets",
+          "changed": "$steps.parse.changed",
+          "coverage": "$steps.parse.coverage",
+          "failed": "$steps.parse.failed",
+          "format": "$steps.parse.format",
+          "mine": "$steps.parse.mine",
+          "proposes": "$steps.parse.proposes",
+          "regressions": "$steps.parse.regressions",
+          "restated": "$steps.parse.restated",
+          "retired": "$steps.parse.retired",
+          "revised": "$steps.parse.revised",
+          "revision": "$steps.parse.revision",
+          "runs": "$steps.parse.runs",
+          "scope": "$steps.parse.scope",
+          "verified": "$steps.parse.verified"
+        },
+        "kind": "project",
+        "next": "mine",
+        "node_id": "summary"
+      },
+      {
+        "kind": "guard",
+        "message": "The landed inventory is another scope's.",
+        "node_id": "mine",
+        "on_false": "other",
+        "on_true": "changed",
+        "predicate": {
+          "all_of": null,
+          "any_of": null,
+          "left": {
+            "alias": "parse",
+            "input_name": null,
+            "kind": "step",
+            "parameter_name": null,
+            "path": [
+              "mine"
+            ],
+            "tag": "playbill-predicate-operand-v1",
+            "value": null
+          },
+          "not_of": null,
+          "operator": "gt",
+          "right": {
+            "alias": null,
+            "input_name": null,
+            "kind": "literal",
+            "parameter_name": null,
+            "path": [],
+            "tag": "playbill-predicate-operand-v1",
+            "value": 0
+          },
+          "tag": "playbill-guard-predicate-v1"
+        },
+        "refusal_code": "other_scope"
+      },
+      {
+        "kind": "guard",
+        "message": "The scan changes nothing inventory holds.",
+        "node_id": "changed",
+        "on_false": "nochange",
+        "on_true": "propose",
+        "predicate": {
+          "all_of": null,
+          "any_of": null,
+          "left": {
+            "alias": "parse",
+            "input_name": null,
+            "kind": "step",
+            "parameter_name": null,
+            "path": [
+              "proposes"
+            ],
+            "tag": "playbill-predicate-operand-v1",
+            "value": null
+          },
+          "not_of": null,
+          "operator": "gt",
+          "right": {
+            "alias": null,
+            "input_name": null,
+            "kind": "literal",
+            "parameter_name": null,
+            "path": [],
+            "tag": "playbill-predicate-operand-v1",
+            "value": 0
+          },
+          "tag": "playbill-guard-predicate-v1"
+        },
+        "refusal_code": "no_change"
+      },
+      {
+        "candidate_templates": {
+          "items": "$steps.parse.items"
+        },
+        "claim_types": [],
+        "kind": "propose_change_set",
+        "node_id": "propose",
+        "result": "$steps.summary"
+      },
+      {
+        "kind": "halt",
+        "node_id": "nochange",
+        "reason": "no_change"
+      },
+      {
+        "kind": "halt",
+        "node_id": "other",
+        "reason": "other_scope"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 2
+  },
+  "definition_digest": "sha256:2453a25460e550594b149045aa4b70bc8c5695d2124eb4fe8185d81d215948e6",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.inventory-import"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-inventory-import-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "scope": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-runtime-inventory-request"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "held": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "inventory_text": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "patches": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "scope": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "truncated": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-runtime-inventory-result"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "added": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "assets": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "coverage": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "failed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "format": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "items": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "mine": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "proposes": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "regressions": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "restated": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "retired": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "revised": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "revision": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "runs": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "scope": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "verified": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-runtime-inventory-summary"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "added": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "assets": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "changed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "coverage": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "failed": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "format": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "mine": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "proposes": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "regressions": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "restated": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "retired": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "revised": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "revision": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "runs": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "scope": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          },
+          "verified": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:c7e44b83205475966079c6591e8ba7e7578189f64c076533b3a3f129ff439031",
+      "role": "acquisition-policy",
+      "target": {
+        "kind": "SourceAcquisitionPolicy",
+        "name": "security.acquisition"
+      }
+    },
+    {
+      "artifact_digest": "sha256:44b08b1c98e2f586e455e404a94af68e395dedba1307ddf077a3094fb581db55",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.runtime-inventory-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:c0af113538e4acc6091ebfc58c43bfa99999bfe5371024ee2e2b9895511db317",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-inventory-import-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:7182be02635b79669fcee2a1e9499c488a01222e6e49d1f320bea7a3aa30748c",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-runtime-inventory-request"
+      }
+    },
+    {
+      "artifact_digest": "sha256:02b9d4de8eae350c9abf30eaa41e3a55e603613127951f1c27b3b52d643e58d4",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-runtime-inventory-result"
+      }
+    },
+    {
+      "artifact_digest": "sha256:758ba9b6c297f1946ab97713dcb6f43a28ed865701ecdf4c68e34f9a56babfa2",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-runtime-inventory-summary"
+      }
+    },
+    {
+      "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "cruxible-builtin"
+      }
+    },
+    {
+      "artifact_digest": "sha256:b8dab9db5f717ee341ece56d4114f4b8dc5e2061ef6ab4c586b0891f21ab47a3",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "security-analysis-provider/4d5dacd557ee5dffecc96af5e73ce4734542c5bd716e0d889361c07d7e0bfcbc"
+      }
+    },
+    {
+      "artifact_digest": "sha256:4ec34a990974779f93d8638ee9ec59869d61f44bc75ae5808984bece97180d80",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "security.runtime-inventory/6ac2b08cfa295bb27e7f1044282a9e7289964c1f4ed2bb181268c944e9dab209"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "workspace.file"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f4f9ecaff527a0921c7e66d564987d94fe73353c1c62a9c8d1aebf29c31dd179",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.inventory_index"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d86a5ddcc5530069563f692d4d4de47a86314407d3b47e31d3c7a03bb3e791fb",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.inventory_patches"
+      }
+    }
+  ]
+}

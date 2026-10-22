@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-subject-kind-v1",
-  "description": "A host, named by its hostname.",
+  "description": "A host or workload (k8s:prod/storefront-a), named by its hostname.",
   "identity": {
     "kind": "SubjectKind",
     "name": "security.asset"

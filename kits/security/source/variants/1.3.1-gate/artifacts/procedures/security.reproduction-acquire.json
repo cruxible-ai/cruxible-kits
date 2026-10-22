@@ -4,7 +4,7 @@
   "definition": {
     "annotations": {},
     "budget": {
-      "max_capture_bytes": 16777216,
+      "max_capture_bytes": 1048576,
       "max_provider_calls": 1,
       "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
@@ -31,7 +31,7 @@
     "description": "Read one proof-of-concept run's report from the attached workspace (input.relative_path: a JUnit XML or a test log) and retain it under security.reproduction-v1; cite the Capture for security.finding.verdict (confirmed: the PoC fails while vulnerable) or verification (fixed: it passes).",
     "graph_format": 6,
     "hard_caps": {
-      "max_capture_bytes": 16777216,
+      "max_capture_bytes": 1048576,
       "max_items": 1,
       "max_provider_calls": 1,
       "max_repeat_attempts": 1,
@@ -115,7 +115,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:a4e764e34cf3af14a53c928cd53fd71dde429369dfba51b678902cdcddc9a7f2",
+  "definition_digest": "sha256:a4e2a0e1150f697dbfd1ad823903fe34a5a68eec31778820c3667b2878e4539b",
   "identity": {
     "kind": "Procedure",
     "name": "security.reproduction-acquire"
@@ -187,7 +187,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:33e5cfcf87f117af6e27dccb740749c852df43d3677700c359de016672800739",
+      "artifact_digest": "sha256:c7e44b83205475966079c6591e8ba7e7578189f64c076533b3a3f129ff439031",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",

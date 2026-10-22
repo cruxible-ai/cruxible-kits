@@ -13,7 +13,7 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "What was read in full: ci.workflows, release.manifest or registry.files.",
+  "description": "What was read in full: ci.workflows, release.manifest, registry.files, or inventory.runtime (every asset of one inventory scope, with what it runs).",
   "evidence_admission_policy": {
     "rules": [],
     "tag": "playbill-claim-evidence-admission-policy-v3"
@@ -31,6 +31,7 @@
   "literal_schema": {
     "enum": [
       "ci.workflows",
+      "inventory.runtime",
       "registry.files",
       "release.manifest"
     ],

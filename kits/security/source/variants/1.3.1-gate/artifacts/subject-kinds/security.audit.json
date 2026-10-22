@@ -1,0 +1,20 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "Were we exploited during an incident's window, for one service: named by incident and service. Its log sources, complete reads and result answer it in three states.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.audit"
+  },
+  "identity_rule": {
+    "keys": [
+      "security.audit.incident_ref",
+      "security.audit.service_ref"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

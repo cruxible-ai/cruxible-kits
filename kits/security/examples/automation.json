@@ -1,6 +1,6 @@
 {
   "kind": "change_set",
-  "rationale": "Example consumer automation for the security kit (vulnerability loop, system model and code findings); adapt before submitting.",
+  "rationale": "Example consumer automation for the security kit (vulnerability loop, system model, code findings and incident response); adapt before submitting.",
   "members": [
     {
       "kind": "blueprint_instance",
@@ -259,6 +259,25 @@
       }
     },
     {
+      "kind": "line",
+      "name": "security.inventory-import.prod",
+      "procedure_name": "security.inventory-import",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "inventory",
+      "parameters": {
+        "scope": "prod"
+      }
+    },
+    {
+      "kind": "line",
+      "name": "security.credential-import",
+      "procedure_name": "security.credential-import",
+      "acquisition_policy_name": "security.acquisition",
+      "max_authority": "propose",
+      "trigger_input": "credential"
+    },
+    {
       "kind": "trigger",
       "name": "security.kev-daily",
       "line_name": "security.kev-daily",
@@ -427,6 +446,24 @@
       "schedule": {
         "kind": "capture_landing",
         "capture_contract": "security.sarif-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.inventory-landed.prod",
+      "line_name": "security.inventory-import.prod",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.runtime-inventory-v1"
+      }
+    },
+    {
+      "kind": "trigger",
+      "name": "security.credential-landed",
+      "line_name": "security.credential-import",
+      "schedule": {
+        "kind": "capture_landing",
+        "capture_contract": "security.credential-state-v1"
       }
     },
     {
@@ -608,6 +645,70 @@
         "max_provider_calls": 2,
         "max_capture_bytes": 16777216,
         "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.inventory-import-propose",
+      "procedure_name": "security.inventory-import",
+      "grants": "propose",
+      "namespace": [
+        "claims",
+        "subjects/security.asset",
+        "subjects/security.coverage",
+        "subjects/security.release"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 300000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 1048576,
+        "max_items": 5000,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.log-import-propose",
+      "procedure_name": "security.log-import",
+      "grants": "propose",
+      "namespace": [
+        "claims"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 120000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 1048576,
+        "max_items": 100,
+        "max_repeat_attempts": 1
+      }
+    },
+    {
+      "kind": "procedure_mandate",
+      "name": "security.credential-import-propose",
+      "procedure_name": "security.credential-import",
+      "grants": "propose",
+      "namespace": [
+        "claims",
+        "subjects/security.credential"
+      ],
+      "valid_from": "NOW",
+      "expires_at": "EXPIRES",
+      "resource_ceiling": {
+        "max_wall_clock": {
+          "microseconds": 120000000
+        },
+        "max_provider_calls": 2,
+        "max_capture_bytes": 1048576,
+        "max_items": 500,
         "max_repeat_attempts": 1
       }
     }

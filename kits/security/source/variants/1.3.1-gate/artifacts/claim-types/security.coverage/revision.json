@@ -15,7 +15,7 @@
   ],
   "cardinality": "one",
   "default_role": "observation",
-  "description": "The revision every file was read at: a commit SHA, or the digest of a registry's served file set, re-read on every pull and stale 12 h after the last. Absence inside current coverage is an answer; outside it, unknown.",
+  "description": "The revision every file was read at: a commit SHA, the digest of a registry's served file set, or the digest of a full runtime-inventory scan's (asset, runs) set; re-read on every pull and stale 12 h after the last. Absence inside current coverage is an answer; outside it, unknown.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -35,13 +35,21 @@
               "kind": "CaptureContract",
               "name": "security.repo-snapshot-v1"
             }
+          },
+          {
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.runtime-inventory-v1"
+            }
           }
         ],
         "claim_roles": [
           "observation"
         ],
         "evidence_kinds": [
-          "http_response"
+          "http_response",
+          "inventory_scan"
         ],
         "rule_id": "retained-security-evidence",
         "subject_binding": "exact_claim_subject",

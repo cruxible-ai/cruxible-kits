@@ -4,7 +4,7 @@
   "definition": {
     "annotations": {},
     "budget": {
-      "max_capture_bytes": 16777216,
+      "max_capture_bytes": 1048576,
       "max_provider_calls": 1,
       "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
@@ -31,7 +31,7 @@
     "description": "Read one SARIF 2.1.0 scan log from the attached workspace (input.relative_path) and retain it under security.sarif-v1; the repository's security.sarif-import Line reads it when it lands. Annotate each run first: versionControlProvenance (repositoryUri, revisionId) and properties[\"cruxible.coverage\"] (full or partial).",
     "graph_format": 6,
     "hard_caps": {
-      "max_capture_bytes": 16777216,
+      "max_capture_bytes": 1048576,
       "max_items": 1,
       "max_provider_calls": 1,
       "max_repeat_attempts": 1,
@@ -115,7 +115,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:817e012e93a9f113beb34207b8c014bd70db4bc7eddb366dff8d00f741f59853",
+  "definition_digest": "sha256:494f8e43257a7a08add80071a135af41856276b5987d3e655a343dad10a992af",
   "identity": {
     "kind": "Procedure",
     "name": "security.sarif-acquire"
@@ -187,7 +187,7 @@
   ],
   "pins": [
     {
-      "artifact_digest": "sha256:33e5cfcf87f117af6e27dccb740749c852df43d3677700c359de016672800739",
+      "artifact_digest": "sha256:c7e44b83205475966079c6591e8ba7e7578189f64c076533b3a3f129ff439031",
       "role": "acquisition-policy",
       "target": {
         "kind": "SourceAcquisitionPolicy",

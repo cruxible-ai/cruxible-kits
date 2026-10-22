@@ -2,8 +2,8 @@
 
 `automation.json` is an inert authoring ChangeSet. Installing the kit does not
 submit it. Copy it into your workspace and let your agent adapt the nine
-Blueprint instance names and Provider bindings, seventeen Line names and inputs,
-Trigger targets and UTC cron times, and eight Mandate namespaces. Update all
+Blueprint instance names and Provider bindings, nineteen Line names and inputs,
+Trigger targets and UTC cron times, and eleven Mandate namespaces. Update all
 references when renaming. Replace `NOW` and `EXPIRES` with UTC timestamps
 (e.g. now and 90 days later). Landing Triggers use CaptureContract names only.
 
@@ -24,6 +24,18 @@ repository's log halts `wrong_repo`. Let the principal that runs your scans enab
 the import Line: its runs act as that principal, so under
 `independent_approval_required` its proposals need another reviewer. No Mandate covers
 a verdict.
+
+Incident response's members are `security.inventory-import.prod` (parameter `scope`:
+one Line and `security.runtime-inventory-v1` landing Trigger per inventory scope; a
+scan or SBOM naming another scope halts `other_scope`), `security.credential-import`
+with its `security.credential-state-v1` landing Trigger, and the propose Mandates of
+the inventory, log and credential imports. Let the principal that acquires your scans
+and state reads (not the one who patches or rotates) arm the import Lines. Each
+incident's respond Line and log import Line are declared with the incident itself
+(the main README's **Declare the incident**); `incident-status.md` is an example
+status page with a projection block the incident's status query renders. No Mandate
+covers an audit result, a verification, a remediation, a credential fact or an
+incident field.
 
 Submit with `cruxible authoring submit automation.json`, inspect the resulting
 proposal, obtain the consumer's required approvals and activate it through the

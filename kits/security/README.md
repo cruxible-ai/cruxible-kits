@@ -4,7 +4,7 @@
 
 The security kit gives your agents a cited model of what you ship and how it is
 published, joined to public vulnerability evidence and to the weaknesses found in
-your own code. It holds your releases and their components, your repositories' CI
+your own code, and carries them through an incident: patch, audit, rotate. It holds your releases and their components, your repositories' CI
 workflows and jobs, and the registries you publish to with the files they serve;
 beside them, what CISA KEV, FIRST EPSS, OSV.dev and CVE records say about
 vulnerabilities, and what your scanners and agent reviewers report about your
@@ -27,6 +27,7 @@ settled by your review, or automatically by automation that has earned it.
 | Which weaknesses in our code are still open, and who says so? | `security.open_findings`: every finding of a repository not verified fixed, with its verdict (`conflict` while disputed), severity, location, finders and remediation |
 | Do we serve a release with a confirmed, unfixed weakness? | `security.published_findings` (HQ6): confirmed findings not verified fixed in a release a gated target serves a file of |
 | How often is each scanner or agent right? | `security.finder_record`: every finding with the finders that reported it and its verdict; upheld (confirmed, not_exploitable) against overturned (false_positive) |
+| In an incident: which deployments run an affected release, is each patched, were we exploited, which keys need rotating? | the incident's respond Line (RQ1-RQ5) and `security.incident_exposure`, `security.open_patches`, `security.audit_status`, `security.incident_credentials`, `security.incident_status` ([Respond to an incident](#respond-to-an-incident)) |
 
 Ask any of them with `cruxible query --name NAME`. The hardening questions
 (HQ1-HQ6) are also asked for you on a schedule, and each answer is **found**,
@@ -63,7 +64,9 @@ flowchart LR
     change["security.change<br/>a commit"]
     product["security.product"]
     release["security.release<br/>components: purl@version"]
-    asset["security.asset<br/>a host"]
+    asset["security.asset<br/>a host or workload"]
+    service["security.service"]
+    credential["security.credential<br/>a key's non-secret id"]
     finding["security.finding<br/>a weakness in our code"]
   end
   subgraph world["The world's evidence"]
@@ -73,6 +76,8 @@ flowchart LR
     osv(["OSV.dev, CVE records"])
     registry(["PyPI, GitHub releases"])
     scans(["SARIF scans: Semgrep, CodeQL, agents"])
+    inventory(["Runtime inventory: your scans, Syft"])
+    logs(["Your log tools, your key issuers"])
     vulnerability["security.vulnerability"]
   end
   subgraph judged["Judgments, and what we have read"]
@@ -81,6 +86,8 @@ flowchart LR
     signal["security.signal<br/>something to explain"]
     remediation["security.remediation"]
     coverage["security.coverage<br/>a source read in full, at a revision"]
+    incident["security.incident<br/>one response, its window"]
+    audit["security.audit<br/>exploited in the window?"]
   end
   workflow -->|workflow.repo| repo
   job -->|job.workflow| workflow
@@ -110,6 +117,17 @@ flowchart LR
   remediation -->|work.assessment| assessment
   workflow -->|workflow.coverage| coverage
   coverage -->|coverage.of| repo
+  inventory -->|asset.runs, asset.scanned_in| asset
+  asset -->|asset.runs| release
+  asset -->|asset.serves| service
+  incident -->|incident.vulnerability| vulnerability
+  audit -->|audit.incident| incident
+  audit -->|audit.service| service
+  logs -->|audit.read, credential.key_id| audit
+  credential -->|credential.used_by| service
+  remediation -->|work.asset| asset
+  remediation -->|work.credential| credential
+  remediation -->|work.audit| audit
 ```
 
 **Your systems.** What you ship and how it is published. Pull Lines read your
@@ -117,7 +135,8 @@ repository's workflow files at a ref and your registries' published files; parse
 Lines turn each read into observations: a workflow's triggers, a job's
 permissions, secrets, actions and publish targets, a published file's digest and
 the workflow and commit that built it. Releases and their components come from
-your CycloneDX SBOMs, hosts and what they install from your own inventory.
+your CycloneDX SBOMs, hosts and what they install from your own inventory, and
+what each host or workload actually runs from your runtime-inventory scans.
 Nothing here is asserted by the kit: each fact cites the Capture it was read
 from, and the one policy statement, a target's `publish_gate`, is yours. A
 finding is one weakness in your own code: what scanners and agents report about
@@ -138,19 +157,21 @@ one); hypotheses (`explained_by`) compete until a cited change resolves them. A
 remediation (or an exception, or a compensating control) is the work you decide
 on. Coverage is the kit's record of what it has read in full and at which
 revision: absence counts as an answer only inside a current coverage, so a
-stale or missing read makes an answer unknown, not none.
+stale or missing read makes an answer unknown, not none. An incident groups the
+CVEs of one response; an audit asks, per service, whether you were exploited in
+its window; a credential is a key you may need to rotate, by its non-secret id.
 
 <!-- BEGIN GENERATED: glance -->
 <!-- Generated by source/reference.py from the definitions. -->
 
-| `security` 1.2.0 | Count |
+| `security` 1.3.0 | Count |
 |---|---|
-| [Kinds of thing it models](reference.md#what-it-models) | 20 |
-| [Fields (ClaimTypes) across them](reference.md#what-it-models) | 103 |
-| [Evidence sources (Capture contracts)](reference.md#where-evidence-comes-from) | 14 |
-| [Procedures / Blueprints](reference.md#what-runs-on-its-own) | 14 / 9 |
-| [Queries](reference.md#what-you-can-ask) | 34 |
-| [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 17 / 19 / 8 |
+| [Kinds of thing it models](reference.md#what-it-models) | 23 |
+| [Fields (ClaimTypes) across them](reference.md#what-it-models) | 130 |
+| [Evidence sources (Capture contracts)](reference.md#where-evidence-comes-from) | 17 |
+| [Procedures / Blueprints](reference.md#what-runs-on-its-own) | 21 / 9 |
+| [Queries](reference.md#what-you-can-ask) | 44 |
+| [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 19 / 21 / 11 |
 
 <!-- END GENERATED: glance -->
 
@@ -452,6 +473,211 @@ Graduation never covers judgments. The import's report observations (the finding
 key, `rule`, `reported_by`, a scan's `severity`) may graduate to settle per finder
 once its record holds, with `security.finding_settle_condition` as the condition; the
 default is propose.
+
+## Respond to an incident
+
+Patch, audit and rotate when a vulnerability is exploited in the wild (the gate
+walks PHP2Shell: CVE-2026-109618 and CVE-2026-109619, unauthenticated RCE in the
+PHP runtime, fixed in 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35). The kit runs no
+response command and bakes in no service: your agent patches, queries logs and
+rotates keys with your own tools. Cruxible holds what needs doing and why, who
+approved it, and the evidence that it is done.
+
+| Question | Where the answer comes from |
+|---|---|
+| RQ1 Which deployments run an affected release? | `security.incident_exposure` (parameter `incident`, its name): assets a scan observed running a release assessed affected |
+| RQ2 Is each exposure patched? | `security.open_patches` (internet-facing first), `security.overdue_patches` (past `due_at` at the query's evaluation time) |
+| RQ3 Were we exploited during the window? | `security.audit_status`: per service, its log sources, complete reads, `window_end` and `result` |
+| RQ4 Which credentials need rotating? | `security.incident_credentials`: each credential an audited service uses, its current key (`issued_at` before `window_start` = not rotated since exposure) and its rotations |
+| RQ5 Can the incident close? | the incident's respond Line posts `ready_to_close` |
+| Where does the incident stand? | `security.incident_status`, rendered into a page (below) |
+
+**The pattern.** Every action is governed the same way, with machinery core
+already has:
+
+| Step | What happens | Evidence |
+|---|---|---|
+| 1. What needs doing | The incident's respond Line posts one inbox item per open question (a re-sighting returns it to unread) | `cruxible inbox list --line security.respond.<incident>` |
+| 2. The plan | A `security.remediation`: a **patch** has `work.asset`, `work.assessment` and `target_release`; a **rotation** has `work.credential`, `work.audit` and `revokes_key` (the `key_id` held when it was raised); both carry `owner` and `due_at` | normative, with its `because` |
+| 3. Approval | Under `independent_approval_required` someone other than its creator approves it (`creator_forbidden` refuses the creator) | the signed approval |
+| 4. The act | Outside Cruxible: act only on an accepted remediation | |
+| 5. Self-report | `remediation.progress` `completed`: it never closes anything | normative |
+| 6. Evidence lands | A scan, a log read or a credential's key listing, as a workspace file acquired under its contract | a Capture |
+| 7. Verified | The import proposes `work.verification` from that Capture: `verified`, or `failed` when it disagrees with the claim | observation |
+
+**Trust model.** Approval is attribution and role separation, not a security
+boundary against an agent that can read every principal's key. The kit's controls
+are evidence: a patch closes only on a fresh inventory scan, a rotation only on a
+fresh, separate read of the credential's state, an audit's none only on complete
+log reads; a self-report never closes anything. Run an incident under
+`independent_approval_required` with your security lead as the usual approver, and
+let a principal other than the one who acted acquire the evidence that verifies the
+action (`cruxible get ProcedureRun:RUN-...` shows each acquiring run's `actor`).
+Core has one approval profile (one signer other than the creator), so "a lead must
+approve rotations" is your convention, not a rule core enforces.
+
+**Secrets never enter.** A credential is non-secret: issuer and name, where it is
+used (`used_by`) and what it reaches (`reaches`), its current key's id
+(`key_id`: the issuer's key id, or `fp:` and 16 hex of the secret's sha256),
+`issued_at` and `issued_by`. The credential-state body is an allow-list; an unknown
+field, or a key id shaped like a secret (longer than 40 characters, a known secret
+prefix, high entropy), refuses the whole body and posts `secret_shape`, echoing no
+value. The bytes are already retained when that happens: stop, rotate whatever it
+exposed, and tell the maintainer.
+<!-- update: capture erasure -->
+
+### The evidence each action lands
+
+| Contract | Acquired by | Body (a workspace file, at most 1 MiB) | Read by |
+|---|---|---|---|
+| `security.runtime-inventory-v1` | `security.inventory-acquire` | the kit body `{"scope", "looked_for": ["php", "php8.2"] or ["*"], "coverage": "full" or "partial", "assets": [{"hostname", "runs": ["pkg:generic/php@8.3.10"]}]}`, no timestamps; or a CycloneDX JSON SBOM of one asset (Syft, Trivy) with metadata properties `cruxible.scope` and `cruxible.asset` | `security.inventory-import.<scope>` (parameter `scope`) |
+| `security.log-read-v1` | `security.log-acquire` | `{"audit": {"incident", "service"}, "source", "query", "from", "to", "complete", "records_scanned", "matches": [{"at", "summary"}]}`; `complete` = every record in [from, to] searched (no sampling, no result cap, retention reaching `from`); redact match summaries | `security.log-import.<incident>` (parameter `incident`) |
+| `security.credential-state-v1` | `security.credential-acquire` | `{"issuer", "name", "read": "receipt" or "state_read", "keys": [{"key_id", "state": "active" / "inactive" / "revoked" / "deleted", "created_at", "revoked_at", "last_used_at", "created_by"}]}` and nothing else | `security.credential-import` |
+
+What each import proposes:
+
+- **Inventory.** Each asset by key and `asset.scanned_in` the scope's coverage;
+  each release it runs (`product_name` and `version` from the purl, the purl as
+  `release.component`, so OSV decides a distro build) as `asset.runs`, observed
+  beside the declared `installs`. A **full** kit scan restates the coverage
+  revision (the digest of its `looked_for` and (asset, runs) set: an unchanged
+  fleet, in any order, is a re-observation and proposes nothing, while freshness
+  moves), retires runs it no longer sees of the products it looked for, and
+  proposes `verification` `verified` on an open patch whose asset no longer runs
+  the affected release; a scan that still shows it on a patch claimed `completed`
+  proposes `failed`. A **partial** scan only adds. A CycloneDX SBOM is one asset's
+  complete run set: it adds, retires and verifies for that asset, never states the
+  scope's coverage (its own timestamp makes every scan new content), and proposes
+  only when the run set changed. None answers need a scope's full kit scan.
+- **Log read.** One `security.audit.read` (`SOURCE FROM/TO`) for a complete read of
+  a stated audit. An incomplete read is posted (`read_incomplete`, with why): a
+  finding about your logs, not about the attacker. A read for an audit nobody
+  stated is posted (`audit_not_stated`). Never a `result`.
+- **Credential state.** From either kind of read, the current key's `key_id`,
+  `issued_at` and `issued_by`. Only from a `state_read`: `revoked_key`, and a
+  rotation's `verification`: `verified` when `revokes_key` is revoked, deleted or no
+  longer listed and an active key issued after the incident's `window_start` exists;
+  `failed` when the rotation is claimed `completed` and `revokes_key` is still
+  listed. A receipt (what the issuer returned to the rotating agent) never
+  verifies.
+
+### Declare the incident
+
+An incident (`security.incident`, keyed by `name`) groups the CVEs of one
+response, so each service gets one audit however many CVEs. Declaring it is an
+approved act: one ChangeSet with the incident's Claims, its respond Line and log
+import Line, and their Triggers (Lines are authored disabled: enable both after
+approval). Rename `php2shell` and the window for yours:
+
+```json
+{"kind": "change_set", "rationale": "Declare PHP2Shell.", "members": [
+  {"kind": "subject", "subject_kind": "security.incident", "key": {"name": "PHP2Shell"},
+   "rationale": "One response to CVE-2026-109618 and CVE-2026-109619."},
+  {"kind": "claim", "subject": {"subject_kind": "security.incident", "key": {"name": "PHP2Shell"}},
+   "predicate": "security.incident.window_start", "object": {"kind": "literal", "value": "2026-09-01T00:00:00Z"},
+   "role": "normative", "rationale": "The earliest known exploitation minus a margin.",
+   "source": {"kind": "self_source", "body": "window starts 2026-09-01\n"}},
+  "... incident.vulnerability for each CVE, rotation_policy on_found_or_unknown, status open ...",
+  {"kind": "line", "name": "security.respond.php2shell", "procedure_name": "security.respond",
+   "max_authority": "observe",
+   "parameters": {"incident": "PHP2Shell", "inventory_pull": "security.inventory-acquire",
+                  "log_pull": "security.log-acquire", "credential_pull": "security.credential-acquire",
+                  "record_pull": "security.cve-record-acquire"}},
+  {"kind": "line", "name": "security.log-import.php2shell", "procedure_name": "security.log-import",
+   "acquisition_policy_name": "security.acquisition", "max_authority": "propose",
+   "trigger_input": "log", "parameters": {"incident": "PHP2Shell"}},
+  {"kind": "trigger", "name": "security.log-landed.php2shell", "line_name": "security.log-import.php2shell",
+   "schedule": {"kind": "capture_landing", "capture_contract": "security.log-read-v1"}},
+  {"kind": "trigger", "name": "security.respond-daily.php2shell", "line_name": "security.respond.php2shell",
+   "schedule": {"kind": "cron", "expression": "50 7 * * *"}},
+  {"kind": "trigger", "name": "security.respond-after-rotation.php2shell", "line_name": "security.respond.php2shell",
+   "schedule": {"kind": "window_close", "window": {"kind": "capture_event",
+     "capture_contract": "security.credential-state-v1", "duration_seconds": 86400}}},
+  {"kind": "trigger", "name": "security.respond-after-scan.php2shell", "line_name": "security.respond.php2shell",
+   "schedule": {"kind": "window_close", "window": {"kind": "capture_event",
+     "capture_contract": "security.runtime-inventory-v1", "duration_seconds": 86400}}}
+]}
+```
+
+The window-close Triggers re-ask a day after a landing, so an unverified patch or
+rotation returns to unread. The log import's propose Mandate
+(`security.log-import-propose`) is in [the example automation](examples/automation.json),
+beside `security.inventory-import.prod` (one Line per inventory scope) and
+`security.credential-import`. No Mandate covers `audit.result`, `audit.window_end`,
+`audit.log_source`, `work.verification`, `remediation.*`, `credential.*` or any
+incident field.
+
+### The five questions, in three states
+
+`security.respond` answers each question **found** (posted), **none** (the run
+summary) or **unknown** (posted as a gap `{subject, pull, input}` naming the pull or
+statement that answers it):
+
+| # | found | none | unknown |
+|---|---|---|---|
+| RQ1 | `exposed`: a scan observed the asset running a release assessed affected | a current full scan that looked for the product shows no affected run | an asset that declares installing it, or a patched one, under no current coverage; an inconclusive assessment (an analyst's judgment answers it) |
+| RQ2 | `patch_missing`; `patch_overdue`; `patch_disputed` (verification `failed`, or claimed `completed` while still running); `patch_regressed` (verified, then seen running again) | `verification` `verified` and no affected run, under current coverage | a claimed patch no scan has read since; an approved one on schedule is *pending* (summary only) |
+| RQ3 | `exploited`: the result `exploited` | `not_exploited`, `window_end` stated, and for every `log_source` the union of its complete reads covers [`incident.window_start`, `window_end`] | no audit, no log source, window open, no result, `inconclusive`, `conflict`, or an uncovered interval (named per source) |
+| RQ4 | `rotate {credential, services: {audit, patch}, key_id, because}` for each credential a warranted service uses (`on_found_or_unknown`: RQ3 found or unknown; `all_exposed`: every exposed service); `rotation_disputed` | a rotation a state read verified, the current key issued after `window_start`; a credential no warranted service uses | claimed rotated, no separate state read yet |
+| RQ5 | `ready_to_close`, listing audits still unknown as accepted residue with their rotations | | |
+
+Rotating after a verified patch is the recommended order (rotating first lets the
+attacker read the new key), but it is the agent's call: `rotate` is posted with the
+service's audit and patch state, and nothing gates a rotation on the patch. Rotate
+at once when a key is known leaked. A closed incident (`status` `closed`) posts
+nothing.
+
+Coverage goes stale 12 h after a scope's last full scan: every none resting on it
+turns unknown, as `cruxible next` (`claim_stale_evidence`) says.
+
+### PHP2Shell at Acme, end to end
+
+The gate's flow. Services `storefront` (workloads `k8s:prod/storefront-a` and `-b`,
+`pkg:generic/php@8.3.10`; credentials `stripe/storefront-live`,
+`aws-iam/111122223333/storefront-app`), `partner-portal` (`app-1.acme.internal`,
+`pkg:deb/debian/php8.2@8.2.20-1~deb12u1`; `postgres/partners-db/portal`) and
+`ops-wiki` (`wiki-1.ops.acme.internal`, declared to install php 8.3.10, outside the
+prod scope; `github/acme-ops/wiki-deploy`). Principals `responder`, `ops` (acts),
+`scanner`, `auditor`, `lead`, under `independent_approval_required`.
+
+| # | Act (who) | What lands | Ask |
+|---|---|---|---|
+| 1 | KEV lists both CVEs | `kev-attention`: "KEV newly lists ...; inventory has php" | `cruxible inbox list --line security.kev-attention` |
+| 2 | `responder` acquires both CVE records | `cve-applicability`: php 8.3.10 affected; `osv-applicability`: the Debian build affected (its distro advisory); `lead` approves | `query --name security.urgent_exposures` |
+| 3 | `responder` declares the incident; `lead` approves; Lines enabled | | |
+| 4 | `scanner` scans prod (a Syft SBOM of storefront-a, then the kit body for the scope) | respond: RQ1 found ×3, RQ1 unknown for wiki-1 (`inventory-acquire`), RQ2 `patch_missing` ×3 | `query --name security.incident_exposure --param incident=PHP2Shell` |
+| 5 | `responder` raises 3 patches (`target_release` php 8.3.36 / php8.2 8.2.29-1~deb12u1, `due_at`); `lead` approves | `ops` rebuilds the image, upgrades app-1 | `query --name security.open_patches --param incident=PHP2Shell` |
+| 6 | `ops` sets `progress` `completed`; `scanner` scans prod and ops | `verified` ×3 (a claimed patch still running: `failed`, `patch_disputed`); the ops scan finds wiki-1 running 8.3.10: a 4th patch | open_patches empty after acceptance |
+| 7 | `auditor` states each service's log sources, runs the queries in your log tool, `log-acquire` each read | complete reads recorded; ops-wiki's read hits 14-day retention: `read_incomplete` | `query --name security.audit_status --param incident=PHP2Shell` |
+| 8 | `auditor` writes each result, citing the decisive read, with a section of `incidents/php2shell.md`, and `window_end`; `lead` approves | RQ3: storefront found, partner-portal none, ops-wiki unknown (its reads cover only 10-04 to 10-17) | `inbox list --line security.respond.php2shell` |
+| 9 | respond posts `rotate` ×3 (storefront's two, ops-wiki's deploy key); `responder` raises rotations; `lead` approves | `ops` rotates with the issuers' tools, records receipts | `query --name security.incident_credentials --param incident=PHP2Shell` |
+| 10 | `scanner` acquires state reads | `verified` ×3; an AWS old key still active: `failed`, `rotation_disputed`, until `ops` deletes it and the next read verifies | |
+| 11 | respond: RQ5 `ready_to_close` (residue: ops-wiki's audit) | `lead` sets `status` `closed` with a Closure section; `responder` approves | `next` is empty for the incident |
+
+### An incident status page
+
+`security.incident_status` (parameter `incident`) is one row per CVE, exposed asset
+and credential of its service, with every state as held: `exposure` (the
+assessment), `coverage` (the scope revision; empty: no current coverage),
+`patch` and `patch_verified`, `audit` (the result; `(conflicted)` while disputed),
+`rotation_verified`. An empty cell is unknown, never none; none is the respond
+Line's answer. Render it into a page with a projection block, which `next` flags
+when the state behind it moves and `block sync` brings back in step
+([example page](examples/incident-status.md)):
+
+```markdown
+## PHP2Shell: where we stand
+
+<!-- cruxible:block:status -->
+<!-- /cruxible:block:status -->
+```
+
+```bash
+cruxible files add php2shell-status incidents/php2shell-status.md
+cruxible block repin php2shell-status status --query QueryDefinition:security.incident_status \
+  --params '{"incident": "PHP2Shell"}' --render
+cruxible block sync --all   # after the state moves (next: projection_backing_stale)
+```
 
 ## Vulnerabilities in depth
 
@@ -774,6 +1000,18 @@ Mandates stay propose-only.
   repository Line. The import's tap reads the repository's held findings
   (`security.finding_index`, up to 2000; a truncated tap refuses rather than read a
   held finding as new).
+- **Workspace files are at most 1 MiB.** Core's built-in `workspace.file` structures
+  at most 1 MiB, so every workspace-file Procedure (SBOM, evidence, SARIF,
+  reproduction, inventory, log read, credential state) budgets 1 MiB: split a larger
+  SBOM, scan or inventory scope.
+- **Incident Lines.** An inventory import reads one scope's held assets and runs
+  (`security.inventory_index` and `security.inventory_patches`, up to 2000 rows each:
+  split a scope that grows past it; a truncated tap refuses). The credential import
+  reads every held credential (`security.rotation_work`). Respond and the log import
+  read one incident's rows. A landing costs one import per scope or incident Line.
+- **Secret slips.** A credential-state body is an allow-list, but its bytes are
+  retained before the import refuses it: see [Respond to an
+  incident](#respond-to-an-incident).
 
 ## For maintainers
 
@@ -787,9 +1025,9 @@ with the interpreter of the cruxible build the release targets. It rebuilds both
 bundled providers (registration, tests, wheel), starts a daemon on a fresh state
 root under `SCRATCH_DIR`, installs `cruxible-provider-web` 0.2.2 and the bundled
 wheels, runs `source/authoring/security_definitions.py definitions` and
-`procedures` for 1.2.0, `kit build`s it, authors the 1.2.1 successors on the
-same instance and builds those, then copies 1.2.0 over `cruxible-kit.json`,
-`artifacts/` and `providers/` here and 1.2.1 over `source/variants/1.2.1-gate`,
+`procedures` for 1.3.0, `kit build`s it, authors the 1.3.1 successors on the
+same instance and builds those, then copies 1.3.0 over `cruxible-kit.json`,
+`artifacts/` and `providers/` here and 1.3.1 over `source/variants/1.3.1-gate`,
 and regenerates `reference.md` and this README's counts table from the copied
 release (`python source/reference.py` does only that step; after editing
 `examples/automation.json` run it too, and `--check` also refuses a concept map
@@ -798,7 +1036,7 @@ digest. After changing a provider, bump its
 version. `source/providers/cruxible-provider-web` holds the published 0.2.2
 wheel, the lock it embeds and the runtime wheel that lock names by path, so
 `kit build` can record the default's hashes; none of those files ship.
-`source/variants/1.2.1-gate` is a release-gate fixture (changes `kev_exposure`,
+`source/variants/1.3.1-gate` is a release-gate fixture (changes `kev_exposure`,
 adds `vulnerability.kev_cwes`, changes the kev-acquire Blueprint and the analysis
 Provider's KEV rationale), not a published version.
 
@@ -809,16 +1047,25 @@ daemon with a scratch state root and HOME: the kit is published to a throwaway
 HTTPS OCI registry on 127.0.0.1, installed, instantiated, automated, fed an
 inventory and an SBOM, run through OSV and CVE-record applicability, applicability
 bets, KEV triage and attention, EPSS, a restart, measurement, graduation to
-settle, the upgrade to `source/variants/1.2.1-gate` and the re-import of a changed
+settle, the upgrade to `source/variants/1.3.1-gate` and the re-import of a changed
 SBOM and a new release, then the system model: gates asked with every answer
 unknown and one gap per source, pulls and parses, an unchanged re-pull
 (re-observation), a moved `main`, fail-closed freshness, a declared/running
 disagreement and a full investigation, then the code findings under independent
 approval: a Semgrep report, an agent's duplicate, CodeQL's own key, a located,
 triaged, contended and confirmed finding, HQ6, and a fix that drifts the location,
-verifies by full re-scan and regresses, asserting each step's observable. The
-SARIF fixtures are in the analysis Provider's `tests/data/sarif` (Semgrep's
-recorded, CodeQL's hand-built in its shape). It is
+verifies by full re-scan and regresses, then an incident (PHP2Shell) under
+independent approval: a KEV listing reaching exposure through a Syft SBOM and a
+scope's inventory, distro builds left to OSV, patches closed only by a scan (a
+claimed patch the scan disagrees with disputed), unchanged re-scans and stale
+coverage, audits in three states (an incomplete read, a contended result, own words
+refused), rotations verified only by a separate state read (an old key still
+active, a secret-shaped body refused), a window-close re-ask, the status page and
+closure, asserting each step's observable. The SARIF fixtures are in the analysis
+Provider's `tests/data/sarif` (Semgrep's recorded, CodeQL's hand-built in its
+shape), the incident's in `tests/data/incident` (recorded shapes: CVE JSON 5.1, an
+NVD answer with null configurations, a Syft CycloneDX SBOM, log reads and key
+listings). It is
 offline from every security source: `gate/fixture-sources` (package
 `security-gate-sources`) is cruxible-provider-web's own `WebFetch` and the kit's
 own OSV, EPSS, repository and PyPI adapters (vendored by its
@@ -837,7 +1084,7 @@ checking that `next` is empty.
 CRUXIBLE_BIN=$(command -v cruxible) python -m pytest kits/security/gate -x -q
 ```
 
-It needs `git` and `openssl`, takes about fifteen minutes, and writes
+It needs `git` and `openssl`, takes about forty minutes, and writes
 `gate-results.md` and the command log to its scratch root
 (`SECURITY_KIT_GATE_ROOT` to choose one). After changing the fixture, run its
 `build_registration.py`, `uv lock` and `uv build --wheel --out-dir dist`.

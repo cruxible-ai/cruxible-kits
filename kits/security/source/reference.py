@@ -523,6 +523,9 @@ _EVIDENCE_GROUPS = {
     "workspace_file": "Workspace files an analyst cites",
     "sarif_log": "Scan results (SARIF)",
     "test_report": "Reproductions (PoC runs)",
+    "inventory_scan": "Runtime inventory scans",
+    "log_query": "Log reads",
+    "credential_state": "Credential key states (non-secret)",
 }
 
 

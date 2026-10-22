@@ -1,0 +1,69 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_object_subject_kinds": [],
+  "allowed_subject_kinds": [
+    "security.incident"
+  ],
+  "artifact_format": "playbill-claim-type-v8",
+  "attestation_consequence_policy": null,
+  "canonical_form": [],
+  "cardinality": "one",
+  "default_role": "normative",
+  "description": "What raises a rotation: on_found_or_unknown (a service's audit found or cannot rule out exploitation) or all_exposed.",
+  "evidence_admission_policy": {
+    "rules": [],
+    "tag": "playbill-claim-evidence-admission-policy-v3"
+  },
+  "evidence_freshness": null,
+  "evidence_requirement": "none",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "security.incident.rotation_policy"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "literal_schema": {
+    "enum": [
+      "all_exposed",
+      "on_found_or_unknown"
+    ],
+    "type": "string"
+  },
+  "member_descriptions": [
+    {
+      "description": "Rotate every credential a service of an exposed asset uses.",
+      "member": "all_exposed"
+    },
+    {
+      "description": "Rotate the credentials of a service whose audit found exploitation or cannot rule it out (unknown).",
+      "member": "on_found_or_unknown"
+    }
+  ],
+  "object_kind": "literal",
+  "permitted_roles": [
+    "normative"
+  ],
+  "pins": [],
+  "predicate": "security.incident.rotation_policy",
+  "referent_sensitivity": "identity",
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "slot_policy": null,
+  "subject_scope": null
+}

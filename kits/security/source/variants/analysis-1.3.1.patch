@@ -1,39 +1,28 @@
---- a/pyproject.toml
-+++ b/pyproject.toml
-@@ -7,7 +7,7 @@
- # the kit's definitions.
- [project]
- name = "security-analysis-provider"
--version = "1.2.0"
-+version = "1.2.1"
- description = "Security kit provider: KEV, EPSS, SBOM, applicability and system-model analysis to proposal items."
- requires-python = ">=3.11"
- license = "Apache-2.0"
---- a/uv.lock
-+++ b/uv.lock
-@@ -290,7 +290,7 @@
- 
- [[package]]
- name = "security-analysis-provider"
--version = "1.2.0"
-+version = "1.2.1"
- source = { editable = "." }
- dependencies = [
-     { name = "cruxible-provider-runtime" },
 --- a/build_registration.py
 +++ b/build_registration.py
 @@ -22,7 +22,7 @@
  
  ROOT = Path(__file__).resolve().parent
  MODULE = ROOT / "src" / "security_analysis_provider"
--VERSION = "1.2.0"
-+VERSION = "1.2.1"
+-VERSION = "1.3.0"
++VERSION = "1.3.1"
  
  
  def _b64(data: bytes) -> str:
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -9,7 +9,7 @@
+ # the kit's definitions.
+ [project]
+ name = "security-analysis-provider"
+-version = "1.3.0"
++version = "1.3.1"
+ description = "Security kit provider: KEV, EPSS, SBOM, applicability and system-model analysis to proposal items."
+ requires-python = ">=3.11"
+ license = "Apache-2.0"
 --- a/src/security_analysis_provider/kev.py
 +++ b/src/security_analysis_provider/kev.py
-@@ -151,7 +151,7 @@
+@@ -159,7 +159,7 @@
                          vulnerability,
                          predicate,
                          value,
@@ -42,3 +31,14 @@
                          revises=row.claim_id(vulnerability, predicate)
                          if state == "present"
                          else None,
+--- a/uv.lock
++++ b/uv.lock
+@@ -290,7 +290,7 @@
+ 
+ [[package]]
+ name = "security-analysis-provider"
+-version = "1.3.0"
++version = "1.3.1"
+ source = { editable = "." }
+ dependencies = [
+     { name = "cruxible-provider-runtime" },

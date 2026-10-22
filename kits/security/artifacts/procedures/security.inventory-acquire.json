@@ -1,0 +1,238 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "playbill-procedure-v2",
+  "definition": {
+    "annotations": {},
+    "budget": {
+      "max_capture_bytes": 1048576,
+      "max_provider_calls": 1,
+      "tag": "playbill-procedure-budget-v1",
+      "wall_clock": {
+        "microseconds": 60000000,
+        "tag": "playbill-duration-v1"
+      }
+    },
+    "contract_in": {
+      "artifact_digest": "sha256:cab7dec5ca71b93074efc8e2e16e14595ecb629b142c72472ee3fa0210788b13",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-path-input"
+      }
+    },
+    "contract_out": {
+      "artifact_digest": "sha256:1752420ab9752c2310e77810ede7472a7976302840cc4023d0f92bb4edb38178",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-file-evidence"
+      }
+    },
+    "description": "Read one runtime-inventory scan from the attached workspace (input.relative_path, at most 1 MiB) and retain it under security.runtime-inventory-v1; the scope's security.inventory-import Line reads it when it lands. Either the kit's tool-neutral body {scope, looked_for, coverage: full|partial, assets: [{hostname, runs: [purl@version]}]} with no timestamps (an unchanged fleet is the same bytes), or a CycloneDX JSON SBOM of one asset (Syft, Trivy) annotated with metadata properties cruxible.scope and cruxible.asset.",
+    "graph_format": 6,
+    "hard_caps": {
+      "max_capture_bytes": 1048576,
+      "max_items": 1,
+      "max_provider_calls": 1,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 120000000,
+        "tag": "playbill-duration-v1"
+      },
+      "tag": "playbill-procedure-hard-caps-v1"
+    },
+    "measurements": [],
+    "name": "security.inventory-acquire",
+    "nodes": [
+      {
+        "as": "inventory",
+        "capture_contract": {
+          "artifact_digest": "sha256:44b08b1c98e2f586e455e404a94af68e395dedba1307ddf077a3094fb581db55",
+          "role": "capture-contract",
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.runtime-inventory-v1"
+          }
+        },
+        "implementation_digest": "sha256:67c337ac0a87cfe8ee42da30a21c4cce658a0ad6bb3944b39a81e921aaba843c",
+        "interface": {
+          "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
+          "role": "provider-interface",
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "interface_digest": "sha256:faa92552bd6032d3280753881ce991501013b2eaa2005e0f974820f01248d866",
+        "kind": "source",
+        "next": "summary",
+        "node_id": "inventory",
+        "provider": {
+          "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
+          "role": "provider",
+          "target": {
+            "kind": "Provider",
+            "name": "cruxible-builtin"
+          }
+        },
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.inventory",
+          "relative_path": "$input.relative_path",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "as": "summary",
+        "contract_out": {
+          "artifact_digest": "sha256:1752420ab9752c2310e77810ede7472a7976302840cc4023d0f92bb4edb38178",
+          "role": "contract-out",
+          "target": {
+            "kind": "Contract",
+            "name": "security-file-evidence"
+          }
+        },
+        "fields": {
+          "byte_length": "$steps.inventory.source.byte_length",
+          "bytes_digest": "$steps.inventory.source.bytes_digest"
+        },
+        "kind": "project",
+        "next": null,
+        "node_id": "summary"
+      }
+    ],
+    "parameter_contract": null,
+    "pin_slots": [],
+    "returns": "summary",
+    "source": null,
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:2de37f7329dc97bfb92b40941769a0304ecb54c657babf0d7ccfb3a7f0dffc90",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.inventory-acquire"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-file-evidence"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "byte_length": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
+          "bytes_digest": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-path-input"
+      },
+      "schema": {
+        "allow_extra": false,
+        "description": null,
+        "fields": {
+          "relative_path": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "string"
+          }
+        }
+      },
+      "tag": "playbill-procedure-owned-contract-v1"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:c7e44b83205475966079c6591e8ba7e7578189f64c076533b3a3f129ff439031",
+      "role": "acquisition-policy",
+      "target": {
+        "kind": "SourceAcquisitionPolicy",
+        "name": "security.acquisition"
+      }
+    },
+    {
+      "artifact_digest": "sha256:44b08b1c98e2f586e455e404a94af68e395dedba1307ddf077a3094fb581db55",
+      "role": "capture-contract",
+      "target": {
+        "kind": "CaptureContract",
+        "name": "security.runtime-inventory-v1"
+      }
+    },
+    {
+      "artifact_digest": "sha256:cab7dec5ca71b93074efc8e2e16e14595ecb629b142c72472ee3fa0210788b13",
+      "role": "contract-in",
+      "target": {
+        "kind": "Contract",
+        "name": "security-path-input"
+      }
+    },
+    {
+      "artifact_digest": "sha256:1752420ab9752c2310e77810ede7472a7976302840cc4023d0f92bb4edb38178",
+      "role": "contract-out",
+      "target": {
+        "kind": "Contract",
+        "name": "security-file-evidence"
+      }
+    },
+    {
+      "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
+      "role": "provider",
+      "target": {
+        "kind": "Provider",
+        "name": "cruxible-builtin"
+      }
+    },
+    {
+      "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
+      "role": "provider-interface",
+      "target": {
+        "kind": "ProviderInterface",
+        "name": "workspace.file"
+      }
+    }
+  ]
+}
