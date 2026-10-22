@@ -13,7 +13,11 @@ vulnerability is exploited in the wild.
 The kit's [README](../../README.md) is the source for every name below, and
 its [reference](../../reference.md) lists every kind, field and query. The
 core guides are at https://docs.cruxible.ai. If the kit isn't installed yet,
-use the `adopt-kit` skill and the README's **Install and first answers**.
+use the `adopt-kit` skill and the README's **Install and first answers**. If
+the instance doesn't yet hold what you ship and run, or an answer is unknown,
+use the [security intake skill](../security-intake/SKILL.md) first: it pulls
+in SBOMs, inventory, services, credentials and log sources, and fetches what
+each unknown names.
 
 ## Ground rules
 

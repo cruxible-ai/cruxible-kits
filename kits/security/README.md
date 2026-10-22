@@ -34,9 +34,12 @@ Ask any of them with `cruxible query --name NAME`. The hardening questions
 **none** (looked, nothing matches) or **unknown** (not read yet: it names the
 pull that would answer it); never "none" for something nobody read.
 
-An agent doing this work can load the [security analyst
-skill](skills/security-analyst/SKILL.md): the order to work these questions in,
-and the rules that keep its judgments reviewable.
+An agent doing this work can load two skills. The [security intake
+skill](skills/security-intake/SKILL.md) pulls your state in: an SBOM per
+repository, a runtime inventory per scope, services and their credentials, and
+log sources, then whatever an unknown answer names. The [security analyst
+skill](skills/security-analyst/SKILL.md) gives the order to work these
+questions in, and the rules that keep its judgments reviewable.
 
 **Coming from the Cruxible quickstart?** You've done [Install and first
 answers](#install-and-first-answers), declared an incident and added its respond
