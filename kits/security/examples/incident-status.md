@@ -1,10 +1,12 @@
 # PHP2Shell: where we stand
 
-The incident status page: one row per CVE, patch raised for an exposed asset (or
-exception accepting its risk, until it expires) and credential of the asset's
-service, rendered from `security.incident_status` (parameter `incident`). An empty
-cell is unknown (nothing recorded), never none; the respond Line
-(`security.respond.php2shell`) posts the derived answers. Catalog this page and stamp
+The incident status page: one row per CVE, exposure, patch raised for an exposed
+asset (or exception accepting its risk, until it expires) and credential of the
+asset's service, rendered from `security.incident_status` (parameter `incident`).
+Pending actions show as their own state (a patch or rotation `planned` or
+`in_progress`, beside its verification); an exposure with no host has no action
+raised yet. An empty cell is unknown (nothing recorded), never none; the respond
+Line (`security.respond.php2shell`) posts the derived answers. Catalog this page and stamp
 the block:
 
     cruxible files add php2shell-status incidents/php2shell-status.md

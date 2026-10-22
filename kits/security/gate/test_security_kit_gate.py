@@ -3061,11 +3061,15 @@ def test_39_audit_three_states(gate: Gate) -> None:
                    "each service's log_source list.", "changes": changes}, LEAD)
     gate.values["audits"] = {s: audits[f"audit-{s}"] for s in asks}
     # The service lists php-fpm too: until the audit states it, storefront's RQ3 is unknown.
+    # One item names every missing piece (the source left out, the open window, no result).
     _respond(gate)
-    left_out = [g["payload"]["input"] for g in _respond_posts(gate, "gap")
-                if g["payload"]["subject"] == "storefront"
-                and g["payload"]["input"].get("state") == "security.audit.log_source"]
-    assert [ask.get("sources") for ask in left_out] == [["storefront/php-fpm"]], left_out
+    (left_out,) = [g["payload"]["input"]["missing"] for g in _respond_posts(gate, "gap")
+                   if g["payload"]["subject"] == "storefront"]
+    assert [piece.get("sources") for piece in left_out
+            if piece.get("state") == "security.audit.log_source"] == [["storefront/php-fpm"]], (
+        left_out)
+    assert {"security.audit.window_end", "security.audit.result"} <= {
+        piece.get("state") for piece in left_out}, left_out
     _ack_all(gate)
     _write_as(gate, AUDITOR, "audit-php-fpm", {
         "because": "storefront's log_source list names PHP-FPM's log, which records which "
@@ -3121,7 +3125,8 @@ def test_39_audit_three_states(gate: Gate) -> None:
     assert rq3 == {"storefront": "found", "partner-portal": "none", "ops-wiki": "unknown"}, rq3
     (gap,) = [g["payload"] for g in _respond_posts(gate, "gap")
               if g["payload"]["subject"] == "ops-wiki"]
-    assert (gap["input"]["source"], gap["input"]["from"], gap["input"]["to"]) == (
+    (piece,) = gap["input"]["missing"]
+    assert (piece["source"], piece["from"], piece["to"]) == (
         "ops-wiki/nginx", WINDOW_START, "2026-10-04T00:00:00Z"), gap
     assert gap["pull"] == "security.log-acquire"
     assert [p["payload"]["service"] for p in _respond_posts(gate, "exploited")] == ["storefront"]

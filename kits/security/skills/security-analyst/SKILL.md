@@ -76,8 +76,12 @@ of the answer. In `urgent_exposures`, `asset` is a host that declares
 installing the release (declared and observed when `asset_observed` is set)
 and `observed` a host only a scan sees running it; a release with both kinds
 pairs each declaring host with each scan-only one, so count hosts per column,
-not rows. `triage` lists declaring hosts only. An SBOM release with no assessment for a CVE means OSV relates
-none of its components to it, not that someone judged it safe.
+not rows. `triage` lists declaring hosts only. An SBOM release with no assessment for a CVE
+means nothing decided it, not that someone judged it safe: read its
+`osv_coverage` (`security.release_inventory`). Under `complete` coverage OSV
+answered every component, so a CVE OSV knows (`security.vulnerability.package`)
+that none of them is a package of is none; under `partial` coverage (a
+`pkg:brew` or `pkg:generic` component OSV never indexes) it is unknown.
 
 ## 3. Work the triage backlog
 
@@ -93,9 +97,21 @@ cruxible query --name security.coverage_gaps --param vulnerability=security.vuln
   (`cruxible proposal review ID`). Check the cited Capture before approving.
 - **Record a judgment** where the source can't decide or is wrong for your
   deployment: retain what you read (`security.evidence-acquire` on the file),
-  then set `status` and `justification` with role `normative`, citing that
-  Capture, in one write with your reasoning as `because`. The README's
+  then set `status` and `justification` (and, for `affected`, the `component`
+  that brings it in) with role `normative`, citing that Capture, in one write
+  with your reasoning as `because`. A judgment cites your own words or a
+  workspace file under **`security.workspace-evidence-v1`**: a source's Capture
+  (the OSV query, a CVE record) is refused for a normative Claim
+  (`existing_capture_not_admitted`), so retain the record or note you read as a
+  workspace file instead. The README's
   [Analyst judgments](../../README.md#analyst-judgments) shows the exact write.
+- **Name a product the records name differently.** When a CVE record's affected
+  entry names your release another way (GitHub's CNA writes `cli/cli` for
+  Homebrew's `gh`), state `security.release.product_alias` on the release
+  (`cli/cli`, a purl without version, a repository URL or a CPE prefix), citing
+  a retained workspace file that shows it (the formula's JSON), then re-acquire
+  the record: the matcher reads aliases like the release's own name. A partial
+  name match is never a match.
   A retained file is kept for good (that contract can't be erased): never
   retain one holding a secret, such as a config as deployed; cut the
   credentials out first.
@@ -170,7 +186,8 @@ command against any service.
 
 ```bash
 cruxible inbox list --line security.respond.INCIDENT --status unread
-cruxible query --name security.incident_exposure --param incident=INCIDENT    # RQ1
+cruxible query --name security.incident_exposure --param incident=INCIDENT    # RQ1 (assessed)
+cruxible query --name security.scanned_runs                                    # RQ1 (every scanned release)
 cruxible query --name security.open_patches --param incident=INCIDENT         # RQ2, internet-facing first
 cruxible query --name security.audit_status --param incident=INCIDENT         # RQ3
 cruxible query --name security.incident_credentials --param incident=INCIDENT # RQ4
@@ -179,6 +196,15 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
 - **Declare.** An incident groups the CVEs of one response: its window
   (`window_start`), rotation policy and status, plus its respond and log
   import Lines, in one approved ChangeSet. Enable both Lines after approval.
+  Naming a CVE in an incident watches it.
+- **Answer every pair.** RQ1 pairs each incident CVE with every release a scan
+  observed. A pair nobody assessed is unknown until evidence answers it, and its
+  gap names the next step: the CVE's record (`security.cve-record-acquire`,
+  `input.url`) when none was read; "OSV doesn't index N components of this
+  release" (a judgment, a product alias, or a re-scan naming the binary by a
+  purl type OSV indexes, such as `go version -m` for a Go binary); the OSV Line
+  when OSV hasn't answered the release; an analyst's judgment last. Never
+  report "not affected" for a pair the respond Line reads unknown.
 - **Act only on an accepted remediation.** A patch names `work.asset`,
   `work.assessment` and `target_release`; a rotation names `work.credential`,
   `work.audit` and `revokes_key` (the `key_id` held when you raise it). Approval
@@ -198,13 +224,21 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
 - **Audit in three states.** State the audit's log sources first (stating them
   asks the question), starting from the service's `log_source` list: the
   respond Line's gap names it (`input.sources`), and a listed source the audit
-  leaves out keeps the answer unknown. A source the service doesn't list yet:
+  leaves out keeps the answer unknown. Once the audit exists, one gap per
+  service lists every missing piece (`input.missing`: a source to state, the
+  window end, the result, each uncovered interval to read). A source the service doesn't list yet:
   add it to the service too, with its doc section. `none` needs
   `not_exploited`, a `window_end`, and complete reads of every source covering
   the whole window. An incomplete read is a finding about
-  the logs, not about the attacker: report it as such. The result cites the
-  decisive read; your reasoning goes in a section of the incident's note.
-  Disagree by contending.
+  the logs, not about the attacker: report it as such, with what was missing
+  (`missing: [{from, to, reason: expired|unavailable|not_searched, status}]` in
+  the read: the item says "records A to B expired (HTTP 410)"). The result cites
+  the decisive read (or a workspace file, `security.workspace-evidence-v1`); your
+  reasoning goes in a section of the incident's note. Disagree by contending.
+- **Clear answered gaps yourself.** A gap that closed is simply not posted
+  again; the inbox doesn't resolve items on its own (dispositions are yours).
+  After a respond run, acknowledge each respond item whose latest sighting
+  predates that run.
 - **Rotate, usually after the patch.** Rotating after the patch is verified is
   the recommended order (rotating first lets an attacker still on the host read
   the new key), but it is your call: rotate at once when a key is known leaked or

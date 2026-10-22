@@ -338,6 +338,23 @@ def test_an_incomplete_read_or_an_unstated_audit_is_posted_never_recorded() -> N
     assert other["mine"] == 0
 
 
+def test_an_incomplete_read_says_why_in_words() -> None:
+    held = parse_rows(_audits("github-actions-ci"))
+    read = {"audit": {"incident": "PHP2Shell", "service": "github-actions-ci"},
+            "source": "gha:acme/app", "query": "token", "from": "2026-01-21T00:00:00Z",
+            "to": "2026-07-24T08:06:00Z", "complete": False, "records_scanned": 0,
+            "matches": [], "missing": [{"from": "2026-01-21T00:00:00Z",
+                                        "to": "2026-07-24T08:06:00Z", "reason": "expired",
+                                        "status": 410}]}
+    (item,) = log_reads(json.dumps(read), held, "PHP2Shell")["inbox"]
+    assert item["why"] == ("records 2026-01-21T00:00:00Z to 2026-07-24T08:06:00Z expired "
+                           "(HTTP 410)")
+    assert item["missing"][0]["status"] == 410
+    del read["missing"]
+    (item,) = log_reads(json.dumps(read), held, "PHP2Shell")["inbox"]
+    assert "no reason given" in item["why"]
+
+
 # --- credential state ----------------------------------------------------------------
 
 
@@ -628,9 +645,16 @@ def test_rq3_three_states_and_rq4_rotations() -> None:
     result = _ask(audits=audits, credentials=credentials)
     assert {s: a["state"] for s, a in _by(result, "RQ3").items()} == {
         "ops-wiki": "unknown", "partner-portal": "none", "storefront": "found"}
-    assert "uncovered" in _by(result, "RQ3")["ops-wiki"]["why"]
+    # Intervals in words, never a list's repr.
+    assert _by(result, "RQ3")["ops-wiki"]["why"] == (
+        "ops-wiki/nginx is not read in full: uncovered 2026-09-01T00:00:00Z to "
+        "2026-10-04T00:00:00Z")
     (gap,) = [g for g in _posted(result, "gap") if g["subject"] == "ops-wiki"]
-    assert gap["input"]["source"] == "ops-wiki/nginx" and gap["pull"] == "security.log-acquire"
+    assert gap["pull"] == "security.log-acquire"
+    assert gap["input"]["missing"] == [{
+        "pull": "security.log-acquire", "source": "ops-wiki/nginx",
+        "from": "2026-09-01T00:00:00Z", "to": "2026-10-04T00:00:00Z",
+        "uncovered": ["2026-09-01T00:00:00Z to 2026-10-04T00:00:00Z"]}]
     rotate = {item["credential"]: item for item in _posted(result, "rotate")}
     assert sorted(rotate) == ["aws-iam/111122223333/storefront-app", "github/acme-ops/wiki-deploy",
                               "stripe/storefront-live"]
@@ -665,7 +689,9 @@ def test_an_audit_starts_from_the_services_log_sources() -> None:
     result = _ask(exposure=[exposure], audits=[partial])
     assert _by(result, "RQ3")["storefront"]["state"] == "unknown"
     (gap,) = [g for g in _posted(result, "gap") if g["subject"] == "storefront"]
-    assert gap["input"]["sources"] == ["storefront/php-fpm"] and gap["pull"] == "statement"
+    assert gap["pull"] == "statement" and gap["input"]["missing"] == [
+        {"pull": "statement", "state": "security.audit.log_source",
+         "sources": ["storefront/php-fpm"]}]
     # Stated and read in full over the window: none.
     whole = _audit("storefront", service_log_source=listed, log_source=listed,
                    read=[_full(source) for source in listed], window_end=WINDOW[1],
@@ -677,7 +703,12 @@ def test_an_audit_starts_from_the_services_log_sources() -> None:
                    read=[_full(source) for source in listed], window_end=WINDOW[1],
                    result="not_exploited")
     (gap,) = [g for g in _posted(_ask(audits=[extra]), "gap") if g["subject"] == "storefront"]
-    assert gap["input"]["source"] == "storefront/waf"
+    assert [piece["source"] for piece in gap["input"]["missing"]] == ["storefront/waf"]
+    # Every missing piece in one item: no result, no window_end and an unread source.
+    bare = _audit("storefront", service_log_source=listed, log_source=listed)
+    (gap,) = [g for g in _posted(_ask(audits=[bare]), "gap") if g["subject"] == "storefront"]
+    assert [piece.get("state") for piece in gap["input"]["missing"]] == [
+        "security.audit.window_end", "security.audit.result"]
 
 
 def test_rq4_rotation_states_and_rq5_ready_to_close_with_residue() -> None:

@@ -38,11 +38,13 @@ whose release runs again is a regression: reported in the summary, never revised
 
 ``LogReads`` (``security.log-reads``) reads one log read
 ``{audit: {incident, service}, source, query, from, to, complete,
-records_scanned, matches: [{at, summary}]}`` for the Line's incident beside the
-incident's audits (rows of ``security.audit_status``). A complete read of a
-stated audit is one ``security.audit.read`` (``SOURCE FROM/TO``); an incomplete
-read, or a read for an audit nobody stated, is posted, never recorded. Never a
-result: that is the auditor's judgment.
+records_scanned, matches: [{at, summary}]}`` (an incomplete one may add
+``missing: [{from, to, reason: expired|unavailable|not_searched, status}]`` and
+``incomplete_reason``) for the Line's incident beside the incident's audits (rows
+of ``security.audit_status``). A complete read of a stated audit is one
+``security.audit.read`` (``SOURCE FROM/TO``); an incomplete read is posted with why
+in words (``records A to B expired (HTTP 410)``), a read for an audit nobody stated
+is posted, neither is recorded. Never a result: that is the auditor's judgment.
 
 ``CredentialState`` (``security.credential-state``) reads one credential's key
 state ``{issuer, name, read: receipt|state_read, keys: [{key_id, state,
@@ -94,7 +96,8 @@ states, from the rows of ``security.incident_exposure``,
   ``not_exploited`` is none only with ``window_end`` stated and, for every stated
   log source, complete reads whose union covers [window_start, window_end];
   anything else (no audit, no log source, window open, no result, inconclusive, a
-  contended result, an uncovered interval, named per source) is unknown. An audit
+  contended result, an uncovered interval, named per source) is unknown, with every
+  missing piece in one item (``input.missing``: what to state, what to read). An audit
   starts from the service's standing list (``service.log_source``): the gap that
   asks for a missing audit names it (``sources``), and a source the service lists
   that its audit does not state is unknown until the audit states it.
@@ -593,7 +596,10 @@ class RuntimeInventory:
 # --- log reads ----------------------------------------------------------------------
 
 _LOG_KEYS = {"audit", "source", "query", "from", "to", "complete", "records_scanned", "matches",
-             "incomplete_reason"}
+             "incomplete_reason", "missing"}
+#: Why part of [from, to] went unsearched: the records are gone (retention, an HTTP 410),
+#: the source would not answer (an error status), or the tool never asked for it.
+_MISSING_REASONS = ("expired", "unavailable", "not_searched")
 
 
 @dataclass
@@ -627,11 +633,42 @@ def read_log(text: str) -> dict[str, Any]:
     matches = document.get("matches") or []
     if not isinstance(matches, list):
         raise InputError("matches must be a list")
+    missing = []
+    for span in document.get("missing") or ():
+        if not isinstance(span, Mapping) or set(span) - {"from", "to", "reason", "status"}:
+            raise InputError("a missing span is {from, to, reason, status}")
+        if span.get("reason") not in _MISSING_REASONS:
+            raise InputError(f"a missing span's reason is one of {list(_MISSING_REASONS)}")
+        status = span.get("status")
+        if status is not None and (not isinstance(status, int) or isinstance(status, bool)):
+            raise InputError("a missing span's status is an HTTP status code")
+        missing.append({"from": _when(span.get("from"), "missing from"),
+                        "to": _when(span.get("to"), "missing to"), "reason": span["reason"],
+                        **({"status": status} if status is not None else {})})
     return {"incident": audit["incident"].strip(), "service": audit["service"].strip(),
             "source": source.strip(), "from": start, "to": end,
             "complete": document["complete"], "matches": len(matches),
-            "why": str(document.get("incomplete_reason") or
-                       "the tool did not search every record in [from, to]")}
+            "missing": sorted(missing, key=lambda span: (span["from"], span["to"])),
+            "why": _incomplete_why(missing, document.get("incomplete_reason"))}
+
+
+def _incomplete_why(missing: list[dict[str, Any]], reason: object) -> str:
+    """Why a read is incomplete, in words: each unsearched span and why, then the tool's
+    own reason; a read that says neither is asked to."""
+
+    said = []
+    for span in sorted(missing, key=lambda item: (item["from"], item["to"])):
+        status = f" (HTTP {span['status']})" if "status" in span else ""
+        verb = {"expired": "expired", "unavailable": "were unavailable",
+                "not_searched": "were not searched"}[span["reason"]]
+        said.append(f"records {span['from']} to {span['to']} {verb}{status}")
+    if isinstance(reason, str) and reason.strip():
+        said.append(reason.strip())
+    if said:
+        return "; ".join(said)
+    return ("incomplete, with no reason given: name each unsearched span in missing "
+            "[{from, to, reason: expired|unavailable|not_searched, status}] or say why in "
+            "incomplete_reason")
 
 
 def log_reads(text: str, held_rows: list[Row], line_incident: str) -> dict[str, Any]:
@@ -653,7 +690,8 @@ def log_reads(text: str, held_rows: list[Row], line_incident: str) -> dict[str, 
     posting = {"incident": read["incident"], "service": read["service"],
                "source": read["source"], "from": read["from"], "to": read["to"]}
     if not read["complete"]:
-        item = {"kind": "read_incomplete", **posting, "why": read["why"]}
+        item = {"kind": "read_incomplete", **posting, "why": read["why"],
+                **({"missing": read["missing"]} if read["missing"] else {})}
         return {**summary, "items": [], "inbox": [item], "mine": 1, "recordable": 0,
                 "posted": 1}
     if held is None:
@@ -1485,46 +1523,55 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
                          **({"sources": listed} if listed else {})})
             rq3[path] = "unknown"
             continue
-        unstated = sorted(set(listed) - audit.sources)
         state, result = audit.result
-        if state == "conflict":
-            out.unknown("RQ3", name, "contended result", "statement",
-                        {"state": "security.audit.result", "resolve": "conflict", **statement})
-        elif result == "exploited":
+        if state != "conflict" and result == "exploited":
             out.answer("RQ3", name, "found", "the auditor found exploitation", {
                 "kind": "exploited", "service": name, "audit": _ref(audit.bound)})
-        elif not audit.sources and not unstated:
-            out.unknown("RQ3", name, "no log source stated", "statement",
-                        {"state": "security.audit.log_source", **statement})
-        elif unstated:
-            out.unknown("RQ3", name, f"the service lists {', '.join(unstated)}; the audit does "
-                        "not state it", "statement",
-                        {"state": "security.audit.log_source", **statement,
-                         "sources": unstated})
-        elif audit.window_end is None:
-            out.unknown("RQ3", name, "the window is open (no window_end)", "statement",
-                        {"state": "security.audit.window_end", **statement})
-        elif result is None:
-            out.unknown("RQ3", name, "no result", "statement",
-                        {"state": "security.audit.result", **statement})
-        elif result == "inconclusive":
-            out.unknown("RQ3", name, "the auditor's result is inconclusive", params.log_pull,
-                        {**statement, "sources": sorted(audit.sources)})
-        elif not isinstance(window_start, str):
-            out.unknown("RQ3", name, "the incident states no window_start", "statement",
-                        {"state": "security.incident.window_start",
-                         "incident": params.incident})
+            rq3[path] = "found"
+            continue
+        # Every missing piece, in one item: what to state, and what to read.
+        missing: list[dict[str, Any]] = []
+        why: list[str] = []
+        if state == "conflict":
+            missing.append({"pull": "statement", "state": "security.audit.result",
+                            "resolve": "conflict"})
+            why.append("contended result")
+        unstated = sorted(set(listed) - audit.sources)
+        if unstated:
+            missing.append({"pull": "statement", "state": "security.audit.log_source",
+                            "sources": unstated})
+            why.append(f"the service lists {', '.join(unstated)}; the audit does not state it")
+        elif not audit.sources:
+            missing.append({"pull": "statement", "state": "security.audit.log_source"})
+            why.append("no log source stated")
+        if audit.window_end is None:
+            missing.append({"pull": "statement", "state": "security.audit.window_end"})
+            why.append("the window is open (no window_end)")
+        if not isinstance(window_start, str):
+            missing.append({"pull": "statement", "state": "security.incident.window_start",
+                            "incident": params.incident})
+            why.append("the incident states no window_start")
+        if state != "conflict" and result is None:
+            missing.append({"pull": "statement", "state": "security.audit.result"})
+            why.append("no result")
+        elif state != "conflict" and result == "inconclusive":
+            missing.append({"pull": params.log_pull, "sources": sorted(audit.sources),
+                            "why": "the auditor's result is inconclusive"})
+            why.append("the auditor's result is inconclusive")
+        if isinstance(window_start, str) and audit.window_end is not None:
+            for source in sorted(audit.sources):
+                gaps = uncovered(audit.reads, source, window_start, audit.window_end)
+                if gaps:
+                    spans = [f"{begin} to {finish}" for begin, finish in gaps]
+                    missing.append({"pull": params.log_pull, "source": source,
+                                    "from": gaps[0][0], "to": gaps[-1][1], "uncovered": spans})
+                    why.append(f"{source} is not read in full: uncovered {'; '.join(spans)}")
+        if not missing:
+            out.answer("RQ3", name, "none", "not_exploited, every source read in full "
+                       "over the window")
         else:
-            missing = {source: uncovered(audit.reads, source, window_start, audit.window_end)
-                       for source in sorted(audit.sources)}
-            missing = {source: gaps for source, gaps in missing.items() if gaps}
-            if not missing:
-                out.answer("RQ3", name, "none", "not_exploited, every source read in full "
-                           "over the window")
-            for source, gaps in missing.items():
-                out.unknown("RQ3", name, f"{source} is not read in full: uncovered {gaps}",
-                            params.log_pull, {**statement, "source": source,
-                                              "from": gaps[0][0], "to": gaps[-1][1]})
+            out.unknown("RQ3", name, "; ".join(why), str(missing[0]["pull"]),
+                        {**statement, "missing": missing})
         rq3[path] = next(iter(sorted(out.states("RQ3", name) & {"found", "unknown"})), "none")
 
     # RQ4: the credentials of every warranted service.

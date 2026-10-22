@@ -532,7 +532,12 @@ log reads; a self-report never closes anything. Run an incident under
 let a principal other than the one who acted acquire the evidence that verifies the
 action (`cruxible get ProcedureRun:RUN-...` shows each acquiring run's `actor`).
 Core has one approval profile (one signer other than the creator), so "a lead must
-approve rotations" is your convention, not a rule core enforces.
+approve rotations" is your convention, not a rule core enforces. **A solo
+maintainer** under `self_approval_allowed` (the quickstart default: "Required
+approvals: none") gets no role separation from approval at all: the approval is
+the same person as the change. That's fine: the evidence rules are the control
+(a scan, a separate state read, complete log reads), and they hold whoever
+approves. Independent approval adds a second person, not a stronger proof.
 
 **Secrets never enter.** A credential is non-secret: issuer and name, where it is
 used (`used_by`) and what it reaches (`reaches`), its current key's id
@@ -606,8 +611,12 @@ What each import proposes:
   scope's coverage (its own timestamp makes every scan new content), and proposes
   only when the run set changed. None answers need a scope's full kit scan.
 - **Log read.** One `security.audit.read` (`SOURCE FROM/TO`) for a complete read of
-  a stated audit. An incomplete read is posted (`read_incomplete`, with why): a
-  finding about your logs, not about the attacker. A read for an audit nobody
+  a stated audit. An incomplete read is posted (`read_incomplete`, with why in
+  words): a finding about your logs, not about the attacker. Say what wasn't
+  searched in the read itself, `"missing": [{"from", "to", "reason": "expired"
+  (retention, an HTTP 410) / "unavailable" (an error status) / "not_searched",
+  "status": 410}]`, and anything else in `incomplete_reason`; the item reads
+  "records 2026-01-21T00:00:00Z to 2026-07-24T08:06:00Z expired (HTTP 410)". A read for an audit nobody
   stated is posted (`audit_not_stated`). Never a `result`.
 - **Credential state.** From either kind of read, the current key's `key_id`,
   `issued_at` and `issued_by`. Only from a `state_read`: `revoked_key`, and a
@@ -658,7 +667,10 @@ approval). Rename `php2shell` and the window for yours:
 The window-close Triggers re-ask a day after a landing: an unverified patch or
 rotation is sighted again (an item you acknowledged keeps your decision and counts
 the recurrence, `recurred_since_disposition` in `cruxible inbox get`), and an answer
-that changed is a new item. The log import's propose Mandate
+that changed is a new item. A gap that closed is simply not posted again: the
+inbox never resolves an item on its own (dispositions are yours), so after a
+respond run acknowledge each of its items whose latest sighting (`inbox list`,
+`LAST_POSTED`) is older than that run. The log import's propose Mandate
 (`security.log-import-propose`) is in [the example automation](examples/automation.json),
 beside `security.inventory-import.prod` (one Line per inventory scope) and
 `security.credential-import`. No Mandate covers `audit.result`, `audit.window_end`,
@@ -680,7 +692,7 @@ EPSS and OSV read them) from the moment it names them.
 |---|---|---|---|
 | RQ1 | `exposed`: a scan observed the asset running a release assessed affected | a current full scan that looked for the product shows no affected run; a release a scan observed that is assessed `not_affected`, or that nobody assessed while OSV answered all its current components and none is a package OSV says the CVE affects (the answer `cites` those Claims) | an asset that declares installing it, or a patched one, under no current coverage; an inconclusive assessment (an analyst's judgment answers it); a release a scan observed that nobody assessed for the CVE otherwise, with the next step in order: the CVE's record (`record_pull`, when none was read), "OSV doesn't index N components of this release" (a judgment, a product alias, or a re-scan with a purl type OSV indexes), the OSV Line (`osv_line`, when OSV hasn't answered its current components), an analyst's judgment |
 | RQ2 | `patch_missing`; `patch_overdue`; `patch_disputed` (verification `failed`, or claimed `completed` while still running); `patch_regressed` (verified, then seen running again) | `verification` `verified` and no affected run, under current coverage | a claimed patch no scan has read since; an approved one on schedule is *pending*, and a missing or overdue one under an accepted risk is *excepted* (both summary only) |
-| RQ3 | `exploited`: the result `exploited` | `not_exploited`, `window_end` stated, and for every `log_source` the union of its complete reads covers [`incident.window_start`, `window_end`] | no audit (the gap names the service's `log_source` list as `sources`), no log source, a source the service lists that the audit does not state, window open, no result, `inconclusive`, `conflict`, or an uncovered interval (named per source) |
+| RQ3 | `exploited`: the result `exploited` | `not_exploited`, `window_end` stated, and for every `log_source` the union of its complete reads covers [`incident.window_start`, `window_end`] | no audit (the gap names the service's `log_source` list as `sources`); otherwise one gap per service listing every missing piece in `input.missing`: no log source, a source the service lists that the audit does not state, window open, no result, `inconclusive`, `conflict`, and each uncovered interval (named per source, "A to B") |
 | RQ4 | `rotate {credential, services: {audit, patch}, key_id, because}` for each credential a warranted service uses (`on_found_or_unknown`: RQ3 found or unknown; `all_exposed`: every exposed service); `rotation_disputed` | a rotation a state read verified, the current key issued after `window_start`; a credential no warranted service uses | claimed rotated, no separate state read yet |
 | RQ5 | `ready_to_close`, listing audits still unknown as accepted residue with their rotations | | |
 
@@ -744,17 +756,20 @@ prod scope; `github/acme-ops/wiki-deploy`). Each service states its log sources
 
 ### An incident status page
 
-`security.incident_status` (parameter `incident`) is one row per CVE, patch raised
-for an exposed asset or exception accepting its risk, and credential of the
-asset's service, with every state as held: `exposure` (the assessment), `host`
-and `service`, `coverage` (the scope revision; empty: no current coverage),
+`security.incident_status` (parameter `incident`) is one row per CVE, exposure,
+patch raised for an exposed asset or exception accepting its risk, and credential
+of the asset's service, with every state as held: `exposure` (the assessment),
+`host` and `service`, `coverage` (the scope revision; empty: no current coverage),
 `patch` (progress) and `patch_verified`, `excepted_until` (an approved exception's
 expiry, until it passes), `audit` (the result; `(conflicted)` while disputed),
-`credential` and `rotation_verified`. An empty cell is unknown, never none; none
-is the respond Line's answer. An exposure nobody has raised a patch or an
-exception for is not a row yet: the respond Line posts it (`patch_missing`). An
-exception's expiry moves no state, so re-render the page after it (`block
-sync`). Render it into a page with a projection block, which `next` flags
+`credential`, `rotation` (progress) and `rotation_verified`. Pending actions are
+their own state: a patch or rotation `planned` or `in_progress`, beside its
+verification. An exposure nobody has raised a patch or an exception for is a row
+with no host (no action yet: the respond Line posts `patch_missing`); a change
+still awaiting approval isn't accepted state, so `cruxible proposal list --status
+open` shows it. An empty cell is unknown, never none; none is the respond Line's
+answer. An exception's expiry moves no state, so re-render the page after it
+(`block sync`). Render it into a page with a projection block, which `next` flags
 when the state behind it moves and `block sync` brings back in step
 ([example page](examples/incident-status.md)):
 

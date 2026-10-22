@@ -249,8 +249,10 @@ CLAIM_TYPES: list[ClaimRow] = [
      NAME_FORM, "The service's name; its key."),
     # Inventory.
     ("security.asset.environment", ("security.asset",), "literal",
-     {"enum": ["production", "staging"], "type": "string"}, "one", "normative", (), (),
-     "The environment the asset runs in."),
+     {"enum": ["ci", "development", "production", "staging", "workstation"], "type": "string"},
+     "one", "normative", (), (),
+     "The environment the asset runs in: production, staging, development, a workstation (a "
+     "developer's or maintainer's machine) or ci (a CI runner)."),
     ("security.asset.installs", ("security.asset",), "subject", ("security.release",), "many",
      "normative", (), (), "A software release installed on the asset."),
     ("security.asset.internet_exposed", ("security.asset",), "literal", {"type": "boolean"},
@@ -289,14 +291,16 @@ CLAIM_TYPES: list[ClaimRow] = [
      (CVE_CONTRACT, OSV_CONTRACT, OUTPUT_CONTRACT), (),
      "Whether the release is affected by the vulnerability. An observation is a source's verdict "
      "(OSV, a CVE record) citing its Capture; a normative Claim is an analyst's judgment citing "
-     "their own words or a workspace file, with their reasoning in its because. The kit's "
-     "Procedures never revise a normative status; retire it to hand the assessment back to "
-     "them."),
+     "their own words or a workspace file (security.workspace-evidence-v1, retained by "
+     "security.evidence-acquire: a source's Capture is not citable for a judgment), with their "
+     "reasoning in its because. The kit's Procedures never revise a normative status; retire "
+     "it to hand the assessment back to them."),
     ("security.assessment.justification", ("security.assessment",), "literal",
      {"enum": sorted(JUSTIFICATIONS), "type": "string"}, "one", "judged",
      (CVE_CONTRACT, OSV_CONTRACT, OUTPUT_CONTRACT), (),
      "Why a not_affected release is not affected (the VEX/CSAF justification): an observation "
-     "from a source, or (normative) an analyst's judgment. Required in practice with every "
+     "from a source, or (normative) an analyst's judgment citing their own words or a "
+     "workspace file (security.workspace-evidence-v1). Required in practice with every "
      "not_affected status; core cannot require it."),
     ("security.assessment.component", ("security.assessment",), "literal", PURL, "many",
      "judged", (CVE_CONTRACT, OSV_CONTRACT), ("trim",),
@@ -691,7 +695,8 @@ RESPONSE: list[ClaimRow] = [
      {"enum": sorted(AUDIT_RESULTS), "type": "string"}, "one", "normative",
      (LOG_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT), (),
      "The auditor's judgment: exploited, not_exploited or inconclusive, citing the decisive "
-     "log read (or a workspace file); own words are refused. Reasoning goes in a section of "
+     "log read (security.log-read-v1) or a workspace file (security.workspace-evidence-v1); "
+     "own words are refused. Reasoning goes in a section of "
      "the incident's note. A disagreeing auditor contends (set --contend): while the slot "
      "reads conflict the answer is unknown. Never settled by a Mandate."),
     # The credential: a logical credential; its keys rotate under it. Non-secret only.
@@ -1976,22 +1981,25 @@ def response_queries() -> list[QueryDefinitionSpec]:
     # unknown (nothing recorded), never none.
     work = QueryTraversalStep(
         binding="work", from_binding="assessment", predicate="security.work.assessment",
-        direction="reverse", required=True,
+        direction="reverse", required=False,
         target_subject_kinds=("security.exception", "security.remediation"),
         where=_any(QueryComparisonFilter(
             left=QuerySubjectFieldRef(binding="work", field="subject_kind"), operator="eq",
             right=QueryLiteralRef(value="security.remediation"), value_type="string"),
             _active_exception("work")))
     q.append(_query(
-        "security.incident_status", "The incident status page: per CVE, every patch raised "
-        "for an exposed asset, and every exception accepting the risk until it expires "
-        "(excepted_until), with the asset, its service and inventory coverage, the patch's "
-        "progress and verification, the service's audit result, and each credential the "
-        "service uses with its rotation's verification. Empty is unknown; none needs the "
-        "respond Line's answer", "incident", "incident",
+        "security.incident_status", "The incident status page: per CVE, every exposure (a "
+        "release assessed affected or inconclusive), every patch raised for an exposed asset, "
+        "and every exception accepting the risk until it expires (excepted_until), with the "
+        "asset, its service and inventory coverage, the patch's progress and verification, the "
+        "service's audit result, and each credential the service uses with its rotation's "
+        "progress and verification. An exposure with no work item is a row with no host: no "
+        "action raised yet (respond posts patch_missing). Pending actions are their own state "
+        "(patch and rotation planned or in_progress, beside verification). Empty is unknown; "
+        "none needs the respond Line's answer", "incident", "incident",
         _cves(required=True) + [
             work,
-            _hop("asset", "work", "security.work.asset", "asset", required=True),
+            _hop("asset", "work", "security.work.asset", "asset"),
             _inventory_coverage("coverage", "asset"),
             _hop("service", "asset", "security.asset.serves", "service"),
             _hop("audit", "service", AUD + "service", "audit", reverse=True,
@@ -2009,6 +2017,7 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("excepted_until", "work", "security.exception.expires_at"),
          _field("audit", "audit", AUD + "result"),
          _field("credential", "credential", CRED + "name"),
+         _field("rotation", "rotation", "security.remediation.progress"),
          _field("rotation_verified", "rotation", "security.work.verification")],
         ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=500, paths_per_result=500))
     return q
