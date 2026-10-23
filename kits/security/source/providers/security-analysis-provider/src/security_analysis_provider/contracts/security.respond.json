@@ -11,6 +11,9 @@
         "hosts": {
           "type": "json"
         },
+        "deployments": {
+          "type": "json"
+        },
         "patches": {
           "type": "json"
         },

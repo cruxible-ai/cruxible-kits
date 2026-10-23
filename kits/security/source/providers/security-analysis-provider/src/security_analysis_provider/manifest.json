@@ -190,7 +190,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.response:RuntimeInventory",
-      "interface_digest": "sha256:ad6f3cd6a25952ec3cad8fa5640b707def3293906d53d57d5223de16209758a8",
+      "interface_digest": "sha256:e17552b6cf6fac4e18f30b7a66723159ba4467ac24c1c3e94fbc1cd3fbd59432",
       "interface_id": "security.runtime-inventory",
       "requires_extras": [],
       "side_effects": false
@@ -228,7 +228,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.response:CredentialState",
-      "interface_digest": "sha256:0619eccce099f9ce65b891483c1875250fab607fd75f6668164903789851c159",
+      "interface_digest": "sha256:fc29ae53c289368a654e8261eab1d9903b08814efea9ba2b2a3a583d2459d41d",
       "interface_id": "security.credential-state",
       "requires_extras": [],
       "side_effects": false
@@ -247,7 +247,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.response:Respond",
-      "interface_digest": "sha256:bb07d310ddc0f6e7b87db2400f16c77cafade2c865fc2daff9a7478e028bfc8c",
+      "interface_digest": "sha256:5875f8e8086326cb2bd27fcf15f430687451847c5b5a85c9a79123c3fafdbb13",
       "interface_id": "security.respond",
       "requires_extras": [],
       "side_effects": false

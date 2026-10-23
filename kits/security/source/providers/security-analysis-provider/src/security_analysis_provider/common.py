@@ -14,7 +14,9 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 import json
+import math
 import re
 import unicodedata
 from collections.abc import Iterable, Mapping
@@ -321,6 +323,22 @@ def name_form(value: object) -> str:
     return text
 
 
+def purl_version(purl: object) -> str | None:
+    """The version of a ``pkg:type/[namespace/]name@version`` purl (qualifiers and
+    subpath dropped), or None: the version separator is an ``@`` in the last segment
+    only, so a scoped npm name (``pkg:npm/@angular/core``) has none."""
+
+    if not isinstance(purl, str) or not purl.strip().startswith("pkg:"):
+        return None
+    body = purl.strip()[4:].split("#", 1)[0].split("?", 1)[0]
+    _, _, rest = body.partition("/")
+    last = rest.rstrip("/").rsplit("/", 1)[-1]
+    if "@" not in last:
+        return None
+    name, _, version = last.partition("@")
+    return version if name and version.strip() else None
+
+
 def cve_token(value: object) -> str | None:
     """A CVE identifier in the key's canonical form (trimmed, uppercase), else None."""
 
@@ -339,7 +357,8 @@ def sorted_items(items: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
 # --- OSV coverage ---------------------------------------------------------------
 
 _COVERAGE = re.compile(r"^(complete|partial): (\d+) of (\d+) components answered"
-                       r"(?:; not indexed: ([^;]+))?(?:; unanswered (\d+))?$")
+                       r"(?:; not indexed: ([^;]+))?(?:; unanswered (\d+))?"
+                       r"(?:; unidentified (\d+))?(?:; set ([0-9a-f]{16}))?$")
 
 
 @dataclass(frozen=True)
@@ -351,21 +370,41 @@ class OsvCoverage:
     total: int
     #: purl type -> components of it OSV does not index (never asked)
     not_indexed: dict[str, int] = field(default_factory=dict)
-    #: components asked whose answer is missing or truncated
+    #: components asked whose answer is missing, truncated or names an advisory whose
+    #: record could not be read
     unanswered: int = 0
+    #: components the release's SBOM lists without a usable purl@version: never asked
+    unidentified: int = 0
+    #: the digest of the component set OSV answered for (``component_set``); a coverage
+    #: is about that exact set, never about whatever the release holds later
+    digest: str | None = None
+
+
+def component_set(purls: Iterable[str]) -> str:
+    """The digest a coverage is bound to: 16 hex of the sha256 of the sorted, distinct
+    component purls. One component replaced by another (the same count) is another set."""
+
+    body = json.dumps(sorted({str(purl) for purl in purls}), separators=(",", ":"))
+    return hashlib.sha256(body.encode()).hexdigest()[:16]
 
 
 def coverage_text(total: int, answered: int, not_indexed: Mapping[str, int],
-                  unanswered: int) -> str:
-    """The release's OSV coverage, one value: ``complete: N of N components answered``, or
-    ``partial: A of N components answered; not indexed: brew 1, generic 2; unanswered K``."""
+                  unanswered: int, unidentified: int = 0, digest: str | None = None) -> str:
+    """The release's OSV coverage, one value: ``complete: N of N components answered; set
+    D``, or ``partial: A of N components answered; not indexed: brew 1, generic 2;
+    unanswered K; unidentified U; set D``. Complete only when OSV answered every component
+    and the SBOM identified every one (no component without a purl)."""
 
-    state = "complete" if answered == total and total else "partial"
+    state = "complete" if answered == total and total and not unidentified else "partial"
     text = f"{state}: {answered} of {total} components answered"
     if not_indexed:
         text += "; not indexed: " + ", ".join(f"{t} {n}" for t, n in sorted(not_indexed.items()))
     if unanswered:
         text += f"; unanswered {unanswered}"
+    if unidentified:
+        text += f"; unidentified {unidentified}"
+    if digest:
+        text += f"; set {digest}"
     return text
 
 
@@ -380,7 +419,50 @@ def parse_coverage(text: object) -> OsvCoverage | None:
         purl_type, _, count = item.strip().partition(" ")
         if purl_type and count.isdigit():
             skipped[purl_type] = int(count)
-    return OsvCoverage(complete=match.group(1) == "complete", answered=int(match.group(2)),
-                       total=int(match.group(3)), not_indexed=skipped,
-                       unanswered=int(match.group(5) or 0))
+    unidentified = int(match.group(6) or 0)
+    return OsvCoverage(complete=match.group(1) == "complete" and not unidentified,
+                       answered=int(match.group(2)), total=int(match.group(3)),
+                       not_indexed=skipped, unanswered=int(match.group(5) or 0),
+                       unidentified=unidentified, digest=match.group(7))
 
+
+# --- untrusted text --------------------------------------------------------------
+
+#: Prefixes of secrets, never of identifiers.
+SECRET_PREFIXES = ("sk_live_", "sk_test_", "rk_live_", "rk_test_", "whsec_", "ghp_", "gho_",
+                   "ghu_", "ghs_", "ghr_", "github_pat_", "glpat-", "xoxb-", "xoxp-", "xoxa-",
+                   "npm_", "pypi-", "aiza", "-----begin")
+
+
+def entropy(text: str) -> float:
+    counts: dict[str, int] = {}
+    for char in text:
+        counts[char] = counts.get(char, 0) + 1
+    return -sum(n / len(text) * math.log2(n / len(text)) for n in counts.values())
+
+
+def secret_in_text(value: object, *, max_length: int = 200) -> bool:
+    """Whether an identifier the kit would copy into Claims, inbox items or a run's output
+    (a credential's issuer or name, a principal, a log source, a service) holds something
+    secret-shaped: a private key marker, a secret's prefix on any token, or a long
+    high-entropy token. Such a value is never echoed: the body is refused with a fixed
+    message."""
+
+    if not isinstance(value, str):
+        return False
+    lowered = value.casefold()
+    if len(value) > max_length or "-----begin" in lowered or "private key" in lowered:
+        return True
+    for token in re.split(r"[\s:@=,;\"'<>]+", value):
+        folded = token.casefold()
+        if not folded:
+            continue
+        for piece in folded.split("/"):
+            # A secret's prefix on a token long enough to be one (a name like aizawa is not).
+            if any(piece.startswith(prefix) and len(piece) >= len(prefix) + 12
+                   for prefix in SECRET_PREFIXES):
+                return True
+        if len(token) >= 24 and not re.fullmatch(r"[0-9a-f/-]+", folded) and entropy(
+                token) >= 4.3:
+            return True
+    return False

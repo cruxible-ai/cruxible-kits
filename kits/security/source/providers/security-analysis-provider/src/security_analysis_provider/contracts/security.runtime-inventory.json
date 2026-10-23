@@ -52,6 +52,9 @@
         "runs": {
           "type": "integer"
         },
+        "unidentified": {
+          "type": "integer"
+        },
         "added": {
           "type": "integer"
         },

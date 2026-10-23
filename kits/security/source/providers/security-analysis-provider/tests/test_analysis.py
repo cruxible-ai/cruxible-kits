@@ -17,9 +17,12 @@ import security_analysis_provider
 from security_analysis_provider.applicability import (
     CveApplicability,
     OsvApplicability,
+    cpe_identity,
+    package_purl,
     purl_package,
     version_key,
 )
+from security_analysis_provider.common import component_set
 from security_analysis_provider.epss import EpssTriage
 from security_analysis_provider.kev import KevAttention, KevTriage
 from security_analysis_provider.sbom import CycloneDxComponents
@@ -328,8 +331,20 @@ def test_sbom_import_creates_by_key_and_reimports_nothing() -> None:
         ["pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3"],
         supplier="Cruxible",
     )
+    # The component without a purl is counted on the release (OSV can't be asked about it).
+    assert [s[2] for s in _statements(output["items"]) if s[1] == "unidentified_components"] == [1]
+    held["fields"].append({"name": "unidentified", "state": "present", "value": 1})
     again = _run(CycloneDxComponents(), {"sbom_text": json.dumps(SBOM), "releases": [held]})
     assert again["items"] == [] and again["changed"] == 0
+    # A later SBOM of the release with every component identified revises the count to 0.
+    held["read_claims"].append({"claim_path": "claims/00/CLM-unidentified.json",
+                                "predicate": "security.release.unidentified_components",
+                                "subject_identity": "Subject:security.release/cruxible-core--0.3.2"})
+    named = json.loads(json.dumps(SBOM))
+    named["components"] = named["components"][:2]
+    (item,) = _run(CycloneDxComponents(), {"sbom_text": json.dumps(named),
+                                           "releases": [held]})["items"]
+    assert item["statement"]["object"]["value"] == 0 and item["revises"] == "CLM-unidentified"
 
 
 def _held_release(version: str, components: list[str], supplier: str = "Cruxible") -> dict:
@@ -344,6 +359,7 @@ def _held_release(version: str, components: list[str], supplier: str = "Cruxible
         version=version,
         supplier_name=supplier.lower(),
         components=components,
+        unidentified=1,
     )
 
 
@@ -355,7 +371,8 @@ def test_a_new_version_reuses_the_product_and_restates_nothing_it_holds() -> Non
     subjects = [(i["subject_kind"], i["key"]) for i in output["items"] if "key" in i]
     assert subjects == [("security.release", {"product_name": "cruxible-core", "version": "0.3.2"})]
     predicates = sorted(s[1] for s in _statements(output["items"]))
-    assert predicates == ["component", "component", "product"]  # no supplied_by restated
+    assert predicates == ["component", "component", "product",
+                          "unidentified_components"]  # no supplied_by restated
 
 
 def test_a_changed_sbom_for_a_held_release_adds_only_its_new_components() -> None:
@@ -431,7 +448,15 @@ OSV = {
 }
 
 
+def _covered(text: str, *components: str) -> str:
+    """A coverage value bound to its exact component set."""
+
+    return f"{text}; set {component_set(components)}"
+
+
 COMPLETE = {1: "complete: 1 of 1 components answered", 2: "complete: 2 of 2 components answered"}
+HTTPX, JINJA, JINJA_FIXED = ("pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3",
+                             "pkg:pypi/jinja2@3.1.4")
 
 
 def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> None:
@@ -445,18 +470,20 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
     assert output["unkeyed"] == ["GHSA-xxxx-only"]
     # One coverage Claim per release: OSV answered every component of each.
     assert {s[0]: s[2] for s in _statements(output["items"]) if s[1] == "osv_coverage"} == {
-        "subjects/security.release/cruxible-client--0.3.2.json": COMPLETE[1],
-        "subjects/security.release/cruxible-core--0.3.2.json": COMPLETE[2],
-        "subjects/security.release/other--1.0.json": COMPLETE[1]}
+        "subjects/security.release/cruxible-client--0.3.2.json": _covered(COMPLETE[1], HTTPX),
+        "subjects/security.release/cruxible-core--0.3.2.json": _covered(COMPLETE[2], HTTPX,
+                                                                         JINJA),
+        "subjects/security.release/other--1.0.json": _covered(COMPLETE[1], JINJA_FIXED)}
     # What OSV says the CVE it starts watching affects (OSV knows the CVE).
     assert [(json.loads(s[0]), s[2]) for s in _statements(output["items"])
             if s[1] == "package"] == [({"cve_id": "CVE-2024-34064"}, "pkg:pypi/jinja2")]
     assert (output["coverage"], output["packages"]) == (3, 1)
     core = _release("cruxible-core", "0.3.2", ["pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3"],
-                    coverage=COMPLETE[2])
+                    coverage=_covered(COMPLETE[2], HTTPX, JINJA))
     client = _release("cruxible-client", "0.3.2", ["pkg:pypi/httpx@0.28.1"],
-                      coverage=COMPLETE[1])
-    fixed = _release("other", "1.0", ["pkg:pypi/jinja2@3.1.4"], coverage=COMPLETE[1])
+                      coverage=_covered(COMPLETE[1], HTTPX))
+    fixed = _release("other", "1.0", ["pkg:pypi/jinja2@3.1.4"],
+                     coverage=_covered(COMPLETE[1], JINJA_FIXED))
     # Not watched yet: only the affected release is assessed, and the CVE is watched by key.
     keys = [(i["subject_kind"], i["key"]) for i in output["items"] if i.get("subject_kind")]
     assert keys == [
@@ -502,7 +529,8 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
             ]
         )
     ]
-    # An affected assessment held without its component gains it, and nothing else.
+    # An assessment held without its component gains it, and nothing else: the affected
+    # one what brings the CVE in, the not_affected one what its negative rests on.
     gains = _run(
         OsvApplicability(),
         {"osv": OSV, "releases": [core, client, fixed],
@@ -510,10 +538,11 @@ def test_osv_applicability_decides_each_release_and_watches_what_it_finds() -> N
          "assessments": held},
     )
     assert [(s[1], s[2]) for s in _statements(gains["items"])] == [
-        ("component", "pkg:pypi/jinja2@3.1.3")]
-    held[0]["includes"] = [{"name": "component", "items": [{
-        "claim_object": {"kind": "literal", "value": "pkg:pypi/jinja2@3.1.3"},
-        "visibility": {"claim_path": "claims/00/CLM-component.json"}}]}]
+        ("component", "pkg:pypi/jinja2@3.1.3"), ("component", "pkg:pypi/jinja2@3.1.4")]
+    for row, purl in zip(held, ("pkg:pypi/jinja2@3.1.3", "pkg:pypi/jinja2@3.1.4"), strict=True):
+        row["includes"] = [{"name": "component", "items": [{
+            "claim_object": {"kind": "literal", "value": purl},
+            "visibility": {"claim_path": f"claims/00/CLM-component-{purl[-5:]}.json"}}]}]
     again = _run(
         OsvApplicability(),
         {
@@ -580,7 +609,7 @@ def test_an_analyst_judgment_is_never_revised_by_a_source() -> None:
     )
     # (jinja2 3.1.3 is in the batch: its held partial coverage is revised to complete.)
     assert [(s[1], s[2]) for s in _statements(output["items"])] == [
-        ("osv_coverage", COMPLETE[1])]
+        ("osv_coverage", _covered(COMPLETE[1], JINJA))]
     assert output["items"][0]["revises"] == "CLM-coverage-cruxible-core--0.3.2"
     assert output["judged"] == 1 and output["affected"] == 0
 
@@ -601,8 +630,9 @@ def test_osv_coverage_is_partial_where_osv_never_answered_and_decides_nothing_th
         "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])], "assessments": []})
     (item,) = output["items"]
     assert item["statement"]["predicate"] == "security.release.osv_coverage"
-    assert item["statement"]["object"]["value"] == (
-        "partial: 1 of 4 components answered; not indexed: brew 1, generic 1, pypi 1")
+    assert item["statement"]["object"]["value"] == _covered(
+        "partial: 1 of 4 components answered; not indexed: brew 1, generic 1, pypi 1",
+        *mixed["fields"][0]["value"])
     assert item["revises"] == "CLM-coverage-tooling--1.0"
     assert (output["inconclusive"], output["not_affected"]) == (0, 0)
 
@@ -697,7 +727,9 @@ def test_a_record_matches_a_go_module_by_collection_url_and_package_name() -> No
     assert {release: sorted(values) for release, values in found.items()} == {
         "github.com/cli/cli/v2--v2.86.0": ["affected",
                                            "pkg:golang/github.com/cli/cli/v2@v2.86.0"],
-        "github.com/cli/cli/v2--v2.97.0": ["not_affected"],
+        # A negative decided through a component names it: it rests on that component.
+        "github.com/cli/cli/v2--v2.97.0": ["not_affected",
+                                           "pkg:golang/github.com/cli/cli/v2@v2.97.0"],
         "tooling--1.0": ["affected", "pkg:golang/github.com/cli/cli/v2@v2.90.1"]}
 
 
@@ -734,7 +766,8 @@ def test_github_style_version_constraints_are_read_as_written() -> None:
 def test_a_release_osv_answered_for_is_osvs_once_osv_knows_the_cve() -> None:
     record = _gh_record(collectionURL="https://pkg.go.dev", packageName="github.com/cli/cli/v2")
     go = _release("github.com/cli/cli/v2", "v2.86.0",
-                  ["pkg:golang/github.com/cli/cli/v2@v2.86.0"], coverage=COMPLETE[1])
+                  ["pkg:golang/github.com/cli/cli/v2@v2.86.0"],
+                  coverage=_covered(COMPLETE[1], "pkg:golang/github.com/cli/cli/v2@v2.86.0"))
     known = [_vuln(GH_CVE, packages=["pkg:golang/github.com/cli/cli/v2"])]
     assert _decide(record, [go], watched=known) == {}
     # OSV does not know the CVE (no package): the record decides, whatever OSV answered.
@@ -763,3 +796,134 @@ def test_a_vulnerability_on_several_watched_paths_is_triaged_once() -> None:
     row = _vuln("CVE-2021-44228")
     output = _run(KevTriage(), {"catalog_base64": _catalog_b64(), "watched": [row, row]})
     assert output["watched"] == 1 and output["changed"] == 4
+
+
+# --- K1 review regressions: negatives need complete, exact, bound evidence -------------
+
+
+def test_any_affected_component_makes_the_release_affected_whatever_the_order() -> None:
+    """F-001: three copies of one module; the first disagreement never gets overwritten."""
+
+    record = _gh_record(collectionURL="https://pkg.go.dev", packageName="github.com/cli/cli/v2")
+    copies = ["pkg:golang/github.com/cli/cli/v2@v2.86.0",
+              "pkg:golang/github.com/cli/cli/v2@v2.97.0",
+              "pkg:golang/github.com/cli/cli/v2@v2.98.0"]
+    for order in (copies, copies[::-1], copies[1:] + copies[:1]):
+        assert _decide(record, [_release("tooling", "1.0", order)]) == {
+            "tooling--1.0": "affected"}, order
+    # Unknown beside fixed: never not_affected.
+    unordered = ["pkg:golang/github.com/cli/cli/v2@not-a-version",
+                 "pkg:golang/github.com/cli/cli/v2@v2.97.0"]
+    assert _decide(record, [_release("tooling", "1.0", unordered)]) == {
+        "tooling--1.0": "inconclusive"}
+    # Every copy fixed: not_affected, resting on every copy.
+    output = _run(CveApplicability(), {
+        "record_base64": record, "releases": [_release("tooling", "1.0", copies[1:])],
+        "watched": [], "assessments": [], "sources": [], "collections": COLLECTIONS})
+    found = sorted((s[1], s[2]) for s in _statements(output["items"])
+                   if s[1] in ("status", "component"))
+    assert found == [("component", copies[1]), ("component", copies[2]),
+                     ("status", "not_affected")]
+
+
+def test_a_fixed_package_beside_an_unanswered_component_is_never_not_affected() -> None:
+    """F-002: OSV answered jinja2 3.1.4 (fixed) but never the Homebrew component."""
+
+    osv = {**OSV, "not_indexed": [{"purl": "pkg:brew/wget@1.24", "type": "brew",
+                                   "reason": "no OSV ecosystem for brew"}]}
+    mixed = _release("tooling", "1.0", ["pkg:brew/wget@1.24", JINJA_FIXED])
+    output = _run(OsvApplicability(), {
+        "osv": osv, "releases": [mixed],
+        "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])], "assessments": []})
+    status = [s[2] for s in _statements(output["items"]) if s[1] == "status"]
+    assert status == ["inconclusive"] and output["not_affected"] == 0
+    (coverage,) = [s[2] for s in _statements(output["items"]) if s[1] == "osv_coverage"]
+    assert coverage.startswith("partial: 1 of 2 components answered; not indexed: brew 1")
+    # An SBOM component without a purl keeps the coverage partial too.
+    unidentified = _release("other", "1.0", [JINJA_FIXED])
+    unidentified["fields"].append({"name": "unidentified", "state": "present", "value": 1})
+    output = _run(OsvApplicability(), {
+        "osv": OSV, "releases": [unidentified],
+        "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])], "assessments": []})
+    assert [s[2] for s in _statements(output["items"]) if s[1] == "status"] == ["inconclusive"]
+    (coverage,) = [s[2] for s in _statements(output["items"]) if s[1] == "osv_coverage"]
+    assert coverage.startswith("partial: 1 of 1 components answered; unidentified 1; set ")
+
+
+def test_coverage_is_bound_to_the_exact_component_set() -> None:
+    """F-006: one component replaced by another keeps the count, never the coverage."""
+
+    before = _covered(COMPLETE[1], HTTPX)
+    replaced = _release("cruxible-client", "0.3.2", [JINJA_FIXED], coverage=before)
+    output = _run(OsvApplicability(), {"osv": OSV, "releases": [replaced], "watched": [],
+                                       "assessments": []})
+    (coverage,) = [s[2] for s in _statements(output["items"]) if s[1] == "osv_coverage"]
+    assert coverage == _covered(COMPLETE[1], JINJA_FIXED) != before
+
+
+def test_an_unreadable_advisory_record_leaves_its_component_unanswered() -> None:
+    """F-007: a batch hit whose GHSA record fetch failed (HTTP 500) is not complete."""
+
+    osv = {"exchanges": [
+        _exchange("POST", "/v1/querybatch", {"results": [{"vulns": [{"id": "GHSA-gone"}]}]},
+                  {"purls": [JINJA_FIXED]}),
+        _exchange("GET", "/v1/vulns/GHSA-gone", {"message": "internal"}, status=500),
+        _exchange("GET", "/v1/vulns/GHSA-h75v-3vvj-5mfj", JINJA_GHSA)]}
+    release = _release("other", "1.0", [JINJA_FIXED])
+    output = _run(OsvApplicability(), {
+        "osv": osv, "releases": [release],
+        "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])], "assessments": []})
+    (coverage,) = [s[2] for s in _statements(output["items"]) if s[1] == "osv_coverage"]
+    assert coverage.startswith("partial: 0 of 1 components answered; unanswered 1")
+    assert [s[2] for s in _statements(output["items"]) if s[1] == "status"] == ["inconclusive"]
+
+
+def test_scoped_npm_packages_round_trip() -> None:
+    """F-012: the kit reads back the package claims it writes."""
+
+    for purl in ("pkg:npm/@angular/core", "pkg:npm/%40angular/core@17.0.0",
+                 "pkg:npm/%40angular/core"):
+        assert purl_package(purl) == ("npm", "@angular/core"), purl
+    assert package_purl(("npm", "@angular/core")) == "pkg:npm/%40angular/core"
+    assert purl_package(package_purl(("npm", "@angular/core"))) == ("npm", "@angular/core")
+    assert purl_package(package_purl(("golang", "github.com/cli/cli/v2"))) == (
+        "golang", "github.com/cli/cli/v2")
+    record = _gh_record(collectionURL="https://registry.npmjs.org", packageName="@angular/core",
+                        versions=[{"version": "0", "lessThan": "17.0.1", "status": "affected"}])
+    app = _release("web", "1.0", ["pkg:npm/%40angular/core@17.0.0"])
+    assert _decide(record, [app]) == {"web--1.0": "affected"}
+
+
+def test_cpe_and_supplier_identity_is_exact() -> None:
+    """F-013: punctuation is identity; a vendor that merely contains the supplier is
+    another vendor."""
+
+    assert cpe_identity("cpe:2.3:a:foo-bar:widget:1.0:*:*:*:*:*:*:*") == (
+        "a", "foo-bar", "widget")
+    assert cpe_identity("cpe:2.3:a:foo\\:bar:widget") == ("a", "foo:bar", "widget")
+    assert cpe_identity("cpe:2.3:a:*:widget") is None
+    record = _gh_record(cpes=["cpe:2.3:a:foobar:widget:*:*:*:*:*:*:*:*"], vendor="x",
+                        product="y")
+    aliased = _release("widget", "1.0", aliases=["cpe:2.3:a:foo-bar:widget"])
+    assert _decide(record, [aliased]) == {}
+    # Product name: the whole name (its name form), never letters and digits only.
+    named = _gh_record(vendor="Example", product="foo-bar")
+    assert _decide(named, [_release("foobar", "2.50.0")]) == {}
+    assert _decide(named, [_release("Foo-Bar", "2.50.0")]) == {"Foo-Bar--2.50.0": "affected"}
+    # Supplier: compared whole, never by substring.
+    assert _decide(named, [_release("foo-bar", "2.50.0", supplier="Example Corp")]) == {
+        "foo-bar--2.50.0": "inconclusive"}
+    assert _decide(named, [_release("foo-bar", "2.50.0", supplier="example")]) == {
+        "foo-bar--2.50.0": "affected"}
+
+
+def test_a_forge_collection_names_the_source_repository() -> None:
+    """F-015: collectionURL https://github.com + packageName cli/cli is github.com/cli/cli."""
+
+    record = _gh_record(collectionURL="https://github.com", packageName="cli/cli")
+    built = _release("cli-build", "2.80.0")
+    sources = [_row({"release": ("security.release", "cli-build--2.80.0"),
+                     "repo": ("security.repo", "github.com--cli-cli")},
+                    forge_host="github.com", full_name="cli/cli")]
+    assert _decide(record, [built], sources=sources) == {"cli-build--2.80.0": "affected"}
+    assert _decide(record, [built]) == {}

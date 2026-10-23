@@ -278,11 +278,12 @@ INTERFACES: dict[str, tuple[str, str, str, list[dict[str, Any]], dict[str, Any],
     "security.respond": (
         "response:Respond",
         "response:classify_respond",
-        "One incident's exposure, scanned-run, patch, exception, audit and credential rows.",
+        "One incident's exposure, scanned-run, deployment, patch, exception, audit and "
+        "credential rows.",
         [_dimension("rows", "how many rows the request carries", {
             "small": "at most 5000 rows", "large": "more than 5000 rows"})],
-        {"exposure": [], "hosts": [], "patches": [], "overdue": [], "exceptions": [],
-         "audits": [], "credentials": [], "params": {}, "truncated": {}},
+        {"exposure": [], "hosts": [], "deployments": [], "patches": [], "overdue": [],
+         "exceptions": [], "audits": [], "credentials": [], "params": {}, "truncated": {}},
         "rows=small",
         "rows=*",
     ),

@@ -11,7 +11,11 @@ release (key: product name + version) when inventory does not hold them yet, the
 release's ``product`` (when the release does not have one), one
 ``security.release.component`` observation per component purl the release does
 not hold yet, and the supplier with ``product.supplied_by`` when the SBOM names
-a supplier the product does not have (revising the held one when it differs).
+a supplier the product does not have (revising the held one when it differs), and
+``security.release.unidentified_components`` (how many components it lists without a
+purl with a version, the operating-system component aside) when that is not zero or
+differs from the held count: OSV is never asked about those, so the release's OSV
+coverage stays partial and no negative rests on it.
 A re-import of the same SBOM proposes nothing; a new version of the product is a
 new release beside the held ones, which stay (they may still be deployed).
 Removing components, retiring releases, licences and the dependency graph are
@@ -33,6 +37,7 @@ from .common import (
     key_ref,
     name_form,
     parse_rows,
+    purl_version,
     sorted_items,
     subject_item,
 )
@@ -41,6 +46,7 @@ PRODUCT = "security.product"
 RELEASE = "security.release"
 SUPPLIER = "security.supplier"
 COMPONENT = "security.release.component"
+UNIDENTIFIED = "security.release.unidentified_components"
 MAX_COMPONENTS = 5000
 
 
@@ -86,9 +92,12 @@ def read_sbom(text: str) -> tuple[str, str, str, list[str], int]:
     skipped = 0
     for item in document.get("components") or ():
         purl = _text(item.get("purl")) if isinstance(item, Mapping) else ""
-        if purl.startswith("pkg:") and "@" in purl.split("/", 1)[-1]:
+        if purl_version(purl) is not None:
             purls.add(purl)
-        else:
+        elif not (isinstance(item, Mapping) and item.get("type") == "operating-system"):
+            # Listed, but not identifiable as a package at a version: never asked of OSV,
+            # so the release's coverage can't be complete (security.release.
+            # unidentified_components). The OS component names the distro, not a package.
             skipped += 1
     if len(purls) > MAX_COMPONENTS:
         raise InputError(f"the SBOM lists more than {MAX_COMPONENTS} components")
@@ -115,6 +124,8 @@ class CycloneDxComponents:
         # item of the same terminal (the item's creation address, not the live path),
         # so restating a one-valued relationship would demand a disposition.
         held_components: set[str] = set()
+        held_unidentified: tuple[Any, str | None] = (None, None)  # (count, Claim id)
+        held_release: Any = None
         release_held = has_product = False
         product_held = False
         held_supplier: tuple[str, str | None] | None = None  # (name, Claim id)
@@ -132,6 +143,11 @@ class CycloneDxComponents:
                 release_held = True
                 held_components.update(row.value("components") or ())
                 has_product = product_bound is not None
+                release_bound = row.subject("release")
+                held_release = release_bound or held_release
+                if release_bound is not None and row.value("unidentified") is not None:
+                    held_unidentified = (row.value("unidentified"),
+                                         row.claim_id(release_bound, UNIDENTIFIED))
         source = f"CycloneDX SBOM for {name} {version}"
         items = []
         if not product_held:
@@ -172,6 +188,12 @@ class CycloneDxComponents:
                     revises=held_supplier[1] if held_supplier is not None else None,
                 )
             )
+        if (skipped or held_unidentified[0] is not None) and held_unidentified[0] != skipped:
+            items.append(claim_item(
+                held_release or release, UNIDENTIFIED, skipped,
+                f"{source} lists {skipped} component(s) without a package URL and version: "
+                "OSV can't be asked about them, so its coverage of the release stays partial.",
+                revises=held_unidentified[1] if held_unidentified[0] is not None else None))
         added = [purl for purl in purls if purl not in held_components]
         for purl in added:
             items.append(

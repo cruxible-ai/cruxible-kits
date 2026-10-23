@@ -19,9 +19,11 @@ from cruxible_provider_runtime.protocol import Budgets
 from cruxible_provider_runtime.provider_api import ProviderRunContext
 
 from security_analysis_provider.applicability import CveApplicability
-from security_analysis_provider.common import parse_rows
+from security_analysis_provider.common import component_set, parse_rows
 from security_analysis_provider.response import (
+    MAX_POSTS,
     CredentialState,
+    LogReads,
     Respond,
     RuntimeInventory,
     credential_state,
@@ -437,7 +439,7 @@ DEB = ("security.release", "debian-php8.2--8.2.20-1-deb12u1")
 
 
 def _exposure(release: tuple[str, str], label: tuple[str, str], *, asset: str | None = None,
-              service: str | None = None, current: bool = True, declared: str | None = None,
+              service: str | None = None, current: bool = True,
               status: str = "affected") -> dict[str, Any]:
     bindings = {"incident": INCIDENT, "vulnerability": ("security.vulnerability",
                                                         "cve-2026-109618"),
@@ -447,15 +449,33 @@ def _exposure(release: tuple[str, str], label: tuple[str, str], *, asset: str | 
     if asset:
         bindings["asset"] = ("security.asset", asset.replace("/", "-").replace(":", "-"))
         fields.update(hostname=asset, internet_exposed=True,
-                      coverage_revision="sha256:x" if current else None, looked_for=["php"])
+                      coverage_revision="sha256:x" if current else None,
+                      looked_for=["php", "debian/php8.2"])
         if current:
             bindings["coverage"] = COVERAGE
     if service:
         bindings["service"] = ("security.service", service)
         fields["service_name"] = service
-    if declared:
-        bindings["declared"] = ("security.asset", declared)
-        fields.update(declared_hostname=declared, declared_coverage_revision=None)
+    return _row(bindings, **fields)
+
+
+def _deployment(host: str, *, declared: tuple[tuple[str, str], tuple[str, str]] | None = None,
+                current: bool = False, looked_for: list[str] | None = None,
+                components: list[str] | None = None, coverage: str | None = None
+                ) -> dict[str, Any]:
+    """A security.deployments row: an asset, its inventory coverage, one release it
+    declares ((kind, id), (product, version))."""
+
+    bindings = {"asset": ("security.asset", host.replace("/", "-").replace(":", "-"))}
+    fields: dict[str, Any] = {"hostname": host,
+                              "coverage_revision": "sha256:x" if current else None,
+                              "looked_for": looked_for if current else None}
+    if current:
+        bindings["coverage"] = COVERAGE
+    if declared is not None:
+        bindings["declared"] = declared[0]
+        fields.update(declared_product_name=declared[1][0], declared_version=declared[1][1],
+                      declared_components=components, declared_osv_coverage=coverage)
     return _row(bindings, **fields)
 
 
@@ -492,9 +512,12 @@ def _cred(service: str, label: tuple[str, str], *, rotation: dict[str, Any] | No
     return _row(bindings, **values)
 
 
+TAPS = ("exposure", "hosts", "deployments", "patches", "overdue", "exceptions", "audits",
+        "credentials")
+
+
 def _ask(**taps: list[dict[str, Any]]) -> dict[str, Any]:
-    payload = {name: taps.get(name, []) for name in ("exposure", "hosts", "patches", "overdue",
-                                                     "exceptions", "audits", "credentials")}
+    payload = {name: taps.get(name, []) for name in TAPS}
     return respond({**payload, "params": {"incident": "PHP2Shell"}, "truncated": {}})
 
 
@@ -508,11 +531,11 @@ def _posted(result: dict[str, Any], kind: str) -> list[dict[str, Any]]:
 
 def test_rq1_and_rq2_exposure_found_declared_unknown_and_missing_patches() -> None:
     result = _ask(exposure=[
-        _exposure(PHP, ("php", "8.3.10"), asset="k8s:prod/storefront-a", service="storefront",
-                  declared="wiki-1"),
+        _exposure(PHP, ("php", "8.3.10"), asset="k8s:prod/storefront-a", service="storefront"),
         _exposure(PHP, ("php", "8.3.10"), asset="k8s:prod/storefront-b", service="storefront"),
         _exposure(DEB, ("debian/php8.2", "8.2.20-1~deb12u1"), asset="app-1.acme.internal",
-                  service="partner-portal")])
+                  service="partner-portal")],
+        deployments=[_deployment("wiki-1", declared=(PHP, ("php", "8.3.10")))])
     rq1 = _by(result, "RQ1")
     assert {s: a["state"] for s, a in rq1.items()} == {
         "app-1.acme.internal: debian/php8.2 8.2.20-1~deb12u1": "found",
@@ -748,17 +771,23 @@ def _incident_cve(cve: str, *, title: bool = True, packages: tuple[str, ...] = (
 
 
 def _scanned(host: str, product: str, version: str, components: list[str],
-             coverage: str | None) -> dict[str, Any]:
-    """A security.scanned_runs row: a release a scan observed on an asset."""
+             coverage: str | None, *, current: bool = True,
+             looked_for: tuple[str, ...] = ("*",), bound: bool = True) -> dict[str, Any]:
+    """A security.scanned_runs row: a release a scan observed on an asset, under its scope's
+    coverage (current: the revision is fresh). ``coverage`` is bound to ``components``
+    unless ``bound`` is False (it then names no set)."""
 
     release = ("security.release", _slug(product, version))
     claims = ({("release", "security.release.osv_coverage"): "CLM-cov-" + _slug(product, version)}
               if coverage else {})
+    if coverage and bound:
+        coverage = f"{coverage}; set {component_set(components)}"
     return _row({"asset": ("security.asset", host.replace("/", "-").replace(":", "-")),
                  "coverage": COVERAGE, "release": release}, claims=claims,
                 includes={"component": [(c, f"CLM-comp-{n}") for n, c in enumerate(components)]},
                 hostname=host, product_name=product, version=version, components=components,
-                osv_coverage=coverage)
+                osv_coverage=coverage, coverage_revision="sha256:x" if current else None,
+                looked_for=list(looked_for) if current else None)
 
 
 LIBC = ("debian/libc6", "2.36-9+deb12u7", ["pkg:deb/debian/libc6@2.36-9+deb12u7"])
@@ -808,7 +837,8 @@ def test_rq1_answers_every_scanned_release_for_each_incident_cve_never_silently(
     # The SBOM moved since OSV answered (2 components now, coverage counts 1): unknown.
     moved = _scanned("k8s:prod/storefront-a", "debian/libc6", "2.36-9+deb12u7",
                      ["pkg:deb/debian/libc6@2.36-9+deb12u7", "pkg:deb/debian/zlib1g@1.2"],
-                     "complete: 1 of 1 components answered")
+                     "complete: 1 of 1 components answered; set "
+                     + component_set(["pkg:deb/debian/libc6@2.36-9+deb12u7"]), bound=False)
     stale = _ask(exposure=[_incident_cve("CVE-2026-109618", packages=php82)], hosts=[moved])
     assert _by(stale, "RQ1")["k8s:prod/storefront-a: debian/libc6 2.36-9+deb12u7"][
         "state"] == "unknown"
@@ -839,9 +869,7 @@ def test_payloads_are_stable_so_a_resighting_dedupes() -> None:
 
 
 def test_a_truncated_tap_is_refused() -> None:
-    output = _context(Respond(), {"exposure": [], "hosts": [], "patches": [], "overdue": [],
-                                  "exceptions": [], "audits": [], "credentials": [],
-                                  "params": {},
+    output = _context(Respond(), {**{name: [] for name in TAPS}, "params": {},
                                   "truncated": {"exposure": True}})
     assert output.status == "refused"
 
@@ -946,3 +974,227 @@ def test_a_distro_record_names_its_cve_upstream_and_a_truncated_page_is_inconclu
                       ("php8.2--a", "CVE-2026-109619"): "affected",
                       ("php8.2--b", "CVE-2026-109618"): "inconclusive",
                       ("php8.2--b", "CVE-2026-109619"): "inconclusive"}
+
+
+# --- K1 review regressions ------------------------------------------------------------
+
+
+GHOST = ("security.release", "ghost--1.0")
+
+
+def test_declared_unscanned_unassessed_and_erased_deployments_are_gaps() -> None:
+    """F-003: deployments are enumerated from the inventory, never through assessments."""
+
+    cve = _incident_cve("CVE-2026-109618", packages=("pkg:deb/debian/php8.2",))
+    clean = _scanned("k8s:prod/storefront-a", *LIBC, "complete: 1 of 1 components answered")
+    # A declared release nobody assessed, on an asset no scan read: unknown, never silent;
+    # and it blocks closure even with every other deployment clean.
+    declared = _deployment("web-1.example.com", declared=(GHOST, ("ghost", "1.0")))
+    result = _ask(exposure=[cve], hosts=[clean], deployments=[declared])
+    rq1 = _by(result, "RQ1")
+    assert rq1["web-1.example.com: ghost 1.0"]["state"] == "unknown"
+    assert rq1["web-1.example.com: ghost 1.0"]["pull"] == "security.inventory-acquire"
+    assert {g["subject"]: g["input"] for g in _posted(result, "gap")}[
+        "web-1.example.com"] == {"covering": "web-1.example.com"}
+    assert result["ready_to_close"] == 0
+    # An asset with nothing declared and no current scan (never scanned, or its scan's
+    # evidence erased: scanned_in reads absent, so no coverage row): unknown.
+    bare = _ask(exposure=[cve], hosts=[clean], deployments=[_deployment("db-9")])
+    assert _by(bare, "RQ1")["db-9"]["state"] == "unknown" and bare["ready_to_close"] == 0
+    # Under a current scan that looked for everything and doesn't see it: none.
+    covered = _deployment("web-1.example.com", declared=(GHOST, ("ghost", "1.0")),
+                          current=True, looked_for=["*"])
+    done = _ask(exposure=[cve], hosts=[clean], deployments=[covered])
+    assert _by(done, "RQ1")["web-1.example.com: ghost 1.0"]["state"] == "none"
+    assert done["ready_to_close"] == 1
+    # No deployment known at all: a gap, never answers=[].
+    empty = _ask(exposure=[cve])
+    (gap,) = _posted(empty, "gap")
+    assert (gap["subject"], gap["input"]) == ("PHP2Shell", {"covering": "*"})
+
+
+def test_a_scanned_negative_needs_current_coverage_that_looked_for_the_product() -> None:
+    """F-005: an old observed run and OSV coverage never make a none on their own."""
+
+    cve = _incident_cve("CVE-2026-109618", packages=("pkg:deb/debian/php8.2",))
+    subject = "k8s:prod/storefront-a: debian/libc6 2.36-9+deb12u7"
+    stale = _scanned("k8s:prod/storefront-a", *LIBC, "complete: 1 of 1 components answered",
+                     current=False)
+    result = _ask(exposure=[cve], hosts=[stale])
+    assert _by(result, "RQ1")[subject]["state"] == "unknown"
+    assert [g["input"] for g in _posted(result, "gap")] == [
+        {"covering": "k8s:prod/storefront-a"}]
+    narrow = _scanned("k8s:prod/storefront-a", *LIBC, "complete: 1 of 1 components answered",
+                      looked_for=("php", "debian/php8.2"))
+    result = _ask(exposure=[cve], hosts=[narrow])
+    assert _by(result, "RQ1")[subject]["state"] == "unknown"
+    assert [g["input"] for g in _posted(result, "gap")] == [
+        {"covering": "k8s:prod/storefront-a", "looking_for": ["debian/libc6"]}]
+    # A current scan that didn't look for a product the incident affects can't rule it out.
+    php = _scanned("wiki-1", "php", "8.3.36", ["pkg:generic/php@8.3.36"],
+                   "partial: 0 of 1 components answered; not indexed: generic 1",
+                   looked_for=("php",))
+    assessed = _exposure(("security.release", "php--8.3.36"), ("php", "8.3.36"),
+                         status="not_affected")
+    for row in [php]:
+        for item in row["bindings"]:
+            if item["binding"] == "release":
+                item.update(_bound("security.release", "php--8.3.36"))
+    result = _ask(exposure=[cve, assessed], hosts=[php])
+    assert _by(result, "RQ1")["wiki-1"]["state"] == "unknown"
+    assert "debian/php8.2" in _by(result, "RQ1")["wiki-1"]["why"]
+
+
+def test_a_negative_is_bound_to_the_component_set_it_was_decided_on() -> None:
+    """F-006: same-count replacement, and a retained assessment after the set changed."""
+
+    cve = _incident_cve("CVE-2026-109618", packages=("pkg:deb/debian/php8.2",))
+    # Coverage stated for libc6; the release now holds zlib1g instead (one component both
+    # times): the coverage is about another set.
+    replaced = _scanned("k8s:prod/storefront-a", "debian/libc6", "2.36-9+deb12u7",
+                        ["pkg:deb/debian/zlib1g@1.2"],
+                        "complete: 1 of 1 components answered; set "
+                        + component_set(["pkg:deb/debian/libc6@2.36-9+deb12u7"]), bound=False)
+    result = _ask(exposure=[cve], hosts=[replaced])
+    assert _by(result, "RQ1")["k8s:prod/storefront-a: debian/libc6 2.36-9+deb12u7"][
+        "state"] == "unknown"
+    # A not_affected assessment resting on the fixed Debian build: none while it is there,
+    # unknown once the release holds another copy of the package.
+    fixed = "pkg:deb/debian/php8.2@8.2.29-1~deb12u1"
+    release = ("security.release", "debian-php8.2--8.2.29")
+    assessment = _row({"incident": INCIDENT, "vulnerability": ("security.vulnerability",
+                                                               "cve-2026-109618"),
+                       "assessment": ("security.assessment", "deb-fixed"), "release": release},
+                      includes={"assessed_component": [(fixed, "CLM-rests")],
+                                "package": [("pkg:deb/debian/php8.2", "CLM-pkg")]},
+                      **{**INCIDENT_FIELDS, "cve_id": "CVE-2026-109618", "cve_title": "x",
+                         "status": "not_affected", "product_name": "debian/php8.2",
+                         "version": "8.2.29-1~deb12u1"})
+
+    def host(components: list[str]) -> dict[str, Any]:
+        row = _scanned("app-1", "debian/php8.2", "8.2.29-1~deb12u1", components,
+                       "complete: 1 of 1 components answered")
+        for item in row["bindings"]:
+            if item["binding"] == "release":
+                item.update(_bound(*release))
+        return row
+
+    subject = "app-1: debian/php8.2 8.2.29-1~deb12u1"
+    held = _ask(exposure=[assessment], hosts=[host([fixed])])
+    assert _by(held, "RQ1")[subject]["state"] == "none"
+    moved = _ask(exposure=[assessment], hosts=[host([fixed, "pkg:deb/debian/php8.2@8.2.20-1"])])
+    assert _by(moved, "RQ1")[subject]["state"] == "unknown"
+    assert "no longer has as they were" in _by(moved, "RQ1")[subject]["why"]
+    gone = _ask(exposure=[assessment], hosts=[host(["pkg:deb/debian/php8.2@8.2.30-1"])])
+    assert _by(gone, "RQ1")[subject]["state"] == "unknown"
+
+
+def test_unidentified_sbom_components_never_verify_a_patch_or_retire_a_run() -> None:
+    """F-004: a component without a usable purl could be the product a patch moved off."""
+
+    held = _held_prod(None, assets={"k8s:prod/storefront-a": [
+        ("php", "8.3.10"), ("debian/libc6", "2.36-9+deb12u7"),
+        ("debian/libxml2", "2.9.14+dfsg-1.3~deb12u1"), ("debian/libssl3", "3.0.15-1~deb12u1")]})
+    patch = _patch_row("rem-a", "k8s:prod/storefront-a", progress="completed")
+    for broken in ({"type": "application", "name": "php", "version": "8.3.10"},
+                   {"type": "application", "name": "php", "purl": "pkg:generic/php"},
+                   {"type": "library", "name": "php", "purl": "not a purl"}):
+        document = json.loads(_text("storefront-a.syft.patched.cdx.json"))
+        document["components"] = [c for c in document["components"]
+                                  if c.get("purl") != "pkg:generic/php@8.3.36"] + [broken]
+        result = _inventory(json.dumps(document), held, [patch])
+        statements = _statements(result["items"])
+        assert result["unidentified"] == 1, broken
+        assert not [s for s in statements if s[1] == "verification" or s[0] == "retire"], broken
+    # The OS component (it names the distro) is not an unidentified package.
+    plain = _inventory(_text("storefront-a.syft.patched.cdx.json"), held, [patch])
+    assert plain["unidentified"] == 0
+    assert [s[2] for s in _statements(plain["items"]) if s[1] == "verification"] == ["verified"]
+
+
+def test_two_ecosystems_packages_of_one_name_are_both_kept() -> None:
+    """F-011: pkg:npm/foo@1.0 and pkg:pypi/foo@1.0 are one release with two components."""
+
+    text = json.dumps({"scope": "prod", "looked_for": ["*"], "coverage": "full", "assets": [
+        {"hostname": "app-9", "runs": ["pkg:npm/foo@1.0", "pkg:pypi/foo@1.0",
+                                        "pkg:npm/%40angular/core@17.0.0"]}]})
+    statements = _statements(_inventory(text)["items"])
+    assert sorted(s[2] for s in statements if s[1] == "component") == [
+        "pkg:npm/%40angular/core@17.0.0", "pkg:npm/foo@1.0", "pkg:pypi/foo@1.0"]
+    assert sorted(s[2]["key"]["product_name"] for s in statements if s[1] == "runs") == [
+        "@angular/core", "foo"]
+
+
+def test_refusals_never_echo_what_they_refuse() -> None:
+    """F-010: field names and values from a refused body never reach an output."""
+
+    marker = "ghp_016fK2dX0aZq9pLmNoPqRsTuVwXyZ01234"
+    body = json.loads(_text("cred-aws-state.json"))
+    keyed = {**body, marker: "x"}
+    for text in (json.dumps(keyed), json.dumps({**body, "issuer": f"aws/{marker}"}),
+                 json.dumps({**body, "name": "storefront " + marker}),
+                 json.dumps({**body, "keys": [{**body["keys"][0], marker: 1}]}),
+                 json.dumps({**body, "keys": [{**body["keys"][0], "created_by": marker}]})):
+        result = credential_state(text, [])
+        assert result["posted"] == 1 and result["items"] == []
+        assert marker not in json.dumps(result), text
+    inventory_body = {"scope": "prod", "looked_for": ["*"], "coverage": "full",
+                      "assets": [{"hostname": "h", "runs": [marker]}], marker: 1}
+    for text in (json.dumps(inventory_body), json.dumps({
+            **{k: v for k, v in inventory_body.items() if k != marker}})):
+        output = _context(RuntimeInventory(), {"inventory_text": text, "held": [],
+                                               "patches": [], "scope": "prod",
+                                               "truncated": {}})
+        assert output.status == "refused" and marker not in output.refusal.message
+    read = json.loads(_text("log-storefront-nginx.json"))
+    for text in (json.dumps({**read, marker: 1}),
+                 json.dumps({**read, "source": f"storefront/{marker}"})):
+        output = _context(LogReads(), {"read_text": text, "held": _audits("storefront"),
+                                       "incident": "PHP2Shell", "truncated": False})
+        assert output.status == "refused" and marker not in output.refusal.message
+
+
+def test_a_read_that_says_complete_and_names_unread_spans_is_refused() -> None:
+    """F-008: complete: true beside missing spans or an incomplete reason is never a read."""
+
+    read = json.loads(_text("log-storefront-nginx.json"))
+    for extra in ({"missing": [{"from": read["from"], "to": read["to"], "reason": "expired",
+                                "status": 410}]},
+                  {"incomplete_reason": "the index rolled over"}):
+        output = _context(LogReads(), {"read_text": json.dumps({**read, **extra}),
+                                       "held": _audits("storefront"), "incident": "PHP2Shell",
+                                       "truncated": False})
+        assert output.status == "refused" and "complete" in output.refusal.message
+
+
+def test_rotation_verification_needs_the_old_key_listed_retired_or_a_complete_listing() -> None:
+    """F-009: a receipt relabelled state_read (new key only) verifies nothing."""
+
+    rotation = {"progress": "completed", "revokes_key": "AKIAQ3EXAMPLEOLDKEY1"}
+    held = parse_rows([_credential(*AWS, key_id="AKIAQ3EXAMPLEOLDKEY1",
+                                   issued_at="2026-03-02T10:00:00Z", rotation=rotation)])
+    relabelled = json.loads(_text("cred-aws-leaky.json"))
+    del relabelled["secret_access_key"]
+    relabelled["read"] = "state_read"
+    result = credential_state(json.dumps(relabelled), held)
+    assert result["verified"] == 0 and result["unproven"] == 1
+    assert not [s for s in _statements(result["items"]) if s[1] == "verification"]
+    # The listing says it is complete (every key, every page): absence is then an answer.
+    complete = credential_state(json.dumps({**relabelled, "complete": True}), held)
+    assert [s[2] for s in _statements(complete["items"]) if s[1] == "verification"] == [
+        "verified"]
+
+
+def test_more_items_than_the_cap_refuse_instead_of_cutting() -> None:
+    """F-014: 201 distinct gaps never post the same first 200 forever."""
+
+    cve = _incident_cve("CVE-2026-109619")  # no package: every release needs a judgment
+    hosts = [_scanned(f"host-{n:03}", f"tool{n:03}", "1.0", [f"pkg:pypi/tool{n:03}@1.0"],
+                      "complete: 1 of 1 components answered") for n in range(MAX_POSTS + 1)]
+    output = _context(Respond(), {**{name: [] for name in TAPS}, "exposure": [cve],
+                                  "hosts": hosts, "params": {"incident": "PHP2Shell"},
+                                  "truncated": {}})
+    assert output.status == "refused" and "overflow" in output.refusal.message
+    assert f"{MAX_POSTS + 1} items" in output.refusal.message
+    fits = _ask(exposure=[cve], hosts=hosts[:MAX_POSTS])
+    assert fits["posted"] == MAX_POSTS

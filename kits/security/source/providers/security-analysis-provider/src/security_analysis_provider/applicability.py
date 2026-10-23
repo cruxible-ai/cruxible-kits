@@ -18,8 +18,11 @@ rest as ``not_indexed``, with the ecosystem list and purl type map it applied),
 plus the OSV records of every hit and of every watched CVE (and their aliases).
 For each release with components it states one ``security.release.osv_coverage``
 (``complete: N of N components answered``, or ``partial`` with how many OSV
-answered, the purl types not indexed and how many went unanswered): OSV's
-coverage is the provider's own word, never a per-CVE inconclusive. For each
+answered, the purl types not indexed, how many went unanswered and how many the
+SBOM lists without a purl), bound to the exact component set (``set``: its
+digest): OSV's coverage is the provider's own word, never a per-CVE inconclusive.
+A component whose batch answer was truncated, or names an advisory whose record
+could not be read, is unanswered: its aliases could be any CVE. For each
 watched CVE (and each this proposal starts watching) it states the packages OSV's
 records say it affects (``security.vulnerability.package``, a purl without
 version): OSV knows the CVE. For a release with components:
@@ -29,7 +32,10 @@ version): OSV knows the CVE. For a release with components:
   is what makes it watched);
 - a watched CVE OSV knows package data for, not listed for any component:
   a component of one of its packages is present at a version OSV does not list
-  -> ``not_affected`` / ``vulnerable_code_not_present``;
+  and OSV answered every component of the release -> ``not_affected`` /
+  ``vulnerable_code_not_present``, naming the components it rests on
+  (``assessment.component``); with the coverage partial -> ``inconclusive`` (an
+  unanswered component could hold the package under another name);
 - a component of one of its packages whose OSV query failed -> ``inconclusive``;
 - a component of one of its packages OSV was never asked about (not indexed) ->
   no answer here (the coverage Claim says partial);
@@ -56,16 +62,22 @@ entry to a release by data, never by a partial or substring name:
 - its ``cpes``, its ``packageName`` and its vendor/product against the release's
   product aliases (``security.release.product_alias``: an analyst's statement,
   citing evidence, that e.g. a Homebrew ``gh`` release is ``cli/cli``);
-- its product against the release's product name (letters and digits,
-  case-insensitive), with a supplier that matches the entry's vendor or no
-  supplier.
+- its product against the release's product name (the whole name, its name
+  form), with a supplier equal to the entry's vendor or no supplier (a vendor that
+  merely contains the supplier is another vendor).
+
+CPEs are parsed as CPE 2.3 writes them (escapes undone, casefolded) and compared
+whole: punctuation is identity. A forge collection's ``packageName`` names a
+repository (``https://github.com`` + ``cli/cli`` is ``github.com/cli/cli``).
 
 A matched release is decided by the entry's version ranges (``version``,
 ``lessThan``/``lessThanOrEqual``, ``changes``; a ``lessThan`` ending in ``*`` is
 open-ended; a ``version`` written as comparisons, ``< 2.97.0``, is read as
 written) and ``defaultStatus``. Conservatively: a version the ranges cannot order,
-or a vendor that contradicts the supplier -> ``inconclusive``. A release the
-record does not name gets no assessment (an incident's RQ1 reads that pair
+or a vendor that contradicts the supplier -> ``inconclusive``. Every way the
+record names one release is aggregated explicitly: any ``affected`` makes it
+affected; ``not_affected`` needs every one unaffected; else ``inconclusive``. A
+release the record does not name gets no assessment (an incident's RQ1 reads that pair
 unknown, never none). The CNA's ``affected`` entries are read with every ADP
 container's (CISA's vulnrichment adds them where the CNA states none); a null or
 absent container, list or field is no data, never an answer. The record's title
@@ -95,9 +107,11 @@ import base64
 import binascii
 import json
 import re
+import unicodedata
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote, unquote
 
 from cruxible_provider_runtime.errors import RefusalCode
 from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunContext
@@ -107,13 +121,15 @@ from .common import (
     InputError,
     Row,
     claim_item,
+    component_set,
     coverage_text,
     cve_token,
     key_ref,
-    match_token,
+    name_form,
     once_per,
     parse_coverage,
     parse_rows,
+    purl_version,
     replacing,
     sorted_items,
     subject_item,
@@ -211,13 +227,16 @@ def decisions_to_items(
             counts["judged"] += 1
             continue
         held_components = dict(prior.components) if prior is not None else {}
-        wanted = set(decision.components) if decision.status == "affected" else set()
+        # The components a decided answer rests on: an affected release's are what brings
+        # the CVE in; a not_affected one's are what the negative was decided on (so a
+        # changed component set reads unproven until a source answers again).
+        wanted = (set(decision.components)
+                  if decision.status in ("affected", "not_affected") else set())
         if (
             prior is not None
             and prior.status == decision.status
             and prior.justification == decision.justification
-            and (decision.status != "affected" or not decision.components
-                 or wanted == set(held_components))
+            and (not decision.components or wanted == set(held_components))
         ):
             counts["unchanged"] += 1
             continue
@@ -276,15 +295,20 @@ def decisions_to_items(
             )
         pairs, adds, stale = replacing(held_components, wanted)
         for purl, revises in [*pairs, *((purl, None) for purl in adds)]:
-            claims.append(claim_item(assessment, COMPONENT, purl,
-                                     f"OSV lists {decision.cve} for the component {purl}.",
+            said = (f"The component {purl} brings {decision.cve} in."
+                    if decision.status == "affected" else
+                    f"The not_affected answer for {decision.cve} rests on the component "
+                    f"{purl} at this version.")
+            claims.append(claim_item(assessment, COMPONENT, purl, f"{said} {decision.rationale}",
                                      revises=revises))
         for purl in stale:
             claims.append({"tag": RETIREMENT_ITEM, "retires": held_components[purl],
                            "reason": "superseded", "effective_until": None,
-                           "rationale": f"{decision.status}: OSV no longer lists {purl} for "
-                                        f"{decision.cve}. {decision.rationale}"})
+                           "rationale": f"{decision.status}: the answer for {decision.cve} no "
+                                        f"longer rests on {purl}. {decision.rationale}"})
         if decision.justification is not None:
+            if prior is not None and prior.justification == decision.justification:
+                continue  # held as it is: never restated under a revision of itself
             claims.append(
                 claim_item(
                     assessment,
@@ -310,6 +334,18 @@ def decisions_to_items(
                 }
             )
     return subjects + sorted_items(claims), counts
+
+
+def _count(value: object) -> int:
+    """A non-negative count a Claim states, else 0."""
+
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return max(value, 0)
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return 0
 
 
 def _releases(rows: Iterable[Row]) -> list[tuple[Bound, Row]]:
@@ -348,17 +384,41 @@ def _package_name(purl_type: str, name: str) -> str:
     return lowered
 
 
-def purl_package(purl: str) -> tuple[str, str] | None:
-    """(type, name) of a package URL, version and qualifiers dropped."""
+def purl_package(purl: object) -> tuple[str, str] | None:
+    """(type, full namespace/name) of a package URL, version and qualifiers dropped.
 
-    if not purl.startswith("pkg:"):
+    The version separator is an ``@`` in the last segment only: a namespace's ``@`` (npm's
+    ``@angular``, written ``%40angular`` canonically, or raw) is part of the name, so
+    ``pkg:npm/@angular/core`` and ``pkg:npm/%40angular/core@17.0.0`` are both
+    ``(npm, @angular/core)``. Segments are percent-decoded."""
+
+    if not isinstance(purl, str) or not purl.startswith("pkg:"):
         return None
-    body = purl[4:].split("?", 1)[0].split("#", 1)[0]
-    body = body.rsplit("@", 1)[0] if "@" in body else body
+    body = purl[4:].split("#", 1)[0].split("?", 1)[0]
     purl_type, _, rest = body.partition("/")
-    if not rest:
+    segments = [segment for segment in rest.split("/") if segment]
+    if not purl_type or not segments:
         return None
-    return purl_type.lower(), _package_name(purl_type.lower(), rest.replace("%40", "@"))
+    segments[-1] = segments[-1].split("@", 1)[0]
+    names = [unquote(segment).strip() for segment in segments]
+    if not all(names):
+        return None
+    purl_type = purl_type.lower()
+    return purl_type, _package_name(purl_type, "/".join(names))
+
+
+def package_purl(package: tuple[str, str]) -> str:
+    """A package as a canonical purl without version (``pkg:deb/debian/php8.2``,
+    ``pkg:npm/%40angular/core``): each segment percent-encoded, so ``purl_package`` reads
+    it back as the same package."""
+
+    return f"pkg:{package[0]}/" + "/".join(quote(segment, safe=_PURL_SAFE)
+                                           for segment in package[1].split("/"))
+
+
+#: Characters a purl segment keeps unencoded (the purl spec's unreserved set, plus ``:``
+#: and ``+`` the kit's identities already carry).
+_PURL_SAFE = ".-_~+:!"
 
 
 def _record_packages(record: Mapping[str, Any],
@@ -384,12 +444,6 @@ def _record_packages(record: Mapping[str, Any],
             full = f"{namespace}/{name.strip()}" if namespace else name.strip()
             packages.add((purl_type, _package_name(purl_type, full)))
     return packages
-
-
-def package_purl(package: tuple[str, str]) -> str:
-    """A package as a purl without version (``pkg:deb/debian/php8.2``)."""
-
-    return f"pkg:{package[0]}/{package[1]}"
 
 
 def _cves(record_id: str, record: Mapping[str, Any] | None) -> set[str]:
@@ -448,6 +502,12 @@ def osv_view(
             record_id = str(exchange.get("path") or "").rsplit("/", 1)[-1]
             if isinstance(answer, Mapping):
                 records[record_id] = answer
+    # A hit whose advisory record could not be read (an error status, no body, not a
+    # record): its aliases are unknown, so it may be an incident CVE. The component's
+    # answer is incomplete until the record is read: never an answer of no advisories.
+    for purl, ids in hits.items():
+        if any(record_id not in records for record_id in ids):
+            failed.add(purl)
     return hits, failed, records
 
 
@@ -488,17 +548,21 @@ class OsvApplicability:
         decisions: list[Decision] = []
         coverage_items: list[dict[str, Any]] = []
         for release, row in releases:
-            components = sorted(str(item) for item in row.value("components") or ())
+            components = sorted({str(item) for item in row.value("components") or ()})
+            unidentified = _count(row.value("unidentified"))
             if not components:
                 continue
-            # One coverage Claim per release: did OSV answer every component?
+            # One coverage Claim per release: did OSV answer every component? It is bound
+            # to this exact component set (its digest): another set is another question.
             answered = [c for c in components if c in hits and c not in failed]
             skipped: dict[str, int] = {}
             for purl in components:
                 if purl in not_indexed:
                     skipped[not_indexed[purl]] = skipped.get(not_indexed[purl], 0) + 1
             unanswered = len(components) - len(answered) - sum(skipped.values())
-            coverage = coverage_text(len(components), len(answered), skipped, unanswered)
+            complete = len(answered) == len(components) and not unidentified
+            coverage = coverage_text(len(components), len(answered), skipped, unanswered,
+                                     unidentified, component_set(components))
             if row.value("osv_coverage") != coverage:
                 held_claim = row.claim_id(release, RELEASE_COVERAGE)
                 coverage_items.append(claim_item(
@@ -507,7 +571,9 @@ class OsvApplicability:
                     f"{coverage}." + (" The query did not ask about a component whose purl type "
                                       "OSV does not index (its ecosystem list and the kit's "
                                       "purl type map), so no advisory there reads as none."
-                                      if skipped else ""),
+                                      if skipped else "")
+                    + (f" The SBOM lists {unidentified} component(s) without a purl: OSV was "
+                       "never asked about them." if unidentified else ""),
                     revises=held_claim if row.value("osv_coverage") else None))
             affected: dict[str, list[str]] = {}
             affected_purls: dict[str, set[str]] = {}
@@ -567,7 +633,19 @@ class OsvApplicability:
                             f", a package {cve} affects ({advisories}).",
                         )
                     )
+                elif present and not complete:
+                    # A release-wide negative needs every component answered: one OSV never
+                    # answered (not indexed, unanswered, or listed without a purl) could be
+                    # the same package by another name.
+                    decisions.append(Decision(
+                        release, cve, "inconclusive", None,
+                        f"{', '.join(present)} is a package {cve} affects ({advisories}), at a "
+                        "version OSV does not list as affected, but OSV's answer for the "
+                        f"release is {coverage.split('; set ', 1)[0]}: an unanswered component "
+                        "could hold it."))
                 elif present:
+                    # The negative rests on these components (assessment.component): a
+                    # changed set leaves it unproven until OSV answers again.
                     decisions.append(
                         Decision(
                             release,
@@ -575,7 +653,9 @@ class OsvApplicability:
                             "not_affected",
                             "vulnerable_code_not_present",
                             f"{', '.join(present)} is a package {cve} affects ({advisories}), at a "
-                            "version OSV does not list as affected.",
+                            "version OSV does not list as affected; OSV answered all "
+                            f"{len(components)} components of the release.",
+                            tuple(present),
                         )
                     )
         items, counts = decisions_to_items(decisions, held, watched)
@@ -656,7 +736,7 @@ def _constraints(value: object) -> list[tuple[str, tuple[Any, ...]]] | None:
     """A ``version`` written as comparisons (``< 2.97.0``, ``>= 2.40.0, < 2.97.0``, as
     GitHub's CNA writes them), or None when it is a plain version."""
 
-    if not isinstance(value, str) or not value.strip()[:1] in {"<", ">", "="}:
+    if not isinstance(value, str) or value.strip()[:1] not in {"<", ">", "="}:
         return None
     bounds = []
     for part in value.split(","):
@@ -777,6 +857,20 @@ class Collections:
                 return purl_type, _package_name(purl_type, full)
         return None
 
+    def repository(self, url: object, name: object) -> str | None:
+        """The repository (host/owner/name) a forge collection's packageName names
+        (``collectionURL https://github.com`` + ``packageName cli/cli`` ->
+        ``github.com/cli/cli``), or None when the collection is not a forge."""
+
+        if not isinstance(url, str) or not isinstance(name, str) or not name.strip():
+            return None
+        text = url.strip().rstrip("/").lower()
+        for prefix, spec in self.table:
+            if spec.get("repository") and (text == prefix or text.startswith(prefix + "/")):
+                host = prefix.split("://", 1)[-1].split("/", 1)[0]
+                return repo_identity(f"{host}/{name.strip().strip('/')}")
+        return None
+
     def forge(self, purl_type: str) -> str | None:
         """The host a forge purl type's names are repositories on (github -> github.com)."""
 
@@ -797,16 +891,28 @@ def repo_identity(value: object) -> str | None:
     return text if text.count("/") >= 2 else None
 
 
+_CPE_PART = r"(?:[^:\\]|\\.)*"
+_CPE_PREFIX = re.compile(rf"^cpe:2\.3:([aho]):({_CPE_PART}):({_CPE_PART})(?::|$)")
+
+
 def cpe_identity(value: object) -> tuple[str, str, str] | None:
-    """(part, vendor, product) of a CPE 2.3 name or prefix, compared by match_token."""
+    """(part, vendor, product) of a CPE 2.3 formatted string or prefix.
+
+    The CPE 2.3 binding is parsed as the spec writes it (a ``:`` escaped as ``\\:`` is
+    part of its component), each component unescaped and casefolded (CPE names compare
+    case-insensitively) and nothing else: punctuation is identity, so ``foo-bar`` and
+    ``foobar`` are two products. ``*`` and ``-`` (any, not applicable) name nothing."""
 
     if not isinstance(value, str):
         return None
-    parts = value.strip().split(":")
-    if len(parts) < 5 or parts[0] != "cpe" or parts[1] != "2.3" or parts[2] not in {"a", "h", "o"}:
+    match = _CPE_PREFIX.match(value.strip())
+    if match is None:
         return None
-    vendor, product = (match_token(unquote_cpe(part)) for part in parts[3:5])
-    return (parts[2], vendor, product) if vendor and product and product != "" else None
+    vendor, product = (unicodedata.normalize("NFKC", unquote_cpe(part)).casefold()
+                       for part in match.groups()[1:])
+    if vendor in {"", "*", "-"} or product in {"", "*", "-"}:
+        return None
+    return match.group(1), vendor, product
 
 
 def alias_identity(value: object) -> tuple[Any, ...] | None:
@@ -828,7 +934,7 @@ def alias_identity(value: object) -> tuple[Any, ...] | None:
         return ("repo", repo) if repo else None
     vendor, _, product = text.rpartition("/")
     if vendor.strip() and product.strip():
-        return ("vendor_product", match_token(vendor), match_token(product))
+        return ("vendor_product", name_form(vendor), name_form(product))
     return None
 
 
@@ -874,14 +980,13 @@ def _candidates(releases: Iterable[tuple[Bound, Row]], sources: Iterable[Row],
         held_repos = set(repos.get(release.path, ()))
         own = None
         for purl in row.value("components") or ():
-            if not isinstance(purl, str) or "@" not in purl:
+            at = purl_version(purl)
+            package = purl_package(purl) if at is not None else None
+            if package is None or at is None:
                 continue
-            package = purl_package(purl)
-            if package is None:
-                continue
-            at = purl.split("?", 1)[0].split("#", 1)[0].rsplit("@", 1)[1]
+            at = unquote(at)
             packages.setdefault(package, []).append((purl, at))
-            if match_token(package[1]) == match_token(product) and at == version:
+            if name_form(package[1]) == name_form(product) and at == version:
                 own = purl
             host = collections.forge(package[0])
             if host is not None:
@@ -889,8 +994,8 @@ def _candidates(releases: Iterable[tuple[Bound, Row]], sources: Iterable[Row],
         aliases = {identity for value in _list(row.value("product_alias"))
                    if (identity := alias_identity(value)) is not None}
         found.append(Candidate(
-            release=release, row=row, product=match_token(product),
-            supplier=match_token(row.value("supplier_name")), version=version,
+            release=release, row=row, product=name_form(product),
+            supplier=name_form(row.value("supplier_name")), version=version,
             packages=packages, repos=held_repos, aliases=aliases,
             osv_skipped=coverage_skipped(row.value("osv_coverage")), own=own))
     return found
@@ -928,21 +1033,27 @@ def entry_matches(entry: Mapping[str, Any], candidate: Candidate, collections: C
                 found.append((at, (purl,), f"its packageName names {purl}"))
     if _osv_decides(candidate, candidate.own, osv_knows):
         return found  # the release is itself a package OSV answered for
-    vendor, product = match_token(entry.get("vendor")), match_token(entry.get("product"))
-    repo = repo_identity(entry.get("repo"))
+    vendor, product = name_form(entry.get("vendor")), name_form(entry.get("product"))
+    # Its repository: the entry's repo, or a forge collection's packageName (github.com +
+    # cli/cli is github.com/cli/cli).
+    repos = [repo for repo in (repo_identity(entry.get("repo")), collections.repository(
+        entry.get("collectionURL"), entry.get("packageName"))) if repo is not None]
     cpes = {cpe for value in _list(entry.get("cpes")) if (cpe := cpe_identity(value))}
     how = None
     if package is not None and ("package", *package) in candidate.aliases:
         how = f"its packageName is an alias of the release ({package_purl(package)})"
-    elif repo is not None and (repo in candidate.repos or ("repo", repo) in candidate.aliases):
-        how = f"its repo {repo} is the release's source repository"
+    elif repo := next((r for r in repos if r in candidate.repos
+                       or ("repo", r) in candidate.aliases), None):
+        how = f"its repository {repo} is the release's source repository"
     elif any(("cpe", *cpe) in candidate.aliases for cpe in cpes):
         how = "a CPE it lists is an alias of the release"
     elif product and ("vendor_product", vendor, product) in candidate.aliases:
         how = f"{entry.get('vendor')}/{entry.get('product')} is an alias of the release"
     elif product and product == candidate.product:
-        if (candidate.supplier and vendor and vendor not in {"na", ""}
-                and not (candidate.supplier in vendor or vendor in candidate.supplier)):
+        # The supplier is compared whole (its name form): a supplier the record names
+        # differently is a different vendor unless an analyst's alias says otherwise.
+        if candidate.supplier and vendor and vendor not in {"n/a", "na"} and (
+                vendor != candidate.supplier):
             return found + [("", (), "vendor_mismatch")]
         how = "its product is the release's product name"
     if how is not None:
@@ -969,7 +1080,7 @@ def _record_title(record: Mapping[str, Any]) -> str | None:
     return None
 
 
-_CPE = re.compile(r"^cpe:2\.3:([aho]):([^:]*):([^:]*):([^:]*):")
+_CPE = re.compile(rf"^cpe:2\.3:([aho]):({_CPE_PART}):({_CPE_PART}):({_CPE_PART}):")
 
 
 def _nvd_affected(record: Mapping[str, Any]) -> tuple[str, list[Mapping[str, Any]]]:
@@ -998,7 +1109,7 @@ def _nvd_affected(record: Mapping[str, Any]) -> tuple[str, list[Mapping[str, Any
                 parsed = _CPE.match(str(match.get("criteria") or ""))
                 if parsed is None:
                     continue
-                part = parsed.group(1)
+                part, raw_vendor, raw_product = parsed.group(1), parsed.group(2), parsed.group(3)
                 vendor, product, version = (unquote_cpe(text) for text in parsed.groups()[1:])
                 low = match.get("versionStartIncluding") or match.get("versionStartExcluding")
                 if version not in ("*", "-", ""):
@@ -1012,11 +1123,14 @@ def _nvd_affected(record: Mapping[str, Any]) -> tuple[str, list[Mapping[str, Any
                              "status": "affected"}
                 else:
                     entry = {"version": low or "0", "lessThan": "*", "status": "affected"}
-                entries.setdefault((part, vendor, product), []).append(entry)
+                entries.setdefault((part, vendor, product, raw_vendor, raw_product),
+                                   []).append(entry)
+    # The CPE as NVD wrote it (still escaped): cpe_identity parses it once.
     return cve, [{"vendor": vendor, "product": product, "versions": versions,
-                  "cpes": [f"cpe:2.3:{part}:{vendor}:{product}"],
+                  "cpes": [f"cpe:2.3:{part}:{raw_vendor}:{raw_product}"],
                   "defaultStatus": "unaffected"}
-                 for (part, vendor, product), versions in sorted(entries.items())]
+                 for (part, vendor, product, raw_vendor, raw_product), versions
+                 in sorted(entries.items())]
 
 
 def unquote_cpe(part: str) -> str:
@@ -1042,6 +1156,29 @@ def _record_affected(record: Mapping[str, Any]) -> tuple[str, list[Mapping[str, 
         if isinstance(adp, Mapping):
             affected += [e for e in adp.get("affected") or () if isinstance(e, Mapping)]
     return cve, affected
+
+
+def aggregate(cve: str, decisions: list[Decision]) -> Decision:
+    """One release's answer from each way the record names it (each component, each
+    entry): any established ``affected`` makes the release affected (with every component
+    that brings the CVE in); a release-wide ``not_affected`` needs every one of them
+    established unaffected; anything else (an inconclusive one beside negatives) is
+    inconclusive. A later decision never overwrites an earlier one."""
+
+    release = decisions[0].release
+    affected = [d for d in decisions if d.status == "affected"]
+    if affected:
+        return Decision(release, cve, "affected", None,
+                        " / ".join(sorted({d.rationale for d in affected})),
+                        tuple(sorted({c for d in affected for c in d.components})))
+    if all(d.status == "not_affected" for d in decisions):
+        return Decision(release, cve, "not_affected", "vulnerable_code_not_present",
+                        " / ".join(sorted({d.rationale for d in decisions})),
+                        tuple(sorted({c for d in decisions for c in d.components})))
+    open_ = sorted({d.rationale for d in decisions if d.status != "not_affected"})
+    decided = sorted({d.rationale for d in decisions if d.status == "not_affected"})
+    return Decision(release, cve, "inconclusive", None,
+                    " / ".join(open_) + (f" (while {' / '.join(decided)})" if decided else ""))
 
 
 class CveApplicability:
@@ -1091,30 +1228,13 @@ class CveApplicability:
                         candidate.release, cve, status,
                         "vulnerable_code_not_present" if status == "not_affected" else None,
                         f"{cve}'s CVE record lists {label} ({how}): for version {version} "
-                        f"{why}.", components if status == "affected" else ()))
-        # One answer per release: an inconclusive one never stands beside a decided one.
-        merged: dict[str, Decision] = {}
+                        f"{why}.", components if status in ("affected", "not_affected")
+                        else ()))
+        by_release: dict[str, list[Decision]] = {}
         for decision in decisions:
-            prior = merged.get(decision.release.path)
-            if prior is None or (
-                prior.status == "inconclusive" and decision.status != "inconclusive"
-            ):
-                merged[decision.release.path] = decision
-            elif prior.status == decision.status and decision.components:
-                merged[decision.release.path] = Decision(
-                    decision.release, cve, decision.status, decision.justification,
-                    prior.rationale, tuple(sorted(set(prior.components)
-                                                  | set(decision.components))))
-            elif prior.status != decision.status and decision.status != "inconclusive":
-                merged[decision.release.path] = Decision(
-                    decision.release,
-                    cve,
-                    "inconclusive",
-                    None,
-                    f"{cve}'s record gives conflicting answers for this release: "
-                    f"{prior.rationale} / {decision.rationale}",
-                )
-        items, counts = decisions_to_items(merged.values(), held, watched)
+            by_release.setdefault(decision.release.path, []).append(decision)
+        merged = [aggregate(cve, found) for _path, found in sorted(by_release.items())]
+        items, counts = decisions_to_items(merged, held, watched)
         # The record's title: that a record of the CVE was read (an incident's RQ1 asks
         # for one until then).
         title = _record_title(record)

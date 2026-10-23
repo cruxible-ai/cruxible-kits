@@ -2,14 +2,20 @@
   "scope": "prod",
   "looked_for": [
     "php",
-    "debian/php8.2"
+    "debian/php8.2",
+    "debian/libc6",
+    "debian/libxml2",
+    "debian/libssl3"
   ],
   "coverage": "full",
   "assets": [
     {
       "hostname": "k8s:prod/storefront-a",
       "runs": [
-        "pkg:generic/php@8.3.36"
+        "pkg:generic/php@8.3.36",
+        "pkg:deb/debian/libc6@2.36-9%2Bdeb12u7",
+        "pkg:deb/debian/libxml2@2.9.14%2Bdfsg-1.3~deb12u1",
+        "pkg:deb/debian/libssl3@3.0.15-1~deb12u1"
       ]
     },
     {
