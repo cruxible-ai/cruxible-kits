@@ -28,7 +28,7 @@
         "name": "security-runtime-inventory-summary"
       }
     },
-    "description": "Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage, and only while every component is identified (a purl with a version, the OS component aside): one that isn't could be any product, so the SBOM then only adds (unidentified counts them). Two ecosystems' packages of one name and version are one release with both purls as components. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
+    "description": "Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage, and only while every component is identified (a purl with a version, an OS component too): one that isn't could be any product, so the SBOM then only adds (unidentified counts them). Two ecosystems' packages of one name and version are one release with both purls as components. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
     "graph_format": 6,
     "hard_caps": {
       "max_capture_bytes": 1048576,
@@ -100,7 +100,7 @@
           "scope": "$input.scope"
         },
         "query": {
-          "artifact_digest": "sha256:a1f319603b2c343a90927eb6d536bbfd100afe13f83e0ce5f870dae7a749341e",
+          "artifact_digest": "sha256:7cd79daf5c3d95ca057ccba5130ba8bc8cc8c528aab0d76e9654e205270d30e2",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -147,7 +147,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:5c3b1df75e0acd0f6a72289db452f10e33f19176e3ab6589f1f4ac427e7e66d7",
+        "implementation_digest": "sha256:9bd37b3ffc3c41195982bd28753ed11e831bf2635eac83465e9dfa59396234db",
         "input": {
           "held": "$steps.held.result.rows",
           "inventory_text": "$steps.inventory.content.text",
@@ -171,11 +171,11 @@
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:b007e1bd2e810e50128a28306dad8256f4d7dfe3ea637c1290e60ef00714c7c2",
+          "artifact_digest": "sha256:b17af6dddc79228ef529219ae48284492ae744641195ed8323d9c5c8fb8bf6a0",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/2e876fbccfcf32505bca13acf92c31b2c483d63c4d389196563fabad106031f4"
+            "name": "security-analysis-provider/e21517d62869ea7b66dd5fc2ca6690434cf6d2e4815d484917dc7efb091aca71"
           }
         }
       },
@@ -308,7 +308,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:82db5cc0ec4e55e5f40e66ff892f761b4d758154e9010bfc37dd408f05326e60",
+  "definition_digest": "sha256:e4f253ae0e3e0cf7207dafa30f89284409ea6f864f2553fbcc41b6b62fd47c74",
   "identity": {
     "kind": "Procedure",
     "name": "security.inventory-import"
@@ -880,11 +880,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:b007e1bd2e810e50128a28306dad8256f4d7dfe3ea637c1290e60ef00714c7c2",
+      "artifact_digest": "sha256:b17af6dddc79228ef529219ae48284492ae744641195ed8323d9c5c8fb8bf6a0",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/2e876fbccfcf32505bca13acf92c31b2c483d63c4d389196563fabad106031f4"
+        "name": "security-analysis-provider/e21517d62869ea7b66dd5fc2ca6690434cf6d2e4815d484917dc7efb091aca71"
       }
     },
     {
@@ -904,7 +904,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:a1f319603b2c343a90927eb6d536bbfd100afe13f83e0ce5f870dae7a749341e",
+      "artifact_digest": "sha256:7cd79daf5c3d95ca057ccba5130ba8bc8cc8c528aab0d76e9654e205270d30e2",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

@@ -21,7 +21,7 @@
       "path": "blueprints/security.kev-acquire.json"
     },
     {
-      "artifact_digest": "sha256:2059f60857ac7da533b617ab762ade43a5b13ced49c3ebfb7406e915cbb25546",
+      "artifact_digest": "sha256:fe5427cc571fe7c9699e436c05b99afa3bc01b3411ab5243598a5e8a9ed86a73",
       "path": "blueprints/security.osv-applicability.json"
     },
     {
@@ -461,7 +461,7 @@
       "path": "claim-types/security.release/product_name.json"
     },
     {
-      "artifact_digest": "sha256:ac7c8a9528e7889e6a1ef388dd3dbb639b39de1b1d2cbd77e819a069f759be4b",
+      "artifact_digest": "sha256:fa4551e8e6ca8af73d8121697f3ea17a601afe74e45107f3023f1ef4eee65ade",
       "path": "claim-types/security.release/unidentified_components.json"
     },
     {
@@ -657,15 +657,15 @@
       "path": "procedures/security.credential-acquire.json"
     },
     {
-      "artifact_digest": "sha256:cd2fadd9099e7fd2afe2fd2cf706eb26d334892363b85e7ab48b72f366e17133",
+      "artifact_digest": "sha256:a3cd33e80ec58a449706bc6bd9d5f10361a2ef8ac56e6d27589630ea8fbc5e45",
       "path": "procedures/security.credential-import.json"
     },
     {
-      "artifact_digest": "sha256:112cdb482107e4c8c2b753c0176e4c84f7cd94bd35b982b1cd08c7e0b43b51c8",
+      "artifact_digest": "sha256:afc0246616956075b16e8405232912364850b60a370bc9e3ef2cb796492451e4",
       "path": "procedures/security.cve-applicability.json"
     },
     {
-      "artifact_digest": "sha256:e8dc380380e561949214644ee624b686cc9f3f724098c628964b1dd8c024f7c9",
+      "artifact_digest": "sha256:c50e5d2bb65acb6932d7fb10300144fc8b8e40e198b764a6c340aa726e43b13e",
       "path": "procedures/security.epss-triage.json"
     },
     {
@@ -673,7 +673,7 @@
       "path": "procedures/security.evidence-acquire.json"
     },
     {
-      "artifact_digest": "sha256:94aed48b8b4e9ae2bda09572566436c48abaaddbf5f6c60cccdb199dc84a9404",
+      "artifact_digest": "sha256:df3861ac53c4e168e0418a56def5c2b7a7416085b72fc470829799656a17a135",
       "path": "procedures/security.harden.json"
     },
     {
@@ -681,15 +681,15 @@
       "path": "procedures/security.inventory-acquire.json"
     },
     {
-      "artifact_digest": "sha256:b59bd724202adc1508684eb40df2a6a3fa7c15d376842b26424299677b0829be",
+      "artifact_digest": "sha256:34cd514145c84ebb0a878afe962e14d35bd3db58eb449497ae01a53c06239383",
       "path": "procedures/security.inventory-import.json"
     },
     {
-      "artifact_digest": "sha256:503baee2ce0d60741307c3ce715d98d7b8b5b9d38b0dc24e33ff9e0fec7cdb89",
+      "artifact_digest": "sha256:71b8d95609cc1f5a656a719fc4602fb63401967b6d0f548296843557732e3919",
       "path": "procedures/security.kev-attention.json"
     },
     {
-      "artifact_digest": "sha256:9d9b93d0c515160b3bf63ec1ca308b5d3440ed2106b08046f18a1dbee6688d5b",
+      "artifact_digest": "sha256:c064f89aba1a6d47f60e74a170b19716df87017b871cef1ab20b494f76dfeb31",
       "path": "procedures/security.kev-triage.json"
     },
     {
@@ -697,15 +697,15 @@
       "path": "procedures/security.log-acquire.json"
     },
     {
-      "artifact_digest": "sha256:ff509cd7e6e7ab69cbcd1dc3482c10ae7416d728e50c708a4cd09ea01aadfa5b",
+      "artifact_digest": "sha256:635749d67dfa364fcbd1fdca81dc5a435f648504b7f6406ea3e27010bba2eb9d",
       "path": "procedures/security.log-import.json"
     },
     {
-      "artifact_digest": "sha256:6aa561f7782e5a073519e65b484692888ed0dc51773a11ab9503e7e4b12c18de",
+      "artifact_digest": "sha256:b1af2b4c1e91bae0c5ee47b41f3298f87e31a04e42a9d9da5b50820a82e302b9",
       "path": "procedures/security.registry-parse.json"
     },
     {
-      "artifact_digest": "sha256:7a225f08b63a333ea6feccb3ae700b871aab306a2ec5c9c471e749a1c483e16b",
+      "artifact_digest": "sha256:6f197fbc9d198a446b78429f798c82be6266a3c73959063eb36e625476a131d8",
       "path": "procedures/security.repo-parse.json"
     },
     {
@@ -713,7 +713,7 @@
       "path": "procedures/security.reproduction-acquire.json"
     },
     {
-      "artifact_digest": "sha256:469f8ff8fcb161755caf3e279c230ac0cf5be7127aea66498f23a262ded7eac2",
+      "artifact_digest": "sha256:295b46e4920e15b38f946db63fb2fa726c5c3192ccd214706d155b8cc226a04a",
       "path": "procedures/security.respond.json"
     },
     {
@@ -721,11 +721,11 @@
       "path": "procedures/security.sarif-acquire.json"
     },
     {
-      "artifact_digest": "sha256:6807b4dec0ddd7f45b419361b17324307e75219bf196080607e840c14b68e053",
+      "artifact_digest": "sha256:dc72a35b5a8017c460554172b3739c268a5987748e6555612f130455a3fde76e",
       "path": "procedures/security.sarif-attention.json"
     },
     {
-      "artifact_digest": "sha256:11f84af5d9d75b54e21498dd3995ef17f15792c7efb8449c7d4e577ee07c9fb2",
+      "artifact_digest": "sha256:e8613e8b3f49bdfd829d47303a3ae9fbfa4320c5fb977948b7951ce1ec574616",
       "path": "procedures/security.sarif-import.json"
     },
     {
@@ -733,7 +733,7 @@
       "path": "procedures/security.sbom-acquire.json"
     },
     {
-      "artifact_digest": "sha256:c334198efd6ddde024138829e33daf77d1e67bd744a7d23149b6a120bcc41e36",
+      "artifact_digest": "sha256:f03f0baf2316a33aa212f76581001e59f59dc044e746b17bebfffb4c9e32fb21",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -853,7 +853,7 @@
       "path": "query-definitions/security.credentialed_jobs.json"
     },
     {
-      "artifact_digest": "sha256:727a3c2968be9dbd34d83b85f80f337c757b2e8087a131d12d6b6a36bae49589",
+      "artifact_digest": "sha256:b5c0f1b556e70cb1e0e3a6331ca2d8fee0caee952e6ee763a0d026056fb437f6",
       "path": "query-definitions/security.deployments.json"
     },
     {
@@ -905,7 +905,7 @@
       "path": "query-definitions/security.inventory_context.json"
     },
     {
-      "artifact_digest": "sha256:a1f319603b2c343a90927eb6d536bbfd100afe13f83e0ce5f870dae7a749341e",
+      "artifact_digest": "sha256:7cd79daf5c3d95ca057ccba5130ba8bc8cc8c528aab0d76e9654e205270d30e2",
       "path": "query-definitions/security.inventory_index.json"
     },
     {
@@ -953,7 +953,7 @@
       "path": "query-definitions/security.registry_facts.json"
     },
     {
-      "artifact_digest": "sha256:38de63ede19160d286836989199ebf10e43a9e1e09b97fba5ac6c1eb4a457419",
+      "artifact_digest": "sha256:becb685044d1ab4ffa5f23c406d168048a532afca9d00efe76ff3b5f5fcf0b67",
       "path": "query-definitions/security.release_inventory.json"
     },
     {
@@ -973,7 +973,7 @@
       "path": "query-definitions/security.rotation_work.json"
     },
     {
-      "artifact_digest": "sha256:817d93a62f8426ebf0b070727921a12a2c61b73405635fc107a93b15f69eb154",
+      "artifact_digest": "sha256:bfbcf545d7e6df96c1b5b793fbf5fd92da68755f34f40fe7a03dcb801eaacd42",
       "path": "query-definitions/security.scanned_runs.json"
     },
     {
@@ -1116,12 +1116,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:56542b566100db8fadfd4bfcea8f0fe58e37de444885906f3914ec1cc225d085",
-      "generation_root": "sha256:4e2421471f5c25c3e3e85d53923c98183103f7ff1fb0d2e1978d42a72ce31bc6",
-      "git_oid": "d1e97e14c8e5042813f201e56cfd7f6597c8a903",
-      "semantic_root": "sha256:ff2d53f4866a5d96af700063325f762e7ab19d34d835d5366d4de63527e8e68f",
+      "generation_root": "sha256:b1b42285e854f9f2eed46e57f29f2d6b40041aa6fbf30110e5078b22c358b9b8",
+      "git_oid": "c00a88bbc8e2eedc6436a5d25e775be4491c8327",
+      "semantic_root": "sha256:e8996d2643b6a67c1d14ca56043adb95a823ee5b029bc95d2910cd7f472a96a6",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_0500b489d40d4607",
+    "instance_id": "inst_a15917394b964959",
     "principal_id": "kit-author"
   },
   "providers": [
@@ -1171,7 +1171,7 @@
       "version": "1.3.0",
       "wheel": {
         "filename": "security_analysis_provider-1.3.0-py3-none-any.whl",
-        "sha256": "sha256:e84d67f27daa530971106a146adbb7b578eee2de64f31b040f9eb730ac8d431e"
+        "sha256": "sha256:ed26f50eaf659a5289af04186e241193bd1220d3269e7c25c3140eea714f08a1"
       }
     },
     {

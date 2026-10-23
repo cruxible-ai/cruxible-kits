@@ -13,7 +13,7 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "observation",
-  "description": "How many components the release's SBOM lists without a package URL with a version (the operating-system component aside): what they are is unknown, OSV is never asked about them, so the release's OSV coverage stays partial and no negative rests on OSV's silence. Restated (revised) when a later SBOM of the release counts differently.",
+  "description": "How many components the release's SBOM lists without a package URL with a version (an operating-system component too): what they are is unknown, OSV is never asked about them, so the release's OSV coverage stays partial and no negative rests on OSV's silence. Restated (revised) when a later SBOM of the release counts differently.",
   "evidence_admission_policy": {
     "rules": [
       {

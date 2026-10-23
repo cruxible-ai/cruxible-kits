@@ -50,6 +50,18 @@
       "where": null
     },
     {
+      "binding": "included_run_component",
+      "direction": "forward",
+      "from_binding": "run",
+      "many": true,
+      "max_items": 500,
+      "name": "run_component",
+      "orderings": [],
+      "predicate": "security.release.component",
+      "tag": "playbill-query-include-v1",
+      "where": null
+    },
+    {
       "binding": "included_runs",
       "direction": "forward",
       "from_binding": "asset",
@@ -150,6 +162,14 @@
       "target": {
         "kind": "ClaimType",
         "name": "security.coverage.source"
+      }
+    },
+    {
+      "artifact_digest": "sha256:cfafb776f4c831be8e811730da5aedd3f003de73e770c9821163dde79840556b",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.release.component"
       }
     },
     {

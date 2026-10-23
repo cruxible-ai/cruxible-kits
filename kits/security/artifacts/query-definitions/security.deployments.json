@@ -135,6 +135,14 @@
       }
     },
     {
+      "artifact_digest": "sha256:fa4551e8e6ca8af73d8121697f3ea17a601afe74e45107f3023f1ef4eee65ade",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.release.unidentified_components"
+      }
+    },
+    {
       "artifact_digest": "sha256:4f00800056fb9c2af1d558a2ebdc688148172e319f5fdf9bcf8aaf121305a283",
       "role": "claim-type",
       "target": {
@@ -212,6 +220,16 @@
           "binding": "declared",
           "kind": "claim_value",
           "predicate": "security.release.product_name",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "declared_unidentified",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "declared",
+          "kind": "claim_value",
+          "predicate": "security.release.unidentified_components",
           "tag": "playbill-query-claim-value-ref-v1"
         }
       },
