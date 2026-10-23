@@ -1109,6 +1109,43 @@
       "path": "subject-kinds/security.workflow.json"
     }
   ],
+  "files": [
+    {
+      "path": "README.md",
+      "role": "readme",
+      "sha256": "sha256:e296d6ccb68a9bcb7c1668f38dd38b40725db1f07b1e4cc748105938ad6496e3"
+    },
+    {
+      "path": "examples/README.md",
+      "role": "example",
+      "sha256": "sha256:ded8f23da2ff07338591e78015dc5450eaf6cc004708d78682f9641a3e09e1c3"
+    },
+    {
+      "path": "examples/automation.json",
+      "role": "example",
+      "sha256": "sha256:1f977210764e7a1f05c75f14450f4ae2857d0f9f9485beb41b35b7d3e93b73fb"
+    },
+    {
+      "path": "examples/incident-status.md",
+      "role": "example",
+      "sha256": "sha256:1edf672fca9b369503682e3b7ff88a5eb12dfcc64fb2d4421d87a44bbacd4486"
+    },
+    {
+      "path": "reference.md",
+      "role": "reference",
+      "sha256": "sha256:8b96e2937266c5007bd60db8f4c8911f4ba5b3b1f5987a22fbcbf439679bd344"
+    },
+    {
+      "path": "skills/security-analyst/SKILL.md",
+      "role": "skill",
+      "sha256": "sha256:55fe099d410c35c1096343b5ab69bee22597d5dab11b5820f7898627fd32a7e0"
+    },
+    {
+      "path": "skills/security-intake/SKILL.md",
+      "role": "skill",
+      "sha256": "sha256:ea3f5a903efb3430fbea60507477f1e2dcc3f5661d77d9a621895e0d473f3bfa"
+    }
+  ],
   "kit_id": "security",
   "owns": [
     "security."
