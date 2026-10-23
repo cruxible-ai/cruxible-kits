@@ -552,9 +552,14 @@ approves. Independent approval adds a second person, not a stronger proof.
 used (`used_by`) and what it reaches (`reaches`), its current key's id
 (`key_id`: the issuer's key id, or `fp:` and 16 hex of the secret's sha256),
 `issued_at` and `issued_by`. The credential-state body is an allow-list; an unknown
-field, or a key id shaped like a secret (longer than 40 characters, a known secret
-prefix, high entropy), refuses the whole body and posts `secret_shape`, echoing no
-value. The bytes are already retained when that happens: stop, rotate whatever it
+field, a key id shaped like a secret (longer than 40 characters, a known secret
+prefix, high entropy), or an issuer, name or `created_by` holding a secret-shaped
+token refuses the whole body and posts `secret_shape` with a fixed message: no
+value and no field name from the body is echoed (a JSON key can be the secret).
+The inventory and log-read imports refuse the same way (a position such as
+`assets[2].runs[0]`, never the value), and a log read whose incident, service,
+source or `incomplete_reason` holds a secret-shaped token is refused, since those
+are copied into the audit's Claims and inbox items. The bytes are already retained when that happens: stop, rotate whatever it
 exposed, and erase the Capture's body. The three incident contracts
 (`security.runtime-inventory-v1`, `security.log-read-v1` and
 `security.credential-state-v1`) declare `erasure: authorized_by_rule`, so
@@ -577,9 +582,10 @@ they rest on:
   --capture CAP-... --because "..."`. An unchanged scan proposes nothing, so the
   re-bind is what moves them.
   <!-- update: erased-scan-answers -->
-  Today, erasing an inventory scan hides that host from the respond Line's
-  answers (RQ1 and RQ2 are neither found nor unknown for it) until you
-  re-acquire the scan and re-bind its Claims, so do both straight away.
+  Until then the host has no current inventory: the respond Line enumerates
+  every asset (`security.deployments`), so an erased scan leaves the host
+  unknown in RQ1, with a gap naming the inventory pull, never silent. Re-acquire
+  the scan and re-bind its Claims straight away.
   <!-- update: erased-evidence-retire -->
   A Claim that hasn't been re-bound can't be retired or revised. Fields that
   cite the scan without needing it as evidence (an asset's `hostname`, a
@@ -597,7 +603,7 @@ secret](https://docs.cruxible.ai/evidence-and-admission/#erasing-a-capture-that-
 |---|---|---|---|
 | `security.runtime-inventory-v1` | `security.inventory-acquire` | the kit body `{"scope", "looked_for": ["php", "debian/php8.2"] or ["*"], "coverage": "full" or "partial", "assets": [{"hostname", "runs": ["pkg:generic/php@8.3.10"]}]}`, no timestamps; or a CycloneDX JSON SBOM of one asset (Syft, Trivy) with metadata properties `cruxible.scope` and `cruxible.asset` | `security.inventory-import.<scope>` (parameter `scope`) |
 | `security.log-read-v1` | `security.log-acquire` | `{"audit": {"incident", "service"}, "source", "query", "from", "to", "complete", "records_scanned", "matches": [{"at", "summary"}]}`; `complete` = every record in [from, to] searched (no sampling, no result cap, retention reaching `from`); redact match summaries | `security.log-import.<incident>` (parameter `incident`) |
-| `security.credential-state-v1` | `security.credential-acquire` | `{"issuer", "name", "read": "receipt" or "state_read", "keys": [{"key_id", "state": "active" / "inactive" / "revoked" / "deleted", "created_at", "revoked_at", "last_used_at", "created_by"}]}` and nothing else | `security.credential-import` |
+| `security.credential-state-v1` | `security.credential-acquire` | `{"issuer", "name", "read": "receipt" or "state_read", "keys": [{"key_id", "state": "active" / "inactive" / "revoked" / "deleted", "created_at", "revoked_at", "last_used_at", "created_by"}]}` and nothing else, plus `"complete": true` when a `state_read` lists every key the issuer holds for it (every page read) | `security.credential-import` |
 
 What each import proposes:
 
@@ -607,7 +613,9 @@ What each import proposes:
   `pkg:golang/github.com/cli/cli/v2@v2.86.0` is `github.com/cli/cli/v2`, never a
   last segment; `version` from the purl; the purl as `release.component`, so OSV
   decides a distro build) as `asset.runs`, observed
-  beside the declared `installs`. A **full** kit scan restates the coverage
+  beside the declared `installs`. Two ecosystems' packages of one name and
+  version (`pkg:npm/foo@1.0`, `pkg:pypi/foo@1.0`) are one release with both
+  purls as components: neither is dropped. A **full** kit scan restates the coverage
   revision (the digest of its `looked_for` and (asset, runs) set: an unchanged
   fleet, in any order, is a re-observation and proposes nothing, while freshness
   moves), retires runs it no longer sees of the products it looked for (a new
@@ -618,22 +626,36 @@ What each import proposes:
   proposes `failed`. A **partial** scan only adds. A CycloneDX SBOM is one asset's
   complete run set: it adds, retires and verifies for that asset, never states the
   scope's coverage (its own timestamp makes every scan new content), and proposes
-  only when the run set changed. None answers need a scope's full kit scan.
+  only when the run set changed. It is complete only while every component is
+  identified: a component without a purl with a version (missing, malformed,
+  unversioned; the operating-system component aside) could be any product, the
+  one a patch moved off included, so such an SBOM only adds, never retires or
+  verifies, and the summary counts it (`unidentified`). None answers need a
+  scope's full kit scan.
 - **Log read.** One `security.audit.read` (`SOURCE FROM/TO`) for a complete read of
   a stated audit. An incomplete read is posted (`read_incomplete`, with why in
   words): a finding about your logs, not about the attacker. Say what wasn't
   searched in the read itself, `"missing": [{"from", "to", "reason": "expired"
   (retention, an HTTP 410) / "unavailable" (an error status) / "not_searched",
   "status": 410}]`, and anything else in `incomplete_reason`; the item reads
-  "records 2026-01-21T00:00:00Z to 2026-07-24T08:06:00Z expired (HTTP 410)". A read for an audit nobody
+  "records 2026-01-21T00:00:00Z to 2026-07-24T08:06:00Z expired (HTTP 410)". A read
+  that says `complete` and also names `missing` spans or an `incomplete_reason`
+  contradicts itself and is refused, never recorded. A read for an audit nobody
   stated is posted (`audit_not_stated`). Never a `result`.
 - **Credential state.** From either kind of read, the current key's `key_id`,
   `issued_at` and `issued_by`. Only from a `state_read`: `revoked_key`, and a
-  rotation's `verification`: `verified` when `revokes_key` is revoked, deleted or no
-  longer listed and an active key issued after the incident's `window_start` exists;
+  rotation's `verification`: `verified` when `revokes_key` is listed revoked or
+  deleted, or is absent from a listing that says `"complete": true` (every key,
+  every page), and an active key issued after the incident's `window_start` exists;
   `failed` when the rotation is claimed `completed` and `revokes_key` is still
-  listed. A receipt (what the issuer returned to the rotating agent) never
-  verifies.
+  listed. Absence from a listing that doesn't say it is complete proves nothing
+  (the summary counts it `unproven`): a receipt relabelled `state_read`, or one
+  page, verifies nothing. A receipt (what the issuer returned to the rotating
+  agent) never verifies. That the state read is later, separate and acquired by
+  someone other than the rotator is **your convention**: a Procedure can't see who
+  acquired a Capture, so the kit can't check it. Each acquiring run's `actor` is on
+  its ProcedureRun (`cruxible get ProcedureRun:RUN-...`): check it when you
+  review the verification.
 
 ### Declare the incident
 
@@ -690,19 +712,31 @@ incident field.
 
 `security.respond` answers each question **found** (posted), **none** (the run
 summary) or **unknown** (posted as a gap `{subject, pull, input}` naming the pull or
-statement that answers it). Unknown is never none: RQ1 pairs every incident CVE
-with every release a scan observed on an asset, so a release nobody assessed
-(Homebrew's `gh`, an upstream binary as `pkg:generic`) stays unknown and posted
-until a source or an analyst answers it, and the Line never halts
-`nothing_to_post` while such a pair is open. An incident's CVEs are watched (KEV,
-EPSS and OSV read them) from the moment it names them.
+statement that answers it). Unknown is never none: RQ1 enumerates every
+deployment from the inventory, never through assessments: every asset
+(`security.deployments`, with its inventory coverage and each release it declares
+installing) and every release a scan observed on one (`security.scanned_runs`),
+each paired with every incident CVE. So a release nobody assessed (Homebrew's
+`gh`, an upstream binary as `pkg:generic`), a declared release no scan has read,
+and an asset whose scan is missing, stale or erased stay unknown and posted until
+a source or an analyst answers them, and the Line never halts `nothing_to_post`
+while such a pair is open (an incident with no deployment known at all posts that
+gap too). A deployment's none needs both a current full scan of the asset that
+looked for the release's product (`looked_for` `*` or the product: a scan that
+didn't look can't say what runs), and the release's own none. An incident's CVEs
+are watched (KEV, EPSS and OSV read them) from the moment it names them.
+
+The Line posts at most 200 items per run. A run with more refuses (`overflow`,
+naming how many of each kind it would post) rather than post the first 200 every
+time and never the rest: answer gaps in bulk (a scope's full scan, a judgment
+covering many releases), then run it again.
 
 | # | found | none | unknown |
 |---|---|---|---|
-| RQ1 | `exposed`: a scan observed the asset running a release assessed affected | a current full scan that looked for the product shows no affected run; a release a scan observed that is assessed `not_affected`, or that nobody assessed while OSV answered all its current components and none is a package OSV says the CVE affects (the answer `cites` those Claims) | an asset that declares installing it, or a patched one, under no current coverage; an inconclusive assessment (an analyst's judgment answers it); a release a scan observed that nobody assessed for the CVE otherwise, with the next step in order: the CVE's record (`record_pull`, when none was read), "OSV doesn't index N components of this release" (a judgment, a product alias, or a re-scan with a purl type OSV indexes), the OSV Line (`osv_line`, when OSV hasn't answered its current components), an analyst's judgment |
+| RQ1 | `exposed`: a scan observed the asset running a release assessed affected | under a current full scan of the asset that looked for the product: a declared or patched release it shows not running; a release it observed that is assessed `not_affected` (a negative naming the components it rests on holds while the release has them as they were), or that nobody assessed while OSV answered every component of the exact current set (the coverage's `set` digest) and none is a package OSV says the CVE affects (the answer `cites` those Claims) | an asset with no current inventory (never scanned by a full scan, stale, or its evidence erased), or a scan that didn't look for the release's product or a product the incident affects (the gap names the inventory pull, with `looking_for`); an inconclusive assessment (an analyst's judgment answers it); a release nobody assessed for the CVE otherwise, with the next step in order: the CVE's record (`record_pull`, when none was read), a negative whose components moved (`osv_line`), "OSV doesn't index N components of this release" or "its SBOM lists N components without a purl" (a judgment, a product alias, or a re-scan with a purl type OSV indexes), the OSV Line (`osv_line`, when OSV hasn't answered its current components), an analyst's judgment |
 | RQ2 | `patch_missing`; `patch_overdue`; `patch_disputed` (verification `failed`, or claimed `completed` while still running); `patch_regressed` (verified, then seen running again) | `verification` `verified` and no affected run, under current coverage | a claimed patch no scan has read since; an approved one on schedule is *pending*, and a missing or overdue one under an accepted risk is *excepted* (both summary only) |
 | RQ3 | `exploited`: the result `exploited` | `not_exploited`, `window_end` stated, and for every `log_source` the union of its complete reads covers [`incident.window_start`, `window_end`] | no audit (the gap names the service's `log_source` list as `sources`); otherwise one gap per service listing every missing piece in `input.missing`: no log source, a source the service lists that the audit does not state, window open, no result, `inconclusive`, `conflict`, and each uncovered interval (named per source, "A to B") |
-| RQ4 | `rotate {credential, services: {audit, patch}, key_id, because}` for each credential a warranted service uses (`on_found_or_unknown`: RQ3 found or unknown; `all_exposed`: every exposed service); `rotation_disputed` | a rotation a state read verified, the current key issued after `window_start`; a credential no warranted service uses | claimed rotated, no separate state read yet |
+| RQ4 | `rotate {credential, services: {audit, patch}, key_id, because}` for each credential a warranted service uses (`on_found_or_unknown`: RQ3 found or unknown; `all_exposed`: every exposed service); `rotation_disputed` | a rotation a state read verified, the current key issued after `window_start`; a credential no warranted service uses | claimed rotated, and no state read has verified it yet (none landed, or the one that did lists neither the old key retired nor says it is complete) |
 | RQ5 | `ready_to_close`, listing audits still unknown as accepted residue with their rotations | | |
 
 **Where the logs are.** State each service's log sources once, before any
@@ -733,8 +767,10 @@ service's audit and patch state, and nothing gates a rotation on the patch. Rota
 at once when a key is known leaked. A closed incident (`status` `closed`) posts
 nothing.
 
-Coverage goes stale 12 h after a scope's last full scan: every none resting on it
-turns unknown, as `cruxible next` (`claim_stale_evidence`) says.
+Coverage goes stale 12 h after a scope's last full scan: every RQ1 and RQ2 none
+resting on it turns unknown (the respond Line reads the scope's revision through
+every tap, `security.scanned_runs` and `security.deployments` included), as
+`cruxible next` (`claim_stale_evidence`) says.
 
 ### PHP2Shell at Acme, end to end
 
@@ -903,19 +939,30 @@ query --name security.assessment_index` shows any assessment without one.
   (`pkg:brew`, `pkg:generic`, `pkg:docker` ...) is never asked: OSV's empty
   answer there would read as "no advisories". The OSV Capture records it as
   `not_indexed` with why, and each release gets one
-  `security.release.osv_coverage` Claim: `complete: N of N components answered`,
-  or `partial: A of N components answered; not indexed: brew 1, generic 1`
-  (and `unanswered K` for a query that failed). An empty OSV answer is a
-  negative only under complete coverage. The run also states, for each watched
+  `security.release.osv_coverage` Claim: `complete: N of N components answered;
+  set D`, or `partial: A of N components answered; not indexed: brew 1, generic
+  1; set D` (and `unanswered K` for a component whose query failed, came back
+  truncated, or named an advisory whose record couldn't be read; `unidentified U`
+  for components the SBOM lists without a purl, counted by the import as
+  `security.release.unidentified_components`). `set D` binds the coverage to the
+  exact component set OSV answered for (16 hex of the sha256 of the sorted
+  purls): another set, even one of the same size, is unanswered until OSV
+  answers again. An empty OSV answer is a negative only under complete coverage
+  of the current set. The run also states, for each watched
   CVE, the packages OSV's records say it affects
   (`security.vulnerability.package`, `pkg:deb/debian/php8.2`): OSV knows the CVE.
   A component OSV lists as affected
   -> `affected` (the CVE is created by key when new, and watched through that
   assessment). A watched CVE OSV has package data for
   but does not list -> `not_affected` with `vulnerable_code_not_present` when one
-  of its packages is a component at another version OSV answered for. A failed
-  OSV query for a relevant component -> `inconclusive`; a relevant component OSV
-  never answered (not indexed) -> no answer (the coverage says partial). A release
+  of its packages is a component at another version OSV answered for **and** OSV
+  answered every component of the release (complete coverage): any other
+  component could hold the package under another name. The negative names the
+  components it rests on (`assessment.component`), so the respond Line reads it
+  unproven once the release holds them differently. Of that package, with the
+  coverage partial -> `inconclusive`. A failed OSV query for a relevant component
+  -> `inconclusive`; a relevant component OSV never answered (not indexed) -> no
+  answer (the coverage says partial). A release
   none of whose components is a
   package the CVE affects is not assessed at all: an SBOM release with no
   assessment for a CVE means OSV relates none of its components to it.
@@ -934,13 +981,24 @@ query --name security.assessment_index` shows any assessment without one.
     collection names is kit data carried in the Procedure, citing the CVE schema
     and the purl spec; edit it by authoring a successor of your
     `security.cve-applicability`;
-  - its `repo` against the release's source repository, where the system model
-    knows it (`security.release_sources`: the repository a target serving the
-    release is published from) or a forge purl names it (`pkg:github/cli/cli`);
+  - its `repo`, or a forge collection's `packageName` (`https://github.com` +
+    `cli/cli` is `github.com/cli/cli`), against the release's source repository,
+    where the system model knows it (`security.release_sources`: the repository a
+    target serving the release is published from) or a forge purl names it
+    (`pkg:github/cli/cli`);
   - its vendor/product, `packageName`, `repo` or `cpes` against the release's
-    **product aliases** (`security.release.product_alias`, below);
-  - its product against the release's product name (letters and digits,
-    case-insensitive), with a supplier that matches the vendor or is unset.
+    **product aliases** (`security.release.product_alias`, below). A CPE is
+    parsed as CPE 2.3 writes it (escapes undone, case-insensitive) and compared
+    whole: `foo-bar` and `foobar` are two products;
+  - its product against the release's product name (the whole name, its name
+    form: trimmed, case-insensitive), with a supplier equal to the vendor or
+    unset. A vendor that differs, even one that contains the supplier's name, is
+    another vendor (`inconclusive`) unless an alias says otherwise.
+
+  Every way the record names a release counts: any `affected` answer (one copy
+  of a module among several, say) makes the release `affected`; `not_affected`
+  needs every one of them unaffected; anything else is `inconclusive`. A
+  negative decided through components names them (`assessment.component`).
 
   A matched release is decided by the entry's version ranges (`version`,
   `lessThan`, `lessThanOrEqual`, `changes`; a `lessThan` ending in `*` is

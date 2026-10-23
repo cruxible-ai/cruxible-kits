@@ -81,7 +81,10 @@ means nothing decided it, not that someone judged it safe: read its
 `osv_coverage` (`security.release_inventory`). Under `complete` coverage OSV
 answered every component, so a CVE OSV knows (`security.vulnerability.package`)
 that none of them is a package of is none; under `partial` coverage (a
-`pkg:brew` or `pkg:generic` component OSV never indexes) it is unknown.
+`pkg:brew` or `pkg:generic` component OSV never indexes, an unanswered query, an
+SBOM component without a purl) it is unknown. A coverage is about the component
+set its `set` digest names: once the release's components change it answers
+nothing until OSV runs again.
 
 ## 3. Work the triage backlog
 
@@ -188,6 +191,7 @@ command against any service.
 cruxible inbox list --line security.respond.INCIDENT --status unread
 cruxible query --name security.incident_exposure --param incident=INCIDENT    # RQ1 (assessed)
 cruxible query --name security.scanned_runs                                    # RQ1 (every scanned release)
+cruxible query --name security.deployments                                     # RQ1 (every asset, what it declares)
 cruxible query --name security.open_patches --param incident=INCIDENT         # RQ2, internet-facing first
 cruxible query --name security.audit_status --param incident=INCIDENT         # RQ3
 cruxible query --name security.incident_credentials --param incident=INCIDENT # RQ4
@@ -197,14 +201,20 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
   (`window_start`), rotation policy and status, plus its respond and log
   import Lines, in one approved ChangeSet. Enable both Lines after approval.
   Naming a CVE in an incident watches it.
-- **Answer every pair.** RQ1 pairs each incident CVE with every release a scan
-  observed. A pair nobody assessed is unknown until evidence answers it, and its
-  gap names the next step: the CVE's record (`security.cve-record-acquire`,
-  `input.url`) when none was read; "OSV doesn't index N components of this
-  release" (a judgment, a product alias, or a re-scan naming the binary by a
-  purl type OSV indexes, such as `go version -m` for a Go binary); the OSV Line
-  when OSV hasn't answered the release; an analyst's judgment last. Never
-  report "not affected" for a pair the respond Line reads unknown.
+- **Answer every pair.** RQ1 pairs each incident CVE with every deployment: every
+  asset and each release it declares, and every release a scan observed. A
+  deployment is none only under a current full scan of the host that looked for
+  the product; a host with no current scan, or a scan that didn't look for a
+  product the incident affects, is unknown with an inventory gap. A pair nobody
+  assessed is unknown until evidence answers it, and its gap names the next
+  step: the CVE's record (`security.cve-record-acquire`, `input.url`) when none
+  was read; a not_affected answer whose components moved (the OSV Line); "OSV
+  doesn't index N components of this release" (a judgment, a product alias, or a
+  re-scan naming the binary by a purl type OSV indexes, such as `go version -m`
+  for a Go binary); the OSV Line when OSV hasn't answered the release; an
+  analyst's judgment last. Never report "not affected" for a pair the respond
+  Line reads unknown. More than 200 items refuse the run (`overflow`): answer gaps
+  in bulk, then run it again.
 - **Act only on an accepted remediation.** A patch names `work.asset`,
   `work.assessment` and `target_release`; a rotation names `work.credential`,
   `work.audit` and `revokes_key` (the `key_id` held when you raise it). Approval
@@ -217,9 +227,12 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
   reads *excepted* instead of `patch_missing`; at `expires_at` the exposure is
   posted again. RQ1 still finds it, so it never closes the incident.
 - **Prove with a read you did not make.** A full inventory scan verifies a
-  patch, a separate state read of the credential verifies a rotation. Whoever
-  acted does not acquire the Capture that verifies the action; `cruxible get
-  ProcedureRun:RUN-...` shows each acquiring run's `actor`. A receipt from the
+  patch, a state read of the credential verifies a rotation: the old key listed
+  revoked or deleted, or absent from a listing that says `complete`. Whoever
+  acted does not acquire the Capture that verifies the action: that's your
+  convention, which the kit can't check (a Procedure never sees who acquired a
+  Capture), so read each acquiring run's `actor` (`cruxible get
+  ProcedureRun:RUN-...`) before you accept a verification. A receipt from the
   issuer records the new key id; it never verifies.
 - **Audit in three states.** State the audit's log sources first (stating them
   asks the question), starting from the service's `log_source` list: the

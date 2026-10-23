@@ -121,18 +121,24 @@ the first 16 hex of the secret's sha256, computed where the secret already
 lives.
 
 ~~~json
-{"issuer": "stripe", "name": "storefront-live", "read": "state_read",
+{"issuer": "stripe", "name": "storefront-live", "read": "state_read", "complete": true,
  "keys": [{"key_id": "fp:3f9a1c0d22b84e6a", "state": "active",
            "created_at": "2026-03-02T10:00:00Z", "created_by": "ops"}]}
 ~~~
+
+`complete: true` says the listing holds every key the issuer has for the
+credential (every page read). Only then does a key's absence from it count: a
+rotation verifies when the old key is listed `revoked` or `deleted`, or is absent
+from a complete listing.
 
 ~~~bash
 echo '{"relative_path": "creds/stripe-storefront-live.json"}' > cred.json
 cruxible procedure run security.credential-acquire cred.json
 ~~~
 
-Any other field, or a key id shaped like a secret, refuses the whole body and
-posts `secret_shape`; the bytes are kept, so erase the Capture. The import
+Any other field, or a key id, issuer, name or `created_by` shaped like a secret,
+refuses the whole body and posts `secret_shape` (a fixed message: nothing from the
+body is echoed); the bytes are kept, so erase the Capture. The import
 creates the credential (`security.credential/stripe--storefront-live`).
 Approve it, then state where it's used and what it reaches:
 
@@ -199,7 +205,15 @@ outputs:
   kit answer **none** for the scope; a `partial` scan only adds.
 - **A CycloneDX SBOM of one host** (Syft, Trivy) also works, with metadata
   properties `cruxible.scope` and `cruxible.asset`. It never states the scope's
-  coverage, so none answers still need a full scan in the kit's format.
+  coverage, so none answers still need a full scan in the kit's format. A
+  component without a purl and version (the OS component aside) makes the SBOM
+  add only: it could be any product, so it never retires a run or verifies a
+  patch. Generate SBOMs with purls.
+- **Look for what the incident affects.** A deployment's **none** needs a current
+  full scan of the host that looked for the release's product (`["*"]` covers
+  everything). A scan that looked only for `php` can't say a host doesn't run
+  `debian/php8.2`: the incident keeps that host unknown, its gap naming the
+  products to look for (`input.looking_for`).
 
 ~~~bash
 echo '{"relative_path": "scans/prod.json"}' > scan.json
@@ -223,8 +237,10 @@ changes:
 `security.urgent_exposures` shows both: `asset` is a host that declares the
 release (`asset_observed` set when a scan also sees it running there), and
 `observed` is a host only a scan sees, each with its service criticality and
-internet exposure. A host that declares a release but sits in no current scan
-is answered **unknown** in an incident, so declare the hosts nobody scans too.
+internet exposure. Every host is enumerated in an incident (`security.deployments`),
+whatever it declares: one in no current scan (never scanned, stale, or its scan's
+evidence erased) is answered **unknown** with a gap naming the inventory pull, so
+declare the hosts nobody scans too, and scan them.
 
 ### 5. Log sources
 
