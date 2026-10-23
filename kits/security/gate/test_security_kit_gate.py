@@ -455,8 +455,8 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 18, "ClaimType": 135, "Procedure": 21,
-              "ProviderInterface": 21, "QueryDefinition": 47, "SourceAcquisitionPolicy": 1,
+KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 18, "ClaimType": 136, "Procedure": 21,
+              "ProviderInterface": 21, "QueryDefinition": 48, "SourceAcquisitionPolicy": 1,
               "SubjectKind": 23}
 
 
@@ -2735,6 +2735,16 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
     assert rq1[f"{HOSTS['wiki-1']}: php 8.3.10"] == "unknown", rq1
     gaps = {g["payload"]["subject"]: g["payload"] for g in _respond_posts(gate, "gap")}
     assert gaps[HOSTS["wiki-1"]]["pull"] == "security.inventory-acquire", gaps
+    # A deployment nobody assessed or scanned is a gap, never silence: web-1 declares
+    # Log4j2, Zammad and gate-app, and no scan has read it.
+    web = {s: state for s, state in rq1.items() if s.startswith("web-1.example.com: ")}
+    assert len(web) >= 3 and set(web.values()) == {"unknown"}, rq1
+    assert gaps["web-1.example.com"]["input"] == {"covering": "web-1.example.com"}, gaps
+    # The Syft SBOM's Debian libraries on storefront-a: the prod scan doesn't look for them,
+    # so OSV's answer for them alone is no deployment negative.
+    assert gaps[HOSTS["storefront-a"]]["input"] == {
+        "covering": HOSTS["storefront-a"],
+        "looking_for": ["debian/libc6", "debian/libssl3", "debian/libxml2"]}, gaps
     assert len(_respond_posts(gate, "patch_missing")) == 3
     assert len(_respond_posts(gate, "exposed")) == 3
     # No audit is stated yet: each exposed service's gap names its standing log sources.
@@ -2746,8 +2756,10 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
            "respond and log-import Lines, a window-close Trigger); urgent_exposures: php 8.3.10 "
            "declared on wiki-1 and observed only on storefront-a/-b, the Debian build observed "
            "only on app-1; respond: RQ1 found x3, wiki-1 unknown naming "
-           "security.inventory-acquire, RQ2 patch_missing x3, the RQ3 gaps naming each "
-           "service's log sources")
+           "security.inventory-acquire, web-1's three declared releases (no scan, no "
+           "assessment) unknown with its inventory gap, storefront-a's SBOM libraries unknown "
+           "(the prod scan doesn't look for them), RQ2 patch_missing x3, the RQ3 gaps naming "
+           "each service's log sources")
 
 
 def _patch(gate: Gate, short: str, release: str, target: tuple[str, str], due: str) -> str:
@@ -2929,11 +2941,25 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
 RESPOND_BINDINGS = {
     "incident": "security.incident", "assessment": "security.assessment",
     "release": "security.release", "asset": "security.asset", "coverage": "security.coverage",
-    "service": "security.service", "declared": "security.asset",
-    "declared_coverage": "security.coverage", "patch": "security.remediation",
+    "service": "security.service", "declared": "security.release",
+    "patch": "security.remediation",
     "target": "security.release", "owner": "security.team", "audit": "security.audit",
     "credential": "security.credential", "rotation": "security.remediation",
     "rotation_audit": "security.audit", "exception": "security.exception"}
+
+
+def _coverage(gate: Gate) -> dict[tuple[str, str], str]:
+    """Each release's OSV coverage without its component-set digest (``; set <16 hex>``:
+    the coverage is bound to that exact set), which the gate checks is there."""
+
+    found = {}
+    for row in gate.rows("security.release_inventory"):
+        value = _field(row, "osv_coverage")
+        if isinstance(value, str):
+            assert re.search(r"; set [0-9a-f]{16}$", value), value
+            value = value.rsplit("; set ", 1)[0]
+        found[(_field(row, "product_name"), _field(row, "version"))] = value
+    return found
 
 
 def _respond_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -2973,8 +2999,7 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     debian_fixed = _release_id(gate, "debian/php8.2", "8.2.29-1~deb12u1")
     for cve in PHP2SHELL:
         assert held[(debian_fixed, cve)] == ("not_affected", "vulnerable_code_not_present"), held
-    coverage = {(_field(r, "product_name"), _field(r, "version")): _field(r, "osv_coverage")
-                for r in gate.rows("security.release_inventory")}
+    coverage = _coverage(gate)
     assert coverage[("php", "8.3.36")] == (
         "partial: 0 of 1 components answered; not indexed: generic 1"), coverage
     assert coverage[("debian/php8.2", "8.2.29-1~deb12u1")] == (
@@ -3013,10 +3038,11 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     # G6: 13 h on (stale_after 12 h) every coverage revision reads absent: none turns unknown.
     later = (datetime.now(UTC) + timedelta(hours=13)).isoformat().replace("+00:00", "Z")
     taps = {alias: _respond_rows(gate.json(
-        "query", "--name", query, "--all", *(() if alias == "hosts" else (
+        "query", "--name", query, "--all", *(() if alias in ("hosts", "deployments") else (
             "--param", f"incident={INCIDENT_NAME}")),
         "--evaluation-time", later)["rows"]) for alias, query in (
             ("exposure", "security.incident_exposure"), ("hosts", "security.scanned_runs"),
+            ("deployments", "security.deployments"),
             ("patches", "security.incident_patches"), ("overdue", "security.overdue_patches"),
             ("exceptions", "security.incident_exceptions"), ("audits", "security.audit_status"),
             ("credentials", "security.incident_credentials"))}
@@ -3028,13 +3054,14 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     assert set(_states(now, "RQ2").values()) == {"none"}, now["answers"]
     assert set(_states(now, "RQ1").values()) == {"none"}, now["answers"]
     record("38", "OSV proposed debian/php8.2 8.2.29-1~deb12u1 not_affected "
-           "(vulnerable_code_not_present) for both CVEs and each release's OSV coverage "
-           "(php 8.3.36 partial: generic not indexed); respond read the unassessed php 8.3.36 "
+           "(vulnerable_code_not_present, resting on its component) for both CVEs and each "
+           "release's OSV coverage bound to its component set (php 8.3.36 partial: generic not "
+           "indexed); respond read the unassessed php 8.3.36 "
            f"RQ1 unknown naming OSV's unindexed type ({len(libs)} Debian libraries none, citing "
            "coverage, component and package Claims); re-reading both records proposed php "
            "8.3.36 not_affected and no Debian build; at +13 h the coverage revisions read "
-           "absent and RQ2 answers turn unknown x4, each naming its asset's scan; RQ1 and RQ2 "
-           "none now")
+           "absent and RQ2 answers turn unknown x4, each naming its asset's scan; RQ1 (web-1 "
+           "under the ops scan that looked for everything) and RQ2 none now")
 
 
 def _claim_ids_of(gate: Gate, kind: str, field: str) -> dict[str, list[dict[str, Any]]]:
@@ -3408,8 +3435,7 @@ def test_43_workstation_and_record_match(gate: Gate) -> None:
     proposal = gate.egress(run).get("proposal_id")
     assert proposal, out[-1500:]
     _approve(gate, proposal, LEAD)
-    coverage = {(_field(r, "product_name"), _field(r, "version")): _field(r, "osv_coverage")
-                for r in gate.rows("security.release_inventory")}
+    coverage = _coverage(gate)
     assert coverage[("gh", "2.86.0")] == (
         "partial: 0 of 1 components answered; not indexed: brew 1"), coverage
     assert coverage[("github.com/cli/cli/v2", "v2.86.0")] == (

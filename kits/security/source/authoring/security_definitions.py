@@ -156,7 +156,8 @@ PACKAGE = {"type": "string", "pattern": r"^pkg:[a-z0-9.+-]+/[^@?#\s]+$"}
 #: A release's OSV coverage: whether OSV answered every component, and why not.
 OSV_COVERAGE = {"type": "string", "pattern": (
     r"^(complete|partial): [0-9]+ of [0-9]+ components answered"
-    r"(; not indexed: [a-z0-9.+-]+ [0-9]+(, [a-z0-9.+-]+ [0-9]+)*)?(; unanswered [0-9]+)?$")}
+    r"(; not indexed: [a-z0-9.+-]+ [0-9]+(, [a-z0-9.+-]+ [0-9]+)*)?(; unanswered [0-9]+)?"
+    r"(; unidentified [0-9]+)?; set [0-9a-f]{16}$")}
 #: Kit data (cited, editable by authoring a successor of the Procedure that carries it):
 #: which OSV ecosystem answers for a purl type.
 PURL_OSV_ECOSYSTEMS = json.loads((DATA / "purl_osv_ecosystems.json").read_text())
@@ -325,7 +326,16 @@ CLAIM_TYPES: list[ClaimRow] = [
      "types it does not index (brew, generic: never asked, since OSV's empty answer there "
      "would read as no advisories) and how many went unanswered. What OSV indexes is its own "
      "word (its ecosystems.txt, captured beside every query) read through the kit's purl type "
-     "map. An empty OSV answer is a negative only under complete coverage."),
+     "map. An empty OSV answer is a negative only under complete coverage. It is bound to the "
+     "exact component set OSV answered for (set: 16 hex of the sha256 of the sorted component "
+     "purls): another set, even of the same size, is unanswered until OSV answers again. "
+     "Components the SBOM lists without a purl (unidentified) keep it partial."),
+    ("security.release.unidentified_components", ("security.release",), "literal",
+     {"type": "integer", "minimum": 0}, "one", "observation", (SBOM_CONTRACT,), (),
+     "How many components the release's SBOM lists without a package URL with a version (the "
+     "operating-system component aside): what they are is unknown, OSV is never asked about "
+     "them, so the release's OSV coverage stays partial and no negative rests on OSV's "
+     "silence. Restated (revised) when a later SBOM of the release counts differently."),
     ("security.assessment.expected_status", ("security.assessment",), "literal",
      {"enum": ["affected", "not_affected"], "type": "string"}, "one", "normative", (), (),
      "An agent's stated bet on the assessment's status before a source observes it; "
@@ -1104,7 +1114,8 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
          _field("supplier_name", "supplier", "security.supplier.name"),
          _field("components", "release", "security.release.component"),
          _field("osv_coverage", "release", "security.release.osv_coverage"),
-         _field("product_alias", "release", "security.release.product_alias")],
+         _field("product_alias", "release", "security.release.product_alias"),
+         _field("unidentified", "release", "security.release.unidentified_components")],
         max_results=2000,
     ))
     # Every assessment with its key, status (and its role: normative is an analyst's
@@ -1828,35 +1839,33 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("affected_version", "affected", "security.release.version")],
         in_scope, parameters=scope, max_results=2000, paths_per_result=1000, evaluation=HELD))
     # RQ1: the incident's CVEs (with whether a record of each was read and the packages
-    # OSV says it affects), every release assessed for one of them, the assets observed
-    # running it (with their inventory coverage and services), and the assets that only
-    # declare installing it.
+    # OSV says it affects), every release assessed for one of them (with the components a
+    # decided answer rests on), and the assets observed running it (with their inventory
+    # coverage and services). Deployments are enumerated by security.deployments and
+    # security.scanned_runs, never through assessments.
     q.append(_query(
         "security.incident_exposure", "RQ1 for one incident (parameter incident, its name): "
         "each of its CVEs with its record's title and the packages OSV says it affects, every "
-        "release assessed for one of them (any status), every asset a scan observed running "
-        "it with its inventory coverage and services, and every asset that only declares "
-        "installing it", "incident", "incident",
+        "release assessed for one of them (any status, with the components the answer rests "
+        "on), and every asset a scan observed running it with its inventory coverage and "
+        "services", "incident", "incident",
         _cves(required=False, exposed=False) + [
             _hop("asset", "release", "security.asset.runs", "asset", reverse=True),
             _inventory_coverage("coverage", "asset"),
-            _hop("service", "asset", "security.asset.serves", "service"),
-            _hop("declared", "release", "security.asset.installs", "asset", reverse=True),
-            _inventory_coverage("declared_coverage", "declared")],
-        _incident_fields() + _cve_fields() + _coverage_fields("", "coverage")
-        + _coverage_fields("declared_", "declared_coverage") + [
+            _hop("service", "asset", "security.asset.serves", "service")],
+        _incident_fields() + _cve_fields() + _coverage_fields("", "coverage") + [
             _field("asset", "asset"), _field("service", "service"),
-            _field("declared", "declared"),
             _field("hostname", "asset", "security.asset.hostname"),
             _field("internet_exposed", "asset", "security.asset.internet_exposed"),
             _field("service_name", "service", "security.service.name"),
             _field("service_log_source", "service", "security.service.log_source"),
-            _field("declared_hostname", "declared", "security.asset.hostname"),
             _field("components", "release", "security.release.component"),
             _field("cve_title", "vulnerability", "security.vulnerability.title"),
             _field("cve_packages", "vulnerability", "security.vulnerability.package")],
         ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000,
-        includes=(_include("package", "vulnerability", "security.vulnerability.package"),)))
+        includes=(_include("package", "vulnerability", "security.vulnerability.package"),
+                  _include("assessed_component", "assessment",
+                           "security.assessment.component"))))
     # RQ1's enumeration: every release a scan observed running on an asset of any
     # inventory scope, with its components and OSV coverage. The respond Line pairs each
     # with every incident CVE: a pair nobody assessed is none only from evidence.
@@ -1873,9 +1882,32 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("product_name", "release", "security.release.product_name"),
          _field("version", "release", "security.release.version"),
          _field("components", "release", "security.release.component"),
-         _field("osv_coverage", "release", "security.release.osv_coverage")],
+         _field("osv_coverage", "release", "security.release.osv_coverage")]
+        + _coverage_fields("", "coverage")[1:],
         max_results=2000, paths_per_result=1000,
         includes=(_include("component", "release", "security.release.component"),)))
+    # RQ1's other enumeration: every asset, with its inventory coverage (current only
+    # while the scope's revision is fresh; none when never scanned or the scan's evidence
+    # was erased) and every release it declares installing, with that release's
+    # components and OSV coverage. A deployment nobody assessed or scanned is a gap.
+    q.append(_query(
+        "security.deployments", "Every asset, with its inventory coverage (revision and "
+        "looked_for: stale, missing or erased reads absent) and every release it declares "
+        "installing (with its components and OSV coverage): the respond Line enumerates "
+        "deployments from it, never through assessments, so an unscanned or unassessed "
+        "deployment is a gap, never silence", "asset", "asset",
+        [_inventory_coverage("coverage", "asset"),
+         _hop("declared", "asset", "security.asset.installs", "release")],
+        [_field("asset", "asset"), _field("coverage", "coverage"),
+         _field("declared", "declared"),
+         _field("hostname", "asset", "security.asset.hostname"),
+         _field("declared_product_name", "declared", "security.release.product_name"),
+         _field("declared_version", "declared", "security.release.version"),
+         _field("declared_components", "declared", "security.release.component"),
+         _field("declared_osv_coverage", "declared", "security.release.osv_coverage")]
+        + _coverage_fields("", "coverage")[1:],
+        max_results=2000, paths_per_result=1000,
+        includes=(_include("declared_component", "declared", "security.release.component"),)))
     # RQ2: every patch of the incident; the open ones; the overdue ones (the query clock).
     q.append(_patch_query(
         "security.incident_patches", "RQ2 for one incident: every patch of an asset for one of "
@@ -2314,8 +2346,8 @@ SARIF_SUMMARY = _contract("security-sarif-summary", repo_ref=_S, tools=_J, revis
                           full=_J, **_SARIF_COUNTS)
 # Incident response.
 INVENTORY_INPUT = _contract("security-inventory-import-input", scope=_S)
-_INVENTORY_COUNTS = _ints("mine", "assets", "runs", "added", "retired", "revised", "restated",
-                          "verified", "failed", "changed", "proposes")
+_INVENTORY_COUNTS = _ints("mine", "assets", "runs", "unidentified", "added", "retired",
+                          "revised", "restated", "verified", "failed", "changed", "proposes")
 INVENTORY_REQUEST = _contract("security-runtime-inventory-request", inventory_text=_S, held=_J,
                               patches=_J, scope=_S, truncated=_J)
 INVENTORY_RESULT = _contract("security-runtime-inventory-result", items=_J, scope=_S,
@@ -2331,8 +2363,8 @@ LOG_RESULT = _contract("security-log-read-result", items=_J, inbox=_J, incident=
                        service=_S, source=_S, read=_S, **_LOG_COUNTS)
 LOG_SUMMARY = _contract("security-log-read-summary", incident=_S, service=_S, source=_S,
                         read=_S, **_LOG_COUNTS)
-_CREDENTIAL_COUNTS = _ints("keys", "added", "revised", "verified", "failed", "changed",
-                           "posted")
+_CREDENTIAL_COUNTS = _ints("keys", "added", "revised", "verified", "failed", "unproven",
+                           "changed", "posted")
 CREDENTIAL_REQUEST = _contract("security-credential-state-request", state_text=_S, held=_J,
                                truncated=_J)
 CREDENTIAL_RESULT = _contract("security-credential-state-result", items=_J, inbox=_J,
@@ -2342,9 +2374,9 @@ CREDENTIAL_SUMMARY = _contract("security-credential-state-summary", credential=_
 RESPOND_INPUT = _contract("security-respond-input", incident=_S, inventory_pull=_S,
                           log_pull=_S, credential_pull=_S, record_pull=_S,
                           osv_line=PropertySchema(type="string", optional=True))
-RESPOND_REQUEST = _contract("security-respond-request", exposure=_J, hosts=_J, patches=_J,
-                            overdue=_J, exceptions=_J, audits=_J, credentials=_J, params=_J,
-                            truncated=_J)
+RESPOND_REQUEST = _contract("security-respond-request", exposure=_J, hosts=_J,
+                            deployments=_J, patches=_J, overdue=_J, exceptions=_J, audits=_J,
+                            credentials=_J, params=_J, truncated=_J)
 _RESPOND_COUNTS = _ints("posted", "found", "none", "unknown", "ready_to_close")
 RESPOND_RESULT = _contract("security-respond-result", items=_J, answers=_J, incident=_S,
                            status=_S, **_RESPOND_COUNTS)
@@ -2354,6 +2386,7 @@ RESPOND_SUMMARY = _contract("security-respond-summary", answers=_J, incident=_S,
 RESPOND_QUERIES = {
     "exposure": "security.incident_exposure",
     "hosts": "security.scanned_runs",
+    "deployments": "security.deployments",
     "patches": "security.incident_patches",
     "overdue": "security.overdue_patches",
     "exceptions": "security.incident_exceptions",
@@ -3335,10 +3368,12 @@ def credential_acquire(cx: Cruxible) -> Any:
         "Read one credential's key state from the attached workspace (input.relative_path): "
         "{issuer, name, read: receipt|state_read, keys: [{key_id, state: "
         "active|inactive|revoked|deleted, created_at, revoked_at, last_used_at, created_by}]} "
-        "and nothing else: key ids or fp: fingerprints, never a secret. Retained under "
+        "and nothing else (optionally complete: true when a state_read lists every key, every "
+        "page): key ids or fp: fingerprints, never a secret. Retained under "
         f"{CREDENTIAL_CONTRACT}; security.credential-import reads it when it lands. A receipt "
         "is what the issuer returned to the rotating agent; a state_read is a later, separate "
-        "listing, acquired by someone other than the rotator.")
+        "listing. Who acquires it is a convention the kit cannot check (the acquiring run's "
+        "actor is on its ProcedureRun): let someone other than the rotator acquire it.")
 
 
 def inventory_import(cx: Cruxible) -> Any:
@@ -3387,8 +3422,12 @@ def inventory_import(cx: Cruxible) -> Any:
             "release no longer running, failed when it is claimed completed and a scan still "
             "shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, "
             "cruxible.asset) reads as that asset's complete run set, never as the scope's "
-            "coverage. Halts other_scope for another scope's scan, no_change when nothing "
-            "changed. Runs as a Line with trigger_input inventory."
+            "coverage, and only while every component is identified (a purl with a version, "
+            "the OS component aside): one that isn't could be any product, so the SBOM then "
+            "only adds (unidentified counts them). Two ecosystems' packages of one name and "
+            "version are one release with both purls as components. Halts other_scope for "
+            "another scope's scan, no_change when nothing changed. Runs as a Line with "
+            "trigger_input inventory."
         ),
         contract_in=INVENTORY_INPUT,
         contract_out=INVENTORY_SUMMARY,
@@ -3486,10 +3525,12 @@ def credential_import(cx: Cruxible) -> Any:
             "and propose what changed: the credential's current key_id, issued_at and "
             "issued_by from a receipt or a state read; revoked_key and a rotation's "
             "verification only from a state read (verified: the rotation's revokes_key is "
-            "revoked or deleted and an active key issued after the incident's window_start; "
-            "failed: claimed completed while revokes_key is still there). A body outside the "
-            "allow-list, or a key id shaped like a secret, proposes nothing and is posted "
-            "(secret_shape). Runs as a Line with trigger_input credential."
+            "listed revoked or deleted, or absent from a listing that says complete, and an "
+            "active key was issued after the incident's window_start; failed: claimed "
+            "completed while revokes_key is still listed). A body outside the allow-list, or "
+            "a key id, issuer, name or principal shaped like a secret, proposes nothing and is "
+            "posted (secret_shape, with a fixed message: nothing from the body is echoed). Runs "
+            "as a Line with trigger_input credential."
         ),
         contract_in=EMPTY,
         contract_out=CREDENTIAL_SUMMARY,
@@ -3505,9 +3546,11 @@ def credential_import(cx: Cruxible) -> Any:
 def respond_procedure(cx: Cruxible) -> Any:
     classify = cx.provider_interface("security.respond", provider=ANALYSIS_PROVIDER)
     names = list(RESPOND_QUERIES)
-    # Every tap but the scanned runs (RQ1's enumeration, instance-wide) is the incident's.
+    # Every tap but RQ1's enumeration (scanned runs and deployments, instance-wide) is the
+    # incident's.
     taps = [StateTap(alias, query=RESPOND_QUERIES[alias],
-                     parameters=None if alias == "hosts" else {"incident": "$input.incident"},
+                     parameters=None if alias in ("hosts", "deployments")
+                     else {"incident": "$input.incident"},
                      next=names[index + 1] if index + 1 < len(names) else "classify")
             for index, alias in enumerate(names)]
     sequence = Sequence(
@@ -3531,12 +3574,16 @@ def respond_procedure(cx: Cruxible) -> Any:
             "Ask one incident's five questions (parameter incident, its name) and answer each "
             "in three states: found (posted), none (run summary only) or unknown (posted as a "
             "gap naming the pull or statement that would answer it). RQ1 which deployments run "
-            "an affected release: every release a scan observed on an asset, for each incident "
-            "CVE: its assessment; with none, none only when OSV answered every component and "
-            "none is a package OSV says the CVE affects (citing those Claims), else unknown "
-            "naming the next step (the CVE record pull when no record was read; the purl types "
-            "OSV does not index; the OSV Line; an analyst's judgment last), so an unanswered "
-            "pair is never silent; RQ2 is each exposure patched (missing, overdue, disputed; "
+            "an affected release: every asset (security.deployments) and every release a scan "
+            "observed on one or it declares, for each incident CVE. A deployment's none needs "
+            "a current full scan of the asset that looked for the product, and the release's "
+            "none: its assessment (a negative that rests on components holds while they are "
+            "the release's), or OSV's answer for every component of the exact current set "
+            "with none a package OSV says the CVE affects (citing those Claims). Else unknown "
+            "naming the next step (the inventory pull for a missing, stale or erased scan, or "
+            "products a scan didn't look for; the CVE record pull; the purl types OSV does not "
+            "index; the OSV Line; an analyst's judgment last): never silent. More than 200 "
+            "items to post refuses (overflow) rather than cut the rest; RQ2 is each exposure patched (missing, overdue, disputed; "
             "none only when a full scan verified it; excepted while an approved exception for "
             "each of its CVEs has not expired, then missing again); RQ3 were we exploited in the window, per "
             "service (none only for not_exploited with complete reads of every stated log "
