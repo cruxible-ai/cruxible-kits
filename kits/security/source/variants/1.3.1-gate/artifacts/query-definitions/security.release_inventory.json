@@ -66,7 +66,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:5119454899512509977ddbd371bb644e6c9fd53b330b51f408e43f3f22043214",
+      "artifact_digest": "sha256:501a4d7c187d5295cbd2cb5021a07ef5ca4a0f90b340c75dcffb10afcd206f2d",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -95,6 +95,14 @@
       "target": {
         "kind": "ClaimType",
         "name": "security.release.product_name"
+      }
+    },
+    {
+      "artifact_digest": "sha256:ac7c8a9528e7889e6a1ef388dd3dbb639b39de1b1d2cbd77e819a069f759be4b",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.release.unidentified_components"
       }
     },
     {
@@ -193,6 +201,16 @@
           "binding": "supplier",
           "kind": "claim_value",
           "predicate": "security.supplier.name",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "unidentified",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "release",
+          "kind": "claim_value",
+          "predicate": "security.release.unidentified_components",
           "tag": "playbill-query-claim-value-ref-v1"
         }
       },

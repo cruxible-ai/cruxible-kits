@@ -28,7 +28,7 @@
         "name": "security-respond-summary"
       }
     },
-    "description": "Ask one incident's five questions (parameter incident, its name) and answer each in three states: found (posted), none (run summary only) or unknown (posted as a gap naming the pull or statement that would answer it). RQ1 which deployments run an affected release: every release a scan observed on an asset, for each incident CVE: its assessment; with none, none only when OSV answered every component and none is a package OSV says the CVE affects (citing those Claims), else unknown naming the next step (the CVE record pull when no record was read; the purl types OSV does not index; the OSV Line; an analyst's judgment last), so an unanswered pair is never silent; RQ2 is each exposure patched (missing, overdue, disputed; none only when a full scan verified it; excepted while an approved exception for each of its CVEs has not expired, then missing again); RQ3 were we exploited in the window, per service (none only for not_exploited with complete reads of every stated log source covering the window); RQ4 which credentials warrant rotation (posted with the audit and patch state; rotating after a verified patch is the recommended order, the agent's call), and is each rotation verified by a separate state read; RQ5 can the incident close (ready_to_close, with any unknown audit as accepted residue). A closed incident posts nothing. Observe-only. Runs as a Line (parameters incident, inventory_pull, log_pull, credential_pull, record_pull, optional osv_line): daily, on a landing, after a window closes, or line run.",
+    "description": "Ask one incident's five questions (parameter incident, its name) and answer each in three states: found (posted), none (run summary only) or unknown (posted as a gap naming the pull or statement that would answer it). RQ1 which deployments run an affected release: every asset (security.deployments) and every release a scan observed on one or it declares, for each incident CVE. A deployment's none needs a current full scan of the asset that looked for the product, and the release's none: its assessment (a negative that rests on components holds while they are the release's), or OSV's answer for every component of the exact current set with none a package OSV says the CVE affects (citing those Claims). Else unknown naming the next step (the inventory pull for a missing, stale or erased scan, or products a scan didn't look for; the CVE record pull; the purl types OSV does not index; the OSV Line; an analyst's judgment last): never silent. More than 200 items to post refuses (overflow) rather than cut the rest; RQ2 is each exposure patched (missing, overdue, disputed; none only when a full scan verified it; excepted while an approved exception for each of its CVEs has not expired, then missing again); RQ3 were we exploited in the window, per service (none only for not_exploited with complete reads of every stated log source covering the window); RQ4 which credentials warrant rotation (posted with the audit and patch state; rotating after a verified patch is the recommended order, the agent's call), and is each rotation verified by a separate state read; RQ5 can the incident close (ready_to_close, with any unknown audit as accepted residue). A closed incident posts nothing. Observe-only. Runs as a Line (parameters incident, inventory_pull, log_pull, credential_pull, record_pull, optional osv_line): daily, on a landing, after a window closes, or line run.",
     "graph_format": 6,
     "hard_caps": {
       "max_capture_bytes": 1048576,
@@ -54,7 +54,7 @@
           "incident": "$input.incident"
         },
         "query": {
-          "artifact_digest": "sha256:2ae79c27c4ceb5dd0b84a455fc89a8f732ef4659bc21d998121d486358f740c2",
+          "artifact_digest": "sha256:fd59b504f545dfe7236f91a227f34b2d2a07aa565e7c0efe7b2e5bb65878a341",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
@@ -67,15 +67,32 @@
         "as": "hosts",
         "budgets": null,
         "kind": "state_tap",
-        "next": "patches",
+        "next": "deployments",
         "node_id": "hosts",
         "parameters": {},
         "query": {
-          "artifact_digest": "sha256:7427b3947b65e5adc25215e5f041765c770a167798e2e68b57ff4913115f877f",
+          "artifact_digest": "sha256:817d93a62f8426ebf0b070727921a12a2c61b73405635fc107a93b15f69eb154",
           "role": "query",
           "target": {
             "kind": "QueryDefinition",
             "name": "security.scanned_runs"
+          }
+        },
+        "view": "typed_query"
+      },
+      {
+        "as": "deployments",
+        "budgets": null,
+        "kind": "state_tap",
+        "next": "patches",
+        "node_id": "deployments",
+        "parameters": {},
+        "query": {
+          "artifact_digest": "sha256:727a3c2968be9dbd34d83b85f80f337c757b2e8087a131d12d6b6a36bae49589",
+          "role": "query",
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.deployments"
           }
         },
         "view": "typed_query"
@@ -178,7 +195,7 @@
       {
         "as": "classify",
         "contract_in": {
-          "artifact_digest": "sha256:6a653664eaf36a8082546c4191ce0411e2b6fb4cac0015e0559c51dd5ca0dfe9",
+          "artifact_digest": "sha256:fd7708aaf7d54399efb8bba3e36a38f671da6216776628c516cdb2cc76ddf3b2",
           "role": "contract-in",
           "target": {
             "kind": "Contract",
@@ -194,10 +211,11 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:02a18d465e96e8fdff93090afa6517ac39e923f0fd4d3f64ebd82cef3956df6d",
+        "implementation_digest": "sha256:11ab5fcd278bdc707c617b5012f3c23522be1c199be3dc6f49e220c111ad9a67",
         "input": {
           "audits": "$steps.audits.result.rows",
           "credentials": "$steps.credentials.result.rows",
+          "deployments": "$steps.deployments.result.rows",
           "exceptions": "$steps.exceptions.result.rows",
           "exposure": "$steps.exposure.result.rows",
           "hosts": "$steps.hosts.result.rows",
@@ -207,6 +225,7 @@
           "truncated": {
             "audits": "$steps.audits.truncated",
             "credentials": "$steps.credentials.truncated",
+            "deployments": "$steps.deployments.truncated",
             "exceptions": "$steps.exceptions.truncated",
             "exposure": "$steps.exposure.truncated",
             "hosts": "$steps.hosts.truncated",
@@ -215,23 +234,23 @@
           }
         },
         "interface": {
-          "artifact_digest": "sha256:106d5b5b7382744170ed57ed29b903ea623088264a4e3825b760f5c4d85b2941",
+          "artifact_digest": "sha256:d892948de123150b3ac46ee55972749741c1f93b47ecad58e708fd35391b0212",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.respond/a258cd6b8d2d83ae764f979ac4b3df54c5828f9da09c5d6bd4267a54c36497b5"
+            "name": "security.respond/01aacb08c6427cdd8e2086827381936c4651625cc45eeafe3251373887bf669e"
           }
         },
-        "interface_digest": "sha256:bb07d310ddc0f6e7b87db2400f16c77cafade2c865fc2daff9a7478e028bfc8c",
+        "interface_digest": "sha256:5875f8e8086326cb2bd27fcf15f430687451847c5b5a85c9a79123c3fafdbb13",
         "kind": "call",
         "next": "summary",
         "node_id": "classify",
         "provider": {
-          "artifact_digest": "sha256:0e240143a6dbf895de2a08fa41332f622201c641b7934e7882e77ab71f119322",
+          "artifact_digest": "sha256:b007e1bd2e810e50128a28306dad8256f4d7dfe3ea637c1290e60ef00714c7c2",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/6dd785c316124acf25bd1cceec5ad855fdc3ad0fbca562526fb92f0e1472b24d"
+            "name": "security-analysis-provider/2e876fbccfcf32505bca13acf92c31b2c483d63c4d389196563fabad106031f4"
           }
         }
       },
@@ -314,7 +333,7 @@
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:25cd30868e2b27b7f4e74d0b18807c8a9ed93920e7ca604ad672ba79c2b1537f",
+  "definition_digest": "sha256:5a06543a040cbcae614c8a7a227a161fbc6fb54210c18659a8fa66645d12df1d",
   "identity": {
     "kind": "Procedure",
     "name": "security.respond"
@@ -424,6 +443,17 @@
             "type": "json"
           },
           "credentials": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "json"
+          },
+          "deployments": {
             "default": null,
             "description": null,
             "enum": null,
@@ -739,7 +769,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:6a653664eaf36a8082546c4191ce0411e2b6fb4cac0015e0559c51dd5ca0dfe9",
+      "artifact_digest": "sha256:fd7708aaf7d54399efb8bba3e36a38f671da6216776628c516cdb2cc76ddf3b2",
       "role": "contract-in",
       "target": {
         "kind": "Contract",
@@ -763,19 +793,19 @@
       }
     },
     {
-      "artifact_digest": "sha256:0e240143a6dbf895de2a08fa41332f622201c641b7934e7882e77ab71f119322",
+      "artifact_digest": "sha256:b007e1bd2e810e50128a28306dad8256f4d7dfe3ea637c1290e60ef00714c7c2",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/6dd785c316124acf25bd1cceec5ad855fdc3ad0fbca562526fb92f0e1472b24d"
+        "name": "security-analysis-provider/2e876fbccfcf32505bca13acf92c31b2c483d63c4d389196563fabad106031f4"
       }
     },
     {
-      "artifact_digest": "sha256:106d5b5b7382744170ed57ed29b903ea623088264a4e3825b760f5c4d85b2941",
+      "artifact_digest": "sha256:d892948de123150b3ac46ee55972749741c1f93b47ecad58e708fd35391b0212",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "security.respond/a258cd6b8d2d83ae764f979ac4b3df54c5828f9da09c5d6bd4267a54c36497b5"
+        "name": "security.respond/01aacb08c6427cdd8e2086827381936c4651625cc45eeafe3251373887bf669e"
       }
     },
     {
@@ -784,6 +814,14 @@
       "target": {
         "kind": "QueryDefinition",
         "name": "security.audit_status"
+      }
+    },
+    {
+      "artifact_digest": "sha256:727a3c2968be9dbd34d83b85f80f337c757b2e8087a131d12d6b6a36bae49589",
+      "role": "query",
+      "target": {
+        "kind": "QueryDefinition",
+        "name": "security.deployments"
       }
     },
     {
@@ -803,7 +841,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:2ae79c27c4ceb5dd0b84a455fc89a8f732ef4659bc21d998121d486358f740c2",
+      "artifact_digest": "sha256:fd59b504f545dfe7236f91a227f34b2d2a07aa565e7c0efe7b2e5bb65878a341",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",
@@ -827,7 +865,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:7427b3947b65e5adc25215e5f041765c770a167798e2e68b57ff4913115f877f",
+      "artifact_digest": "sha256:817d93a62f8426ebf0b070727921a12a2c61b73405635fc107a93b15f69eb154",
       "role": "query",
       "target": {
         "kind": "QueryDefinition",

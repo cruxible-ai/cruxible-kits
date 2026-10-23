@@ -87,6 +87,22 @@
       }
     },
     {
+      "artifact_digest": "sha256:8ff1f726eef4dbd251b89c702cec4d36542d312773d9ac62cd45d5f426e1cc66",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.coverage.looked_for"
+      }
+    },
+    {
+      "artifact_digest": "sha256:b12cb691972a886c4790290b0aef7e807c3902767e158127326c99382905198c",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.coverage.revision"
+      }
+    },
+    {
       "artifact_digest": "sha256:726edfe034063117f9cb84614eb970a7832d4081eb50411ada9ce68244c6f746",
       "role": "claim-type",
       "target": {
@@ -103,7 +119,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:5119454899512509977ddbd371bb644e6c9fd53b330b51f408e43f3f22043214",
+      "artifact_digest": "sha256:501a4d7c187d5295cbd2cb5021a07ef5ca4a0f90b340c75dcffb10afcd206f2d",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -160,12 +176,32 @@
         }
       },
       {
+        "name": "coverage_revision",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "coverage",
+          "kind": "claim_value",
+          "predicate": "security.coverage.revision",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
         "name": "hostname",
         "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "asset",
           "kind": "claim_value",
           "predicate": "security.asset.hostname",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "looked_for",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "coverage",
+          "kind": "claim_value",
+          "predicate": "security.coverage.looked_for",
           "tag": "playbill-query-claim-value-ref-v1"
         }
       },

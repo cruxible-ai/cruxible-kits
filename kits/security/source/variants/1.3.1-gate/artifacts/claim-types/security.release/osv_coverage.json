@@ -15,7 +15,7 @@
   ],
   "cardinality": "one",
   "default_role": "observation",
-  "description": "Whether OSV answered for every component of the release, as the OSV query Capture shows: complete (N of N components answered), or partial with how many it answered, the purl types it does not index (brew, generic: never asked, since OSV's empty answer there would read as no advisories) and how many went unanswered. What OSV indexes is its own word (its ecosystems.txt, captured beside every query) read through the kit's purl type map. An empty OSV answer is a negative only under complete coverage.",
+  "description": "Whether OSV answered for every component of the release, as the OSV query Capture shows: complete (N of N components answered), or partial with how many it answered, the purl types it does not index (brew, generic: never asked, since OSV's empty answer there would read as no advisories) and how many went unanswered. What OSV indexes is its own word (its ecosystems.txt, captured beside every query) read through the kit's purl type map. An empty OSV answer is a negative only under complete coverage. It is bound to the exact component set OSV answered for (set: 16 hex of the sha256 of the sorted component purls): another set, even of the same size, is unanswered until OSV answers again. Components the SBOM lists without a purl (unidentified) keep it partial.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -54,7 +54,7 @@
     "state": "live"
   },
   "literal_schema": {
-    "pattern": "^(complete|partial): [0-9]+ of [0-9]+ components answered(; not indexed: [a-z0-9.+-]+ [0-9]+(, [a-z0-9.+-]+ [0-9]+)*)?(; unanswered [0-9]+)?$",
+    "pattern": "^(complete|partial): [0-9]+ of [0-9]+ components answered(; not indexed: [a-z0-9.+-]+ [0-9]+(, [a-z0-9.+-]+ [0-9]+)*)?(; unanswered [0-9]+)?(; unidentified [0-9]+)?; set [0-9a-f]{16}$",
     "type": "string"
   },
   "member_descriptions": [],

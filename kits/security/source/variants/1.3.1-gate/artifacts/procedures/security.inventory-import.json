@@ -21,14 +21,14 @@
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:758ba9b6c297f1946ab97713dcb6f43a28ed865701ecdf4c68e34f9a56babfa2",
+      "artifact_digest": "sha256:d59838f8b97e0004aa5662398d01674fe017decf94e0a96c1a33dbaca8114834",
       "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-runtime-inventory-summary"
       }
     },
-    "description": "Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
+    "description": "Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage, and only while every component is identified (a purl with a version, the OS component aside): one that isn't could be any product, so the SBOM then only adds (unidentified counts them). Two ecosystems' packages of one name and version are one release with both purls as components. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
     "graph_format": 6,
     "hard_caps": {
       "max_capture_bytes": 1048576,
@@ -139,7 +139,7 @@
           }
         },
         "contract_out": {
-          "artifact_digest": "sha256:02b9d4de8eae350c9abf30eaa41e3a55e603613127951f1c27b3b52d643e58d4",
+          "artifact_digest": "sha256:929e1200eddbbeafe12f835938de79bb9c7330f5c90de1b39ea984a21fc4489c",
           "role": "contract-out",
           "target": {
             "kind": "Contract",
@@ -147,7 +147,7 @@
           }
         },
         "effect_policy": null,
-        "implementation_digest": "sha256:3757abfce9c101e4ebc3e45e8044f88d9194bb65ed4f9cd09a6d680d43442da4",
+        "implementation_digest": "sha256:95f40d97bd98c34420d0385dd6d73aae9e9e979910fd6e622e748bacf86b53e7",
         "input": {
           "held": "$steps.held.result.rows",
           "inventory_text": "$steps.inventory.content.text",
@@ -159,30 +159,30 @@
           }
         },
         "interface": {
-          "artifact_digest": "sha256:4ec34a990974779f93d8638ee9ec59869d61f44bc75ae5808984bece97180d80",
+          "artifact_digest": "sha256:9613476c803ff0f7a65388ab1b8310e6a8ffe3eceadf8d18be9ef2e3eee9580b",
           "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.runtime-inventory/6ac2b08cfa295bb27e7f1044282a9e7289964c1f4ed2bb181268c944e9dab209"
+            "name": "security.runtime-inventory/9e14be97d7366f7c1f3c3e46094154a0a3c6dcb1a03a6cd28a337483b8900101"
           }
         },
-        "interface_digest": "sha256:ad6f3cd6a25952ec3cad8fa5640b707def3293906d53d57d5223de16209758a8",
+        "interface_digest": "sha256:e17552b6cf6fac4e18f30b7a66723159ba4467ac24c1c3e94fbc1cd3fbd59432",
         "kind": "call",
         "next": "summary",
         "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:bdd36ab7d97ba0c7abd345ce7261437936157d2c76c0fc4f7d1680ce43432ebb",
+          "artifact_digest": "sha256:e924ee13f97ba606491210cac729f0cea93ca6bc2e2eed3a9e8c1b5fe90fef1b",
           "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/c446cec007c7ec4d853d028431ed90b5fd946635f8aa8df3dc09dcddb3097ea9"
+            "name": "security-analysis-provider/9a71136b6b2ddb7d10c5d3c9ff1022160bb5a777cde025ca013f1c09f87cf939"
           }
         }
       },
       {
         "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:758ba9b6c297f1946ab97713dcb6f43a28ed865701ecdf4c68e34f9a56babfa2",
+          "artifact_digest": "sha256:d59838f8b97e0004aa5662398d01674fe017decf94e0a96c1a33dbaca8114834",
           "role": "contract-out",
           "target": {
             "kind": "Contract",
@@ -205,6 +205,7 @@
           "revision": "$steps.parse.revision",
           "runs": "$steps.parse.runs",
           "scope": "$steps.parse.scope",
+          "unidentified": "$steps.parse.unidentified",
           "verified": "$steps.parse.verified"
         },
         "kind": "project",
@@ -307,7 +308,7 @@
     "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:ffb7981b8cb0ec026f173b617573add0ec6813cf1e67e633fde47a181afb8631",
+  "definition_digest": "sha256:372e61f40312a9e949e38054ec3d3d67447aaf05afa90a4a2403215efc7bc980",
   "identity": {
     "kind": "Procedure",
     "name": "security.inventory-import"
@@ -594,6 +595,17 @@
             "primary_key": false,
             "type": "string"
           },
+          "unidentified": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
           "verified": {
             "default": null,
             "description": null,
@@ -783,6 +795,17 @@
             "primary_key": false,
             "type": "string"
           },
+          "unidentified": {
+            "default": null,
+            "description": null,
+            "enum": null,
+            "enum_ref": null,
+            "indexed": false,
+            "json_schema": null,
+            "optional": false,
+            "primary_key": false,
+            "type": "integer"
+          },
           "verified": {
             "default": null,
             "description": null,
@@ -833,7 +856,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:02b9d4de8eae350c9abf30eaa41e3a55e603613127951f1c27b3b52d643e58d4",
+      "artifact_digest": "sha256:929e1200eddbbeafe12f835938de79bb9c7330f5c90de1b39ea984a21fc4489c",
       "role": "contract-out",
       "target": {
         "kind": "Contract",
@@ -841,7 +864,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:758ba9b6c297f1946ab97713dcb6f43a28ed865701ecdf4c68e34f9a56babfa2",
+      "artifact_digest": "sha256:d59838f8b97e0004aa5662398d01674fe017decf94e0a96c1a33dbaca8114834",
       "role": "contract-out",
       "target": {
         "kind": "Contract",
@@ -857,19 +880,19 @@
       }
     },
     {
-      "artifact_digest": "sha256:bdd36ab7d97ba0c7abd345ce7261437936157d2c76c0fc4f7d1680ce43432ebb",
+      "artifact_digest": "sha256:e924ee13f97ba606491210cac729f0cea93ca6bc2e2eed3a9e8c1b5fe90fef1b",
       "role": "provider",
       "target": {
         "kind": "Provider",
-        "name": "security-analysis-provider/c446cec007c7ec4d853d028431ed90b5fd946635f8aa8df3dc09dcddb3097ea9"
+        "name": "security-analysis-provider/9a71136b6b2ddb7d10c5d3c9ff1022160bb5a777cde025ca013f1c09f87cf939"
       }
     },
     {
-      "artifact_digest": "sha256:4ec34a990974779f93d8638ee9ec59869d61f44bc75ae5808984bece97180d80",
+      "artifact_digest": "sha256:9613476c803ff0f7a65388ab1b8310e6a8ffe3eceadf8d18be9ef2e3eee9580b",
       "role": "provider-interface",
       "target": {
         "kind": "ProviderInterface",
-        "name": "security.runtime-inventory/6ac2b08cfa295bb27e7f1044282a9e7289964c1f4ed2bb181268c944e9dab209"
+        "name": "security.runtime-inventory/9e14be97d7366f7c1f3c3e46094154a0a3c6dcb1a03a6cd28a337483b8900101"
       }
     },
     {
