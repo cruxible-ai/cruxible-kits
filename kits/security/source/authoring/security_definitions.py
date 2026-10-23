@@ -332,8 +332,8 @@ CLAIM_TYPES: list[ClaimRow] = [
      "Components the SBOM lists without a purl (unidentified) keep it partial."),
     ("security.release.unidentified_components", ("security.release",), "literal",
      {"type": "integer", "minimum": 0}, "one", "observation", (SBOM_CONTRACT,), (),
-     "How many components the release's SBOM lists without a package URL with a version (the "
-     "operating-system component aside): what they are is unknown, OSV is never asked about "
+     "How many components the release's SBOM lists without a package URL with a version (an "
+     "operating-system component too): what they are is unknown, OSV is never asked about "
      "them, so the release's OSV coverage stays partial and no negative rests on OSV's "
      "silence. Restated (revised) when a later SBOM of the release counts differently."),
     ("security.assessment.expected_status", ("security.assessment",), "literal",
@@ -1815,6 +1815,7 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("run_version", "run", "security.release.version")],
         in_scope, parameters=scope, max_results=2000, paths_per_result=1000, evaluation=HELD,
         includes=(_include("runs", "asset", "security.asset.runs"),
+                  _include("run_component", "run", "security.release.component"),
                   _include("scanned_in", "asset", "security.asset.scanned_in"),
                   _include("looked_for", "coverage", "security.coverage.looked_for"))))
     q.append(_query(
@@ -1882,7 +1883,8 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("product_name", "release", "security.release.product_name"),
          _field("version", "release", "security.release.version"),
          _field("components", "release", "security.release.component"),
-         _field("osv_coverage", "release", "security.release.osv_coverage")]
+         _field("osv_coverage", "release", "security.release.osv_coverage"),
+         _field("unidentified", "release", "security.release.unidentified_components")]
         + _coverage_fields("", "coverage")[1:],
         max_results=2000, paths_per_result=1000,
         includes=(_include("component", "release", "security.release.component"),)))
@@ -1904,7 +1906,9 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("declared_product_name", "declared", "security.release.product_name"),
          _field("declared_version", "declared", "security.release.version"),
          _field("declared_components", "declared", "security.release.component"),
-         _field("declared_osv_coverage", "declared", "security.release.osv_coverage")]
+         _field("declared_osv_coverage", "declared", "security.release.osv_coverage"),
+         _field("declared_unidentified", "declared",
+                "security.release.unidentified_components")]
         + _coverage_fields("", "coverage")[1:],
         max_results=2000, paths_per_result=1000,
         includes=(_include("declared_component", "declared", "security.release.component"),)))
@@ -3423,7 +3427,7 @@ def inventory_import(cx: Cruxible) -> Any:
             "shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, "
             "cruxible.asset) reads as that asset's complete run set, never as the scope's "
             "coverage, and only while every component is identified (a purl with a version, "
-            "the OS component aside): one that isn't could be any product, so the SBOM then "
+            "an OS component too): one that isn't could be any product, so the SBOM then "
             "only adds (unidentified counts them). Two ecosystems' packages of one name and "
             "version are one release with both purls as components. Halts other_scope for "
             "another scope's scan, no_change when nothing changed. Runs as a Line with "

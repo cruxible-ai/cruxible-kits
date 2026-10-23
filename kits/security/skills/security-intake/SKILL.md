@@ -206,8 +206,8 @@ outputs:
 - **A CycloneDX SBOM of one host** (Syft, Trivy) also works, with metadata
   properties `cruxible.scope` and `cruxible.asset`. It never states the scope's
   coverage, so none answers still need a full scan in the kit's format. A
-  component without a purl and version (the OS component aside) makes the SBOM
-  add only: it could be any product, so it never retires a run or verifies a
+  component without a purl and version (an operating-system component included)
+  makes the SBOM add only: it could be any product, so it never retires a run or verifies a
   patch. Generate SBOMs with purls.
 - **Look for what the incident affects.** A deployment's **none** needs a current
   full scan of the host that looked for the release's product (`["*"]` covers

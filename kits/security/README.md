@@ -535,8 +535,13 @@ already has:
 **Trust model.** Approval is attribution and role separation, not a security
 boundary against an agent that can read every principal's key. The kit's controls
 are evidence: a patch closes only on a fresh inventory scan, a rotation only on a
-fresh, separate read of the credential's state, an audit's none only on complete
-log reads; a self-report never closes anything. Run an incident under
+state read that lists the old key revoked or deleted (or states it is complete and
+no longer lists it), an audit's none only on complete log reads; a self-report never
+closes anything. Each of these is a body your agent writes from its own tool's
+answer, so it is an attestation: the kit checks that it is internally consistent
+and complete as stated, never where it came from. That a state read is later,
+separate and acquired by someone other than the rotator is your convention, which
+you check when you review the verification. Run an incident under
 `independent_approval_required` with your security lead as the usual approver, and
 let a principal other than the one who acted acquire the evidence that verifies the
 action (`cruxible get ProcedureRun:RUN-...` shows each acquiring run's `actor`).
@@ -545,8 +550,8 @@ approve rotations" is your convention, not a rule core enforces. **A solo
 maintainer** under `self_approval_allowed` (the quickstart default: "Required
 approvals: none") gets no role separation from approval at all: the approval is
 the same person as the change. That's fine: the evidence rules are the control
-(a scan, a separate state read, complete log reads), and they hold whoever
-approves. Independent approval adds a second person, not a stronger proof.
+(a full scan, a state read showing the old key retired, complete log reads), and
+they hold whoever approves, as far as the bodies are honest. Independent approval adds a second person, not a stronger proof.
 
 **Secrets never enter.** A credential is non-secret: issuer and name, where it is
 used (`used_by`) and what it reaches (`reaches`), its current key's id
@@ -628,8 +633,8 @@ What each import proposes:
   scope's coverage (its own timestamp makes every scan new content), and proposes
   only when the run set changed. It is complete only while every component is
   identified: a component without a purl with a version (missing, malformed,
-  unversioned; the operating-system component aside) could be any product, the
-  one a patch moved off included, so such an SBOM only adds, never retires or
+  unversioned; an operating-system component without a purl included) could be
+  any product, the one a patch moved off included (an OS patch too), so such an SBOM only adds, never retires or
   verifies, and the summary counts it (`unidentified`). None answers need a
   scope's full kit scan.
 - **Log read.** One `security.audit.read` (`SOURCE FROM/TO`) for a complete read of
