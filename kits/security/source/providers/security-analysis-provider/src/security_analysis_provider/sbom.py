@@ -13,7 +13,7 @@ release's ``product`` (when the release does not have one), one
 not hold yet, and the supplier with ``product.supplied_by`` when the SBOM names
 a supplier the product does not have (revising the held one when it differs), and
 ``security.release.unidentified_components`` (how many components it lists without a
-purl with a version, the operating-system component aside) when that is not zero or
+purl with a version, an operating-system component included) when that is not zero or
 differs from the held count: OSV is never asked about those, so the release's OSV
 coverage stays partial and no negative rests on it.
 A re-import of the same SBOM proposes nothing; a new version of the product is a
@@ -94,10 +94,10 @@ def read_sbom(text: str) -> tuple[str, str, str, list[str], int]:
         purl = _text(item.get("purl")) if isinstance(item, Mapping) else ""
         if purl_version(purl) is not None:
             purls.add(purl)
-        elif not (isinstance(item, Mapping) and item.get("type") == "operating-system"):
-            # Listed, but not identifiable as a package at a version: never asked of OSV,
-            # so the release's coverage can't be complete (security.release.
-            # unidentified_components). The OS component names the distro, not a package.
+        else:
+            # Listed, but not identifiable as a package at a version (an operating system
+            # without a purl included): never asked of OSV, so the release's coverage can't
+            # be complete (security.release.unidentified_components).
             skipped += 1
     if len(purls) > MAX_COMPONENTS:
         raise InputError(f"the SBOM lists more than {MAX_COMPONENTS} components")

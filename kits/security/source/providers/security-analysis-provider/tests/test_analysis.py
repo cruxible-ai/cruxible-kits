@@ -339,7 +339,8 @@ def test_sbom_import_creates_by_key_and_reimports_nothing() -> None:
     # A later SBOM of the release with every component identified revises the count to 0.
     held["read_claims"].append({"claim_path": "claims/00/CLM-unidentified.json",
                                 "predicate": "security.release.unidentified_components",
-                                "subject_identity": "Subject:security.release/cruxible-core--0.3.2"})
+                                "subject_identity":
+                                    "Subject:security.release/cruxible-core--0.3.2"})
     named = json.loads(json.dumps(SBOM))
     named["components"] = named["components"][:2]
     (item,) = _run(CycloneDxComponents(), {"sbom_text": json.dumps(named),
@@ -927,3 +928,19 @@ def test_a_forge_collection_names_the_source_repository() -> None:
                     forge_host="github.com", full_name="cli/cli")]
     assert _decide(record, [built], sources=sources) == {"cli-build--2.80.0": "affected"}
     assert _decide(record, [built]) == {}
+
+
+def test_a_200_body_that_is_no_record_leaves_its_component_unanswered() -> None:
+    """R-006: an HTTP 200 that doesn't establish which advisory it is is no record."""
+
+    osv = {"exchanges": [
+        _exchange("POST", "/v1/querybatch", {"results": [{"vulns": [{"id": "GHSA-unknown"}]}]},
+                  {"purls": [JINJA_FIXED]}),
+        _exchange("GET", "/v1/vulns/GHSA-unknown", {"message": "not a record"}),
+        _exchange("GET", "/v1/vulns/GHSA-h75v-3vvj-5mfj", JINJA_GHSA)]}
+    output = _run(OsvApplicability(), {
+        "osv": osv, "releases": [_release("other", "1.0", [JINJA_FIXED])],
+        "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])], "assessments": []})
+    (coverage,) = [s[2] for s in _statements(output["items"]) if s[1] == "osv_coverage"]
+    assert coverage.startswith("partial: 0 of 1 components answered; unanswered 1")
+    assert [s[2] for s in _statements(output["items"]) if s[1] == "status"] == ["inconclusive"]

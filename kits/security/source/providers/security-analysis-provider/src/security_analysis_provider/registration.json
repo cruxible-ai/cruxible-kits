@@ -83,7 +83,7 @@
         "entrypoint": "security_analysis_provider.sbom:classify",
         "identity": "security.cyclonedx-components.input",
         "source": {
-          "digest": "sha256:8a71834e0689a9398bece385ef0b36ed3e186649139bc5d675d9bef6f486aa97",
+          "digest": "sha256:3078849b575c1184286ab70a5fa3df6293a74861baac8630c7993a6dd74a09e2",
           "path": "sbom.py"
         },
         "version": 1
@@ -109,7 +109,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_osv",
         "identity": "security.osv-applicability.input",
         "source": {
-          "digest": "sha256:156796b4df0a040c63f903e9486d2b4a98497239e8bc399a79f35fe3146ebec1",
+          "digest": "sha256:8f52bebccddc9b30e8b2b359458f468be635177fcb527eb5597da6d38e0439d8",
           "path": "applicability.py"
         },
         "version": 1
@@ -135,7 +135,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_cve",
         "identity": "security.cve-applicability.input",
         "source": {
-          "digest": "sha256:156796b4df0a040c63f903e9486d2b4a98497239e8bc399a79f35fe3146ebec1",
+          "digest": "sha256:8f52bebccddc9b30e8b2b359458f468be635177fcb527eb5597da6d38e0439d8",
           "path": "applicability.py"
         },
         "version": 1
@@ -239,7 +239,7 @@
         "entrypoint": "security_analysis_provider.response:classify_inventory",
         "identity": "security.runtime-inventory.input",
         "source": {
-          "digest": "sha256:baa9e097b499d6ebb9df6ef73aef67383eb77bd83af5616f57f04d6ba9246676",
+          "digest": "sha256:ca1e2cfe7edd78d214a5fca1a1634be81766f83b919a78f82e87a172033a511e",
           "path": "response.py"
         },
         "version": 1
@@ -265,7 +265,7 @@
         "entrypoint": "security_analysis_provider.response:classify_log",
         "identity": "security.log-reads.input",
         "source": {
-          "digest": "sha256:baa9e097b499d6ebb9df6ef73aef67383eb77bd83af5616f57f04d6ba9246676",
+          "digest": "sha256:ca1e2cfe7edd78d214a5fca1a1634be81766f83b919a78f82e87a172033a511e",
           "path": "response.py"
         },
         "version": 1
@@ -291,7 +291,7 @@
         "entrypoint": "security_analysis_provider.response:classify_credential",
         "identity": "security.credential-state.input",
         "source": {
-          "digest": "sha256:baa9e097b499d6ebb9df6ef73aef67383eb77bd83af5616f57f04d6ba9246676",
+          "digest": "sha256:ca1e2cfe7edd78d214a5fca1a1634be81766f83b919a78f82e87a172033a511e",
           "path": "response.py"
         },
         "version": 1
@@ -317,7 +317,7 @@
         "entrypoint": "security_analysis_provider.response:classify_respond",
         "identity": "security.respond.input",
         "source": {
-          "digest": "sha256:baa9e097b499d6ebb9df6ef73aef67383eb77bd83af5616f57f04d6ba9246676",
+          "digest": "sha256:ca1e2cfe7edd78d214a5fca1a1634be81766f83b919a78f82e87a172033a511e",
           "path": "response.py"
         },
         "version": 1

@@ -500,7 +500,11 @@ def osv_view(
                     failed.add(purl)  # more advisories than one page: not a complete answer
         else:
             record_id = str(exchange.get("path") or "").rsplit("/", 1)[-1]
-            if isinstance(answer, Mapping):
+            # A record establishes which advisory it is: its id is the one asked for (or
+            # names it as an alias). An error-shaped or anonymous 200 body is no record.
+            if isinstance(answer, Mapping) and isinstance(answer.get("id"), str) and (
+                    answer["id"] == record_id
+                    or record_id in (answer.get("aliases") or ())):
                 records[record_id] = answer
     # A hit whose advisory record could not be read (an error status, no body, not a
     # record): its aliases are unknown, so it may be an incident CVE. The component's

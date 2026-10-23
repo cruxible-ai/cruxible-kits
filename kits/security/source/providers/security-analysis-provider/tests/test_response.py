@@ -19,7 +19,7 @@ from cruxible_provider_runtime.protocol import Budgets
 from cruxible_provider_runtime.provider_api import ProviderRunContext
 
 from security_analysis_provider.applicability import CveApplicability
-from security_analysis_provider.common import component_set, parse_rows
+from security_analysis_provider.common import component_set, parse_rows, secret_in_text
 from security_analysis_provider.response import (
     MAX_POSTS,
     CredentialState,
@@ -129,12 +129,16 @@ def _held_prod(revision_value: str | None = None, *, assets: dict[str, list[tupl
         run_items = [(("security.release", _slug(n, v)),
                       f"CLM-run-{index}-{n.replace('/', '-')}-{v}") for n, v in runs]
         for name, version in runs or [(None, None)]:
+            purl = None if name is None else (
+                f"pkg:deb/{name}@{version}" if name.startswith("debian/")
+                else f"pkg:generic/{name}@{version}")
             bindings = {"coverage": COVERAGE, "asset": asset}
             if name:
                 bindings["run"] = ("security.release", _slug(name, version))
             rows.append(_row(
                 bindings, claims={("coverage", "security.coverage.revision"): "CLM-rev"},
                 includes={"runs": run_items,
+                          "run_component": [(purl, f"CLM-comp-{purl}")] if purl else [],
                           "scanned_in": [(COVERAGE, f"CLM-scanned-{index}")],
                           "looked_for": [("php", "CLM-looked-php"),
                                          ("debian/php8.2", "CLM-looked-php82")]},
@@ -255,6 +259,16 @@ def test_a_partial_scan_only_adds_and_never_verifies() -> None:
     assert [s[1] for s in statements if s[1] == "runs"] == ["runs"]  # storefront-b's run
 
 
+def _no_os(name: str) -> str:
+    """A Syft SBOM without its operating-system component (one without a purl is
+    unidentified: it could be the product a patch moved off)."""
+
+    document = json.loads(_text(name))
+    document["components"] = [c for c in document["components"]
+                              if c.get("type") != "operating-system"]
+    return json.dumps(document)
+
+
 def test_a_cyclonedx_sbom_is_one_assets_complete_run_set() -> None:
     scan = read_inventory(_text("storefront-a.syft.cdx.json"))
     assert (scan.format, scan.scope) == ("cyclonedx", "prod")
@@ -272,14 +286,14 @@ def test_a_cyclonedx_sbom_is_one_assets_complete_run_set() -> None:
     assert (again["proposes"], again["items"]) == (0, [])
     # The patched image: php's run is replaced, the patch on that asset verified.
     patch = _patch_row("rem-a", "k8s:prod/storefront-a", progress="completed")
-    patched = _inventory(_text("storefront-a.syft.patched.cdx.json"), held, [patch])
+    patched = _inventory(_no_os("storefront-a.syft.patched.cdx.json"), held, [patch])
     statements = _statements(patched["items"])
     (run,) = [i for i in patched["items"] if i.get("statement", {}).get("predicate") ==
               "security.asset.runs"]
     assert run["revises"] == "CLM-run-0-php-8.3.10"
     assert [s[2] for s in statements if s[1] == "verification"] == ["verified"]
     # A product that is gone with nothing replacing it is retired, once nothing is added.
-    gone = json.loads(_text("storefront-a.syft.patched.cdx.json"))
+    gone = json.loads(_no_os("storefront-a.syft.patched.cdx.json"))
     gone["components"] = [c for c in gone["components"] if c["name"] != "libxml2"]
     statements = _statements(_inventory(json.dumps(gone), held, [patch])["items"])
     assert not [s for s in statements if s[0] == "retire"]  # waits: php is revised now
@@ -445,7 +459,8 @@ def _exposure(release: tuple[str, str], label: tuple[str, str], *, asset: str | 
                                                         "cve-2026-109618"),
                 "assessment": ("security.assessment", f"{release[1]}--cve"), "release": release}
     fields: dict[str, Any] = {**INCIDENT_FIELDS, "cve_id": "CVE-2026-109618", "status": status,
-                              "product_name": label[0], "version": label[1]}
+                              "product_name": label[0], "version": label[1],
+                              "cve_title": "PHP2Shell"}
     if asset:
         bindings["asset"] = ("security.asset", asset.replace("/", "-").replace(":", "-"))
         fields.update(hostname=asset, internet_exposed=True,
@@ -1099,17 +1114,26 @@ def test_unidentified_sbom_components_never_verify_a_patch_or_retire_a_run() -> 
     for broken in ({"type": "application", "name": "php", "version": "8.3.10"},
                    {"type": "application", "name": "php", "purl": "pkg:generic/php"},
                    {"type": "library", "name": "php", "purl": "not a purl"}):
-        document = json.loads(_text("storefront-a.syft.patched.cdx.json"))
+        document = json.loads(_no_os("storefront-a.syft.patched.cdx.json"))
         document["components"] = [c for c in document["components"]
                                   if c.get("purl") != "pkg:generic/php@8.3.36"] + [broken]
         result = _inventory(json.dumps(document), held, [patch])
         statements = _statements(result["items"])
         assert result["unidentified"] == 1, broken
         assert not [s for s in statements if s[1] == "verification" or s[0] == "retire"], broken
-    # The OS component (it names the distro) is not an unidentified package.
-    plain = _inventory(_text("storefront-a.syft.patched.cdx.json"), held, [patch])
+    # With every component identified, the patch verifies.
+    plain = _inventory(_no_os("storefront-a.syft.patched.cdx.json"), held, [patch])
     assert plain["unidentified"] == 0
     assert [s[2] for s in _statements(plain["items"]) if s[1] == "verification"] == ["verified"]
+    # R-004: an operating-system component without a purl is unidentified too: it can be
+    # the affected product itself (a patch of ubuntu 22.04), so it never verifies.
+    osheld = _held_prod(None, assets={"h": [("ubuntu", "22.04")]})
+    ospatch = _patch_row("rem-os", "h", progress="completed", affected=("ubuntu", "22.04"))
+    sbom = {"bomFormat": "CycloneDX", "specVersion": "1.5", "metadata": {"properties": [
+        {"name": "cruxible.scope", "value": "prod"}, {"name": "cruxible.asset", "value": "h"}]},
+        "components": [{"type": "operating-system", "name": "ubuntu", "version": "22.04"}]}
+    result = _inventory(json.dumps(sbom), osheld, [ospatch])
+    assert result["unidentified"] == 1 and result["verified"] == 0
 
 
 def test_two_ecosystems_packages_of_one_name_are_both_kept() -> None:
@@ -1198,3 +1222,110 @@ def test_more_items_than_the_cap_refuse_instead_of_cutting() -> None:
     assert f"{MAX_POSTS + 1} items" in output.refusal.message
     fits = _ask(exposure=[cve], hosts=hosts[:MAX_POSTS])
     assert fits["posted"] == MAX_POSTS
+
+
+# --- K1 recheck regressions (R-001..R-007) ---------------------------------------------
+
+
+def test_every_enumerated_asset_is_answered_even_under_a_narrow_scan() -> None:
+    """R-001: a current scan of an unrelated product, with the incident's affected products
+    not established, never leaves the asset silent or lets the incident close."""
+
+    cve = _incident_cve("CVE-2026-109619")  # no OSV package, no assessment: scope unknown
+    narrow = _deployment("h", current=True, looked_for=["unrelated"])
+    result = _ask(exposure=[cve], deployments=[narrow])
+    assert _by(result, "RQ1")["h"]["state"] == "unknown" and result["posted"] > 0
+    assert {g["subject"]: g["input"] for g in _posted(result, "gap")}["h"] == {
+        "covering": "h", "looking_for": ["*"]}
+    clean = _scanned("k8s:prod/storefront-a", *LIBC, "complete: 1 of 1 components answered")
+    closure = _ask(exposure=[cve, _exposure(("security.release", _slug(*LIBC[:2])), LIBC[:2],
+                                            status="not_affected")],
+                   hosts=[clean], deployments=[narrow])
+    assert _by(closure, "RQ1")["h"]["state"] == "unknown" and closure["ready_to_close"] == 0
+    # Looked for everything and lists nothing: none, answered rather than skipped.
+    wide = _ask(exposure=[cve], deployments=[_deployment("h", current=True, looked_for=["*"])])
+    assert _by(wide, "RQ1")["h"]["state"] == "none"
+
+
+def _held_negative(fixed: str, release: tuple[str, str], label: tuple[str, str],
+                   role: str = "observation") -> dict[str, Any]:
+    return _row({"incident": INCIDENT, "vulnerability": ("security.vulnerability",
+                                                         "cve-2024-34064"),
+                 "assessment": ("security.assessment", "neg"), "release": release},
+                includes={"assessed_component": [(fixed, "CLM-rests")],
+                          "package": [("pkg:pypi/jinja2", "CLM-pkg")]},
+                **{**INCIDENT_FIELDS, "cve_id": "CVE-2024-34064", "cve_title": "x",
+                   "status": "not_affected", "status_role": role, "product_name": label[0],
+                   "version": label[1]})
+
+
+def _on(row: dict[str, Any], release: tuple[str, str]) -> dict[str, Any]:
+    for item in row["bindings"]:
+        if item["binding"] == "release":
+            item.update(_bound(*release))
+    return row
+
+
+def test_a_retained_negative_needs_its_whole_basis() -> None:
+    """R-002 and R-003: a component OSV never answered, or a newly unidentified one,
+    leaves a retained source negative unproven; an analyst's judgment stands."""
+
+    fixed, release, label = ("pkg:pypi/jinja2@3.1.4", ("security.release", "app--1.0"),
+                             ("app", "1.0"))
+    subject = "h: app 1.0"
+    plain = _on(_scanned("h", *label, [fixed], "complete: 1 of 1 components answered"),
+                release)
+    assert _by(_ask(exposure=[_held_negative(fixed, release, label)], hosts=[plain]),
+               "RQ1")[subject]["state"] == "none"
+    added = _on(_scanned("h", *label, [fixed, "pkg:brew/unknown@1.0"],
+                         "partial: 1 of 2 components answered; not indexed: brew 1"), release)
+    result = _ask(exposure=[_held_negative(fixed, release, label)], hosts=[added])
+    assert _by(result, "RQ1")[subject]["state"] == "unknown" and result["ready_to_close"] == 0
+    judged = _ask(exposure=[_held_negative(fixed, release, label, "normative")], hosts=[added])
+    assert _by(judged, "RQ1")[subject]["state"] == "none"
+    # The SBOM now lists a component without a purl: the old coverage and the negative
+    # are about another set.
+    unidentified = _on(_scanned("h", *label, [fixed], "complete: 1 of 1 components answered"),
+                       release)
+    unidentified["fields"].append({"name": "unidentified", "state": "present", "value": 1})
+    result = _ask(exposure=[_held_negative(fixed, release, label)], hosts=[unidentified])
+    assert _by(result, "RQ1")[subject]["state"] == "unknown" and result["ready_to_close"] == 0
+    bare = _scanned("k8s:prod/storefront-a", *LIBC, "complete: 1 of 1 components answered")
+    bare["fields"].append({"name": "unidentified", "state": "present", "value": 1})
+    cve = _incident_cve("CVE-2026-109618", packages=("pkg:deb/debian/php8.2",))
+    assert _by(_ask(exposure=[cve], hosts=[bare]), "RQ1")[
+        "k8s:prod/storefront-a: debian/libc6 2.36-9+deb12u7"]["state"] == "unknown"
+
+
+def test_a_second_ecosystem_of_a_held_release_is_stated() -> None:
+    """R-005: the component is stated even when the asset's run is unchanged."""
+
+    held = _held_prod("sha256:old", assets={"h": [("foo", "1.0")]})
+    for row in held:
+        for include in row["includes"]:
+            if include["name"] == "run_component":
+                include["items"][0]["claim_object"]["value"] = "pkg:npm/foo@1.0"
+    text = json.dumps({"scope": "prod", "looked_for": ["*"], "coverage": "full", "assets": [
+        {"hostname": "h", "runs": ["pkg:npm/foo@1.0", "pkg:pypi/foo@1.0"]}]})
+    statements = _statements(_inventory(text, held)["items"])
+    assert [s[2] for s in statements if s[1] == "component"] == ["pkg:pypi/foo@1.0"]
+    assert not [s for s in statements if s[1] == "runs"]
+
+
+def test_secret_prefixes_are_found_at_any_boundary_and_inventory_ids_are_checked() -> None:
+    """R-007: a parenthesized known-prefix token, in a credential name or a hostname."""
+
+    marker = "ghp_" + "A" * 32
+    body = json.loads(_text("cred-aws-state.json"))
+    result = credential_state(json.dumps({**body, "name": f"storefront ({marker})"}), [])
+    assert result["posted"] == 1 and marker not in json.dumps(result)
+    for text in (json.dumps({"scope": "prod", "looked_for": ["*"], "coverage": "full",
+                             "assets": [{"hostname": marker, "runs": []}]}),
+                 json.dumps({"scope": "prod", "looked_for": ["*"], "coverage": "full",
+                             "assets": [{"hostname": "h", "runs": [f"pkg:npm/{marker}@1"]}]})):
+        output = _context(RuntimeInventory(), {"inventory_text": text, "held": [],
+                                               "patches": [], "scope": "prod",
+                                               "truncated": {}})
+        assert output.status == "refused" and marker not in output.refusal.message
+    assert not secret_in_text("aws-iam/111122223333") and not secret_in_text(
+        "k8s:prod/storefront-7d9f8b6c5d-x2k4p", name=True)

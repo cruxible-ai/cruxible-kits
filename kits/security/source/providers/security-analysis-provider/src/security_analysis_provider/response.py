@@ -21,7 +21,7 @@ and ``security.inventory_patches``):
   with a purl and a version is a run of that asset, and the SBOM is the asset's
   complete run set (it retires runs it no longer lists and may verify a patch on
   that asset) only while every component is identified: one without a usable
-  purl@version (the operating-system component aside) could be any product, so the
+  purl@version (an operating-system component included) could be any product, so the
   SBOM then only adds (``unidentified`` counts them). A raw SBOM carries its own
   timestamp, so each scan is new content: it never restates the scope's coverage
   revision, and proposes only when the asset's run set changed.
@@ -339,9 +339,13 @@ def _kit_scan(document: Mapping[str, Any]) -> Scan:
                                    document["coverage"])
     if not isinstance(scope, str) or not scope.strip():
         raise InputError("scope must be a nonempty string")
+    if secret_in_text(scope, name=True):
+        raise InputError("scope holds a secret-shaped token")
     if (not isinstance(looked_for, list) or not looked_for
             or not all(isinstance(item, str) and item.strip() for item in looked_for)):
         raise InputError("looked_for must list the products the scan looked for (or *)")
+    if any(secret_in_text(item, name=True) for item in looked_for):
+        raise InputError("looked_for holds a secret-shaped token")
     if coverage not in ("full", "partial"):
         raise InputError("coverage must be full or partial")
     if not isinstance(document["assets"], list) or len(document["assets"]) > MAX_ASSETS:
@@ -357,6 +361,8 @@ def _kit_scan(document: Mapping[str, Any]) -> Scan:
         if not isinstance(hostname, str) or not hostname.strip() or not isinstance(listed,
                                                                                    list):
             raise InputError(f"assets[{index}] needs a hostname and a runs list")
+        if secret_in_text(hostname, name=True):  # it would be copied into the asset's key and items
+            raise InputError(f"assets[{index}].hostname holds a secret-shaped token")
         _, held_runs, _ = scan.assets.setdefault(hostname.strip().casefold(),
                                                  (hostname.strip(), {}, scan.full_scope))
         for position, text in enumerate(listed):
@@ -364,6 +370,9 @@ def _kit_scan(document: Mapping[str, Any]) -> Scan:
             if run is None:  # never echoed: a value that isn't a purl can be anything
                 raise InputError(f"assets[{index}].runs[{position}] is not a purl with a "
                                  "version")
+            if secret_in_text(run.purl, max_length=500, name=True):
+                raise InputError(f"assets[{index}].runs[{position}] holds a secret-shaped "
+                                 "token")
             held_runs[run.identity] = run
             runs += 1
     if runs > MAX_RUNS:
@@ -396,16 +405,21 @@ def _cyclonedx_scan(document: Mapping[str, Any]) -> Scan:
     if not scope or not asset:
         raise InputError("a CycloneDX inventory names its asset and scope in metadata "
                          "properties cruxible.asset and cruxible.scope")
+    if secret_in_text(scope, name=True) or secret_in_text(asset, name=True):
+        raise InputError("cruxible.scope or cruxible.asset holds a secret-shaped token")
     runs: dict[tuple[str, str, str], Run] = {}
     unidentified = 0
-    for component in _components(document.get("components")):
+    for position, component in enumerate(_components(document.get("components"))):
         run = parse_purl(component.get("purl"))
+        if run is not None and secret_in_text(run.purl, max_length=500, name=True):
+            raise InputError(f"components[{position}] (depth-first) holds a secret-shaped "
+                             "token in its purl")
         if run is not None:
             runs[run.identity] = run
-        elif component.get("type") != "operating-system":
+        else:
             # Listed without a purl@version (missing, malformed, unversioned): it could be
-            # any product, the one a patch moved off included. The OS component names the
-            # distro, whose packages are listed beside it.
+            # any product, the one a patch moved off included, an operating system as much
+            # as a package (an OS component without a purl is unidentified too).
             unidentified += 1
     if len(runs) > MAX_RUNS:
         raise InputError(f"the SBOM lists more than {MAX_RUNS} components with purls")
@@ -455,6 +469,8 @@ class HeldScope:
     revision_claim: str | None = None
     looked_for: dict[str, str] = field(default_factory=dict)
     assets: dict[str, HeldAsset] = field(default_factory=dict)
+    #: release key -> the component purls its runs' release holds
+    components: dict[tuple[str, str], set[str]] = field(default_factory=dict)
 
 
 def held_scope(rows: list[Row]) -> HeldScope:
@@ -465,6 +481,9 @@ def held_scope(rows: list[Row]) -> HeldScope:
         product, version = row.value("run_product"), row.value("run_version")
         if run is not None and isinstance(product, str) and isinstance(version, str):
             keys[_ref(run)] = (name_form(product), version.strip())
+            held.components.setdefault(keys[_ref(run)], set()).update(
+                str(item.value) for item in row.included("run_component")
+                if isinstance(item.value, str))
     for row in rows:
         coverage = row.subject("coverage")
         if coverage is None:
@@ -584,13 +603,22 @@ def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
             release = key_ref(RELEASE, product_name=run.name, version=run.version)
             items.subject(RELEASE, {"product_name": run.name, "version": run.version},
                           f"{said}: {written} runs {purls}.")
-            for each in runs[key]:
-                if (each.key, each.purl) not in components:  # one statement per terminal
-                    components.add((each.key, each.purl))
-                    items.add(release, "security.release.component", each.purl,
-                              f"{said}: {each.purl} is the runtime's own package.")
             items.add(asset, "security.asset.runs", release, f"{said}: {written} runs "
                       f"{purls}.", revises=revises)
+        # Every package the scan saw is a component of its release, whether or not the
+        # asset's run changed: a second ecosystem's package of a held release (pkg:pypi/foo
+        # beside a held pkg:npm/foo) is stated too, never left out.
+        for key in sorted(runs):
+            for each in runs[key]:
+                if (each.purl in held.components.get(key, set())
+                        or (each.key, each.purl) in components):  # one statement per terminal
+                    continue
+                components.add((each.key, each.purl))
+                items.subject(RELEASE, {"product_name": each.name, "version": each.version},
+                              f"{said}: {written} runs {each.purl}.")
+                items.add(key_ref(RELEASE, product_name=each.name, version=each.version),
+                          "security.release.component", each.purl,
+                          f"{said}: {each.purl} is the runtime's own package.")
         for key in gone:
             items.retire(held_runs[key], f"{said}: {written} no longer runs {key[0]} {key[1]}.")
     if scan.full_scope:
@@ -1092,6 +1120,8 @@ class Release:
     statuses: dict[str, str] = field(default_factory=dict)
     #: incident CVE -> the components its assessment rests on (assessment.component)
     rests_on: dict[str, set[str]] = field(default_factory=dict)
+    #: incident CVEs whose status is an analyst's judgment (normative)
+    judged: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -1118,6 +1148,8 @@ class Scanned:
     coverage: str | None
     coverage_claim: str | None
     product: str = ""
+    #: components its SBOM lists without a usable purl (release.unidentified_components)
+    unidentified: int = 0
 
 
 @dataclass
@@ -1263,16 +1295,30 @@ class _Verdict:
 _STEPS = ("record", "moved", "not_indexed", "osv", "judgment")
 
 
-def _still_rests(rests_on: set[str], components: Mapping[str, Any], known: Cve) -> bool:
-    """Whether a not_affected assessment that names the components it rests on still
-    holds for the release's components now: each is still there, and no other component
-    is a package of theirs (another copy at another version) or a package OSV says the CVE
-    affects."""
+def _still_rests(rests_on: set[str], item: Scanned, known: Cve, complete: bool) -> bool:
+    """Whether a source's not_affected answer that names the components it rests on still
+    holds for the release now: each is still there; no other component is a package of
+    theirs (another copy at another version) or a package OSV says the CVE affects; the
+    SBOM lists no unidentified component; and any component beyond them is covered by a
+    complete OSV answer for the exact current set (a component nobody answered, an
+    unindexed one included, could hold the CVE under another name)."""
 
-    if not rests_on <= set(components):
+    components = set(item.components)
+    if not rests_on <= components or item.unidentified:
         return False
     packages = {purl_package(purl) for purl in rests_on} | set(known.packages)
-    return all(purl in rests_on for purl in components if purl_package(purl) in packages)
+    if any(purl not in rests_on for purl in components if purl_package(purl) in packages):
+        return False
+    return rests_on == components or complete
+
+
+def _count(value: object) -> int:
+    """A non-negative count a Claim states, else 0."""
+
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return 0
+    text = str(value).strip()
+    return int(text) if text.isdigit() else 0
 
 
 def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve],
@@ -1287,7 +1333,8 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
     coverage = parse_coverage(item.coverage)
     current = (coverage is not None and coverage.digest is not None
                and coverage.digest == component_set(item.components)
-               and coverage.total == len(components))
+               and coverage.total == len(components)
+               and coverage.unidentified == item.unidentified)
     nones: list[str] = []
     cites: set[str] = set()
     waits: dict[str, list[str]] = {}
@@ -1295,8 +1342,10 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
         known = cves[cve]
         status = held.statuses.get(cve) if held is not None else None
         rests_on = held.rests_on.get(cve, set()) if held is not None else set()
-        if status == "not_affected" and rests_on and not _still_rests(
-                rests_on, item.components, known):
+        judged = held is not None and cve in held.judged
+        if status == "not_affected" and rests_on and not judged and not _still_rests(
+                rests_on, item, known,
+                current and coverage is not None and coverage.complete):
             waits.setdefault("moved", []).append(cve)
             continue
         if status == "not_affected":
@@ -1425,6 +1474,8 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
             held.rests_on.setdefault(cve, set()).update(
                 str(item.value) for item in row.included("assessed_component")
                 if isinstance(item.value, str))
+            if row.value("status_role") == "normative":
+                held.judged.add(cve)
             if status in ("affected", "inconclusive"):
                 held.cves.add(cve)
                 held.assessments.add(_ref(assessment))
@@ -1465,7 +1516,8 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
             label=f"{row.value(prefix + 'product_name')} {row.value(prefix + 'version')}",
             components=components, coverage=row.value(f"{prefix}osv_coverage"),
             coverage_claim=row.claim_id(release, "security.release.osv_coverage"),
-            product=str(row.value(f"{prefix}product_name") or ""))
+            product=str(row.value(f"{prefix}product_name") or ""),
+            unidentified=_count(row.value(f"{prefix}unidentified")))
 
     scanned: dict[tuple[str, str], Scanned] = {}
     for row in rows["hosts"]:
@@ -1640,23 +1692,49 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
                 out.answers.append({"question": "RQ1", "subject": entry.hostname,
                                     "state": "unknown", "why": no_inventory,
                                     "pull": params.inventory_pull})
-        # A current scan that didn't look for every product the incident is known to affect
-        # (a release assessed affected or inconclusive, a package OSV names for one of its
-        # CVEs) can't say the asset doesn't run it.
-        known = {name_form(r.product) for r in releases.values()
-                 if r.status in ("affected", "inconclusive") and r.product}
-        known |= {name_form(package[1]) for c in cves.values() for package in c.packages}
+        # Every enumerated asset gets an answer. A current scan that looked for everything
+        # ("*") and lists nothing else on it is none. A narrow scan answers for the asset
+        # only once the incident's affected products are established (each CVE's record
+        # read, and each with a product known to be affected: a release assessed affected
+        # or inconclusive, or a package OSV names) and it looked for all of them; otherwise
+        # nothing establishes that the asset runs no affected release.
+        products: dict[str, set[str]] = {cve: {name_form(p[1]) for p in c.packages}
+                                         for cve, c in cves.items()}
+        for release in releases.values():
+            for cve in release.cves:
+                if release.product and cve in products:
+                    products[cve].add(name_form(release.product))
+        known = set().union(*products.values()) if products else set()
+        unestablished = sorted(cve for cve in cves if not cves[cve].title or not products[cve])
         for path, entry in sorted(inventories.items()):
-            if not entry.current or "*" in entry.looked_for:
+            if not entry.current:
                 continue
+            if "*" in entry.looked_for:
+                if path not in answered_assets:
+                    out.answer("RQ1", entry.hostname, "none", "a current full scan that looked "
+                               "for every product lists nothing else on the asset")
+                continue
+            looked = ", ".join(sorted(entry.looked_for)) or "nothing"
             missing = sorted(known - entry.looked_for)
-            if missing:
+            if unestablished:
+                unlooked.setdefault(entry.hostname, set()).add("*")
+                out.answers.append({
+                    "question": "RQ1", "subject": entry.hostname, "state": "unknown",
+                    "why": f"the current scan of the asset looked only for {looked}, and the "
+                           "products the incident affects aren't established for "
+                           f"{', '.join(unestablished)} (no record read, or no product "
+                           "known to be affected)", "pull": params.inventory_pull})
+            elif missing:
                 unlooked.setdefault(entry.hostname, set()).update(missing)
                 out.answers.append({
                     "question": "RQ1", "subject": entry.hostname, "state": "unknown",
                     "why": "the current scan of the asset did not look for "
                            f"{', '.join(missing)}, which the incident affects",
                     "pull": params.inventory_pull})
+            elif path not in answered_assets:
+                out.answer("RQ1", entry.hostname, "none", "a current full scan looked for "
+                           f"every product the incident affects ({', '.join(sorted(known))}) "
+                           "and lists none of them on the asset")
         if not inventories and not runs and not patches:
             out.unknown("RQ1", params.incident, "no deployment is known: no asset is declared "
                         "or scanned", params.inventory_pull, {"covering": "*"})

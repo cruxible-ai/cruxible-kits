@@ -441,27 +441,31 @@ def entropy(text: str) -> float:
     return -sum(n / len(text) * math.log2(n / len(text)) for n in counts.values())
 
 
-def secret_in_text(value: object, *, max_length: int = 200) -> bool:
+def secret_in_text(value: object, *, max_length: int = 200, name: bool = False) -> bool:
     """Whether an identifier the kit would copy into Claims, inbox items or a run's output
     (a credential's issuer or name, a principal, a log source, a service) holds something
     secret-shaped: a private key marker, a secret's prefix on any token, or a long
     high-entropy token. Such a value is never echoed: the body is refused with a fixed
-    message."""
+    message. ``name`` (a hostname, a purl, a scope): the entropy test reads each label
+    between ``/ . - _ + ~`` on its own, so a generated workload name
+    (``storefront-7d9f8b6c5d-x2k4p``) is a name, while a secret's prefix still refuses."""
 
     if not isinstance(value, str):
         return False
     lowered = value.casefold()
     if len(value) > max_length or "-----begin" in lowered or "private key" in lowered:
         return True
-    for token in re.split(r"[\s:@=,;\"'<>]+", value):
+    # A secret's prefix at any punctuation boundary (parentheses, quotes, dots, slashes),
+    # whatever the entropy, on a token long enough to be one (a name like aizawa is not).
+    for piece in re.split(r"[^0-9a-z_-]+", lowered):
+        if any(piece.startswith(prefix) and len(piece) >= len(prefix) + 12
+               for prefix in SECRET_PREFIXES):
+            return True
+    breaks = r"[\s:@=,;\"'<>()\[\]{}/.+~_-]+" if name else r"[\s:@=,;\"'<>()\[\]{}]+"
+    for token in re.split(breaks, value):
         folded = token.casefold()
         if not folded:
             continue
-        for piece in folded.split("/"):
-            # A secret's prefix on a token long enough to be one (a name like aizawa is not).
-            if any(piece.startswith(prefix) and len(piece) >= len(prefix) + 12
-                   for prefix in SECRET_PREFIXES):
-                return True
         if len(token) >= 24 and not re.fullmatch(r"[0-9a-f/-]+", folded) and entropy(
                 token) >= 4.3:
             return True
