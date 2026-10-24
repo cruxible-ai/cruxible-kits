@@ -1,0 +1,152 @@
+{
+  "artifact_format": "playbill-query-definition-v1",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_paths": null,
+    "max_paths_per_result": null,
+    "max_results": 100,
+    "max_traversal_depth": 1,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "description": "The parts that fit one vehicle.",
+  "entry": {
+    "binding": "part",
+    "subject_id": null,
+    "subject_kinds": [
+      "catalog.part"
+    ],
+    "tag": "playbill-query-entry-v1"
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "requires_accepted_coordinate": true,
+    "requires_explicit_evaluation_time": true,
+    "result_expiry": null,
+    "tag": "playbill-query-evaluation-policy-v1",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "catalog.parts_for_vehicle"
+  },
+  "includes": [],
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "maximum_budgets": {
+    "max_paths": null,
+    "max_paths_per_result": null,
+    "max_results": 1000,
+    "max_traversal_depth": 1,
+    "tag": "playbill-query-budgets-v1"
+  },
+  "orderings": [],
+  "parameters": [
+    {
+      "default": null,
+      "name": "vehicle",
+      "required": true,
+      "tag": "playbill-query-parameter-v1",
+      "value_type": "string"
+    }
+  ],
+  "pins": [
+    {
+      "artifact_digest": "sha256:172259bc785b0dd4ee97425a0008c8dc8eca44050fba7f2fcb0a16704beb8aa9",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "catalog.part.category"
+      }
+    },
+    {
+      "artifact_digest": "sha256:87a165ee8c7142edf4d602712aa2a68d76950ba5d0166f41c0d798b4461f340c",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "catalog.part.fits"
+      }
+    },
+    {
+      "artifact_digest": "sha256:5eb0bd9c12d91a6f3f58a87f6d45742f0a98b07794a87f12d9285c028d4abf6c",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "catalog.part.title"
+      }
+    },
+    {
+      "artifact_digest": "sha256:a7883d68c6f336010b6e73e41c6c21886008be41fb1f6c0ebe833ff24ee89ef3",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "catalog.vehicle.name"
+      }
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "category",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "part",
+          "kind": "claim_value",
+          "predicate": "catalog.part.category",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "title",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "part",
+          "kind": "claim_value",
+          "predicate": "catalog.part.title",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      }
+    ],
+    "tag": "playbill-query-projection-v1"
+  },
+  "result_binding": "part",
+  "result_cardinality": "many",
+  "result_shape": "subject",
+  "traversal": [
+    {
+      "binding": "vehicle",
+      "direction": "forward",
+      "from_binding": "part",
+      "predicate": "catalog.part.fits",
+      "required": true,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "catalog.vehicle"
+      ],
+      "where": null
+    }
+  ],
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "vehicle",
+      "kind": "claim_value",
+      "predicate": "catalog.vehicle.name",
+      "tag": "playbill-query-claim-value-ref-v1"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "parameter",
+      "parameter": "vehicle",
+      "tag": "playbill-query-parameter-ref-v1"
+    },
+    "tag": "playbill-query-comparison-filter-v1",
+    "value_type": "string"
+  }
+}

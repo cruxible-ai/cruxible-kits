@@ -1,0 +1,19 @@
+{
+  "artifact_format": "cruxible-subject-kind-v1",
+  "description": "A note: a finding, checkpoint or report, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "catalog.note"
+  },
+  "identity_rule": {
+    "keys": [
+      "catalog.note.name"
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

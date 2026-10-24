@@ -1,0 +1,121 @@
+{
+  "artifacts": [
+    {
+      "artifact_digest": "sha256:ab6e6a1d57c92944d5262423ea907d0e54837229a84dc677e3a3cac10d2bc8c4",
+      "path": "capture-contracts/playbill.coordinator-self-source-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:a08c880d5f407015da53b2cb0c0f020076b0224964c73adef33aed3bc5916187",
+      "path": "claim-types/catalog.decision/amends.json"
+    },
+    {
+      "artifact_digest": "sha256:74d59817c470e7a5eee040806713302251945fd2d3eca58fb4a0f7517cafc94a",
+      "path": "claim-types/catalog.decision/governs.json"
+    },
+    {
+      "artifact_digest": "sha256:4652faa3fa03830952521f28ef13b1bb264f4d3ee1f9739887ba4d8700d6f466",
+      "path": "claim-types/catalog.decision/name.json"
+    },
+    {
+      "artifact_digest": "sha256:474d19592003c341c657862a80e63a636b1a216e29e404ee1334beceddf8ddbc",
+      "path": "claim-types/catalog.decision/status.json"
+    },
+    {
+      "artifact_digest": "sha256:fbe67158c54f4dc5c3044a7d52b715c06c7bf58e7de03c15ba05c8b719e11c26",
+      "path": "claim-types/catalog.decision/summary.json"
+    },
+    {
+      "artifact_digest": "sha256:9e4484032993349b8ae898a60d8cc7b68519c4e3609293b0f3b5b7bb8a05c941",
+      "path": "claim-types/catalog.note/about.json"
+    },
+    {
+      "artifact_digest": "sha256:b44246bda9c27a819493109ce0b80e1e30a30dce1399bcb6de1d85302ad16ae8",
+      "path": "claim-types/catalog.note/name.json"
+    },
+    {
+      "artifact_digest": "sha256:ec0cc73710393d09defefa91eebc4b3527556e38373b31f0982dea335ce31461",
+      "path": "claim-types/catalog.note/title.json"
+    },
+    {
+      "artifact_digest": "sha256:172259bc785b0dd4ee97425a0008c8dc8eca44050fba7f2fcb0a16704beb8aa9",
+      "path": "claim-types/catalog.part/category.json"
+    },
+    {
+      "artifact_digest": "sha256:87a165ee8c7142edf4d602712aa2a68d76950ba5d0166f41c0d798b4461f340c",
+      "path": "claim-types/catalog.part/fits.json"
+    },
+    {
+      "artifact_digest": "sha256:62541c7bac240fde68a7590e08127f539948e4cf98c92427c0534664b0db9965",
+      "path": "claim-types/catalog.part/name.json"
+    },
+    {
+      "artifact_digest": "sha256:8c7c8f5d51f258a739ff8d14466d73fb7fa9dd04de8f023ecb168e9824542ffa",
+      "path": "claim-types/catalog.part/price.json"
+    },
+    {
+      "artifact_digest": "sha256:ceb14ad34ac2fa2098ed51d0fee299457806d9a61e8ddb6a6aa7655c00451f91",
+      "path": "claim-types/catalog.part/replaces.json"
+    },
+    {
+      "artifact_digest": "sha256:5eb0bd9c12d91a6f3f58a87f6d45742f0a98b07794a87f12d9285c028d4abf6c",
+      "path": "claim-types/catalog.part/title.json"
+    },
+    {
+      "artifact_digest": "sha256:20e6c435732859142e072cb380b5c1c34e5f8b53d3236a56a7a0f6374f9709d5",
+      "path": "claim-types/catalog.part/weight_grams.json"
+    },
+    {
+      "artifact_digest": "sha256:ae9344e04317baa9956c8c1d8df8be6a0e503871e8b5a9ac2e1031c7d0d4df0c",
+      "path": "claim-types/catalog.vehicle/make.json"
+    },
+    {
+      "artifact_digest": "sha256:31388d4abccf4ddcde757a4f5c55656ffb059843742c28a155bdf3194734de91",
+      "path": "claim-types/catalog.vehicle/model.json"
+    },
+    {
+      "artifact_digest": "sha256:a7883d68c6f336010b6e73e41c6c21886008be41fb1f6c0ebe833ff24ee89ef3",
+      "path": "claim-types/catalog.vehicle/name.json"
+    },
+    {
+      "artifact_digest": "sha256:d0ac7a6be3c0d235a8f95768da77d27f2a10bca6ed8e25f418bc098d09ce3d01",
+      "path": "claim-types/catalog.vehicle/year.json"
+    },
+    {
+      "artifact_digest": "sha256:0ef5cfacd12ed3336e26c1ac90e285c7fb6aeb024b12db94b8735b40458c50ed",
+      "path": "query-definitions/catalog.parts_for_vehicle.json"
+    },
+    {
+      "artifact_digest": "sha256:581a4fb3ed42f874666f02e24b2e379faba5704be5ab093cefa99e5509cc3296",
+      "path": "subject-kinds/catalog.decision.json"
+    },
+    {
+      "artifact_digest": "sha256:d0b090ff2c14c546bd6fbd988f8015bc3afe45d2bfd0fb3b7652e29ba3fe449d",
+      "path": "subject-kinds/catalog.note.json"
+    },
+    {
+      "artifact_digest": "sha256:1d10560952b9b3217828a8b115219db56fe655651be4b01911d809975a4d8c22",
+      "path": "subject-kinds/catalog.part.json"
+    },
+    {
+      "artifact_digest": "sha256:d942412504dafe9ab22ba5cd6308063b5734c85e6e1046f1f55d3cd6d9637659",
+      "path": "subject-kinds/catalog.vehicle.json"
+    }
+  ],
+  "kit_id": "car-parts",
+  "owns": [
+    "catalog."
+  ],
+  "provenance": {
+    "coordinate": {
+      "compiler_digest": "sha256:56542b566100db8fadfd4bfcea8f0fe58e37de444885906f3914ec1cc225d085",
+      "generation_root": "sha256:8f3c486ca100c0529c4692290e6d381d7d46bdd68f0d538979f8b4918f16ba39",
+      "git_oid": "65585bab0e0716fcf92f71ab108118125eb96154",
+      "semantic_root": "sha256:26b8b0d599429566f6411f91ac76fe047ba935828d9d6ad2cbb4655aab8d9083",
+      "tag": "playbill-accepted-coordinate-v1"
+    },
+    "instance_id": "inst_8caac8865a3a490c",
+    "principal_id": "robertmalone"
+  },
+  "tag": "playbill-kit-manifest-v1",
+  "version": "1.1.0"
+}
