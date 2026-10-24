@@ -190,7 +190,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.response:RuntimeInventory",
-      "interface_digest": "sha256:e17552b6cf6fac4e18f30b7a66723159ba4467ac24c1c3e94fbc1cd3fbd59432",
+      "interface_digest": "sha256:5bd1483ae45090fe75e7088404bd7bb083e83e8537adf58975141b9a02acebd7",
       "interface_id": "security.runtime-inventory",
       "requires_extras": [],
       "side_effects": false

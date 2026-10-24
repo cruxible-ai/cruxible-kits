@@ -4,6 +4,7 @@
       "held": [],
       "inventory_text": "{\"scope\": \"fixture\", \"looked_for\": [\"*\"], \"coverage\": \"full\", \"assets\": []}",
       "patches": [],
+      "runs": [],
       "scope": "fixture",
       "truncated": {}
     },

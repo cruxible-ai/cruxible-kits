@@ -36,6 +36,18 @@
   },
   "includes": [
     {
+      "binding": "included_affected_product",
+      "direction": "forward",
+      "from_binding": "vulnerability",
+      "many": true,
+      "max_items": 500,
+      "name": "affected_product",
+      "orderings": [],
+      "predicate": "security.vulnerability.affected_product",
+      "tag": "playbill-query-include-v1",
+      "where": null
+    },
+    {
       "binding": "included_package",
       "direction": "forward",
       "from_binding": "vulnerability",
@@ -100,6 +112,14 @@
       "target": {
         "kind": "ClaimType",
         "name": "security.incident.vulnerability"
+      }
+    },
+    {
+      "artifact_digest": "sha256:d81c3226d907956b55bad62c9687b0865585a7435b2426d88b6901b280ef1aff",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.affected_product"
       }
     },
     {

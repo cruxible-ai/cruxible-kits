@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "RQ1 for one incident (parameter incident, its name): each of its CVEs with its record's title and the packages OSV says it affects, every release assessed for one of them (any status, with the components the answer rests on), and every asset a scan observed running it with its inventory coverage and services. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "RQ1 for one incident (parameter incident): each CVE with its record's title, named products and OSV packages, every release assessed for one (any status, with the components the answer rests on), affected first, and every asset a scan observed running it with its coverage and services (security.incident_affected: affected and inconclusive only). Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "incident",
     "subject_id": null,
@@ -71,7 +71,19 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "orderings": [],
+  "orderings": [
+    {
+      "direction": "ascending",
+      "key": {
+        "binding": "assessment",
+        "kind": "claim_value",
+        "predicate": "security.assessment.status",
+        "tag": "playbill-query-claim-value-ref-v1"
+      },
+      "tag": "playbill-query-ordering-v1",
+      "value_type": "string"
+    }
+  ],
   "parameters": [
     {
       "default": null,
@@ -131,7 +143,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:fa5bd366c62d970842eee6d493eb0fa5d50084244192292e1513e5715b17c6bb",
+      "artifact_digest": "sha256:47481277457c1584489949dc965122145e0351233068243cbcb18a849dc42b33",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -155,7 +167,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:8ff1f726eef4dbd251b89c702cec4d36542d312773d9ac62cd45d5f426e1cc66",
+      "artifact_digest": "sha256:e92b5ddb1ac0d94e277449e8af865e371b5ec19fd4f29c420c38abd0e4124094",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -259,6 +271,14 @@
       }
     },
     {
+      "artifact_digest": "sha256:d81c3226d907956b55bad62c9687b0865585a7435b2426d88b6901b280ef1aff",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.vulnerability.affected_product"
+      }
+    },
+    {
       "artifact_digest": "sha256:71d273d960c85450760acab13b526712916c7a62125ff08d0837999a4c358ea9",
       "role": "claim-type",
       "target": {
@@ -352,6 +372,16 @@
           "binding": "vulnerability",
           "kind": "claim_value",
           "predicate": "security.vulnerability.package",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "cve_products",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "vulnerability",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.affected_product",
           "tag": "playbill-query-claim-value-ref-v1"
         }
       },

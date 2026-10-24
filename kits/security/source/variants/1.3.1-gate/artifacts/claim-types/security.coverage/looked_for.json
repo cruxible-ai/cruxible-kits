@@ -18,7 +18,7 @@
   ],
   "cardinality": "many",
   "default_role": "observation",
-  "description": "A product a full runtime-inventory scan looked for, named as its releases are (php, debian/php8.2: a purl's namespace and name), or * for everything: absence of an affected run is an answer only for a product the scan looked for.",
+  "description": "A product a full runtime-inventory scan looked for, named as its releases are (php, debian/php8.2: a purl's namespace and name), or * for everything: the record of the question the scan asked. The scan states each asset's absence as an asset.runs none, only for a product it looked for (under *: a product the asset ran before or declares installing; name any other in looked_for); which versions of a looked-for product an asset runs are its runs, complete while the coverage is current.",
   "evidence_admission_policy": {
     "rules": [
       {

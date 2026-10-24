@@ -9,11 +9,11 @@ Kit `security` version **1.3.0**, defining every name under `security.`.
 | Definitions | Count | Notes |
 |---|---|---|
 | Subject kinds | 23 | [What it models](#what-it-models) |
-| ClaimTypes | 136 | 10 shared by several kinds |
+| ClaimTypes | 137 | 10 shared by several kinds |
 | Capture contracts | 18 | [Where evidence comes from](#where-evidence-comes-from) |
 | Procedures | 21 | - |
 | Blueprints | 9 | you bind each one's Provider slots |
-| Queries | 48 | [What you can ask](#what-you-can-ask) |
+| Queries | 50 | [What you can ask](#what-you-can-ask) |
 | Provider interfaces | 21 | - |
 | Acquisition policies | 1 | `security.acquisition` |
 | Example Lines | 19 | with 21 Triggers and 11 Mandates in `examples/automation.json`: [What runs on its own](#what-runs-on-its-own) |
@@ -99,7 +99,7 @@ flowchart LR
   c_security_credential_state_v1 == "1" ==> k_security_remediation
   c_security_cve_record_http_v1 -. "5" .-> k_security_assessment
   c_security_cve_record_http_v1 -. "1" .-> k_security_finding
-  c_security_cve_record_http_v1 == "2" ==> k_security_vulnerability
+  c_security_cve_record_http_v1 == "3" ==> k_security_vulnerability
   c_security_cyclonedx_sbom_v1 -. "1" .-> k_security_product
   c_security_cyclonedx_sbom_v1 == "3, 2 captured" ==> k_security_release
   c_security_epss_daily_v1 == "2" ==> k_security_vulnerability
@@ -285,7 +285,7 @@ Key: `hostname` (uniqueness `unique`).
 | `hostname` | The asset's hostname (a host, or a workload such as k8s:prod/storefront-a); its key. | text | one | normative | - | no | - | unresolved |
 | `installs` | A software release installed on the asset. | Subject: `security.release` | many | normative | - | no | - | all held |
 | `internet_exposed` | Whether the asset is reachable from the internet. | true / false | one | normative | - | no | - | unresolved |
-| `runs` | A release a runtime-inventory scan observed running on the asset (beside the declared installs). A full scan retires a run it no longer sees. | Subject: `security.release` | many | observation | `security.runtime-inventory-v1` | yes | - | all held |
+| `runs` | A release a runtime-inventory scan observed running on the asset (beside the declared installs). A full scan retires a run it no longer sees. Its none (an inverse, keyed by the release's product_name) says the asset runs no release of that product: only a full scan that looked for the product states it (never for a product it did not look for), it goes stale on the coverage horizon, and a run of the product seen again retires it. No run and no current none is unknown. | Subject: `security.release` | many | observation | `security.runtime-inventory-v1` | yes | - | all held |
 | `scanned_in` | The inventory scope coverage that read the asset: its runs are complete there while that coverage is current. | Subject: `security.coverage` | many | observation | `security.runtime-inventory-v1` | yes | - | all held |
 | `serves` | A service the asset serves. | Subject: `security.service` | many | normative | - | no | - | all held |
 
@@ -344,7 +344,7 @@ Key: `source` + `scope` (uniqueness `unique`).
 
 | Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
 |---|---|---|---|---|---|---|---|---|
-| `looked_for` | A product a full runtime-inventory scan looked for, named as its releases are (php, debian/php8.2: a purl's namespace and name), or * for everything: absence of an affected run is an answer only for a product the scan looked for. | text | many | observation | `security.runtime-inventory-v1` | yes | - | all held |
+| `looked_for` | A product a full runtime-inventory scan looked for, named as its releases are (php, debian/php8.2: a purl's namespace and name), or * for everything: the record of the question the scan asked. The scan states each asset's absence as an asset.runs none, only for a product it looked for (under *: a product the asset ran before or declares installing; name any other in looked_for); which versions of a looked-for product an asset runs are its runs, complete while the coverage is current. | text | many | observation | `security.runtime-inventory-v1` | yes | - | all held |
 | `of` | What the source belongs to: a repository, or a registry target. | Subject: `security.repo`, `security.target` | one | observation | `security.pypi-release-v1`, `security.repo-snapshot-v1` | yes | - | unresolved |
 | `revision` | The revision every file was read at: a commit SHA, the digest of a registry's served file set, or the digest of a full runtime-inventory scan's (asset, runs) set; re-read on every pull and stale 12 h after the last. Absence inside current coverage is an answer; outside it, unknown. | text | one | observation | `security.pypi-release-v1`, `security.repo-snapshot-v1`, `security.runtime-inventory-v1` | yes | stale after 12 h | unresolved |
 | `scope` | What was read in full: ci.workflows, release.manifest, registry.files, or inventory.runtime (every asset of one inventory scope, with what it runs). | `ci.workflows` / `inventory.runtime` / `registry.files` / `release.manifest` | one | normative | - | no | - | unresolved |
@@ -575,6 +575,7 @@ Key: `cve_id` (uniqueness `unique`).
 
 | Field | Meaning | Value | Cardinality | Role | Evidence | Captured required | Freshness | Contention |
 |---|---|---|---|---|---|---|---|---|
+| `affected_product` | A product the vulnerability's CVE record names as affected, named as the kit names releases (an affected entry's product, or its packageName: php, cli/cli), whether or not inventory holds it: with OSV's packages and the releases assessed affected, the products an incident's RQ1 must rule out on an asset before it answers the asset none. A release the record names by another name is matched through its product_alias. | text | many | observation | `security.cve-record-http-v1` | yes | - | all held |
 | `cve_id` | The CVE identifier; the vulnerability's key. | text `^CVE-[0-9]{4}-[0-9]{4,}$` | one | normative | - | no | - | unresolved |
 | `epss_percentile` | The EPSS score's percentile among all scored CVEs, as the daily file states it. | text `^(0(\.[0-9]+)?\|1(\.0+)?)$` | one | observation | `security.epss-daily-v1` | yes | - | unresolved |
 | `epss_score` | FIRST's EPSS probability of exploitation in the next 30 days, as the daily file states it. | text `^(0(\.[0-9]+)?\|1(\.0+)?)$` | one | observation | `security.epss-daily-v1` | yes | - | unresolved |
@@ -625,7 +626,7 @@ One row per Capture contract. **Produced by**: the Procedures and Blueprints tha
 | Contract | Captures | Grade | Produced by | Landings start | Supports |
 |---|---|---|---|---|---|
 | `security.credential-state-v1` | security.credential-state (credential_state) | observed | Procedure `security.credential-acquire` (core's built-in `workspace.file`; direct run) | `security.credential-import` | 5 ClaimTypes; 5 require a Capture |
-| `security.cve-record-http-v1` | cve.record (http_response) | observed | Blueprint `security.cve-record-acquire` (slot `web.fetch`; direct run) | `security.cve-applicability` | 8 ClaimTypes; 2 require a Capture |
+| `security.cve-record-http-v1` | cve.record (http_response) | observed | Blueprint `security.cve-record-acquire` (slot `web.fetch`; direct run) | `security.cve-applicability` | 9 ClaimTypes; 3 require a Capture |
 | `security.cyclonedx-sbom-v1` | cyclonedx.sbom (sbom_document) | observed | Procedure `security.sbom-acquire` (core's built-in `workspace.file`; direct run) | `security.sbom-import` | 4 ClaimTypes; 2 require a Capture |
 | `security.epss-daily-v1` | first.epss.daily (http_response) | observed | Blueprint `security.epss-acquire` (slot `security.epss-daily`; Line `security.epss-daily`) | `security.epss-triage` | 2 ClaimTypes; 2 require a Capture |
 | `security.github-api-v1` | github.api (http_response) | observed | Blueprint `security.history-acquire` (slot `web.fetch`; direct run) | - | 5 ClaimTypes; 1 requires a Capture |
@@ -718,21 +719,23 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.coverage_gaps` | Installed releases unassessed or inconclusive for one vulnerability. | `vulnerability` (subject reference) |
 | `security.coverage_index` | One source's coverage (source, scope) with the revision it was read at and what it belongs to, stale or current: the parse Procedures' tap. | `scope` (string), `source` (string) |
 | `security.credentialed_jobs` | HQ2: every job of a covered source of a gated target's repository, with its permissions, secrets, environment and triggers. | - |
-| `security.deployments` | Every asset, with its inventory coverage (revision and looked_for: stale, missing or erased reads absent) and every release it declares installing (with its components and OSV coverage): the respond Line enumerates deployments from it, never through assessments, so an unscanned or unassessed deployment is a gap, never silence. | - |
+| `security.deployments` | Every asset, with its inventory coverage (revision and looked_for: stale, missing or erased reads absent), its current nones (include runs: asset.runs inverses) and every release it declares installing (components, OSV coverage): the respond Line enumerates deployments from it, never through assessments, so an unscanned or unassessed deployment is a gap, never silence. | - |
 | `security.exceptions` | Scoped risk exceptions and expiry. | - |
 | `security.expired_exceptions` | Expired approved exceptions requiring review. | - |
 | `security.finder_record` | Every finding of one repository with the finders and rules that reported it and its verdict (conflict while disputed): the reader counts upheld (confirmed, not_exploitable) against overturned (false_positive) per finder or rule. | `repo_ref` (string) |
 | `security.finding_index` | Every finding of one repository (repo_ref, host/owner/repo) with its key, the rules and finders that reported it, its severity, verification and verdict: the SARIF import's tap. | `repo_ref` (string) |
 | `security.finding_settle_condition` | One finding by id with its key: the condition a settle grant on the SARIF import's report observations (rule, reported_by, severity) evaluates per changed Claim. Never grant the verdict, justification, verification or affects. | `finding_id` (string) |
+| `security.incident_affected` | RQ1's exposure for a reader (parameter incident, its name): each release assessed affected or inconclusive for one of the incident's CVEs, affected first, with the assets a scan observed running it, their coverage and services; the not_affected rows are security.incident_exposure's. | `incident` (string) |
 | `security.incident_credentials` | RQ4 for one incident: every credential an audited service uses, with its current key (non-secret id, issued_at: before window_start = not rotated since exposure) and its rotations' progress and verification. | `incident` (string) |
 | `security.incident_exceptions` | RQ2's accepted risks for one incident: every approved exception (work.asset + work.assessment) of an asset for one of its CVEs that has not expired at the query's evaluation time, with its expiry, owner and rationale: the respond Line's exception tap. | `incident` (string) |
-| `security.incident_exposure` | RQ1 for one incident (parameter incident, its name): each of its CVEs with its record's title and the packages OSV says it affects, every release assessed for one of them (any status, with the components the answer rests on), and every asset a scan observed running it with its inventory coverage and services. | `incident` (string) |
+| `security.incident_exposure` | RQ1 for one incident (parameter incident): each CVE with its record's title, named products and OSV packages, every release assessed for one (any status, with the components the answer rests on), affected first, and every asset a scan observed running it with its coverage and services (security.incident_affected: affected and inconclusive only). | `incident` (string) |
 | `security.incident_patches` | RQ2 for one incident: every patch of an asset for one of its CVEs (work.asset + work.assessment), with progress, verification, due date, target release, the asset's coverage and services: the respond Line's tap. | `incident` (string) |
-| `security.incident_status` | The incident status page: per CVE and exposure, each patch or unexpired exception (excepted_until) with its asset, service, coverage, progress and verification, the audit result, and each credential's rotation progress and verification (pending is its own state). No host: no action yet. Empty is unknown. | `incident` (string) |
+| `security.incident_status` | The incident status page: per CVE and exposure (affected first), each host a scan observed running it (exposed_host), each patch or unexpired exception (excepted_until) with its asset (host), progress and verification, and per audit of the incident its service, result and each credential's rotation progress and verification (pending is its own state). Empty is unknown. | `incident` (string) |
 | `security.incomplete_work` | Remediation actions missing accountable information. | - |
 | `security.inventory_context` | Assets with their releases, products, suppliers, services and owning teams. | - |
-| `security.inventory_index` | One inventory scope's coverage (source = the scope's name, stale or current) with every asset scanned in it and every release each runs, with the Claims behind them: the runtime-inventory import's tap. | `scope` (string) |
+| `security.inventory_index` | One inventory scope's coverage (source = the scope's name, stale or current) with every asset scanned in it, its runs and its nones (asset.runs inverses: a product the asset runs none of) and the products of the releases it declares installing, with the Claims behind them: the runtime-inventory import's tap. | `scope` (string) |
 | `security.inventory_patches` | Every patch (a remediation with work.asset and work.assessment) of an asset scanned in one inventory scope, with its progress, verification and the release it moves the asset off: the import's verification tap. | `scope` (string) |
+| `security.inventory_runs` | Every release an asset scanned in one inventory scope runs, by key, with its components: the runtime-inventory import's second tap (what each held run is). | `scope` (string) |
 | `security.kev_exposure` | Internet-facing assets with a release assessed affected by a KEV-listed vulnerability. | - |
 | `security.kev_triage_backlog` | Assessments of KEV-listed vulnerabilities still unresolved (no status, or inconclusive). | - |
 | `security.mutable_actions` | HQ3: every job of a covered source of a gated target's repository, with the actions it runs and the credentials it holds. | - |
@@ -748,7 +751,7 @@ Every Procedure and Blueprint, what its terminal does, and the example Lines tha
 | `security.remediation_work` | Remediation actions and verification. | - |
 | `security.repo_targets` | One repository (by forge host and owner/repository) and the targets published from it: the repo parse's tap. | `forge_host` (string), `full_name` (string) |
 | `security.rotation_work` | Every credential with its current key state and every rotation of it, with the window its incident opened: the credential import's tap. | - |
-| `security.scanned_runs` | Every asset an inventory scope's scan read and every release it runs, with the release's components and OSV coverage: the respond Line answers each incident CVE x each of these releases (none only when OSV answered every component and none is a package OSV says the CVE affects). | - |
+| `security.scanned_runs` | Every release a scan observed running on an asset an inventory scope's scan read, with the release's components and OSV coverage: the respond Line answers each incident CVE x each of these releases (none only when OSV answered every component and none is a package OSV says the CVE affects). | - |
 | `security.served_vs_declared` | HQ5: every artifact a gated target serves, its served and declared digests, and the workflow and jobs that published it at the commit it was built from. | - |
 | `security.settle_condition` | One vulnerability by id with its CVE key; the condition the KEV and EPSS triage settle mandates evaluate per changed Claim (triage only changes watched ones). | `vulnerability_id` (string) |
 | `security.shared_dependencies` | HQ4: every publishing job of a gated target, with the actions and secrets it runs on. | - |

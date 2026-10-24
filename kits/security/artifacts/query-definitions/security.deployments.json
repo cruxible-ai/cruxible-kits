@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "Every asset, with its inventory coverage (revision and looked_for: stale, missing or erased reads absent) and every release it declares installing (with its components and OSV coverage): the respond Line enumerates deployments from it, never through assessments, so an unscanned or unassessed deployment is a gap, never silence. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Every asset, with its inventory coverage (revision and looked_for: stale, missing or erased reads absent), its current nones (include runs: asset.runs inverses) and every release it declares installing (components, OSV coverage): the respond Line enumerates deployments from it, never through assessments, so an unscanned or unassessed deployment is a gap, never silence. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "asset",
     "subject_id": null,
@@ -46,6 +46,18 @@
       "predicate": "security.release.component",
       "tag": "playbill-query-include-v1",
       "where": null
+    },
+    {
+      "binding": "included_runs",
+      "direction": "forward",
+      "from_binding": "asset",
+      "many": true,
+      "max_items": 500,
+      "name": "runs",
+      "orderings": [],
+      "predicate": "security.asset.runs",
+      "tag": "playbill-query-include-v1",
+      "where": null
     }
   ],
   "lifecycle": {
@@ -79,6 +91,14 @@
       }
     },
     {
+      "artifact_digest": "sha256:47481277457c1584489949dc965122145e0351233068243cbcb18a849dc42b33",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.runs"
+      }
+    },
+    {
       "artifact_digest": "sha256:ca5bedde9281d3b6d302370e30839d3b2711111b3483fdc51adc0ec81d85277e",
       "role": "claim-type",
       "target": {
@@ -87,7 +107,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:8ff1f726eef4dbd251b89c702cec4d36542d312773d9ac62cd45d5f426e1cc66",
+      "artifact_digest": "sha256:e92b5ddb1ac0d94e277449e8af865e371b5ec19fd4f29c420c38abd0e4124094",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",

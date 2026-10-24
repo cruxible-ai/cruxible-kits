@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "One inventory scope's coverage (source = the scope's name, stale or current) with every asset scanned in it and every release each runs, with the Claims behind them: the runtime-inventory import's tap. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "One inventory scope's coverage (source = the scope's name, stale or current) with every asset scanned in it, its runs and its nones (asset.runs inverses: a product the asset runs none of) and the products of the releases it declares installing, with the Claims behind them: the runtime-inventory import's tap. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "coverage",
     "subject_id": null,
@@ -46,18 +46,6 @@
       "name": "looked_for",
       "orderings": [],
       "predicate": "security.coverage.looked_for",
-      "tag": "playbill-query-include-v1",
-      "where": null
-    },
-    {
-      "binding": "included_run_component",
-      "direction": "forward",
-      "from_binding": "run",
-      "many": true,
-      "max_items": 500,
-      "name": "run_component",
-      "orderings": [],
-      "predicate": "security.release.component",
       "tag": "playbill-query-include-v1",
       "where": null
     },
@@ -117,7 +105,15 @@
       }
     },
     {
-      "artifact_digest": "sha256:fa5bd366c62d970842eee6d493eb0fa5d50084244192292e1513e5715b17c6bb",
+      "artifact_digest": "sha256:7a39322364e2e1059c8c73dd4cc0331169550be8aa32d05f40a3e99473fe4aae",
+      "role": "claim-type",
+      "target": {
+        "kind": "ClaimType",
+        "name": "security.asset.installs"
+      }
+    },
+    {
+      "artifact_digest": "sha256:47481277457c1584489949dc965122145e0351233068243cbcb18a849dc42b33",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -133,7 +129,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:8ff1f726eef4dbd251b89c702cec4d36542d312773d9ac62cd45d5f426e1cc66",
+      "artifact_digest": "sha256:e92b5ddb1ac0d94e277449e8af865e371b5ec19fd4f29c420c38abd0e4124094",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -165,27 +161,11 @@
       }
     },
     {
-      "artifact_digest": "sha256:cfafb776f4c831be8e811730da5aedd3f003de73e770c9821163dde79840556b",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.release.component"
-      }
-    },
-    {
       "artifact_digest": "sha256:aa855c4dd68ec712f33d3c25157a1fed051b2296396886a2a886b4e6ca36a6b8",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
         "name": "security.release.product_name"
-      }
-    },
-    {
-      "artifact_digest": "sha256:4f00800056fb9c2af1d558a2ebdc688148172e319f5fdf9bcf8aaf121305a283",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.release.version"
       }
     }
   ],
@@ -209,6 +189,16 @@
           "field": "subject_id",
           "kind": "subject_field",
           "tag": "playbill-query-subject-field-ref-v1"
+        }
+      },
+      {
+        "name": "declared_product",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "declared",
+          "kind": "claim_value",
+          "predicate": "security.release.product_name",
+          "tag": "playbill-query-claim-value-ref-v1"
         }
       },
       {
@@ -242,36 +232,6 @@
         }
       },
       {
-        "name": "run",
-        "tag": "playbill-query-projection-field-v1",
-        "value": {
-          "binding": "run",
-          "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
-        }
-      },
-      {
-        "name": "run_product",
-        "tag": "playbill-query-projection-field-v1",
-        "value": {
-          "binding": "run",
-          "kind": "claim_value",
-          "predicate": "security.release.product_name",
-          "tag": "playbill-query-claim-value-ref-v1"
-        }
-      },
-      {
-        "name": "run_version",
-        "tag": "playbill-query-projection-field-v1",
-        "value": {
-          "binding": "run",
-          "kind": "claim_value",
-          "predicate": "security.release.version",
-          "tag": "playbill-query-claim-value-ref-v1"
-        }
-      },
-      {
         "name": "source",
         "tag": "playbill-query-projection-field-v1",
         "value": {
@@ -301,10 +261,10 @@
       "where": null
     },
     {
-      "binding": "run",
+      "binding": "declared",
       "direction": "forward",
       "from_binding": "asset",
-      "predicate": "security.asset.runs",
+      "predicate": "security.asset.installs",
       "required": false,
       "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [

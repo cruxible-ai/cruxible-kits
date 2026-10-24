@@ -10,12 +10,12 @@
   "allowed_subject_kinds": [
     "security.asset"
   ],
-  "artifact_format": "playbill-claim-type-v8",
+  "artifact_format": "cruxible-claim-type-v9",
   "attestation_consequence_policy": null,
   "canonical_form": [],
   "cardinality": "many",
   "default_role": "observation",
-  "description": "A release a runtime-inventory scan observed running on the asset (beside the declared installs). A full scan retires a run it no longer sees.",
+  "description": "A release a runtime-inventory scan observed running on the asset (beside the declared installs). A full scan retires a run it no longer sees. Its none (an inverse, keyed by the release's product_name) says the asset runs no release of that product: only a full scan that looked for the product states it (never for a product it did not look for), it goes stale on the coverage horizon, and a run of the product seen again retires it. No run and no current none is unknown.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -48,6 +48,21 @@
   "identity": {
     "kind": "ClaimType",
     "name": "security.asset.runs"
+  },
+  "inverse": {
+    "description": "The asset runs no release of this product, as a full runtime-inventory scan that looked for it shows.",
+    "evidence_rules": [
+      "retained-security-evidence"
+    ],
+    "key": {
+      "kind": "object_key",
+      "predicate": "security.release.product_name"
+    },
+    "stale_after": {
+      "microseconds": 43200000000,
+      "tag": "playbill-duration-v1"
+    },
+    "tag": "cruxible-claim-inverse-v1"
   },
   "lifecycle": {
     "predecessor_digest": null,

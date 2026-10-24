@@ -8,12 +8,12 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "Every asset an inventory scope's scan read and every release it runs, with the release's components and OSV coverage: the respond Line answers each incident CVE x each of these releases (none only when OSV answered every component and none is a package OSV says the CVE affects). Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Every release a scan observed running on an asset an inventory scope's scan read, with the release's components and OSV coverage: the respond Line answers each incident CVE x each of these releases (none only when OSV answered every component and none is a package OSV says the CVE affects). Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
-    "binding": "asset",
+    "binding": "release",
     "subject_id": null,
     "subject_kinds": [
-      "security.asset"
+      "security.release"
     ],
     "tag": "playbill-query-entry-v1"
   },
@@ -71,7 +71,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:fa5bd366c62d970842eee6d493eb0fa5d50084244192292e1513e5715b17c6bb",
+      "artifact_digest": "sha256:47481277457c1584489949dc965122145e0351233068243cbcb18a849dc42b33",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -87,7 +87,7 @@
       }
     },
     {
-      "artifact_digest": "sha256:8ff1f726eef4dbd251b89c702cec4d36542d312773d9ac62cd45d5f426e1cc66",
+      "artifact_digest": "sha256:e92b5ddb1ac0d94e277449e8af865e371b5ec19fd4f29c420c38abd0e4124094",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
@@ -266,10 +266,22 @@
     ],
     "tag": "playbill-query-projection-v1"
   },
-  "result_binding": "asset",
+  "result_binding": "release",
   "result_cardinality": "many",
   "result_shape": "path",
   "traversal": [
+    {
+      "binding": "asset",
+      "direction": "reverse",
+      "from_binding": "release",
+      "predicate": "security.asset.runs",
+      "required": true,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.asset"
+      ],
+      "where": null
+    },
     {
       "binding": "coverage",
       "direction": "forward",
@@ -297,18 +309,6 @@
         "tag": "playbill-query-comparison-filter-v1",
         "value_type": "string"
       }
-    },
-    {
-      "binding": "release",
-      "direction": "forward",
-      "from_binding": "asset",
-      "predicate": "security.asset.runs",
-      "required": true,
-      "tag": "playbill-query-traversal-step-v1",
-      "target_subject_kinds": [
-        "security.release"
-      ],
-      "where": null
     }
   ],
   "where": null

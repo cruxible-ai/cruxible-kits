@@ -8,7 +8,7 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "description": "The incident status page: per CVE and exposure, each patch or unexpired exception (excepted_until) with its asset, service, coverage, progress and verification, the audit result, and each credential's rotation progress and verification (pending is its own state). No host: no action yet. Empty is unknown. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "The incident status page: per CVE and exposure (affected first), each host a scan observed running it (exposed_host), each patch or unexpired exception (excepted_until) with its asset (host), progress and verification, and per audit of the incident its service, result and each credential's rotation progress and verification (pending is its own state). Empty is unknown. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "incident",
     "subject_id": null,
@@ -46,7 +46,19 @@
     "max_traversal_depth": 10,
     "tag": "playbill-query-budgets-v1"
   },
-  "orderings": [],
+  "orderings": [
+    {
+      "direction": "ascending",
+      "key": {
+        "binding": "assessment",
+        "kind": "claim_value",
+        "predicate": "security.assessment.status",
+        "tag": "playbill-query-claim-value-ref-v1"
+      },
+      "tag": "playbill-query-ordering-v1",
+      "value_type": "string"
+    }
+  ],
   "parameters": [
     {
       "default": null,
@@ -90,27 +102,19 @@
       }
     },
     {
-      "artifact_digest": "sha256:ca5bedde9281d3b6d302370e30839d3b2711111b3483fdc51adc0ec81d85277e",
+      "artifact_digest": "sha256:47481277457c1584489949dc965122145e0351233068243cbcb18a849dc42b33",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
-        "name": "security.asset.scanned_in"
+        "name": "security.asset.runs"
       }
     },
     {
-      "artifact_digest": "sha256:ec3456c6a80c2313607ed1a1060293cc6b71bd18cffd449d5eb6c7466b500959",
+      "artifact_digest": "sha256:f081c27e51058bf1d7f4a034dbe4d3df0896a616875b24239237e5db10e1a984",
       "role": "claim-type",
       "target": {
         "kind": "ClaimType",
-        "name": "security.asset.serves"
-      }
-    },
-    {
-      "artifact_digest": "sha256:b566d9ed60ab7e331b173875a0e9880d19476581ee40113c15e5dc0904ec26e3",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.audit.incident_ref"
+        "name": "security.audit.incident"
       }
     },
     {
@@ -127,22 +131,6 @@
       "target": {
         "kind": "ClaimType",
         "name": "security.audit.service"
-      }
-    },
-    {
-      "artifact_digest": "sha256:b12cb691972a886c4790290b0aef7e807c3902767e158127326c99382905198c",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.coverage.revision"
-      }
-    },
-    {
-      "artifact_digest": "sha256:726edfe034063117f9cb84614eb970a7832d4081eb50411ada9ce68244c6f746",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.coverage.scope"
       }
     },
     {
@@ -263,12 +251,12 @@
         }
       },
       {
-        "name": "coverage",
+        "name": "audit_service",
         "tag": "playbill-query-projection-field-v1",
         "value": {
-          "binding": "coverage",
+          "binding": "audited",
           "kind": "claim_value",
-          "predicate": "security.coverage.revision",
+          "predicate": "security.service.name",
           "tag": "playbill-query-claim-value-ref-v1"
         }
       },
@@ -299,6 +287,16 @@
           "binding": "work",
           "kind": "claim_value",
           "predicate": "security.exception.expires_at",
+          "tag": "playbill-query-claim-value-ref-v1"
+        }
+      },
+      {
+        "name": "exposed_host",
+        "tag": "playbill-query-projection-field-v1",
+        "value": {
+          "binding": "exposed",
+          "kind": "claim_value",
+          "predicate": "security.asset.hostname",
           "tag": "playbill-query-claim-value-ref-v1"
         }
       },
@@ -359,16 +357,6 @@
           "binding": "rotation",
           "kind": "claim_value",
           "predicate": "security.work.verification",
-          "tag": "playbill-query-claim-value-ref-v1"
-        }
-      },
-      {
-        "name": "service",
-        "tag": "playbill-query-projection-field-v1",
-        "value": {
-          "binding": "service",
-          "kind": "claim_value",
-          "predicate": "security.service.name",
           "tag": "playbill-query-claim-value-ref-v1"
         }
       }
@@ -451,6 +439,18 @@
       "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.release"
+      ],
+      "where": null
+    },
+    {
+      "binding": "exposed",
+      "direction": "reverse",
+      "from_binding": "release",
+      "predicate": "security.asset.runs",
+      "required": false,
+      "tag": "playbill-query-traversal-step-v1",
+      "target_subject_kinds": [
+        "security.asset"
       ],
       "where": null
     },
@@ -541,38 +541,22 @@
       "where": null
     },
     {
-      "binding": "coverage",
-      "direction": "forward",
-      "from_binding": "asset",
-      "predicate": "security.asset.scanned_in",
+      "binding": "audit",
+      "direction": "reverse",
+      "from_binding": "incident",
+      "predicate": "security.audit.incident",
       "required": false,
       "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
-        "security.coverage"
+        "security.audit"
       ],
-      "where": {
-        "kind": "comparison",
-        "left": {
-          "binding": "coverage",
-          "kind": "claim_value",
-          "predicate": "security.coverage.scope",
-          "tag": "playbill-query-claim-value-ref-v1"
-        },
-        "operator": "eq",
-        "right": {
-          "kind": "literal",
-          "tag": "playbill-query-literal-ref-v1",
-          "value": "inventory.runtime"
-        },
-        "tag": "playbill-query-comparison-filter-v1",
-        "value_type": "string"
-      }
+      "where": null
     },
     {
-      "binding": "service",
+      "binding": "audited",
       "direction": "forward",
-      "from_binding": "asset",
-      "predicate": "security.asset.serves",
+      "from_binding": "audit",
+      "predicate": "security.audit.service",
       "required": false,
       "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
@@ -581,37 +565,9 @@
       "where": null
     },
     {
-      "binding": "audit",
-      "direction": "reverse",
-      "from_binding": "service",
-      "predicate": "security.audit.service",
-      "required": false,
-      "tag": "playbill-query-traversal-step-v1",
-      "target_subject_kinds": [
-        "security.audit"
-      ],
-      "where": {
-        "kind": "comparison",
-        "left": {
-          "binding": "audit",
-          "kind": "claim_value",
-          "predicate": "security.audit.incident_ref",
-          "tag": "playbill-query-claim-value-ref-v1"
-        },
-        "operator": "eq",
-        "right": {
-          "kind": "parameter",
-          "parameter": "incident",
-          "tag": "playbill-query-parameter-ref-v1"
-        },
-        "tag": "playbill-query-comparison-filter-v1",
-        "value_type": "string"
-      }
-    },
-    {
       "binding": "credential",
       "direction": "reverse",
-      "from_binding": "service",
+      "from_binding": "audited",
       "predicate": "security.credential.used_by",
       "required": false,
       "tag": "playbill-query-traversal-step-v1",

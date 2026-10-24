@@ -83,7 +83,7 @@
         "entrypoint": "security_analysis_provider.sbom:classify",
         "identity": "security.cyclonedx-components.input",
         "source": {
-          "digest": "sha256:3078849b575c1184286ab70a5fa3df6293a74861baac8630c7993a6dd74a09e2",
+          "digest": "sha256:83815e582ea0ac12ed31eefcf380282d422068e7c7989884e015723c6aaeeece",
           "path": "sbom.py"
         },
         "version": 1
@@ -109,7 +109,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_osv",
         "identity": "security.osv-applicability.input",
         "source": {
-          "digest": "sha256:8f52bebccddc9b30e8b2b359458f468be635177fcb527eb5597da6d38e0439d8",
+          "digest": "sha256:0374d8f921cf911ba7aa4e47467a6c1b76af1bd56e08738babb962d334a2e9a4",
           "path": "applicability.py"
         },
         "version": 1
@@ -135,7 +135,7 @@
         "entrypoint": "security_analysis_provider.applicability:classify_cve",
         "identity": "security.cve-applicability.input",
         "source": {
-          "digest": "sha256:8f52bebccddc9b30e8b2b359458f468be635177fcb527eb5597da6d38e0439d8",
+          "digest": "sha256:0374d8f921cf911ba7aa4e47467a6c1b76af1bd56e08738babb962d334a2e9a4",
           "path": "applicability.py"
         },
         "version": 1
@@ -239,20 +239,20 @@
         "entrypoint": "security_analysis_provider.response:classify_inventory",
         "identity": "security.runtime-inventory.input",
         "source": {
-          "digest": "sha256:ca1e2cfe7edd78d214a5fca1a1634be81766f83b919a78f82e87a172033a511e",
+          "digest": "sha256:f2bfe5b9b53af69e5612759c24c564ac23a34109b5fd594d549b496b36cd2274",
           "path": "response.py"
         },
         "version": 1
       },
       "definition": {
-        "digest": "sha256:acb770ee6815847ebe0d751c408a914984690f7f9dad39ee84e0a8d2ad5d2358",
+        "digest": "sha256:9f0823acc68c48125c8420a0a9a5dfff3db91a30f5a49461a229d408013ea23e",
         "path": "contracts/security.runtime-inventory.json"
       },
       "fixtures": {
-        "digest": "sha256:6bbeaac6fac95601022fd8363cf131de2fe6dc742d254d1cc3bccf3eeb5cb9cc",
+        "digest": "sha256:7e3caa01a4d79c1838571411afb91b054bdd9482e459cc73ea2e0cfdca9ef474",
         "path": "registration-fixtures/security.runtime-inventory.json"
       },
-      "interface_digest": "sha256:e17552b6cf6fac4e18f30b7a66723159ba4467ac24c1c3e94fbc1cd3fbd59432",
+      "interface_digest": "sha256:5bd1483ae45090fe75e7088404bd7bb083e83e8537adf58975141b9a02acebd7",
       "interface_id": "security.runtime-inventory",
       "predecessors": [],
       "vocabulary": {
@@ -265,7 +265,7 @@
         "entrypoint": "security_analysis_provider.response:classify_log",
         "identity": "security.log-reads.input",
         "source": {
-          "digest": "sha256:ca1e2cfe7edd78d214a5fca1a1634be81766f83b919a78f82e87a172033a511e",
+          "digest": "sha256:f2bfe5b9b53af69e5612759c24c564ac23a34109b5fd594d549b496b36cd2274",
           "path": "response.py"
         },
         "version": 1
@@ -291,7 +291,7 @@
         "entrypoint": "security_analysis_provider.response:classify_credential",
         "identity": "security.credential-state.input",
         "source": {
-          "digest": "sha256:ca1e2cfe7edd78d214a5fca1a1634be81766f83b919a78f82e87a172033a511e",
+          "digest": "sha256:f2bfe5b9b53af69e5612759c24c564ac23a34109b5fd594d549b496b36cd2274",
           "path": "response.py"
         },
         "version": 1
@@ -317,7 +317,7 @@
         "entrypoint": "security_analysis_provider.response:classify_respond",
         "identity": "security.respond.input",
         "source": {
-          "digest": "sha256:ca1e2cfe7edd78d214a5fca1a1634be81766f83b919a78f82e87a172033a511e",
+          "digest": "sha256:f2bfe5b9b53af69e5612759c24c564ac23a34109b5fd594d549b496b36cd2274",
           "path": "response.py"
         },
         "version": 1
@@ -366,7 +366,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:602cc5e5b1275b497d346bf8e2b1761c1a6207308f9bd9bbfe2efb8c153da689",
+    "digest": "sha256:43df92ca9fea94b2311df33c2fd62fa2a697b47b81bb8990592dca895f16e746",
     "path": "manifest.json"
   },
   "runtime_requirements": [],
