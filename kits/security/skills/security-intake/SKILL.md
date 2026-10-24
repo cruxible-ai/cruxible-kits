@@ -73,7 +73,19 @@ npx @cyclonedx/cdxgen -t js -o sboms/web.cdx.json .
 `cyclonedx-py requirements` ignores environment markers, so a Windows-only pin
 (`pywin32`) lands as a component too; drop it from the requirements file if you
 never ship it. `uv export --format cyclonedx1.5` doesn't work on every uv (0.8
-refuses it); the requirements route does.
+refuses it); the requirements route does. Two lines the requirements route
+mishandles, so fix them before building the SBOM:
+
+- **A uv workspace member** (`-e ./packages/client`) comes out as a component
+  with no purl, which leaves the release's coverage `partial` (an unidentified
+  component). Leave members out (`--no-emit-workspace`) and give each member
+  its own SBOM; or replace the line with the member's pinned name
+  (`client==0.3.2`) when it is published.
+- **A git dependency** (`pkg @ git+https://github.com/org/pkg@<sha>`) is dropped:
+  it never reaches the SBOM. List it yourself: add a component with the package
+  URL OSV knows it by (`pkg:pypi/<name>@<version>` when the commit is a released
+  version; otherwise `pkg:github/<org>/<repo>@<sha>`, which OSV doesn't index, so
+  the release stays honestly partial until an analyst judges it).
 
 <!-- maintainer: check the syft line (not run here) -->
 ~~~bash
@@ -193,27 +205,37 @@ outputs:
   incident keeps them **unknown**. So name a binary by what it is: a Go binary
   by its module (`go version -m $(command -v gh)` prints `path
   github.com/cli/cli/v2` and `mod ... v2.86.0`: run
-  `pkg:golang/github.com/cli/cli/v2@v2.86.0`), a Python or Node tool by its
-  PyPI or npm package. Keep `pkg:brew/<formula>@<version>` (from `brew list
+  `pkg:golang/github.com/cli/cli/v2@v2.86.0`). Without Go: `brew info --json=v2
+  gh` gives the formula's version and its source (`urls.stable.url`, here
+  github.com/cli/cli), and the project's `go.mod` its module path
+  (`module github.com/cli/cli/v2`); a Go module's version is the release tag
+  (`v2.86.0`). A Python or Node tool is named by its PyPI or npm package. Keep `pkg:brew/<formula>@<version>` (from `brew list
   --versions`) only where there's nothing better, and state a product alias
   when a CVE record names its upstream (the analyst skill).
   After the OSV run, `cruxible query --name security.release_inventory` shows
   each release's `osv_coverage`; each OSV query Capture lists its
   `not_indexed` components with why.
 - **`coverage: full`** only when the scan read every host of the scope for
-  everything in `looked_for` (`["*"]`, or product names). That's what lets the
-  kit answer **none** for the scope; a `partial` scan only adds.
+  everything in `looked_for` (`["*"]`, or product names). A full scan states
+  each host's **nones** (`asset.runs` inverses: "this host runs no php"), the
+  only way the kit answers **none** for a host; a `partial` scan only adds.
 - **A CycloneDX SBOM of one host** (Syft, Trivy) also works, with metadata
   properties `cruxible.scope` and `cruxible.asset`. It never states the scope's
   coverage, so none answers still need a full scan in the kit's format. A
   component without a purl and version (an operating-system component included)
   makes the SBOM add only: it could be any product, so it never retires a run or verifies a
   patch. Generate SBOMs with purls.
-- **Look for what the incident affects.** A deployment's **none** needs a current
-  full scan of the host that looked for the release's product (`["*"]` covers
-  everything). A scan that looked only for `php` can't say a host doesn't run
-  `debian/php8.2`: the incident keeps that host unknown, its gap naming the
-  products to look for (`input.looking_for`).
+- **Name what the incident affects in `looked_for`.** A host's **none** for a
+  product is a none the scan stated, and a scan states one only for a product it
+  looked for: every product `looked_for` names that the host doesn't run, and,
+  under `"*"`, only a product the host ran before (it vanished: the run retires
+  and the none lands in one change) or declares installing. `"*"` alone never
+  says a host runs no `php` it never saw, so list the products whose absence
+  you need beside it: `["*", "php", "debian/php8.2"]`. A scan that looked only for
+  `php` can't say a host doesn't run `debian/php8.2`: the incident keeps that host
+  unknown, its gap naming the products to look for (`input.looking_for`). A none
+  goes stale with the coverage (12 h); each full scan restates it. A host that
+  joins a scope gets the nones of what it declares from the scan after.
 
 ~~~bash
 echo '{"relative_path": "scans/prod.json"}' > scan.json
@@ -221,7 +243,11 @@ cruxible procedure run security.inventory-acquire scan.json
 ~~~
 
 Every scope's Line sees every scan; the other scopes' Lines halt
-`other_scope`. Then state what you know about each host, from deploy config or
+`other_scope`. **Then ask OSV again**: `cruxible line run
+security.osv-applicability` after every scan that adds releases, and after an
+incident or a watch adds a CVE. The import's run returns before its proposal is
+approved, and OSV answers only the releases and CVEs it held when it ran; until it
+runs again those pairs stay unknown (`osv_line`). Then state what you know about each host, from deploy config or
 the user:
 
 ~~~yaml
@@ -312,11 +338,15 @@ proposes, and ask again.
 
   - `security.cve-record-acquire` with `{"url": ...}`: no record of an incident
     CVE was read yet. Acquire it with exactly that input.
-  - `statement` with `"state": "security.assessment.status"` and
-    `osv_not_indexed`: OSV doesn't index the release's components (a
-    `pkg:brew` or `pkg:generic` purl). Re-scan naming the binary by a purl OSV
-    indexes (above), state a product alias the record names, or record an
-    analyst's judgment (the analyst skill).
+  - `statement` with `"state": "security.assessment.status"`: one item per CVE,
+    `input.releases` listing every release a judgment of it answers (with
+    `osv_not_indexed` when OSV doesn't index their components: a `pkg:brew` or
+    `pkg:generic` purl). Re-scan naming the binaries by a purl OSV indexes
+    (above), state a product alias the record names, or record a judgment
+    covering the releases in bulk (the analyst skill's recipe).
+  - `statement` with `"state": "security.release.unidentified_components"`: the
+    release's unidentified count is contended (two Claims disagree): resolve it
+    before any negative rests on it.
   - `security.osv-applicability` with `{"release": ...}`: OSV hasn't answered
     the release yet: `cruxible line run security.osv-applicability`.
   - `statement` with `input.missing` (an audit): each piece is one thing to

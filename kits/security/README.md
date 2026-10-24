@@ -259,7 +259,11 @@ project: `uv export --format requirements.txt --no-dev --no-hashes
    whose Provider you choose when you instantiate it; the example binds the KEV,
    CVE, GitHub release and history reads to `cruxible-provider-web` and the rest
    to `security-sources-provider`); your sources (repository, PyPI projects);
-   cron times; and Mandate expiry.
+   cron times; and Mandate expiry. Nine Lines in it are examples named for the
+   kit's own repository (`security.repo-pull.cruxible-ci`, `...registry-*.cruxible*`,
+   `...sarif-*.cruxible`, `security.harden`): rename them for your sources or
+   leave them out (a submitted Line you never enable is a `line_not_enabled` row in
+   every `cruxible next`).
 3. **Submit it**: `cruxible authoring submit automation.json`, then review and
    activate it under your approval policy. It instantiates nine Blueprints and
    authors nineteen disabled Lines, twenty-one Triggers and eleven propose-only
@@ -288,11 +292,18 @@ project: `uv export --format requirements.txt --no-dev --no-hashes
 6. **Ask OSV**: `cruxible line run security.osv-applicability`, then review and
    activate its proposal: one assessment per (release, CVE) OSV relates, and
    each release's `osv_coverage` (`partial` names the purl types OSV never
-   indexes, `pkg:brew` and `pkg:generic` among them).
+   indexes, `pkg:brew` and `pkg:generic` among them). An acquire returns before
+   its import proposes (`Next: done` means the Capture landed), and OSV answers
+   only the releases and CVEs it holds when it runs: **run it again** after an
+   SBOM or inventory scan adds releases, and after an incident or a watch adds a
+   CVE, or those pairs stay unknown until the daily run.
 7. **KEV and EPSS**: `cruxible line run security.kev-daily` and `cruxible line
    run security.epss-daily`, then activate the two triage proposals. From here
    the cron Triggers repeat steps 6 and 7 daily.
-8. **The answer**: `cruxible query --name security.urgent_exposures`.
+8. **The answer**: `cruxible query --name security.urgent_exposures`: every
+   exposure, KEV-listed first (`kev_listed`), then by EPSS. "Exploited
+   vulnerabilities we run" is its KEV-listed rows; the rest are affected releases
+   nobody has seen exploited.
 
 What stays yours: approving the automation, enabling Lines, providing SBOMs and
 CVE record requests, reviewing applicability proposals, renewing Mandates before
@@ -512,7 +523,7 @@ approved it, and the evidence that it is done.
 
 | Question | Where the answer comes from |
 |---|---|
-| RQ1 Which deployments run an affected release? | `security.incident_exposure` (parameter `incident`, its name): assets a scan observed running a release assessed affected; `security.scanned_runs`: every other release a scan observed, answered for each incident CVE |
+| RQ1 Which deployments run an affected release? | `security.incident_affected` (parameter `incident`, its name): the releases assessed affected or inconclusive, affected first, with the assets a scan observed running them; `security.incident_exposure`: every assessment of the incident's CVEs, affected first, then not_affected; `security.scanned_runs`: every other release a scan observed, answered for each incident CVE; `security.deployments`: every asset with its nones (the products a full scan showed it running none of) |
 | RQ2 Is each exposure patched? | `security.open_patches` (internet-facing first), `security.overdue_patches` (past `due_at` at the query's evaluation time), `security.incident_exceptions` (approved risk exceptions not yet expired) |
 | RQ3 Were we exploited during the window? | `security.audit_status`: per service, the audit's log sources and the service's (`service_log_source`), complete reads, `window_end` and `result` |
 | RQ4 Which credentials need rotating? | `security.incident_credentials`: each credential an audited service uses, its current key (`issued_at` before `window_start` = not rotated since exposure) and its rotations |
@@ -624,19 +635,31 @@ What each import proposes:
   revision (the digest of its `looked_for` and (asset, runs) set: an unchanged
   fleet, in any order, is a re-observation and proposes nothing, while freshness
   moves), retires runs it no longer sees of the products it looked for (a new
-  version of a product revises the run it replaces; a run with nothing replacing it
-  retires on the next read that stages nothing else for that asset), and
+  version of a product revises the run it replaces), and
   proposes `verification` `verified` on an open patch whose asset no longer runs
   the affected release; a scan that still shows it on a patch claimed `completed`
-  proposes `failed`. A **partial** scan only adds. A CycloneDX SBOM is one asset's
+  proposes `failed`. A **partial** scan only adds.
+  A complete read also states each asset's **nones**: an `asset.runs` inverse
+  keyed by the release's `product_name` ("app-1 runs no php"), cited to the scan.
+  It states one for every product `looked_for` names that the asset doesn't run,
+  and under `*` for a product the asset ran before and no longer runs (the run
+  retires and the none lands in one change set: a flip) or declares installing
+  (`installs`) and doesn't run; never for a product the scan didn't look for, and
+  `*` alone states none for a product the asset never had. A held none is
+  restated by each full scan (a none goes stale on the coverage's 12 h horizon),
+  and retired when any scan sees the product running again (the other flip) or a
+  full scan stops looking for it. `looked_for` stays the record of the question
+  the scan asked: it bounds the nones, and says a looked-for product's runs (which
+  versions) are complete. A CycloneDX SBOM is one asset's
   complete run set: it adds, retires and verifies for that asset, never states the
   scope's coverage (its own timestamp makes every scan new content), and proposes
   only when the run set changed. It is complete only while every component is
   identified: a component without a purl with a version (missing, malformed,
   unversioned; an operating-system component without a purl included) could be
   any product, the one a patch moved off included (an OS patch too), so such an SBOM only adds, never retires or
-  verifies, and the summary counts it (`unidentified`). None answers need a
-  scope's full kit scan.
+  verifies, and the summary counts it (`unidentified`). A complete SBOM flips a
+  vanished product to none for its asset; none answers for the scope need a full
+  kit scan.
 - **Log read.** One `security.audit.read` (`SOURCE FROM/TO`) for a complete read of
   a stated audit. An incomplete read is posted (`read_incomplete`, with why in
   words): a finding about your logs, not about the attacker. Say what wasn't
@@ -726,22 +749,30 @@ each paired with every incident CVE. So a release nobody assessed (Homebrew's
 and an asset whose scan is missing, stale or erased stay unknown and posted until
 a source or an analyst answers them, and the Line never halts `nothing_to_post`
 while such a pair is open (an incident with no deployment known at all posts that
-gap too). A deployment's none needs both a current full scan of the asset that
-looked for the release's product (`looked_for` `*` or the product: a scan that
-didn't look can't say what runs), and the release's own none. An incident's CVEs
-are watched (KEV, EPSS and OSV read them) from the moment it names them.
+gap too). Absence is read from **nones**, never derived from a scan's coverage:
+a declared or patched release is not running when the asset holds a current none
+of its product (or a current full scan that looked for the product shows another
+version running), and an asset runs nothing the incident affects only when it
+holds a current none of each product the incident affects (the products each
+CVE's record names, `vulnerability.affected_product`; the releases assessed
+affected or inconclusive; the packages OSV names), established only once the
+record is read: one observed package is never the whole list. A release the
+asset runs is none from its own none (an assessment, or OSV's complete answer)
+under a current full scan that looked for its product. An incident's CVEs are
+watched (KEV, EPSS and OSV read them) from the moment it names them.
 
 The Line posts at most 200 items per run. A run with more refuses (`overflow`,
 naming how many of each kind it would post) rather than post the first 200 every
 time and never the rest: answer gaps in bulk (a scope's full scan, a judgment
-covering many releases), then run it again.
+covering many releases: one gap per CVE lists them, *Many releases at once*),
+then run it again.
 
 | # | found | none | unknown |
 |---|---|---|---|
-| RQ1 | `exposed`: a scan observed the asset running a release assessed affected | under a current full scan of the asset that looked for the product: a declared or patched release it shows not running; a release it observed that is assessed `not_affected` (a negative naming the components it rests on holds while the release has them as they were), or that nobody assessed while OSV answered every component of the exact current set (the coverage's `set` digest) and none is a package OSV says the CVE affects (the answer `cites` those Claims) | an asset with no current inventory (never scanned by a full scan, stale, or its evidence erased), or a scan that didn't look for the release's product or a product the incident affects (the gap names the inventory pull, with `looking_for`); an inconclusive assessment (an analyst's judgment answers it); a release nobody assessed for the CVE otherwise, with the next step in order: the CVE's record (`record_pull`, when none was read), a negative whose components moved (`osv_line`), "OSV doesn't index N components of this release" or "its SBOM lists N components without a purl" (a judgment, a product alias, or a re-scan with a purl type OSV indexes), the OSV Line (`osv_line`, when OSV hasn't answered its current components), an analyst's judgment |
+| RQ1 | `exposed`: a scan observed the asset running a release assessed affected | a declared or patched release the asset holds a current none of (cited), or a current full scan that looked for the product shows another version of; an asset holding a current none of every product the incident affects (cited); under a current full scan of the asset that looked for the product, a release it observed that is assessed `not_affected` (a negative naming the components it rests on holds while the release has them as they were), or that nobody assessed while OSV answered every component of the exact current set (the coverage's `set` digest) and none is a package OSV says the CVE affects (the answer `cites` those Claims) | an asset with no current inventory (never scanned by a full scan, stale, or its evidence erased), or no current none of a product the incident affects (the gap names the inventory pull, with `looking_for`: name it in the scan's `looked_for`); a CVE whose record isn't read (`record_pull`); an inconclusive assessment (an analyst's judgment answers it); a release nobody assessed for the CVE otherwise, with the next step in order: the CVE's record, a contended unidentified-component count (a statement), a negative whose components moved (`osv_line`), "OSV doesn't index N components of this release" or "its SBOM lists N components without a purl" (a judgment, a product alias, or a re-scan with a purl type OSV indexes), the OSV Line (`osv_line`, when OSV hasn't answered its current components), an analyst's judgment (one gap per CVE listing its releases) |
 | RQ2 | `patch_missing`; `patch_overdue`; `patch_disputed` (verification `failed`, or claimed `completed` while still running); `patch_regressed` (verified, then seen running again) | `verification` `verified` and no affected run, under current coverage | a claimed patch no scan has read since; an approved one on schedule is *pending*, and a missing or overdue one under an accepted risk is *excepted* (both summary only) |
 | RQ3 | `exploited`: the result `exploited` | `not_exploited`, `window_end` stated, and for every `log_source` the union of its complete reads covers [`incident.window_start`, `window_end`] | no audit (the gap names the service's `log_source` list as `sources`); otherwise one gap per service listing every missing piece in `input.missing`: no log source, a source the service lists that the audit does not state, window open, no result, `inconclusive`, `conflict`, and each uncovered interval (named per source, "A to B") |
-| RQ4 | `rotate {credential, services: {audit, patch}, key_id, because}` for each credential a warranted service uses (`on_found_or_unknown`: RQ3 found or unknown; `all_exposed`: every exposed service); `rotation_disputed` | a rotation a state read verified, the current key issued after `window_start`; a credential no warranted service uses | claimed rotated, and no state read has verified it yet (none landed, or the one that did lists neither the old key retired nor says it is complete) |
+| RQ4 | `rotate {credential, services: {audit, patch}, key_id, because}` for each credential a warranted, audited service uses (`on_found_or_unknown`: its audit's RQ3 found or unknown; `all_exposed`: every exposed service with an audit); RQ4 reads credentials through the incident's audits, so state each service's audit first: a service with no audit has no RQ4 answer yet (its RQ3 gap asks for the audit); `rotation_disputed` | a rotation a state read verified, the current key issued after `window_start`; a credential no warranted service uses | claimed rotated, and no state read has verified it yet (none landed, or the one that did lists neither the old key retired nor says it is complete) |
 | RQ5 | `ready_to_close`, listing audits still unknown as accepted residue with their rotations | | |
 
 **Where the logs are.** State each service's log sources once, before any
@@ -772,10 +803,16 @@ service's audit and patch state, and nothing gates a rotation on the patch. Rota
 at once when a key is known leaked. A closed incident (`status` `closed`) posts
 nothing.
 
-Coverage goes stale 12 h after a scope's last full scan: every RQ1 and RQ2 none
-resting on it turns unknown (the respond Line reads the scope's revision through
-every tap, `security.scanned_runs` and `security.deployments` included), as
-`cruxible next` (`claim_stale_evidence`) says.
+Coverage goes stale 12 h after a scope's last full scan, and so do the nones it
+stated: every RQ1 and RQ2 none resting on them turns unknown (the respond Line
+reads the scope's revision and the nones through every tap,
+`security.scanned_runs` and `security.deployments` included), as `cruxible next`
+(`claim_stale_evidence`) says.
+
+**Owners and teams.** A patch or rotation names its `owner` (a `security.team`).
+Create the team once, in its own approved write (or name one that exists), before
+raising remediations: a team created inline in two pending proposals makes the
+second stale the moment the first is approved (it then needs `proposal readmit`).
 
 ### PHP2Shell at Acme, end to end
 
@@ -806,13 +843,16 @@ prod scope; `github/acme-ops/wiki-deploy`). Each service states its log sources
 
 ### An incident status page
 
-`security.incident_status` (parameter `incident`) is one row per CVE, exposure,
-patch raised for an exposed asset or exception accepting its risk, and credential
-of the asset's service, with every state as held: `exposure` (the assessment),
-`host` and `service`, `coverage` (the scope revision; empty: no current coverage),
-`patch` (progress) and `patch_verified`, `excepted_until` (an approved exception's
-expiry, until it passes), `audit` (the result; `(conflicted)` while disputed),
-`credential`, `rotation` (progress) and `rotation_verified`. Pending actions are
+`security.incident_status` (parameter `incident`) is one row per CVE, exposure
+(affected first), host a scan observed running it (`exposed_host`), patch raised
+for an exposed asset or exception accepting its risk, and audit of the incident
+with each credential its service uses, with every state as held: `exposure` (the
+assessment), `exposed_host`, `host` and `service` (the patch's or exception's
+asset), `coverage` (the scope revision; empty: no current coverage), `patch`
+(progress) and `patch_verified`, `excepted_until` (an approved exception's
+expiry, until it passes), `audit_service` and `audit` (the result;
+`(conflicted)` while disputed), `credential`, `rotation` (progress: an approved
+rotation shows `planned` until it starts) and `rotation_verified`. Pending actions are
 their own state: a patch or rotation `planned` or `in_progress`, beside its
 verification. An exposure nobody has raised a patch or an exception for is a row
 with no host (no action yet: the respond Line posts `patch_missing`); a change
@@ -1085,10 +1125,50 @@ The workflow, for a proposed `affected` or `inconclusive` you have reviewed:
 A `not_affected` assessment no longer keeps its CVE watched; if the CVE should
 stay on the watch list, state a `watch_reason`.
 
+**Many releases at once (a bulk judgment).** The respond Line posts one
+judgment gap per CVE (`statement`, `input.releases`: every release a judgment of
+the CVE would answer, with `osv_not_indexed` when OSV indexes none of their
+components), as it posts one record pull per CVE. A judgment over a set of
+releases is one note and a few writes. Write the reasoning once, as a section of
+the incident's note (or a retained workspace file), then one change set per
+release: create the assessment by key and set `release`, `vulnerability`,
+`status` and `justification`, each `normative` and citing that section. That's
+5 changes a release, and a write takes at most 500 changes, so put at most **100
+releases in one write** (run 2: 101 Homebrew releases were 505 changes, two
+writes):
+
+```json
+{"because": "None of these Homebrew formulas is PHP or links libphp (brew info --json=v2, section 'Not PHP').",
+ "docs": [{"op": "append", "file": "incidents/php2shell.md",
+           "text": "## Not PHP\n\nThe workstation's formulas ... none is PHP or links libphp.\n"}],
+ "changes": [
+  {"op": "create", "label": "a-jq", "subject_kind": "security.assessment",
+   "key": [{"predicate": "security.assessment.release_id", "value": "jq--1.7.1"},
+           {"predicate": "security.assessment.cve_id", "value": "CVE-2026-109618"}]},
+  {"op": "set", "subject": {"created": "a-jq"}, "field": "security.assessment.release",
+   "value": "security.release/jq--1.7.1"},
+  {"op": "set", "subject": {"created": "a-jq"}, "field": "security.assessment.vulnerability",
+   "value": "security.vulnerability/cve-2026-109618"},
+  {"op": "set", "subject": {"created": "a-jq"}, "field": "security.assessment.status",
+   "value": "not_affected", "role": "normative",
+   "evidence": {"kind": "section", "file": "incidents/php2shell.md", "section": ["Not PHP"], "own_words": true}},
+  {"op": "set", "subject": {"created": "a-jq"}, "field": "security.assessment.justification",
+   "value": "component_not_present", "role": "normative",
+   "evidence": {"kind": "section", "file": "incidents/php2shell.md", "section": ["Not PHP"], "own_words": true}},
+  "... the same five for each further release of input.releases, at most 100 per write ..."]}
+```
+
+Append the note in the first write only; the later writes cite the section it
+added. Release ids are those the gap and `security.release_inventory` name. Run
+the respond Line again after the last write: the CVE's gap is no longer posted.
+
 ### KEV, EPSS and attention
 
 `security.kev-triage` compares each retained KEV catalog with every watched
-vulnerability and proposes (or, graduated, settles) the KEV fields that changed:
+vulnerability and proposes (or, graduated, settles) the KEV fields that changed.
+Its terminal is a settle, but under the example automation's propose cap (the
+Line's `max_authority` `propose`) a settle is a proposal that waits for your
+approval like any other until you graduate it (*Measure and graduate*). The fields:
 `kev_listed`, `kev_date_added`, `kev_due_date`, `kev_ransomware_use`. A watched
 CVE the catalog does not list gets `kev_listed = false` once. An identical
 catalog halts `no_change`. `security.epss-triage` does the same for

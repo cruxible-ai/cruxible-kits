@@ -1,7 +1,17 @@
 # Consumer automation example
 
 `automation.json` is an inert authoring ChangeSet. Installing the kit does not
-submit it. Copy it into your workspace and let your agent adapt the nine
+submit it.
+
+**Nine of its Lines are examples named for the kit's own repository**:
+`security.repo-pull.cruxible-ci`, `security.repo-parse.cruxible-ci`,
+`security.registry-pull.cruxible`, `security.registry-parse.cruxible`,
+`security.registry-pull.cruxible-client`, `security.registry-parse.cruxible-client`
+and `security.sarif-import.cruxible` / `security.sarif-attention.cruxible` with
+`security.harden`. Rename them for your own repositories and packages (and their
+`parameters`, Triggers and Mandates), or leave them out of what you submit: a Line
+you submit and never enable shows in `cruxible next` as `line_not_enabled` on every
+run. The quickstart needs none of them. Copy it into your workspace and let your agent adapt the nine
 Blueprint instance names and Provider bindings, nineteen Line names and inputs,
 Trigger targets and UTC cron times, and eleven Mandate namespaces. Update all
 references when renaming. Replace `NOW` and `EXPIRES` with UTC timestamps

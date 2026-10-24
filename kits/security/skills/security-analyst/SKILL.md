@@ -98,6 +98,9 @@ cruxible query --name security.coverage_gaps --param vulnerability=security.vuln
   `security.cve-applicability` never settle; every `affected`,
   `not_affected` and `inconclusive` they propose is reviewed
   (`cruxible proposal review ID`). Check the cited Capture before approving.
+  OSV's run result lists `unkeyed`: advisories with no CVE alias (a GHSA or
+  PYSEC id alone), which can't be tied to a CVE and are not proposed; a
+  component they hit is still answered (its coverage counts it).
 - **Record a judgment** where the source can't decide or is wrong for your
   deployment: retain what you read (`security.evidence-acquire` on the file),
   then set `status` and `justification` (and, for `affected`, the `component`
@@ -189,9 +192,10 @@ command against any service.
 
 ```bash
 cruxible inbox list --line security.respond.INCIDENT --status unread
-cruxible query --name security.incident_exposure --param incident=INCIDENT    # RQ1 (assessed)
+cruxible query --name security.incident_affected --param incident=INCIDENT    # RQ1 (affected first)
+cruxible query --name security.incident_exposure --param incident=INCIDENT    # RQ1 (every assessment)
 cruxible query --name security.scanned_runs                                    # RQ1 (every scanned release)
-cruxible query --name security.deployments                                     # RQ1 (every asset, what it declares)
+cruxible query --name security.deployments                                     # RQ1 (every asset, its nones, what it declares)
 cruxible query --name security.open_patches --param incident=INCIDENT         # RQ2, internet-facing first
 cruxible query --name security.audit_status --param incident=INCIDENT         # RQ3
 cruxible query --name security.incident_credentials --param incident=INCIDENT # RQ4
@@ -202,10 +206,14 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
   import Lines, in one approved ChangeSet. Enable both Lines after approval.
   Naming a CVE in an incident watches it.
 - **Answer every pair.** RQ1 pairs each incident CVE with every deployment: every
-  asset and each release it declares, and every release a scan observed. A
-  deployment is none only under a current full scan of the host that looked for
-  the product; a host with no current scan, or a scan that didn't look for a
-  product the incident affects, is unknown with an inventory gap. A pair nobody
+  asset and each release it declares, and every release a scan observed. Absence
+  is a **none**: a full scan states "this host runs no php" (an `asset.runs`
+  inverse, listed under `nones` in `cruxible query security.asset --select
+  hostname,runs`) only for a product it looked for, so a host is none only when
+  it holds a current none of every product the incident affects (what the
+  record names, the releases assessed affected, OSV's packages); a host with no
+  current scan, or no none of such a product, is unknown with an inventory gap
+  naming the products to put in the scan's `looked_for`. A pair nobody
   assessed is unknown until evidence answers it, and its gap names the next
   step: the CVE's record (`security.cve-record-acquire`, `input.url`) when none
   was read; a not_affected answer whose components moved (the OSV Line); "OSV
@@ -215,11 +223,23 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
   analyst's judgment last. Never report "not affected" for a pair the respond
   Line reads unknown. More than 200 items refuse the run (`overflow`): answer gaps
   in bulk, then run it again.
+- **Judge many releases at once.** A judgment gap is one item per CVE whose
+  `input.releases` lists every release it answers (100 Homebrew formulas on a
+  laptop is one item). Write the reasoning once as a section of the incident's
+  note, then one write per at most 100 releases (5 changes each: create the
+  assessment by key, set `release`, `vulnerability`, `status`, `justification`,
+  each normative citing the section; a write takes at most 500 changes). The
+  README's *Many releases at once* has the exact write.
+- **Ask OSV again** (`cruxible line run security.osv-applicability`) after a scan
+  or SBOM adds releases and after the incident names a CVE: OSV answers only what
+  it held when it ran, and an acquire returns before its import proposes.
 - **Act only on an accepted remediation.** A patch names `work.asset`,
   `work.assessment` and `target_release`; a rotation names `work.credential`,
   `work.audit` and `revokes_key` (the `key_id` held when you raise it). Approval
   is the authorization to act. Set `progress` `completed` when done: it never
-  closes anything.
+  closes anything. Name an `owner` team that already exists: create it first in
+  its own write, never inline in two pending proposals (approving one makes the
+  other stale, `value_subject_not_found` or `proposal readmit`).
 - **Accept a risk only with an expiry.** When an exposure can't be patched
   yet, raise a `security.exception` (`work.asset`, `work.assessment` for each
   of the incident's CVEs on that release, `expires_at`, `approval` `approved`
@@ -245,9 +265,16 @@ cruxible query --name security.incident_credentials --param incident=INCIDENT # 
   the whole window. An incomplete read is a finding about
   the logs, not about the attacker: report it as such, with what was missing
   (`missing: [{from, to, reason: expired|unavailable|not_searched, status}]` in
-  the read: the item says "records A to B expired (HTTP 410)"). The result cites
-  the decisive read (or a workspace file, `security.workspace-evidence-v1`); your
-  reasoning goes in a section of the incident's note. Disagree by contending.
+  the read: the item says "records A to B expired (HTTP 410)"). The result's
+  **evidence** is the decisive read (its `security.log-read-v1` Capture, as the
+  change's `"evidence": {"kind": "capture", "capture": "sha256:..."}`) or a
+  workspace file (`security.workspace-evidence-v1`),
+  never a section of a note: own words are refused (`evidence_required`). Put your
+  reasoning in a section of the incident's note and in `because`, and cite the
+  read. Disagree by contending.
+- **State the audit before RQ4.** RQ4 reads each credential through the
+  incident's audits: a service with no audit has no `rotate` yet, however its RQ3
+  reads, so state each exposed service's audit first (its RQ3 gap asks for it).
 - **Clear answered gaps yourself.** A gap that closed is simply not posted
   again; the inbox doesn't resolve items on its own (dispositions are yours).
   After a respond run, acknowledge each respond item whose latest sighting
