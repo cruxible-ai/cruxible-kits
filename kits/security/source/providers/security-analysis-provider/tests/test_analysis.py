@@ -777,6 +777,8 @@ def test_a_release_osv_answered_for_is_osvs_once_osv_knows_the_cve() -> None:
     # A held title is not restated; a changed one revises it.
     watched = [_vuln(GH_CVE, {"title": "CLM-title"},
                      title="gh auth status prints a token suffix")]
+    # (the products it names held as the record states them)
+    watched[0]["includes"] = _includes(affected_product=["cli", "github.com/cli/cli/v2"])
     output = _run(CveApplicability(), {
         "record_base64": record, "releases": [], "watched": watched, "assessments": [],
         "sources": [], "collections": COLLECTIONS})
@@ -944,3 +946,84 @@ def test_a_200_body_that_is_no_record_leaves_its_component_unanswered() -> None:
     (coverage,) = [s[2] for s in _statements(output["items"]) if s[1] == "osv_coverage"]
     assert coverage.startswith("partial: 0 of 1 components answered; unanswered 1")
     assert [s[2] for s in _statements(output["items"]) if s[1] == "status"] == ["inconclusive"]
+
+
+# --- K2: K1 recheck 2 (R2-001..R2-005) ---------------------------------------------------
+
+
+def test_r2_001_a_record_states_the_products_it_names_whether_or_not_inventory_holds_them(
+) -> None:
+    """The record's affected entries are the roster RQ1 rules out per asset: a matched
+    entry is its release's product, an unmatched one its own product or packageName."""
+
+    record = _gh_record(collectionURL="https://pkg.go.dev",
+                        packageName="github.com/cli/cli/v2")
+    watched = [_vuln(GH_CVE)]
+    output = _run(CveApplicability(), {
+        "record_base64": record, "releases": [], "watched": watched, "assessments": [],
+        "sources": [], "collections": COLLECTIONS})
+    named = sorted(s[2] for s in _statements(output["items"]) if s[1] == "affected_product")
+    assert named == ["cli", "github.com/cli/cli/v2"]
+    # Through an analyst's alias, the entry is the aliased release's product.
+    aliased = _release("gh", "2.86.0", ["pkg:brew/gh@2.86.0"], aliases=["cli/cli"])
+    output = _run(CveApplicability(), {
+        "record_base64": _gh_record(), "releases": [aliased], "watched": watched,
+        "assessments": [], "sources": [], "collections": COLLECTIONS})
+    assert sorted(s[2] for s in _statements(output["items"]) if s[1] == "affected_product") == [
+        "gh"]
+    # Held as stated: nothing to propose for it; a name the record dropped retires.
+    held = _vuln(GH_CVE, title="gh auth status prints a token suffix")
+    held["includes"] = _includes(affected_product=["gh", "old-name"])
+    output = _run(CveApplicability(), {
+        "record_base64": _gh_record(), "releases": [aliased], "watched": [held],
+        "assessments": [], "sources": [], "collections": COLLECTIONS})
+    assert not [s for s in _statements(output["items"]) if s[1] == "affected_product"]
+    assert [i["retires"] for i in output["items"] if "retires" in i] == [
+        "CLM-affected_product-1"]
+
+
+def test_r2_002_a_contended_unidentified_count_never_makes_coverage_complete() -> None:
+    release = _release("other", "1.0", [JINJA_FIXED])
+    release["fields"].append({"name": "unidentified", "state": "conflict", "value": None})
+    output = _run(OsvApplicability(), {
+        "osv": OSV, "releases": [release],
+        "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])], "assessments": []})
+    assert not [s for s in _statements(output["items"]) if s[1] == "osv_coverage"]
+    assert "not_affected" not in [s[2] for s in _statements(output["items"]) if s[1] == "status"]
+
+
+def test_r2_003_a_record_names_its_advisory_by_id_or_a_whole_alias() -> None:
+    from security_analysis_provider.applicability import osv_record_names
+
+    assert osv_record_names(JINJA_GHSA, "GHSA-h75v-3vvj-5mfj")
+    assert osv_record_names({**JINJA_GHSA, "id": "PYSEC-1", "aliases": ["GHSA-x"]}, "GHSA-x")
+    for body in ({"id": "OTHER", "aliases": "not-GHSA-unknown-suffix", "affected": []},
+                 {"id": "OTHER", "aliases": ["not-GHSA-unknown-suffix"], "affected": []},
+                 {"id": "GHSA-unknown"}, {"id": "GHSA-unknown", "aliases": [1], "affected": []},
+                 {"message": "not a record"}):
+        assert not osv_record_names(body, "GHSA-unknown"), body
+    osv = {"exchanges": [
+        _exchange("POST", "/v1/querybatch", {"results": [{"vulns": [{"id": "GHSA-unknown"}]}]},
+                  {"purls": [JINJA_FIXED]}),
+        _exchange("GET", "/v1/vulns/GHSA-unknown",
+                  {"id": "OTHER", "aliases": "not-GHSA-unknown-suffix", "affected": []})]}
+    output = _run(OsvApplicability(), {
+        "osv": osv, "releases": [_release("other", "1.0", [JINJA_FIXED])],
+        "watched": [_vuln("CVE-2024-34064", packages=["pkg:pypi/jinja2"])], "assessments": []})
+    (coverage,) = [s[2] for s in _statements(output["items"]) if s[1] == "osv_coverage"]
+    assert coverage.startswith("partial: 0 of 1 components answered; unanswered 1")
+
+
+def test_r2_005_nested_release_sbom_components_are_read_or_counted() -> None:
+    from security_analysis_provider.sbom import read_sbom
+
+    document = {"bomFormat": "CycloneDX", "specVersion": "1.5",
+                "metadata": {"component": {"name": "app", "version": "1.0"}},
+                "components": [{"name": "httpx", "purl": "pkg:pypi/httpx@0.28.1",
+                                "components": [
+                                    {"name": "jinja2", "purl": "pkg:pypi/jinja2@3.1.3"},
+                                    {"name": "vendored", "version": "?"},
+                                    {"type": "operating-system", "name": "debian",
+                                     "version": "12"}]}]}
+    _, _, _, purls, unidentified = read_sbom(json.dumps(document))
+    assert purls == ["pkg:pypi/httpx@0.28.1", "pkg:pypi/jinja2@3.1.3"] and unidentified == 2

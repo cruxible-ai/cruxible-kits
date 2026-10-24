@@ -22,6 +22,7 @@ import unicodedata
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import unquote
 
 CLAIM_ITEM = "playbill-procedure-claim-proposal-item-v1"
 KEYED_CLAIM_ITEM = "playbill-procedure-claim-proposal-item-v3"
@@ -46,11 +47,17 @@ class Bound:
 
 @dataclass(frozen=True)
 class Included:
-    """One Claim an include read: its literal value or object Subject path, and its ID."""
+    """One Claim an include read: its literal value or object Subject path, and its ID.
+
+    A none (an inverse Claim, ClaimType v9) has neither: ``none_of`` is the unit it says
+    holds nothing (the key value of an ``object_key`` inverse), and ``is_none`` is true.
+    """
 
     value: Any
     object_path: str | None
     claim_id: str
+    none_of: Any = None
+    is_none: bool = False
 
 
 @dataclass(frozen=True)
@@ -127,6 +134,10 @@ def parse_rows(rows: object) -> list[Row]:
                 if obj.get("kind") == "subject":
                     target = str((obj.get("address") or {}).get("artifact_path") or "")
                     items.append(Included(value=None, object_path=target, claim_id=claim))
+                elif obj.get("kind") == "none":
+                    unit = obj.get("of") if isinstance(obj.get("of"), Mapping) else {}
+                    items.append(Included(value=None, object_path=None, claim_id=claim,
+                                          none_of=unit.get("value"), is_none=True))
                 else:
                     items.append(Included(value=obj.get("value"), object_path=None,
                                           claim_id=claim))
@@ -205,6 +216,14 @@ def subject_item(kind: str, key: Mapping[str, str], rationale: str) -> dict[str,
     }
 
 
+class NoneOf(dict):  # type: ignore[type-arg]
+    """A none's object for ``claim_item``: the key value an ``object_key`` inverse names
+    (``NoneOf("php")``: the subject holds no value whose key is php)."""
+
+    def __init__(self, key: str) -> None:
+        super().__init__(of=key)
+
+
 def claim_item(
     subject: Bound | dict[str, Any],
     predicate: str,
@@ -217,14 +236,19 @@ def claim_item(
     """One Claim item about an existing Subject (``Bound``) or a keyed one (``key_ref``).
 
     ``value`` is a literal, a ``Bound`` (a Subject-valued object core already
-    named) or a ``key_ref`` (a Subject-valued object named by key). Every item
+    named), a ``key_ref`` (a Subject-valued object named by key) or a ``NoneOf`` (a
+    none: an inverse Claim of a ClaimType v9 keyed ``object_key``). Every item
     cites the Capture the run read (core attaches it): an observation as the
     source's verdict, a normative relationship as the source that states it.
     """
 
-    keyed = isinstance(subject, dict) or isinstance(value, dict)
-    if isinstance(value, Bound):
-        obj: dict[str, Any] = {"kind": "subject", "address": address(value.path)}
+    keyed = isinstance(subject, dict) or (isinstance(value, dict) and not isinstance(
+        value, NoneOf))
+    if isinstance(value, NoneOf):
+        obj: dict[str, Any] = {"kind": "none", "of": {"kind": "literal",
+                                                      "value": value["of"]}}
+    elif isinstance(value, Bound):
+        obj = {"kind": "subject", "address": address(value.path)}
     elif isinstance(value, dict):
         obj = {"kind": "subject_key", "subject": value}
     else:
@@ -251,15 +275,15 @@ def claim_item(
 
 
 def replacing(held: Mapping[Any, str], wanted: Iterable[Any],
-              same: Any = None) -> tuple[list[tuple[Any, str]], list[Any], list[Any]]:
+              same: Any = None, *, together: bool = False
+              ) -> tuple[list[tuple[Any, str]], list[Any], list[Any]]:
     """How a many-valued slot moves from ``held`` (value -> Claim ID) to ``wanted``.
 
-    Core's slot law asks every live Claim of the slot for a disposition when a new value
-    is staged, and refuses one a retirement in the same terminal also names: one terminal
-    cannot both add to a slot and retire from it. So a replaced value revises the Claim it
-    replaces (``same(value)`` pairs them, e.g. by product name; else in order), the rest
-    adds, and what is gone retires only in a terminal that stages nothing else in the slot:
-    otherwise the retirements wait for the next read, which then only retires.
+    A replaced value revises the Claim it replaces (``same(value)`` pairs them, e.g. by
+    product name; else in order) and the rest adds. What is gone retires in the same
+    terminal when ``together`` (core dispositions a retiring sibling ``not_tested``, as the
+    write verbs do: a run's flip to none needs it); otherwise only in a terminal that
+    stages nothing else in the slot, the retirements waiting for the next read.
 
     Returns (``(new value, revised Claim)`` pairs, values to add, held values to retire).
     """
@@ -278,7 +302,7 @@ def replacing(held: Mapping[Any, str], wanted: Iterable[Any],
             continue
         gone.remove(match)
         pairs.append((value, held[match]))
-    return pairs, adds, ([] if adds or pairs else gone)
+    return pairs, adds, ([] if (adds or pairs) and not together else gone)
 
 
 def retirement_item(claim_id: str, rationale: str, reason: str = "superseded") -> dict[str, Any]:
@@ -452,15 +476,23 @@ def secret_in_text(value: object, *, max_length: int = 200, name: bool = False) 
 
     if not isinstance(value, str):
         return False
+    if "%" in value and unquote(value) != value and secret_in_text(
+            unquote(value), max_length=max_length, name=name):
+        return True  # percent-encoded: what it decodes to is what gets copied (R2-004)
     lowered = value.casefold()
     if len(value) > max_length or "-----begin" in lowered or "private key" in lowered:
         return True
-    # A secret's prefix at any punctuation boundary (parentheses, quotes, dots, slashes),
-    # whatever the entropy, on a token long enough to be one (a name like aizawa is not).
-    for piece in re.split(r"[^0-9a-z_-]+", lowered):
-        if any(piece.startswith(prefix) and len(piece) >= len(prefix) + 12
-               for prefix in SECRET_PREFIXES):
-            return True
+    # A secret's prefix at any boundary that is not a letter or digit (punctuation,
+    # parentheses, quotes, dots, slashes, a hyphen or an underscore before it), whatever
+    # the entropy, on a token long enough to be one (a name like aizawa is not).
+    for start in range(len(lowered)):
+        if start and lowered[start - 1].isalnum():
+            continue
+        for prefix in SECRET_PREFIXES:
+            if lowered.startswith(prefix, start):
+                token = re.match(r"[0-9a-z_-]*", lowered[start + len(prefix):])
+                if token is not None and len(token.group()) >= 12:
+                    return True
     breaks = r"[\s:@=,;\"'<>()\[\]{}/.+~_-]+" if name else r"[\s:@=,;\"'<>()\[\]{}]+"
     for token in re.split(breaks, value):
         folded = token.casefold()

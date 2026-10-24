@@ -1,7 +1,9 @@
 {
   "scope": "ops",
   "looked_for": [
-    "*"
+    "*",
+    "php",
+    "debian/php8.2"
   ],
   "coverage": "full",
   "assets": [

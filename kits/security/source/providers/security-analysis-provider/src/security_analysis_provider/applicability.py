@@ -131,6 +131,7 @@ from .common import (
     parse_rows,
     purl_version,
     replacing,
+    retirement_item,
     sorted_items,
     subject_item,
 )
@@ -361,6 +362,7 @@ def _releases(rows: Iterable[Row]) -> list[tuple[Bound, Row]]:
 
 RELEASE_COVERAGE = "security.release.osv_coverage"
 TITLE = "security.vulnerability.title"
+AFFECTED_PRODUCT = "security.vulnerability.affected_product"
 VULNERABILITY_PACKAGE = "security.vulnerability.package"
 
 
@@ -500,11 +502,7 @@ def osv_view(
                     failed.add(purl)  # more advisories than one page: not a complete answer
         else:
             record_id = str(exchange.get("path") or "").rsplit("/", 1)[-1]
-            # A record establishes which advisory it is: its id is the one asked for (or
-            # names it as an alias). An error-shaped or anonymous 200 body is no record.
-            if isinstance(answer, Mapping) and isinstance(answer.get("id"), str) and (
-                    answer["id"] == record_id
-                    or record_id in (answer.get("aliases") or ())):
+            if osv_record_names(answer, record_id):
                 records[record_id] = answer
     # A hit whose advisory record could not be read (an error status, no body, not a
     # record): its aliases are unknown, so it may be an incident CVE. The component's
@@ -513,6 +511,22 @@ def osv_view(
         if any(record_id not in records for record_id in ids):
             failed.add(purl)
     return hits, failed, records
+
+
+def osv_record_names(answer: object, record_id: str) -> bool:
+    """Whether a GET body is the OSV record of ``record_id`` (R2-003): an object whose id
+    is the one asked for, or whose aliases (an array of strings, compared whole) name it,
+    with its affected list. An error-shaped, anonymous or malformed body (aliases a string,
+    no affected array) is no record: the advisory stays unread."""
+
+    if not isinstance(answer, Mapping) or not isinstance(answer.get("id"), str):
+        return False
+    aliases = answer.get("aliases", [])
+    if not isinstance(aliases, list) or not all(isinstance(a, str) for a in aliases):
+        return False
+    if not isinstance(answer.get("affected"), list):
+        return False
+    return answer["id"] == record_id or record_id in aliases
 
 
 class OsvApplicability:
@@ -554,6 +568,9 @@ class OsvApplicability:
         for release, row in releases:
             components = sorted({str(item) for item in row.value("components") or ()})
             unidentified = _count(row.value("unidentified"))
+            # A contended unidentified count (R2-002) is unresolved, never zero: no
+            # complete coverage and no negative rests on it until the count is settled.
+            contended = row.state("unidentified") == "conflict"
             if not components:
                 continue
             # One coverage Claim per release: did OSV answer every component? It is bound
@@ -564,10 +581,10 @@ class OsvApplicability:
                 if purl in not_indexed:
                     skipped[not_indexed[purl]] = skipped.get(not_indexed[purl], 0) + 1
             unanswered = len(components) - len(answered) - sum(skipped.values())
-            complete = len(answered) == len(components) and not unidentified
+            complete = len(answered) == len(components) and not unidentified and not contended
             coverage = coverage_text(len(components), len(answered), skipped, unanswered,
                                      unidentified, component_set(components))
-            if row.value("osv_coverage") != coverage:
+            if row.value("osv_coverage") != coverage and not contended:
                 held_claim = row.claim_id(release, RELEASE_COVERAGE)
                 coverage_items.append(claim_item(
                     release, RELEASE_COVERAGE, coverage,
@@ -1162,6 +1179,26 @@ def _record_affected(record: Mapping[str, Any]) -> tuple[str, list[Mapping[str, 
     return cve, affected
 
 
+def record_products(entries: list[Mapping[str, Any]], collections: Collections,
+                    resolved: Mapping[int, set[str]]) -> set[str]:
+    """The products a record's affected entries name, as the kit names releases: the
+    products of the releases an entry matched, else the entry's own product (unless n/a)
+    and the full name its collectionURL + packageName give."""
+
+    names: set[str] = set()
+    for index, entry in enumerate(entries):
+        if resolved.get(index):
+            names.update(resolved[index])
+            continue
+        product = name_form(entry.get("product"))
+        if product and product not in {"n/a", "na", "*", "-"}:
+            names.add(product)
+        package = collections.package(entry.get("collectionURL"), entry.get("packageName"))
+        if package is not None:
+            names.add(name_form(package[1]))
+    return {name for name in names if name}
+
+
 def aggregate(cve: str, decisions: list[Decision]) -> Decision:
     """One release's answer from each way the record names it (each component, each
     entry): any established ``affected`` makes the release affected (with every component
@@ -1214,10 +1251,13 @@ class CveApplicability:
         osv_knows = mine is not None and any(
             isinstance(item.value, str) for item in mine.included("package"))
         decisions: list[Decision] = []
+        #: entry index -> the products of the releases it matched (by any way but a vendor
+        #: mismatch): the names the entry resolves to in inventory
+        resolved: dict[int, set[str]] = {}
         for candidate in _candidates(releases, sources, collections):
             if not candidate.product and not candidate.packages:
                 continue
-            for affected in affected_entries:
+            for index, affected in enumerate(affected_entries):
                 label = f"{affected.get('vendor')} {affected.get('product')}"
                 for version, components, how in entry_matches(
                         affected, candidate, collections, osv_knows):
@@ -1227,6 +1267,8 @@ class CveApplicability:
                             f"{cve}'s record names {label}; the release's supplier "
                             f"{candidate.row.value('supplier_name')!r} is a different vendor."))
                         continue
+                    if candidate.product:
+                        resolved.setdefault(index, set()).add(candidate.product)
                     status, why = _product_decision(affected, version)
                     decisions.append(Decision(
                         candidate.release, cve, status,
@@ -1252,6 +1294,26 @@ class CveApplicability:
                 f"{cve}'s CVE record states its title.",
                 revises=mine.claim_id(bound, TITLE) if mine is not None and bound is not None
                 and held_title else None))
+            items = [item for item in items if item.get("subject_kind")] + sorted_items(claims)
+        # The products the record names as affected (R2-001): what an incident's RQ1 must
+        # rule out on an asset before answering it none, whether or not inventory holds
+        # them. An entry a release matched (its product, an alias) is that release's
+        # product; otherwise the entry's own product and packageName.
+        named = record_products(affected_entries, collections, resolved)
+        held_products = {name_form(item.value): item.claim_id
+                         for item in (mine.included("affected_product") if mine else ())
+                         if isinstance(item.value, str)}
+        if title is not None and (bound is not None or created) and named != set(
+                held_products):
+            subject = bound or key_ref(VULNERABILITY, cve_id=cve)
+            claims = [item for item in items if not item.get("subject_kind")]
+            for product in sorted(set(named) - set(held_products)):
+                claims.append(claim_item(subject, AFFECTED_PRODUCT, product,
+                                         f"{cve}'s CVE record names {product} as affected."))
+            for product in sorted(set(held_products) - named):
+                claims.append(retirement_item(
+                    held_products[product],
+                    f"{cve}'s CVE record no longer names {product} as affected."))
             items = [item for item in items if item.get("subject_kind")] + sorted_items(claims)
         return ProviderResult.ok(
             {

@@ -25,7 +25,7 @@ out of scope.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from cruxible_provider_runtime.errors import RefusalCode
@@ -65,6 +65,26 @@ def _text(value: object) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
+#: How deep a release SBOM's nested components are read: deeper is refused, never cut.
+MAX_DEPTH = 32
+
+
+def _every_component(items: object, depth: int = 0) -> Iterable[Mapping[str, Any]]:
+    """Every component of the hierarchy, nested ``components`` included (R2-005): a
+    child the reader skipped would be neither a component nor unidentified, so a negative
+    could rest on a set that leaves it out. A listed entry that is not an object counts
+    as unidentified (an empty mapping)."""
+
+    if depth > MAX_DEPTH:
+        raise InputError(f"the SBOM nests components deeper than {MAX_DEPTH}")
+    for item in items if isinstance(items, list) else ():
+        if not isinstance(item, Mapping):
+            yield {}
+            continue
+        yield item
+        yield from _every_component(item.get("components"), depth + 1)
+
+
 def read_sbom(text: str) -> tuple[str, str, str, list[str], int]:
     """(product name, version, supplier name, sorted component purls, skipped count)."""
 
@@ -90,8 +110,8 @@ def read_sbom(text: str) -> tuple[str, str, str, list[str], int]:
             break
     purls: set[str] = set()
     skipped = 0
-    for item in document.get("components") or ():
-        purl = _text(item.get("purl")) if isinstance(item, Mapping) else ""
+    for item in _every_component(document.get("components")):
+        purl = _text(item.get("purl"))
         if purl_version(purl) is not None:
             purls.add(purl)
         else:
@@ -99,7 +119,7 @@ def read_sbom(text: str) -> tuple[str, str, str, list[str], int]:
             # without a purl included): never asked of OSV, so the release's coverage can't
             # be complete (security.release.unidentified_components).
             skipped += 1
-    if len(purls) > MAX_COMPONENTS:
+    if len(purls) + skipped > MAX_COMPONENTS:
         raise InputError(f"the SBOM lists more than {MAX_COMPONENTS} components")
     return name, version, supplier, sorted(purls), skipped
 

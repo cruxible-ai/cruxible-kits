@@ -16,6 +16,17 @@ and ``security.inventory_patches``):
   coverage (revision, looked_for), retires the runs it no longer sees of the
   products it looked for (``*``: every product), retires an asset it no longer
   lists from the scope, and may verify a patch. A **partial** scan only adds.
+  A complete read states each asset's **nones** (``asset.runs`` inverses, keyed by
+  the release's product name: the asset runs no release of the product), bounded by
+  what it looked for: every product ``looked_for`` names that the asset does not
+  run, and under ``*`` every product the asset ran before and no longer runs (its
+  runs retire in the same change: a flip) or declares installing (``asset.installs``)
+  and does not run. Never a none for a product the scan did not look for, and under
+  ``*`` none for any other product: name it in ``looked_for``. A held none is restated (``revises`` it, so a changed scan
+  refreshes its evidence on the coverage horizon), and retired when the product runs
+  again (any scan) or a full scan no longer looks for it. ``looked_for`` stays the
+  record of the question asked: it bounds the nones and says a looked-for product's
+  runs (its versions) are complete.
 - a CycloneDX JSON SBOM of **one asset** (Syft, Trivy), annotated with the
   metadata properties ``cruxible.scope`` and ``cruxible.asset``: every component
   with a purl and a version is a run of that asset, and the SBOM is the asset's
@@ -79,10 +90,17 @@ states, from the rows of ``security.incident_exposure``, ``security.scanned_runs
 
 - RQ1 which deployments run an affected release: ``exposed`` (found). Deployments
   are enumerated from the inventory, never through assessments: every asset (its
-  inventory coverage and each release it declares installing) and every release a
-  scan observed on one, each answered for every incident CVE. A deployment's none
-  needs a current full scan of the asset (its scope's revision fresh) that looked
-  for the release's product, and the release's none: a ``not_affected`` assessment
+  inventory coverage, its current nones and each release it declares installing)
+  and every release a scan observed on one, each answered for every incident CVE.
+  Absence is read from nones, never derived from coverage: a release declared or
+  patched is not running when the asset holds a current none of its product (or a
+  current full scan that looked for the product shows another version running), and
+  an asset runs nothing the incident affects only when it holds a current none of
+  every affected product (the products each CVE's record names, the releases
+  assessed affected or inconclusive, the packages OSV names: established only once
+  the record is read). An observed run's none needs a current full scan of the
+  asset (its scope's revision fresh) that looked for the release's product, and the
+  release's none: a ``not_affected`` assessment
   (one that names the components it rests on holds only while the release has them
   as they were), or, with no assessment, the release's OSV coverage complete for
   its exact current component set (the coverage's digest) while OSV says the CVE
@@ -92,11 +110,13 @@ states, from the rows of ``security.incident_exposure``, ``security.scanned_runs
   asset with no current inventory (never scanned, stale, erased) or a scan that
   didn't look for the product (``looking_for``), or for a product the incident is
   known to affect; the CVE record pull (``record_pull`` with its url) when no
-  record of it was read (no title); the OSV Line for a negative whose components
-  moved; "OSV doesn't index N components of this release" or unidentified SBOM
-  components (a statement, with the alternatives: a product alias, a re-scan with
-  a purl type OSV indexes); the OSV Line (``osv_line``) when OSV has not answered
-  the release's current components; an analyst's judgment last. An inconclusive
+  record of it was read (no title); a statement of the release's unidentified count
+  while it is contended; the OSV Line for a negative whose components moved; "OSV
+  doesn't index N components of this release" or unidentified SBOM components (a
+  statement, with the alternatives: a product alias, a re-scan with a purl type OSV
+  indexes); the OSV Line (``osv_line``) when OSV has not answered the release's
+  current components; an analyst's judgment last. The statements a judgment answers
+  are one gap per CVE carrying every release it covers (a bulk judgment). An inconclusive
   assessment is unknown (an analyst's judgment answers it). An incident with no
   deployment known posts that gap. So an incident with an unanswered pair always
   posts.
@@ -156,6 +176,7 @@ from .common import (
     SECRET_PREFIXES,
     Bound,
     InputError,
+    NoneOf,
     Row,
     claim_item,
     component_set,
@@ -237,8 +258,12 @@ class _Items:
                                       role=role))
         self.counts["revised" if revises else "added"] += 1
 
-    def restate(self, subject: Any, predicate: str, value: Any, why: str) -> None:
-        self.claims.append(claim_item(subject, predicate, value, why))
+    def restate(self, subject: Any, predicate: str, value: Any, why: str,
+                revises: str | None = None) -> None:
+        """The same statement again (core re-observes it). A none names the lineage it
+        restates: core finds a restated value's lineage by its object, never a none's."""
+
+        self.claims.append(claim_item(subject, predicate, value, why, revises=revises))
         self.counts["restated"] += 1
 
     def retire(self, claim_id: str | None, why: str) -> None:
@@ -460,6 +485,10 @@ class HeldAsset:
     scanned_in: str | None = None
     #: release key -> runs Claim ID
     runs: dict[tuple[str, str], str] = field(default_factory=dict)
+    #: product (name form) -> the asset.runs none (inverse) Claim ID: it runs none of it
+    nones: dict[str, str] = field(default_factory=dict)
+    #: products (name form) of the releases it declares installing (asset.installs)
+    declared: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -488,7 +517,9 @@ def held_scope(rows: list[Row]) -> HeldScope:
         coverage = row.subject("coverage")
         if coverage is None:
             continue
-        if held.coverage is None:
+        if held.coverage is None and row.state("source") != "absent":
+            # An inventory_index row (the coverage's own fields); inventory_runs rows name
+            # the coverage only to scope the run.
             held.coverage = coverage
             held.revision = row.value("revision")
             held.revision_claim = row.claim_id(coverage, "security.coverage.revision")
@@ -502,7 +533,13 @@ def held_scope(rows: list[Row]) -> HeldScope:
         for item in row.included("scanned_in"):
             if _kind_id(item.object_path) == _ref(coverage):
                 entry.scanned_in = item.claim_id
+        if isinstance(row.value("declared_product"), str):
+            entry.declared.add(name_form(row.value("declared_product")))
         for item in row.included("runs"):
+            if item.is_none:
+                if isinstance(item.none_of, str):
+                    entry.nones.setdefault(name_form(item.none_of), item.claim_id)
+                continue
             key = keys.get(_kind_id(item.object_path))
             if key is not None:
                 entry.runs.setdefault(key, item.claim_id)
@@ -537,7 +574,7 @@ def held_patches(rows: list[Row]) -> dict[str, HeldPatch]:
 
 
 def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
-              line_scope: str) -> dict[str, Any]:
+              line_scope: str, run_rows: list[Row] | None = None) -> dict[str, Any]:
     scan = read_inventory(text)
     summary: dict[str, Any] = {
         "scope": line_scope, "format": scan.format,
@@ -546,12 +583,12 @@ def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
         "revision": revision(scan) if scan.full_scope else "", "regressions": [],
         "assets": len(scan.assets),
         "runs": sum(len(runs) for _, runs, _ in scan.assets.values()),
-        "unidentified": scan.unidentified, "verified": 0, "failed": 0}
+        "unidentified": scan.unidentified, "verified": 0, "failed": 0, "nones": 0}
     zero = {"added": 0, "revised": 0, "retired": 0, "restated": 0, "changed": 0,
             "proposes": 0}
     if name_form(scan.scope) != name_form(line_scope):
         return {**summary, **zero, "items": [], "mine": 0}
-    held = held_scope(held_rows)
+    held = held_scope(held_rows + (run_rows or []))
     items = _Items()
     said = (f"Runtime inventory of {line_scope} ({scan.format}, {summary['coverage']}, "
             f"looked for {', '.join(sorted(scan.looked_for))})")
@@ -591,12 +628,41 @@ def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
         if have is None or have.scanned_in is None:
             items.add(asset, "security.asset.scanned_in", cover, f"{said}: {written} was read.")
         held_runs = have.runs if have else {}
+        held_nones = have.nones if have else {}
         # What a complete read no longer sees goes (of the products it looked for); a new
-        # version of a product revises the run it replaces (see common.replacing).
+        # version of a product revises the run it replaces (see common.replacing). A
+        # product it no longer runs at all flips to none in the same terminal.
         retirable = {key: claim for key, claim in held_runs.items()
                      if key in runs or (complete and scan.covers(key[0]))}
         pairs, adds, gone = replacing(retirable, set(runs),
-                                      same=lambda key: key[0])
+                                      same=lambda key: key[0], together=True)
+        running = {key[0] for key in runs}
+        # A product seen running retires its none (it reappeared), whatever the scan.
+        for product in sorted(set(held_nones) & running):
+            items.retire(held_nones[product], f"{said}: {written} runs {product} again.")
+        # The asset's nones, bounded by what the scan looked for: every product it named
+        # (looked_for), and under * every product the asset ran before (a vanished run) or
+        # declares installing. A complete read only; never a product the scan did not
+        # look for.
+        if complete:
+            named = {product for product in scan.looked_for if product != "*"}
+            vanished = {key[0] for key in held_runs if scan.covers(key[0])}
+            declared = {product for product in (have.declared if have else ())
+                        if scan.covers(product)}
+            for product in sorted((named | vanished | declared | set(held_nones)) - running):
+                if not scan.covers(product):
+                    items.retire(held_nones.get(product),
+                                 f"{said}: no longer looks for {product} on {written}.")
+                    continue
+                why = f"{said}: {written} runs no {product}."
+                if product in held_nones:
+                    # Refreshed on the coverage horizon (new content revises its
+                    # evidence; the same content changes nothing).
+                    items.restate(asset, "security.asset.runs", NoneOf(product), why,
+                                  revises=held_nones[product])
+                else:
+                    items.add(asset, "security.asset.runs", NoneOf(product), why)
+                    summary["nones"] += 1
         for key, revises in [*pairs, *((key, None) for key in adds)]:
             run = runs[key][0]
             purls = ", ".join(r.purl for r in runs[key])
@@ -628,6 +694,10 @@ def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
             for key in sorted(gone.runs):
                 if scan.covers(key[0]):
                     items.retire(gone.runs[key], f"{said}: {host} is no longer in the scope.")
+            for product in sorted(gone.nones):
+                if scan.covers(product):
+                    items.retire(gone.nones[product],
+                                 f"{said}: {host} is no longer in the scope.")
     for _path, patch in sorted(held_patches(patch_rows).items()):
         if patch.hostname not in scan.assets:
             continue
@@ -669,11 +739,12 @@ class RuntimeInventory:
 
     def __call__(self, context: ProviderRunContext) -> ProviderResult:
         try:
-            _refuse_truncated(context.input.get("truncated"), ("held", "patches"))
+            _refuse_truncated(context.input.get("truncated"), ("held", "patches", "runs"))
             result = inventory(str(context.input.get("inventory_text") or ""),
                                parse_rows(context.input.get("held")),
                                parse_rows(context.input.get("patches")),
-                               str(context.input.get("scope") or ""))
+                               str(context.input.get("scope") or ""),
+                               parse_rows(context.input.get("runs") or []))
         except InputError as error:
             return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, str(error))
         return ProviderResult.ok(result, metrics={"items": float(len(result["items"]))})
@@ -1132,6 +1203,8 @@ class Cve:
     title: bool = False
     #: (type, name) -> the package Claim's ID
     packages: dict[tuple[str, str], str] = field(default_factory=dict)
+    #: the products its record names as affected (vulnerability.affected_product)
+    products: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -1148,27 +1221,57 @@ class Scanned:
     coverage: str | None
     coverage_claim: str | None
     product: str = ""
-    #: components its SBOM lists without a usable purl (release.unidentified_components)
+    #: components its SBOM lists without a usable purl (release.unidentified_components);
+    #: -1 while that count is contended (unresolved: no negative rests on it)
     unidentified: int = 0
 
 
 @dataclass
 class Inventory:
-    """What one asset's inventory coverage says: whether a current full scan read it (its
-    scope's coverage revision is fresh) and what that scan looked for."""
+    """What one asset's inventory says: whether a current full scan read it (its scope's
+    coverage revision is fresh), what that scan looked for, the products it runs none of
+    (its current asset.runs nones) and the products a scan observed it running."""
 
     bound: Bound
     hostname: str
     current: bool = False
     looked_for: set[str] = field(default_factory=set)
+    #: product (name form) -> the current none's Claim ID: the asset runs none of it
+    nones: dict[str, str] = field(default_factory=dict)
+    #: products (name form) a scan observed it running
+    running: set[str] = field(default_factory=set)
 
     def covers(self, product: str) -> bool:
+        """Whether its runs of ``product`` are complete: a current full scan looked for it.
+        Which versions it runs, never whether it runs one (that is a none)."""
+
         return self.current and ("*" in self.looked_for or name_form(product) in self.looked_for)
+
+    def absent(self, product: str) -> str | None:
+        """The current none saying the asset runs no ``product``, if one is held."""
+
+        return self.nones.get(name_form(product))
+
+    def not_running(self, product: str) -> tuple[str, list[str]] | None:
+        """(why, cites) when the asset is known not to run this release of ``product``:
+        a current none of the product, or a current full scan that looked for it and saw
+        another version of it running. Else None (unknown)."""
+
+        none = self.absent(product)
+        if none is not None:
+            return f"a current none: the asset runs no {name_form(product)}", [none]
+        if self.covers(product) and name_form(product) in self.running:
+            return (f"a current full scan that looked for {name_form(product)} shows another "
+                    "version running"), []
+        return None
 
     def merge(self, row: Row) -> None:
         if row.value("coverage_revision") is not None:
             self.current = True
             self.looked_for.update(name_form(v) for v in _list(row.value("looked_for")))
+        for item in row.included("runs"):
+            if item.is_none and isinstance(item.none_of, str):
+                self.nones.setdefault(name_form(item.none_of), item.claim_id)
 
 
 @dataclass
@@ -1249,6 +1352,9 @@ class _Answers:
         self.answers: list[dict[str, Any]] = []
         self.posts: list[dict[str, Any]] = []
         self.gaps: dict[str, dict[str, Any]] = {}
+        #: CVE -> release -> (what OSV doesn't index, components its SBOM doesn't
+        #: identify): the releases a judgment of the CVE answers, one gap per CVE
+        self.judgments: dict[str, dict[str, tuple[dict[str, int], int]]] = {}
 
     def answer(self, question: str, subject: str, state: str, why: str,
                post: dict[str, Any] | None = None, *, cites: list[str] | None = None) -> None:
@@ -1263,9 +1369,44 @@ class _Answers:
     def gap(self, subject: str, pull: str, payload: dict[str, Any]) -> None:
         """One gap item per (what it is about, pull, input) however many answers wait on it."""
 
+        if (pull == "statement" and payload.get("state") == "security.assessment.status"
+                and "release" in payload and "cves" in payload):
+            # A release's statement gap is coalesced per CVE, as the record-pull gap is:
+            # one inbox item carrying every release a judgment of the CVE would answer.
+            for cve in payload["cves"]:
+                self.judgments.setdefault(cve, {})[payload["release"]] = (
+                    dict(payload.get("osv_not_indexed") or {}),
+                    int(payload.get("unidentified") or 0))
+            return
         gap = {"kind": "gap", "incident": self.params.incident, "subject": subject,
                "pull": pull, "input": payload}
         self.gaps.setdefault(json.dumps(gap, sort_keys=True), gap)
+
+    def all_gaps(self) -> list[dict[str, Any]]:
+        """Every gap, the per-CVE judgment gaps included."""
+
+        for cve, by_release in sorted(self.judgments.items()):
+            not_indexed: dict[str, int] = {}
+            for kinds, _ in by_release.values():
+                for kind, count in kinds.items():
+                    not_indexed[kind] = not_indexed.get(kind, 0) + count
+            unidentified = sum(count for _, count in by_release.values())
+            payload: dict[str, Any] = {"state": "security.assessment.status", "cve": cve,
+                                       "releases": sorted(by_release)}
+            if not_indexed:
+                payload["osv_not_indexed"] = dict(sorted(not_indexed.items()))
+            if unidentified:
+                payload["unidentified"] = unidentified
+            if not_indexed or unidentified:
+                # Or: a product alias the record names (then re-acquire the record), or a
+                # re-scan naming the components by a purl type OSV indexes.
+                payload["alternatives"] = ["security.release.product_alias",
+                                           self.params.inventory_pull]
+            gap = {"kind": "gap", "incident": self.params.incident, "subject": cve,
+                   "pull": "statement", "input": payload}
+            self.gaps.setdefault(json.dumps(gap, sort_keys=True), gap)
+        self.judgments.clear()
+        return list(self.gaps.values())
 
     def unknown(self, question: str, subject: str, why: str, pull: str,
                 payload: dict[str, Any], *, about: str | None = None) -> None:
@@ -1290,9 +1431,9 @@ class _Verdict:
 
 
 #: The order an unanswered pair's next step is named in: the CVE's record first, then a
-#: negative whose components moved, what OSV does not index (or the SBOM doesn't
-#: identify), the OSV Line, an analyst's judgment last.
-_STEPS = ("record", "moved", "not_indexed", "osv", "judgment")
+#: contended unidentified-component count, a negative whose components moved, what OSV
+#: does not index (or the SBOM doesn't identify), the OSV Line, an analyst's judgment last.
+_STEPS = ("record", "count", "moved", "not_indexed", "osv", "judgment")
 
 
 def _still_rests(rests_on: set[str], item: Scanned, known: Cve, complete: bool) -> bool:
@@ -1343,6 +1484,9 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
         status = held.statuses.get(cve) if held is not None else None
         rests_on = held.rests_on.get(cve, set()) if held is not None else set()
         judged = held is not None and cve in held.judged
+        if item.unidentified < 0 and not judged:
+            waits.setdefault("count", []).append(cve)
+            continue
         if status == "not_affected" and rests_on and not judged and not _still_rests(
                 rests_on, item, known,
                 current and coverage is not None and coverage.complete):
@@ -1386,6 +1530,11 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
             why.append(f"{named}: no record of it read yet")
             gaps += [{"subject": cve, "pull": params.record_pull,
                       "payload": {"url": CVE_RECORD_URL + cve}} for cve in waiting]
+        elif step == "count":
+            why.append(f"{named}: the release's unidentified-component count is contended "
+                       "(no negative rests on an unresolved count)")
+            gaps.append({"subject": label, "pull": "statement", "payload": {
+                "state": "security.release.unidentified_components", "release": label}})
         elif step == "moved":
             why.append(f"{named}: assessed not_affected on components the release no longer "
                        "has as they were (OSV, or the record, answers its components now)")
@@ -1407,10 +1556,7 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
                 "state": "security.assessment.status", "release": label, "cves": waiting,
                 **({"osv_not_indexed": dict(sorted(coverage.not_indexed.items()))}
                    if coverage.not_indexed else {}),
-                **({"unidentified": coverage.unidentified} if coverage.unidentified else {}),
-                # Or: a product alias the record names (then re-acquire the record), or a
-                # re-scan naming the component by a purl type OSV indexes.
-                "alternatives": ["security.release.product_alias", params.inventory_pull]}})
+                **({"unidentified": coverage.unidentified} if coverage.unidentified else {})}})
         elif step == "osv":
             why.append(f"{named}: OSV has not answered this release's current components "
                        "for it")
@@ -1454,6 +1600,8 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
         if cve is not None:
             known = cves.setdefault(cve, Cve(cve=cve))
             known.title = known.title or bool(row.value("cve_title"))
+            known.products.update(name_form(v) for v in _list(row.value("cve_products"))
+                                  if isinstance(v, str) and v.strip())
             for item in row.included("package"):
                 package = purl_package(str(item.value)) if isinstance(item.value, str) else None
                 if package is not None:
@@ -1517,16 +1665,20 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
             components=components, coverage=row.value(f"{prefix}osv_coverage"),
             coverage_claim=row.claim_id(release, "security.release.osv_coverage"),
             product=str(row.value(f"{prefix}product_name") or ""),
-            unidentified=_count(row.value(f"{prefix}unidentified")))
+            # A contended count (R2-002) is unresolved (-1), never zero.
+            unidentified=-1 if row.state(f"{prefix}unidentified") == "conflict"
+            else _count(row.value(f"{prefix}unidentified")))
 
     scanned: dict[tuple[str, str], Scanned] = {}
     for row in rows["hosts"]:
         asset, release = row.subject("asset"), row.subject("release")
         if asset is None:
             continue
-        inventory_of(asset, row)
+        entry = inventory_of(asset, row)
         if release is not None and (asset.path, release.path) not in scanned:
             scanned[(asset.path, release.path)] = observed(asset, release, row)
+            if row.value("product_name"):
+                entry.running.add(name_form(row.value("product_name")))
     declared: dict[tuple[str, str], Scanned] = {}
     for row in rows["deployments"]:
         asset, release = row.subject("asset"), row.subject("declared")
@@ -1538,7 +1690,10 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
     for row in rows["exposure"]:
         asset = row.subject("asset")
         if asset is not None:
-            inventory_of(asset, row)
+            # An exposure row's asset is one a scan observed running the release.
+            entry = inventory_of(asset, row)
+            if row.value("product_name"):
+                entry.running.add(name_form(row.value("product_name")))
     # RQ2 inputs: every patch of the incident, with its asset; the overdue ones.
     patches: dict[str, Patch] = {}
     patched: dict[str, Asset] = {}
@@ -1602,8 +1757,10 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
             continue
         asset, release = patched[patch.asset], releases[patch.release]
         subject = f"{asset.hostname}: {release.label}"
-        if asset.covers(release.product):
-            out.answer("RQ1", subject, "none", "a current full scan shows it not running")
+        held_inventory = inventories.get(patch.asset)
+        gone = held_inventory.not_running(release.product) if held_inventory else None
+        if gone is not None:
+            out.answer("RQ1", subject, "none", gone[0], cites=gone[1])
         else:
             out.unknown("RQ1", subject, "no current inventory coverage", params.inventory_pull,
                         {"covering": asset.hostname}, about=asset.hostname)
@@ -1677,9 +1834,9 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
             item, entry = declared[key], inventories[key[0]]
             answered_assets.add(key[0])
             subject = f"{item.hostname}: {item.label}"
-            if entry.covers(item.product):
-                out.answer("RQ1", subject, "none", "declared, but a current full scan that "
-                           "looked for it shows it not running")
+            gone = entry.not_running(item.product)
+            if gone is not None:
+                out.answer("RQ1", subject, "none", f"declared, but {gone[0]}", cites=gone[1])
             else:
                 out.answers.append({
                     "question": "RQ1", "subject": subject, "state": "unknown",
@@ -1692,14 +1849,15 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
                 out.answers.append({"question": "RQ1", "subject": entry.hostname,
                                     "state": "unknown", "why": no_inventory,
                                     "pull": params.inventory_pull})
-        # Every enumerated asset gets an answer. A current scan that looked for everything
-        # ("*") and lists nothing else on it is none. A narrow scan answers for the asset
-        # only once the incident's affected products are established (each CVE's record
-        # read, and each with a product known to be affected: a release assessed affected
-        # or inconclusive, or a package OSV names) and it looked for all of them; otherwise
-        # nothing establishes that the asset runs no affected release.
-        products: dict[str, set[str]] = {cve: {name_form(p[1]) for p in c.packages}
-                                         for cve, c in cves.items()}
+        # Every enumerated asset gets an answer. It is none only from nones: the incident's
+        # affected products established (each CVE's record read, with the products the
+        # record names, a release assessed affected or inconclusive and the packages OSV
+        # names: never inferred from one observed package) and, for each, a current none
+        # on the asset (a product it runs is answered with its release above). A scan of
+        # everything ("*") states nones only for what it saw vanish: absence of any other
+        # product is unknown until a scan names it in looked_for.
+        products: dict[str, set[str]] = {
+            cve: {name_form(p[1]) for p in c.packages} | c.products for cve, c in cves.items()}
         for release in releases.values():
             for cve in release.cves:
                 if release.product and cve in products:
@@ -1709,14 +1867,19 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
         for path, entry in sorted(inventories.items()):
             if not entry.current:
                 continue
-            if "*" in entry.looked_for:
-                if path not in answered_assets:
-                    out.answer("RQ1", entry.hostname, "none", "a current full scan that looked "
-                               "for every product lists nothing else on the asset")
-                continue
             looked = ", ".join(sorted(entry.looked_for)) or "nothing"
-            missing = sorted(known - entry.looked_for)
-            if unestablished:
+            missing = sorted(product for product in known
+                             if product not in entry.nones and product not in entry.running)
+            untitled = [cve for cve in unestablished if not cves[cve].title]
+            if untitled:
+                # What the incident affects is the record's to say: read it first.
+                for cve in untitled:
+                    out.gap(cve, params.record_pull, {"url": CVE_RECORD_URL + cve})
+                out.answers.append({
+                    "question": "RQ1", "subject": entry.hostname, "state": "unknown",
+                    "why": f"no record of {', '.join(untitled)} read yet: what the incident "
+                           "affects is not established", "pull": params.record_pull})
+            elif unestablished:
                 unlooked.setdefault(entry.hostname, set()).add("*")
                 out.answers.append({
                     "question": "RQ1", "subject": entry.hostname, "state": "unknown",
@@ -1728,13 +1891,13 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
                 unlooked.setdefault(entry.hostname, set()).update(missing)
                 out.answers.append({
                     "question": "RQ1", "subject": entry.hostname, "state": "unknown",
-                    "why": "the current scan of the asset did not look for "
-                           f"{', '.join(missing)}, which the incident affects",
-                    "pull": params.inventory_pull})
+                    "why": f"no current none of {', '.join(missing)} on the asset, which the "
+                           f"incident affects (the current scan looked for {looked}; name them "
+                           "in looked_for)", "pull": params.inventory_pull})
             elif path not in answered_assets:
-                out.answer("RQ1", entry.hostname, "none", "a current full scan looked for "
-                           f"every product the incident affects ({', '.join(sorted(known))}) "
-                           "and lists none of them on the asset")
+                out.answer("RQ1", entry.hostname, "none", "current nones: the asset runs none "
+                           f"of the products the incident affects ({', '.join(sorted(known))})",
+                           cites=sorted(entry.nones[p] for p in known if p in entry.nones))
         if not inventories and not runs and not patches:
             out.unknown("RQ1", params.incident, "no deployment is known: no asset is declared "
                         "or scanned", params.inventory_pull, {"covering": "*"})
@@ -1972,7 +2135,7 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
                        "exploited": exploited,
                        "rotations": sorted(a["subject"] for a in out.answers
                                            if a["question"] == "RQ4" and a["state"] == "none")})
-    items = sorted_items(out.posts) + sorted_items(out.gaps.values())
+    items = sorted_items(out.posts) + sorted_items(out.all_gaps())
     if len(items) > MAX_POSTS:
         # Never a silent cut: a run that would post only the first MAX_POSTS would drop
         # the same items every time. Refused, with what it would post, so the overflow

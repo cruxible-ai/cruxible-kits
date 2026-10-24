@@ -73,6 +73,10 @@ def _row(bindings: dict[str, tuple[str, str]], *, claims: dict[tuple[str, str], 
 
     def item(value: Any, claim: str) -> dict[str, Any]:
         visibility = {"claim_path": f"claims/00/{claim}.json"}
+        if isinstance(value, dict) and "none" in value:  # a none: {"none": key value}
+            return {"claim_object": {"kind": "none", "of": {"kind": "literal",
+                                                             "value": value["none"]}},
+                    "visibility": visibility}
         if isinstance(value, tuple):
             return {"claim_object": {"kind": "subject", "address": {
                 "artifact_path": f"subjects/{value[0]}/{value[1]}.json"}},
@@ -104,6 +108,9 @@ def _statements(items: list[dict[str, Any]]) -> list[tuple[Any, str, Any]]:
         who = (json.dumps(subject["key"], sort_keys=True) if "key" in subject
                else subject["artifact_path"])
         obj = statement["object"]
+        if obj.get("kind") == "none":  # an asset.runs none: ("none", the product)
+            found.append((who, "none", obj["of"]["value"]))
+            continue
         value = obj.get("value", obj.get("subject", (obj.get("address") or {}).get(
             "artifact_path")))
         found.append((who, statement["predicate"].rsplit(".", 1)[-1], value))
@@ -119,15 +126,19 @@ def _slug(name: str, version: str) -> str:
     return f"{name}--{version}".replace("/", "-").replace("~", "-")
 
 
-def _held_prod(revision_value: str | None = None, *, assets: dict[str, list[tuple[str, str]]]
-               ) -> list[dict[str, Any]]:
-    """inventory_index rows: the prod coverage, each asset scanned in it and its runs."""
+def _held_prod(revision_value: str | None = None, *, assets: dict[str, list[tuple[str, str]]],
+               nones: dict[str, list[str]] | None = None) -> list[dict[str, Any]]:
+    """inventory_index rows: the prod coverage, each asset scanned in it, its runs and its
+    nones (``nones``: host -> products, Claim ``CLM-none-<index>-<product>``)."""
 
     rows = []
     for index, (host, runs) in enumerate(sorted(assets.items())):
         asset = ("security.asset", f"asset-{index}")
-        run_items = [(("security.release", _slug(n, v)),
-                      f"CLM-run-{index}-{n.replace('/', '-')}-{v}") for n, v in runs]
+        run_items: list[tuple[Any, str]] = [
+            (("security.release", _slug(n, v)), f"CLM-run-{index}-{n.replace('/', '-')}-{v}")
+            for n, v in runs]
+        run_items += [({"none": product}, f"CLM-none-{index}-{product.replace('/', '-')}")
+                      for product in (nones or {}).get(host, [])]
         for name, version in runs or [(None, None)]:
             purl = None if name is None else (
                 f"pkg:deb/{name}@{version}" if name.startswith("debian/")
@@ -182,16 +193,30 @@ def test_a_first_full_scan_states_coverage_assets_and_runs() -> None:
                                                      "security.release"}
 
 
+PROD_NONES = {"k8s:prod/storefront-a": ["debian/php8.2"],
+              "k8s:prod/storefront-b": ["debian/php8.2"], "app-1.acme.internal": ["php"]}
+
+
 def test_an_unchanged_scan_restates_only_the_revision_in_any_order() -> None:
     first = _inventory(_text("prod-before.json"), [], [])
+    # The first scan states each asset's nones: every looked-for product it doesn't run.
+    assert sorted((json.loads(s[0])["hostname"], s[2]) for s in _statements(first["items"])
+                  if s[1] == "none") == sorted((h, p) for h, ps in PROD_NONES.items()
+                                               for p in ps)
+    assert first["nones"] == 3
     held = _held_prod(first["revision"], assets={
         "k8s:prod/storefront-a": [("php", "8.3.10")], "k8s:prod/storefront-b": [("php", "8.3.10")],
-        "app-1.acme.internal": [("debian/php8.2", "8.2.20-1~deb12u1")]})
+        "app-1.acme.internal": [("debian/php8.2", "8.2.20-1~deb12u1")]}, nones=PROD_NONES)
     again = _inventory(_text("prod-before-reordered.json"), held, [])
     assert again["revision"] == first["revision"]
-    assert (again["changed"], again["restated"], again["proposes"]) == (0, 1, 1)
-    (only,) = _statements(again["items"])
-    assert only[1] == "revision" and only[2] == first["revision"]
+    # The revision and each held none are restated (a none names its lineage: core
+    # re-observes it, or refreshes its evidence when the scan's content is new).
+    assert (again["changed"], again["restated"], again["proposes"]) == (0, 4, 4)
+    statements = _statements(again["items"])
+    assert [s[2] for s in statements if s[1] == "revision"] == [first["revision"]]
+    assert sorted(i["revises"] for i in again["items"]
+                  if i["statement"]["object"]["kind"] == "none") == [
+        "CLM-none-0-php", "CLM-none-1-debian-php8.2", "CLM-none-2-debian-php8.2"]
 
 
 def test_another_scopes_scan_is_not_mine() -> None:
@@ -213,7 +238,7 @@ def _patch_row(patch: str, host: str, *, progress: str | None, verification: str
 def test_a_full_scan_retires_old_runs_verifies_patches_and_disputes_a_false_claim() -> None:
     held = _held_prod("sha256:old", assets={
         "k8s:prod/storefront-a": [("php", "8.3.10")], "k8s:prod/storefront-b": [("php", "8.3.10")],
-        "app-1.acme.internal": [("debian/php8.2", "8.2.20-1~deb12u1")]})
+        "app-1.acme.internal": [("debian/php8.2", "8.2.20-1~deb12u1")]}, nones=PROD_NONES)
     patches = [_patch_row("rem-a", "k8s:prod/storefront-a", progress="completed"),
                _patch_row("rem-b", "k8s:prod/storefront-b", progress="completed"),
                _patch_row("rem-app", "app-1.acme.internal", progress="in_progress",
@@ -230,7 +255,7 @@ def test_a_full_scan_retires_old_runs_verifies_patches_and_disputes_a_false_clai
     assert not [s for s in statements if s[0] == "retire"]
     revised = {i["revises"]: i["statement"]["object"]["subject"]["key"]["version"]
                for i in result["items"] if i.get("statement", {}).get("predicate") ==
-               "security.asset.runs"}
+               "security.asset.runs" and i["statement"]["object"]["kind"] != "none"}
     assert revised == {"CLM-run-1-php-8.3.10": "8.3.36",
                        "CLM-run-0-debian-php8.2-8.2.20-1~deb12u1": "8.2.29-1~deb12u1"}
     assert any(s[1] == "revision" and s[2] == result["revision"] for s in statements)
@@ -292,16 +317,19 @@ def test_a_cyclonedx_sbom_is_one_assets_complete_run_set() -> None:
               "security.asset.runs"]
     assert run["revises"] == "CLM-run-0-php-8.3.10"
     assert [s[2] for s in statements if s[1] == "verification"] == ["verified"]
-    # A product that is gone with nothing replacing it is retired, once nothing is added.
+    # A product that is gone with nothing replacing it flips to none: its run retires and
+    # its none is added in the same change, beside php's revision.
     gone = json.loads(_no_os("storefront-a.syft.patched.cdx.json"))
     gone["components"] = [c for c in gone["components"] if c["name"] != "libxml2"]
+    flip = [("retire", "CLM-run-0-debian-libxml2-2.9.14+dfsg-1.3~deb12u1", "superseded"),
+            ("subjects/security.asset/asset-0.json", "none", "debian/libxml2")]
     statements = _statements(_inventory(json.dumps(gone), held, [patch])["items"])
-    assert not [s for s in statements if s[0] == "retire"]  # waits: php is revised now
+    assert all(item in statements for item in flip)
     held_after = _held_prod(None, assets={"k8s:prod/storefront-a": [
         ("php", "8.3.36"), ("debian/libc6", "2.36-9+deb12u7"),
         ("debian/libxml2", "2.9.14+dfsg-1.3~deb12u1"), ("debian/libssl3", "3.0.15-1~deb12u1")]})
     later = _statements(_inventory(json.dumps(gone), held_after)["items"])
-    assert later == [("retire", "CLM-run-0-debian-libxml2-2.9.14+dfsg-1.3~deb12u1", "superseded")]
+    assert later == flip
 
 
 def test_a_cyclonedx_sbom_without_its_annotations_is_refused() -> None:
@@ -476,10 +504,11 @@ def _exposure(release: tuple[str, str], label: tuple[str, str], *, asset: str | 
 
 def _deployment(host: str, *, declared: tuple[tuple[str, str], tuple[str, str]] | None = None,
                 current: bool = False, looked_for: list[str] | None = None,
-                components: list[str] | None = None, coverage: str | None = None
-                ) -> dict[str, Any]:
-    """A security.deployments row: an asset, its inventory coverage, one release it
-    declares ((kind, id), (product, version))."""
+                components: list[str] | None = None, coverage: str | None = None,
+                nones: tuple[str, ...] = ()) -> dict[str, Any]:
+    """A security.deployments row: an asset, its inventory coverage, its current nones
+    (asset.runs inverses: products it runs none of) and one release it declares ((kind,
+    id), (product, version))."""
 
     bindings = {"asset": ("security.asset", host.replace("/", "-").replace(":", "-"))}
     fields: dict[str, Any] = {"hostname": host,
@@ -491,7 +520,10 @@ def _deployment(host: str, *, declared: tuple[tuple[str, str], tuple[str, str]] 
         bindings["declared"] = declared[0]
         fields.update(declared_product_name=declared[1][0], declared_version=declared[1][1],
                       declared_components=components, declared_osv_coverage=coverage)
-    return _row(bindings, **fields)
+    slug = host.replace("/", "-").replace(":", "-")
+    runs = [({"none": product}, f"CLM-none-{slug}-{product.replace('/', '-')}")
+            for product in nones]
+    return _row(bindings, includes={"runs": runs} if runs else None, **fields)
 
 
 def _patch(patch: str, asset: str, service: str, release: tuple[str, str],
@@ -550,7 +582,12 @@ def test_rq1_and_rq2_exposure_found_declared_unknown_and_missing_patches() -> No
         _exposure(PHP, ("php", "8.3.10"), asset="k8s:prod/storefront-b", service="storefront"),
         _exposure(DEB, ("debian/php8.2", "8.2.20-1~deb12u1"), asset="app-1.acme.internal",
                   service="partner-portal")],
-        deployments=[_deployment("wiki-1", declared=(PHP, ("php", "8.3.10")))])
+        deployments=[_deployment("wiki-1", declared=(PHP, ("php", "8.3.10")))] + [
+            _deployment(host, current=True, looked_for=["php", "debian/php8.2"],
+                        nones=(none,))
+            for host, none in (("k8s:prod/storefront-a", "debian/php8.2"),
+                               ("k8s:prod/storefront-b", "debian/php8.2"),
+                               ("app-1.acme.internal", "php"))])
     rq1 = _by(result, "RQ1")
     assert {s: a["state"] for s, a in rq1.items()} == {
         "app-1.acme.internal: debian/php8.2 8.2.20-1~deb12u1": "found",
@@ -588,11 +625,25 @@ def test_rq2_patch_states_from_the_scan_never_from_the_claim() -> None:
                          due_at="2026-10-18T00:00:00Z")
     late = _ask(exposure=exposures, patches=[overdue_row], overdue=[overdue_row])
     assert _posted(late, "patch_overdue")[0]["due_at"] == "2026-10-18T00:00:00Z"
-    # The scan verified it and no longer sees the release: RQ1 and RQ2 none.
+    # The scan verified it and no longer sees the release (the asset runs 8.3.36 under a
+    # current scan that looked for php): RQ1 and RQ2 none.
+    upgraded = _scanned(sa[0], "php", "8.3.36", ["pkg:generic/php@8.3.36"], None,
+                        looked_for=("php",))
     verified = _ask(patches=[_patch("rem-a", *sa, PHP, ("php", "8.3.10"), progress="completed",
-                                    verification="verified")])
+                                    verification="verified")], hosts=[upgraded])
     assert _by(verified, "RQ1")["k8s:prod/storefront-a: php 8.3.10"]["state"] == "none"
     assert _by(verified, "RQ2")["k8s:prod/storefront-a: php 8.3.10"]["state"] == "none"
+    # No scan says what it runs now (no run, no none): RQ1 unknown, never derived.
+    blind = _ask(patches=[_patch("rem-a", *sa, PHP, ("php", "8.3.10"), progress="completed",
+                                 verification="verified")])
+    assert _by(blind, "RQ1")["k8s:prod/storefront-a: php 8.3.10"]["state"] == "unknown"
+    # It runs no php at all: the asset's current none answers it, cited.
+    removed = _ask(patches=[_patch("rem-a", *sa, PHP, ("php", "8.3.10"), progress="completed",
+                                   verification="verified")],
+                   deployments=[_deployment(sa[0], current=True, looked_for=["php"],
+                                            nones=("php",))])
+    answer = _by(removed, "RQ1")["k8s:prod/storefront-a: php 8.3.10"]
+    assert answer["state"] == "none" and answer["cites"] == ["CLM-none-k8s-prod-storefront-a-php"]
     # Seen running again after it was verified: a regression.
     again = _ask(exposure=exposures, patches=[_patch("rem-a", *sa, PHP, ("php", "8.3.10"),
                                                      progress="completed",
@@ -764,7 +815,9 @@ def test_rq4_rotation_states_and_rq5_ready_to_close_with_residue() -> None:
     assert len(_posted(disputed, "rotation_disputed")) == 1
     done = _ask(audits=audits, patches=[_patch(
         "rem-w", "wiki-1.ops.acme.internal", "ops-wiki", PHP, ("php", "8.3.10"),
-        progress="completed", verification="verified")], credentials=[_cred(
+        progress="completed", verification="verified")], deployments=[_deployment(
+            "wiki-1.ops.acme.internal", current=True, looked_for=["php"], nones=("php",))],
+        credentials=[_cred(
             "ops-wiki", ("github/acme-ops", "wiki-deploy"), issued_at="2026-10-18T09:00:00Z",
             rotation={**rotation, "verification": "verified"})])
     assert _by(done, "RQ4")["github/acme-ops/wiki-deploy"]["state"] == "none"
@@ -775,13 +828,15 @@ def test_rq4_rotation_states_and_rq5_ready_to_close_with_residue() -> None:
     assert closed["items"] == [] and closed["status"] == "closed"
 
 
-def _incident_cve(cve: str, *, title: bool = True, packages: tuple[str, ...] = ()
-                  ) -> dict[str, Any]:
-    """An incident_exposure row for one incident CVE nobody has assessed yet."""
+def _incident_cve(cve: str, *, title: bool = True, packages: tuple[str, ...] = (),
+                  products: tuple[str, ...] = ()) -> dict[str, Any]:
+    """An incident_exposure row for one incident CVE nobody has assessed yet (``products``:
+    what its record names as affected)."""
 
     row = _row({"incident": INCIDENT, "vulnerability": ("security.vulnerability", cve.lower())},
                includes={"package": [(p, f"CLM-pkg-{cve}-{n}") for n, p in enumerate(packages)]},
-               **{**INCIDENT_FIELDS, "cve_id": cve, "cve_title": "PHP2Shell" if title else None})
+               **{**INCIDENT_FIELDS, "cve_id": cve, "cve_title": "PHP2Shell" if title else None,
+                  "cve_products": list(products) or None})
     return row
 
 
@@ -829,15 +884,20 @@ def test_rq1_answers_every_scanned_release_for_each_incident_cve_never_silently(
     gh = rq1["dev-mac.local: gh 2.86.0"]
     assert gh["state"] == "unknown" and "OSV doesn't index 1 component" in gh["why"]
     gaps = {(g["subject"], g["pull"]): g["input"] for g in _posted(result, "gap")}
-    assert gaps[("gh 2.86.0", "statement")] == {
-        "state": "security.assessment.status", "release": "gh 2.86.0",
-        "cves": ["CVE-2026-109618"], "osv_not_indexed": {"brew": 1},
+    # The judgment a release waits on is one gap per CVE, carrying its releases.
+    assert gaps[("CVE-2026-109618", "statement")] == {
+        "state": "security.assessment.status", "cve": "CVE-2026-109618",
+        "releases": ["gh 2.86.0"], "osv_not_indexed": {"brew": 1},
         "alternatives": ["security.release.product_alias", "security.inventory-acquire"]}
     # No coverage yet, or the CVE's own package with no assessment: the OSV Line answers.
     assert gaps[("jq 1.7.1", "security.osv-applicability")] == {"release": "jq 1.7.1"}
     assert gaps[("debian/php8.2 8.2.99-1", "security.osv-applicability")] == {
         "release": "debian/php8.2 8.2.99-1"}
-    assert result["posted"] > 0 and result["unknown"] == 3 and result["none"] == 1
+    # A scan of everything states no none for a product it never saw: storefront-a and
+    # dev-mac hold none of debian/php8.2, so each asset is unknown, naming it.
+    assert result["posted"] > 0 and result["unknown"] == 5 and result["none"] == 1
+    assert gaps[("k8s:prod/storefront-a", "security.inventory-acquire")] == {
+        "covering": "k8s:prod/storefront-a", "looking_for": ["debian/php8.2"]}
     # A CVE no record was read for: its record pull first, one item per CVE.
     unread = _ask(exposure=[_incident_cve("CVE-2026-109619", title=False, packages=php82)],
                   hosts=hosts[1:2])
@@ -847,8 +907,9 @@ def test_rq1_answers_every_scanned_release_for_each_incident_cve_never_silently(
         {"url": "https://cveawg.mitre.org/api/cve/CVE-2026-109619"})
     # OSV doesn't know the CVE (no package): only an analyst's judgment decides it.
     unknown = _ask(exposure=[_incident_cve("CVE-2026-109619")], hosts=hosts[:1])
-    (gap,) = _posted(unknown, "gap")
-    assert gap["pull"] == "statement" and gap["input"]["cves"] == ["CVE-2026-109619"]
+    (gap,) = [g for g in _posted(unknown, "gap") if g["pull"] == "statement"]
+    assert gap["subject"] == "CVE-2026-109619" and gap["input"]["releases"] == [
+        "debian/libc6 2.36-9+deb12u7"]
     # The SBOM moved since OSV answered (2 components now, coverage counts 1): unknown.
     moved = _scanned("k8s:prod/storefront-a", "debian/libc6", "2.36-9+deb12u7",
                      ["pkg:deb/debian/libc6@2.36-9+deb12u7", "pkg:deb/debian/zlib1g@1.2"],
@@ -861,6 +922,8 @@ def test_rq1_answers_every_scanned_release_for_each_incident_cve_never_silently(
 
 def test_rq1_uses_an_assessment_and_skips_what_the_exposure_answers() -> None:
     not_affected = _exposure(PHP, ("php", "8.3.36"), status="not_affected")
+    not_affected["fields"].append({"name": "cve_products", "state": "present",
+                                   "value": ["php"]})
     hosts = [_scanned("k8s:prod/storefront-a", "php", "8.3.36", ["pkg:generic/php@8.3.36"],
                       "partial: 0 of 1 components answered; not indexed: generic 1")]
     for row in hosts:  # the release the assessment is about
@@ -1017,11 +1080,23 @@ def test_declared_unscanned_unassessed_and_erased_deployments_are_gaps() -> None
     bare = _ask(exposure=[cve], hosts=[clean], deployments=[_deployment("db-9")])
     assert _by(bare, "RQ1")["db-9"]["state"] == "unknown" and bare["ready_to_close"] == 0
     # Under a current scan that looked for everything and doesn't see it: none.
+    # Under a current scan that looked for it and states its none: none (citing it). Every
+    # asset also holds a none of what the incident affects, so the incident can close.
     covered = _deployment("web-1.example.com", declared=(GHOST, ("ghost", "1.0")),
-                          current=True, looked_for=["*"])
-    done = _ask(exposure=[cve], hosts=[clean], deployments=[covered])
-    assert _by(done, "RQ1")["web-1.example.com: ghost 1.0"]["state"] == "none"
+                          current=True, looked_for=["ghost", "debian/php8.2"],
+                          nones=("ghost", "debian/php8.2"))
+    cleaned = _deployment("k8s:prod/storefront-a", current=True, looked_for=["*", "debian/php8.2"],
+                          nones=("debian/php8.2",))
+    done = _ask(exposure=[cve], hosts=[clean], deployments=[covered, cleaned])
+    ghost = _by(done, "RQ1")["web-1.example.com: ghost 1.0"]
+    assert ghost["state"] == "none" and ghost["cites"] == ["CLM-none-web-1.example.com-ghost"]
     assert done["ready_to_close"] == 1
+    # Looked for everything but states no none of ghost: unknown, never derived.
+    wide = _deployment("web-1.example.com", declared=(GHOST, ("ghost", "1.0")),
+                       current=True, looked_for=["*"], nones=("debian/php8.2",))
+    open_ = _ask(exposure=[cve], hosts=[clean], deployments=[wide, cleaned])
+    assert _by(open_, "RQ1")["web-1.example.com: ghost 1.0"]["state"] == "unknown"
+    assert open_["ready_to_close"] == 0
     # No deployment known at all: a gap, never answers=[].
     empty = _ask(exposure=[cve])
     (gap,) = _posted(empty, "gap")
@@ -1041,7 +1116,9 @@ def test_a_scanned_negative_needs_current_coverage_that_looked_for_the_product()
         {"covering": "k8s:prod/storefront-a"}]
     narrow = _scanned("k8s:prod/storefront-a", *LIBC, "complete: 1 of 1 components answered",
                       looked_for=("php", "debian/php8.2"))
-    result = _ask(exposure=[cve], hosts=[narrow])
+    result = _ask(exposure=[cve], hosts=[narrow], deployments=[_deployment(
+        "k8s:prod/storefront-a", current=True, looked_for=["php", "debian/php8.2"],
+        nones=("debian/php8.2",))])
     assert _by(result, "RQ1")[subject]["state"] == "unknown"
     assert [g["input"] for g in _posted(result, "gap")] == [
         {"covering": "k8s:prod/storefront-a", "looking_for": ["debian/libc6"]}]
@@ -1212,15 +1289,15 @@ def test_rotation_verification_needs_the_old_key_listed_retired_or_a_complete_li
 def test_more_items_than_the_cap_refuse_instead_of_cutting() -> None:
     """F-014: 201 distinct gaps never post the same first 200 forever."""
 
-    cve = _incident_cve("CVE-2026-109619")  # no package: every release needs a judgment
-    hosts = [_scanned(f"host-{n:03}", f"tool{n:03}", "1.0", [f"pkg:pypi/tool{n:03}@1.0"],
-                      "complete: 1 of 1 components answered") for n in range(MAX_POSTS + 1)]
+    cve = _incident_cve("CVE-2026-109619")
+    # Every asset unscanned: one inventory gap each (judgments coalesce per CVE instead).
+    hosts = [_deployment(f"host-{n:03}") for n in range(MAX_POSTS + 1)]
     output = _context(Respond(), {**{name: [] for name in TAPS}, "exposure": [cve],
-                                  "hosts": hosts, "params": {"incident": "PHP2Shell"},
+                                  "deployments": hosts, "params": {"incident": "PHP2Shell"},
                                   "truncated": {}})
     assert output.status == "refused" and "overflow" in output.refusal.message
     assert f"{MAX_POSTS + 1} items" in output.refusal.message
-    fits = _ask(exposure=[cve], hosts=hosts[:MAX_POSTS])
+    fits = _ask(exposure=[cve], deployments=hosts[:MAX_POSTS])
     assert fits["posted"] == MAX_POSTS
 
 
@@ -1242,9 +1319,17 @@ def test_every_enumerated_asset_is_answered_even_under_a_narrow_scan() -> None:
                                             status="not_affected")],
                    hosts=[clean], deployments=[narrow])
     assert _by(closure, "RQ1")["h"]["state"] == "unknown" and closure["ready_to_close"] == 0
-    # Looked for everything and lists nothing: none, answered rather than skipped.
+    # Looked for everything and lists nothing: still unknown while what the incident
+    # affects is not established, and then only its nones answer.
     wide = _ask(exposure=[cve], deployments=[_deployment("h", current=True, looked_for=["*"])])
-    assert _by(wide, "RQ1")["h"]["state"] == "none"
+    assert _by(wide, "RQ1")["h"]["state"] == "unknown"
+    named = _incident_cve("CVE-2026-109619", products=("php",))
+    assert _by(_ask(exposure=[named], deployments=[_deployment(
+        "h", current=True, looked_for=["*"])]), "RQ1")["h"]["state"] == "unknown"
+    ruled_out = _ask(exposure=[named], deployments=[_deployment(
+        "h", current=True, looked_for=["*", "php"], nones=("php",))])
+    assert _by(ruled_out, "RQ1")["h"]["state"] == "none"
+    assert ruled_out["ready_to_close"] == 1
 
 
 def _held_negative(fixed: str, release: tuple[str, str], label: tuple[str, str],
@@ -1329,3 +1414,147 @@ def test_secret_prefixes_are_found_at_any_boundary_and_inventory_ids_are_checked
         assert output.status == "refused" and marker not in output.refusal.message
     assert not secret_in_text("aws-iam/111122223333") and not secret_in_text(
         "k8s:prod/storefront-7d9f8b6c5d-x2k4p", name=True)
+
+
+# --- K2: inverses (asset.runs nones), coalesced gaps, K1 recheck 2 (R2-001..R2-005) ------
+
+
+def _scan(looked_for: list[str], assets: dict[str, list[str]], coverage: str = "full") -> str:
+    return json.dumps({"scope": "prod", "looked_for": looked_for, "coverage": coverage,
+                       "assets": [{"hostname": h, "runs": r} for h, r in assets.items()]})
+
+
+def test_a_full_scan_states_nones_only_for_what_it_looked_for() -> None:
+    """A none for every named product the asset doesn't run; under * only for a product it
+    ran before (a flip); never for a product the scan did not look for."""
+
+    named = _statements(_inventory(_scan(["php", "debian/php8.2"], {
+        "a": ["pkg:generic/php@8.3.36"], "b": []}))["items"])
+    assert sorted((json.loads(s[0])["hostname"], s[2]) for s in named if s[1] == "none") == [
+        ("a", "debian/php8.2"), ("b", "debian/php8.2"), ("b", "php")]
+    # A scan of everything that never saw a product states nothing about it.
+    wide = _statements(_inventory(_scan(["*"], {"a": ["pkg:generic/php@8.3.36"], "b": []}))[
+        "items"])
+    assert not [s for s in wide if s[1] == "none"]
+    # A partial scan states no none at all.
+    partial = _statements(_inventory(_scan(["php"], {"b": []}, "partial"))["items"])
+    assert not [s for s in partial if s[1] == "none"]
+
+
+def test_a_vanished_run_flips_to_none_and_a_reappearing_one_flips_back() -> None:
+    held = _held_prod("sha256:old", assets={"h": [("php", "8.3.10"), ("jq", "1.7.1")]})
+    # Under *, jq is gone: its run retires and its none is added in one change, beside
+    # php's revision to a new version (one terminal: core dispositions the sibling).
+    gone = _inventory(_scan(["*"], {"h": ["pkg:generic/php@8.3.36"]}), held)
+    statements = _statements(gone["items"])
+    assert ("retire", "CLM-run-0-jq-1.7.1", "superseded") in statements
+    assert ("subjects/security.asset/asset-0.json", "none", "jq") in statements
+    assert [i["revises"] for i in gone["items"] if i.get("statement", {}).get("object", {})
+            .get("kind") == "subject_key"] == ["CLM-run-0-php-8.3.10"]
+    # jq runs again (even a partial scan sees it): its none retires, the run is added.
+    back_held = _held_prod("sha256:old", assets={"h": [("php", "8.3.36")]},
+                           nones={"h": ["jq"]})
+    for coverage in ("full", "partial"):
+        back = _statements(_inventory(_scan(["*"], {"h": ["pkg:generic/php@8.3.36",
+                                                          "pkg:generic/jq@1.7.1"]}, coverage),
+                                      back_held)["items"])
+        assert ("retire", "CLM-none-0-jq", "superseded") in back, coverage
+        assert [s[2]["key"]["product_name"] for s in back if s[1] == "runs"] == ["jq"]
+        assert not [s for s in back if s[1] == "none"]
+
+
+def test_a_held_none_retires_when_the_scan_stops_asking_or_the_asset_leaves() -> None:
+    held = _held_prod("sha256:old", assets={"h": [], "gone-1": []},
+                      nones={"h": ["php", "debian/php8.2"], "gone-1": ["php"]})
+    result = _inventory(_scan(["php"], {"h": []}), held)
+    statements = _statements(result["items"])
+    # debian/php8.2 is no longer asked about: its none retires; php's is restated.
+    assert ("retire", "CLM-none-1-debian-php8.2", "superseded") in statements
+    assert [i["revises"] for i in result["items"] if i.get("statement", {}).get(
+        "object", {}).get("kind") == "none"] == ["CLM-none-1-php"]
+    # gone-1 left the scope: its none retires with its runs.
+    assert ("retire", "CLM-none-0-php", "superseded") in statements
+
+
+def test_an_inventory_tap_row_with_a_none_reads_as_its_product() -> None:
+    (row,) = parse_rows([_row({"asset": ("security.asset", "h")},
+                              includes={"runs": [({"none": "php"}, "CLM-n")]})])
+    (item,) = row.included("runs")
+    assert (item.is_none, item.none_of, item.value, item.object_path) == (
+        True, "php", None, None)
+
+
+def test_judgment_gaps_are_one_per_cve_carrying_every_release() -> None:
+    """Run 2: 101 Homebrew releases posted 101 statement gaps; now one per CVE."""
+
+    cve = _incident_cve("CVE-2026-109618", packages=("pkg:deb/debian/php8.2",))
+    brew = [_scanned("dev-mac.local", f"tool{n}", "1.0", [f"pkg:brew/tool{n}@1.0"],
+                     "partial: 0 of 1 components answered; not indexed: brew 1")
+            for n in range(3)]
+    other = [_scanned("dev-2", "tool0", "1.0", ["pkg:brew/tool0@1.0"],
+                      "partial: 0 of 1 components answered; not indexed: brew 1")]
+    result = _ask(exposure=[cve], hosts=brew + other)
+    (gap,) = [g for g in _posted(result, "gap") if g["pull"] == "statement"]
+    assert (gap["subject"], gap["input"]) == ("CVE-2026-109618", {
+        "state": "security.assessment.status", "cve": "CVE-2026-109618",
+        "releases": ["tool0 1.0", "tool1 1.0", "tool2 1.0"], "osv_not_indexed": {"brew": 3},
+        "alternatives": ["security.release.product_alias", "security.inventory-acquire"]})
+
+
+def test_r2_001_an_observed_package_is_not_the_whole_affected_roster() -> None:
+    """The record names upstream PHP; OSV names the Debian build; a scan that looked only
+    for the Debian build never makes the host none."""
+
+    cve = _incident_cve("CVE-2026-109618", packages=("pkg:deb/debian/php8.2",),
+                        products=("php",))
+    narrow = _deployment("h", current=True, looked_for=["debian/php8.2"],
+                         nones=("debian/php8.2",))
+    result = _ask(exposure=[cve], deployments=[narrow])
+    assert _by(result, "RQ1")["h"]["state"] == "unknown" and result["ready_to_close"] == 0
+    assert {g["subject"]: g["input"] for g in _posted(result, "gap")}["h"] == {
+        "covering": "h", "looking_for": ["php"]}
+    both = _deployment("h", current=True, looked_for=["debian/php8.2", "php"],
+                       nones=("debian/php8.2", "php"))
+    assert _by(_ask(exposure=[cve], deployments=[both]), "RQ1")["h"]["state"] == "none"
+
+
+def test_r2_002_a_contended_unidentified_count_is_unresolved_never_zero() -> None:
+    fixed, release, label = ("pkg:pypi/jinja2@3.1.4", ("security.release", "app--1.0"),
+                             ("app", "1.0"))
+    for negative in ("retained", "inverse"):
+        row = _on(_scanned("h", *label, [fixed], "complete: 1 of 1 components answered"),
+                  release)
+        row["fields"].append({"name": "unidentified", "state": "conflict", "value": None})
+        exposure = ([_held_negative(fixed, release, label)] if negative == "retained" else
+                    [_incident_cve("CVE-2024-34064", packages=("pkg:pypi/jinja2",))])
+        result = _ask(exposure=exposure, hosts=[row])
+        answer = _by(result, "RQ1")["h: app 1.0"]
+        assert answer["state"] == "unknown", negative
+        assert "contended" in answer["why"] and result["ready_to_close"] == 0
+
+
+def test_r2_004_prefixes_after_hyphens_and_encoded_names_are_secret_shaped() -> None:
+    marker = "ghp_" + "A" * 32
+    assert secret_in_text("storefront-" + marker) and secret_in_text("x_" + marker)
+    assert secret_in_text(f"pkg:npm/foo-{marker}@1", name=True)
+    assert secret_in_text("pkg:npm/%67hp_" + "A" * 32 + "@1", name=True)
+    body = json.loads(_text("cred-aws-state.json"))
+    result = credential_state(json.dumps({**body, "name": "storefront-" + marker}), [])
+    assert result["posted"] == 1 and marker not in json.dumps(result)
+    for run in (f"pkg:npm/foo-{marker}@1", "pkg:npm/%67hp_" + "A" * 32 + "@1"):
+        output = _context(RuntimeInventory(), {
+            "inventory_text": _scan(["*"], {"h": [run]}), "held": [], "patches": [],
+            "scope": "prod", "truncated": {}})
+        assert output.status == "refused" and marker not in output.refusal.message
+    assert not secret_in_text("k8s:prod/storefront-7d9f8b6c5d-x2k4p", name=True)
+
+
+def test_a_scan_of_everything_states_the_nones_of_what_the_asset_declares() -> None:
+    held = _held_prod("sha256:old", assets={"web-1": []})
+    for row in held:
+        row["fields"].append({"name": "declared_product", "state": "present",
+                              "value": "zammad"})
+    wide = _statements(_inventory(_scan(["*"], {"web-1": []}), held)["items"])
+    assert [s[2] for s in wide if s[1] == "none"] == ["zammad"]
+    narrow = _statements(_inventory(_scan(["php"], {"web-1": []}), held)["items"])
+    assert [s[2] for s in narrow if s[1] == "none"] == ["php"]  # zammad: not looked for
