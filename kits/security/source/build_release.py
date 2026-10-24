@@ -12,13 +12,15 @@ wheel; run provider tests separately). Then: start a daemon, ``init``, install
 ``kit build`` it, install the patched 1.3.1 analysis wheel (the gate-only patch
 adds the changed KEV field to each Claim rationale), author the 1.3.1 successors, ``kit
 build`` 1.3.1, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
-and ``providers/`` and 1.3.1 over ``source/variants/1.3.1-gate``, stop the daemon, and regenerate
+and ``providers/`` and 1.3.1 over ``source/variants/1.3.1-gate``, stop the daemon, regenerate
 the release's reference (``source/reference.py``: the README's generated sections
-and ``reference.md``).
+and ``reference.md``), and list the kit's inert files (README, reference, examples,
+skills) in its manifest (``scripts/kits.py files``), outside the release's content digest.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -156,6 +158,19 @@ def main() -> None:
     print(f"copied {RELEASE} to {KIT} and {VARIANT} to {VARIANT_DIR}")
     for path in reference.write(KIT):
         print(f"wrote {path}")
+    # The README is final only now, so its digest (and every other inert file's)
+    # is listed last.
+    if _kits_script().write_files(KIT):
+        print(f"listed the inert files in {KIT / 'cruxible-kit.json'}")
+
+
+def _kits_script():  # noqa: ANN202 - the repository's scripts/kits.py, loaded by path
+    script = KIT.parents[1] / "scripts" / "kits.py"
+    spec = importlib.util.spec_from_file_location("cruxible_kits_script", script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 if __name__ == "__main__":

@@ -7,9 +7,9 @@ description: Pull an organization's state into the Cruxible security kit - an SB
 
 Use this skill when the security kit is installed and its example automation
 adopted, but the instance doesn't yet know what you ship and run; then again
-whenever an answer comes back **unknown**. The kit's [README](../../README.md)
-is the source for every name below. Once the state is in, the [security
-analyst skill](../security-analyst/SKILL.md) works the answers. The core
+whenever an answer comes back **unknown**. The kit's README
+(`cruxible kit docs security --out DIR` writes it) is the source for every name
+below. Once the state is in, the [security analyst skill](../security-analyst/SKILL.md) works the answers. The core
 guides are at https://docs.cruxible.ai.
 
 Everything you acquire is proposed, never written directly. Review each
@@ -36,7 +36,7 @@ again).
   --because "..."` previews, then `--commit --at` erases, with a reason that
   doesn't repeat the secret. Only inventory, log-read and credential-state
   Captures can be erased; SBOMs and evidence files keep their bytes for good
-  ([Secrets never enter](../../README.md#respond-to-an-incident)).
+  (*Respond to an incident*: secrets never enter).
 - **A failed fetch is unknown, never none.** A run that fails proposes nothing.
   Report what wasn't read and why.
 - **Check the last run before trusting an empty answer.** `cruxible get
@@ -321,8 +321,8 @@ proposes, and ask again.
     the release yet: `cruxible line run security.osv-applicability`.
   - `statement` with `input.missing` (an audit): each piece is one thing to
     state (`state`) or read (`source`, `from`, `to`).
-  - Any other pull: its input is the body that Procedure reads ([The evidence
-    each action lands](../../README.md#the-evidence-each-action-lands)).
+  - Any other pull: its input is the body that Procedure reads (*The evidence
+    each action lands*).
 
   Then `cruxible line run security.respond.INCIDENT`.
 - **An ageing scan.** A scope's coverage goes stale 12 h after its last full

@@ -24,10 +24,17 @@ cruxible playbill kit status
 1. In an instance that holds the definitions, export them:
    `cruxible playbill kit build --id <id> --version X.Y.Z --owns <prefix>. --out kits/<id>`
    (replace the directory's contents for a new version).
-2. Open a pull request. CI checks that every kit reads cleanly and packs
+2. List the kit's inert files in its manifest: `python scripts/kits.py files`. A
+   kit's top-level Markdown (README.md, reference.md), `examples/` and `skills/<name>/`
+   travel in the bundle for its reader (`kit pull`, `kit docs`) but stay out of its
+   content digest, so a docs fix keeps every definition digest (the image digest
+   still changes, so a published version needs a patch bump). A skill installs as its
+   own `<kit>-<skill>/` directory, so its relative links stay inside the kit's skills.
+3. Open a pull request. CI checks that every kit reads cleanly and packs
    deterministically, and that a kit's generated reference (a kit with
-   `source/reference.py`, such as `security`) matches its definitions.
-3. Publishing (currently started by hand from the Actions tab) pushes each version
+   `source/reference.py`, such as `security`) matches its definitions, that the
+   manifest lists the current inert files, and that skill links resolve once installed.
+4. Publishing (currently started by hand from the Actions tab) pushes each version
    the registry does not hold to `ghcr.io/cruxible-ai/kits/<id>:<version>`. A published version never changes: a
    different build under an existing version fails, so bump the version.
 

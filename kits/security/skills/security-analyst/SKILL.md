@@ -10,8 +10,8 @@ questions answered or security work done: what is exposed, what is untriaged,
 whether a finding is real, what to fix first, and how to respond when a
 vulnerability is exploited in the wild.
 
-The kit's [README](../../README.md) is the source for every name below, and
-its [reference](../../reference.md) lists every kind, field and query. The
+The kit's README (`cruxible kit docs security --out DIR` writes it) is the
+source for every name below, and its `reference.md` lists every kind, field and query. The
 core guides are at https://docs.cruxible.ai. If the kit isn't installed yet,
 use the `adopt-kit` skill and the README's **Install and first answers**. If
 the instance doesn't yet hold what you ship and run, or an answer is unknown,
@@ -61,7 +61,7 @@ before anything else rests on them.
 
 ## 2. Answer exposure questions
 
-Each question in the README's [What it answers](../../README.md#what-it-answers)
+Each question in the README's *What it answers*
 table is a saved query:
 
 ```bash
@@ -107,7 +107,7 @@ cruxible query --name security.coverage_gaps --param vulnerability=security.vuln
   (the OSV query, a CVE record) is refused for a normative Claim
   (`existing_capture_not_admitted`), so retain the record or note you read as a
   workspace file instead. The README's
-  [Analyst judgments](../../README.md#analyst-judgments) shows the exact write.
+  *Analyst judgments* shows the exact write.
 - **Name a product the records name differently.** When a CVE record's affected
   entry names your release another way (GitHub's CNA writes `cli/cli` for
   Homebrew's `gh`), state `security.release.product_alias` on the release
@@ -130,7 +130,7 @@ the item doesn't close the gap.
 ## 4. Act on hardening answers
 
 `security.harden` answers HQ1–HQ6 per gated target
-([the hardening questions](../../README.md#your-systems-the-hardening-questions)):
+(*the hardening questions*):
 
 - **found** is an inbox item. Decide it: a `security.remediation` naming the
   job (`security.work.job`) with its rationale, or a `security.exception` if
@@ -146,8 +146,8 @@ and resolved by retiring the wrong one `was-wrong`.
 
 ## 5. Triage code findings
 
-The README's [Your code's findings](../../README.md#your-codes-findings) and
-[A code finding, end to end](../../README.md#a-code-finding-end-to-end) are the
+The README's *Your code's findings* and
+*A code finding, end to end* are the
 source.
 
 ```bash
@@ -183,7 +183,7 @@ cruxible query --name security.finder_record --param repo_ref=github.com/OWNER/R
 
 ## 6. Respond to an incident
 
-The README's [Respond to an incident](../../README.md#respond-to-an-incident) is
+The README's *Respond to an incident* is
 the source. You govern the response; your own tools perform it. Cruxible runs no
 command against any service.
 
