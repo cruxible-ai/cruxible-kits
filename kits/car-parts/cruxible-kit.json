@@ -101,6 +101,13 @@
       "path": "subject-kinds/catalog.vehicle.json"
     }
   ],
+  "files": [
+    {
+      "path": "README.md",
+      "role": "readme",
+      "sha256": "sha256:6b4744640e8c5fa6fcc42e8bd8700a97767f28d9cc75b9302372e1919fbe2c67"
+    }
+  ],
   "kit_id": "car-parts",
   "owns": [
     "catalog."
