@@ -54,8 +54,11 @@ from cruxible_client.contracts.captures import (
     capture_component_pin,
 )
 from cruxible_client.contracts.claim_types import (
+    CLAIM_TYPE_V9_FORMAT,
     ClaimEvidenceFreshness,
     ClaimFreshnessDuration,
+    ClaimInverse,
+    ClaimInverseObjectKeyPart,
     ClaimType,
     ClaimTypeMemberDescription,
 )
@@ -202,7 +205,8 @@ JUDGMENT_EVIDENCE = (SELF_SOURCE_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT)
 # (predicate, subject kinds, object, literal schema or object kinds, cardinality,
 #  role, evidence contracts, canonical form, description). Observations need a
 # Capture under one of their contracts; normative statements are supported by
-# their own origin. Every literal ClaimType is v8: its canonical form is how its
+# their own origin. Every ClaimType is v8 (security.asset.runs v9: v8 plus the inverse in
+# INVERSES); a literal one's canonical form is how its
 # values are stored and compared (the key ClaimTypes' forms are their identity).
 WORK = ("security.control", "security.exception", "security.remediation")
 SEVERITY = ("critical", "high", "low", "medium")
@@ -373,6 +377,13 @@ CLAIM_TYPES: list[ClaimRow] = [
      "OSV answered in full and that holds none of these packages is not affected (an "
      "incident's RQ1 reads it none, citing both); with none stated, OSV's silence decides "
      "nothing."),
+    ("security.vulnerability.affected_product", ("security.vulnerability",), "literal", TEXT,
+     "many", "observation", (CVE_CONTRACT,), NAME_FORM,
+     "A product the vulnerability's CVE record names as affected, named as the kit names "
+     "releases (an affected entry's product, or its packageName: php, cli/cli), whether or not "
+     "inventory holds it: with OSV's packages and the releases assessed affected, the "
+     "products an incident's RQ1 must rule out on an asset before it answers the asset none. "
+     "A release the record names by another name is matched through its product_alias."),
     ("security.vulnerability.watch_reason", ("security.vulnerability",), "literal", TEXT,
      "one", "normative", (), (),
      "The decision to track the vulnerability, and why. A vulnerability is tracked when it has "
@@ -669,15 +680,22 @@ RESPONSE: list[ClaimRow] = [
     ("security.asset.runs", ("security.asset",), "subject", ("security.release",), "many",
      "observation", (INVENTORY_CONTRACT,), (), "A release a runtime-inventory scan observed "
      "running on the asset (beside the declared installs). A full scan retires a run it no "
-     "longer sees."),
+     "longer sees. Its none (an inverse, keyed by the release's product_name) says the asset "
+     "runs no release of that product: only a full scan that looked for the product states "
+     "it (never for a product it did not look for), it goes stale on the coverage horizon, "
+     "and a run of the product seen again retires it. No run and no current none is "
+     "unknown."),
     ("security.asset.scanned_in", ("security.asset",), "subject", ("security.coverage",),
      "many", "observation", (INVENTORY_CONTRACT,), (), "The inventory scope coverage that read "
      "the asset: its runs are complete there while that coverage is current."),
     ("security.coverage.looked_for", ("security.coverage",), "literal", TEXT, "many",
      "observation", (INVENTORY_CONTRACT,), NAME_FORM, "A product a full runtime-inventory "
      "scan looked for, named as its releases are (php, debian/php8.2: a purl's namespace and "
-     "name), or * for everything: absence of an affected run is an answer only for a product "
-     "the scan looked for."),
+     "name), or * for everything: the record of the question the scan asked. The scan states "
+     "each asset's absence as an asset.runs none, only for a product it looked for (under *: "
+     "a product the asset ran before or declares installing; name any other in looked_for); "
+     "which versions of a looked-for product an asset runs are its runs, complete while the "
+     "coverage is current."),
     # The audit: were we exploited during the window, for one service.
     ("security.audit.incident_ref", AUDIT_KIND, "literal", TEXT, "one", "normative", (),
      NAME_FORM, "The incident's name; with service_ref, the audit's key."),
@@ -753,6 +771,15 @@ MEMBERS = {"security.assessment.justification": JUSTIFICATIONS,
 #: absent and the answer unknown. ``coverage.of`` is stated once, like any fact; a
 #: moved source revises the one revision Claim.
 FRESHNESS = {"security.coverage.revision": COVERAGE_STALE_AFTER_HOURS}
+#: ClaimType v9 inverses: predicate -> (key predicate (object_key), evidence rule, stale
+#: after hours, what a none means). A run's none ages on the inventory coverage horizon.
+INVERSES = {
+    "security.asset.runs": (
+        "security.release.product_name", "retained-security-evidence",
+        COVERAGE_STALE_AFTER_HOURS,
+        "The asset runs no release of this product, as a full runtime-inventory scan that "
+        "looked for it shows."),
+}
 
 #: kind -> (key predicates in key order, uniqueness) or None for a minted kind.
 SUBJECT_KINDS: dict[str, tuple[tuple[str, ...], str] | None] = {
@@ -885,9 +912,17 @@ def claim_types(release: str) -> list[ClaimType]:
             ClaimTypeMemberDescription(member=name, description=text)
             for name, text in sorted(MEMBERS.get(predicate, {}).items())
         )
+        inverse = None
+        if predicate in INVERSES:
+            key, rule, hours, meaning = INVERSES[predicate]
+            inverse = ClaimInverse(
+                key=ClaimInverseObjectKeyPart(kind="object_key", predicate=key),
+                evidence_rules=(rule,),
+                stale_after=ClaimFreshnessDuration(microseconds=hours * 3_600_000_000),
+                description=meaning)
         result.append(
             ClaimType(
-                artifact_format="playbill-claim-type-v8",
+                artifact_format=CLAIM_TYPE_V9_FORMAT if inverse else "playbill-claim-type-v8",
                 identity=ArtifactIdentity(kind="ClaimType", name=predicate),
                 predicate=predicate,
                 allowed_subject_kinds=tuple(sorted(kinds)),
@@ -912,6 +947,7 @@ def claim_types(release: str) -> list[ClaimType]:
                 evidence_freshness=ClaimEvidenceFreshness(stale_after=ClaimFreshnessDuration(
                     microseconds=FRESHNESS[predicate] * 3_600_000_000))
                 if predicate in FRESHNESS else None,
+                inverse=inverse,
             )
         )
     return result
@@ -1339,7 +1375,9 @@ def query_definitions(release: str) -> list[QueryDefinitionSpec]:
         # Path-shaped (core admits an optional hop only there), so a vulnerability with
         # several qualifying assessments is several rows: the Procedures read it once.
         tracked, max_results=2000,
-        includes=(_include("package", "vulnerability", "security.vulnerability.package"),)))
+        includes=(_include("package", "vulnerability", "security.vulnerability.package"),
+                  _include("affected_product", "vulnerability",
+                           "security.vulnerability.affected_product"))))
     # The settle mandates' condition: the changed Claim's Subject is a keyed
     # vulnerability. Core requires a condition on every settle grant, and that it
     # return exactly one row per target. "Watched" (a watch_reason OR an affected or
@@ -1746,6 +1784,12 @@ def _cves(*, required: bool, exposed: bool = True) -> list[QueryTraversalStep]:
              required=required)]
 
 
+#: affected < inconclusive < not_affected: the exposure first.
+BY_STATUS = QueryOrdering(key=QueryClaimValueRef(binding="assessment",
+                                                 predicate="security.assessment.status"),
+                          direction="ascending", value_type="string")
+
+
 def _incident_fields() -> list[QueryProjectionField]:
     return [_field("incident", "incident"),
             _field("window_start", "incident", INC + "window_start"),
@@ -1799,25 +1843,40 @@ def response_queries() -> list[QueryDefinitionSpec]:
     in_scope = _all(_is("coverage", "security.coverage.source", "scope"),
                     _cmp("coverage", "security.coverage.scope", INVENTORY_SCOPE))
     scope = (_param("scope"),)
+    # The import's two taps. A run's none (an asset.runs inverse) is not an edge, so no
+    # query walks asset.runs forward: the asset's runs and nones are an include, and each
+    # run's release is reached from the release side (a reverse hop never meets a none).
     q.append(_query(
         "security.inventory_index", "One inventory scope's coverage (source = the scope's "
-        "name, stale or current) with every asset scanned in it and every release each runs, "
-        "with the Claims behind them: the runtime-inventory import's tap", "coverage",
-        "coverage",
+        "name, stale or current) with every asset scanned in it, its runs and its nones "
+        "(asset.runs inverses: a product the asset runs none of) and the products of the "
+        "releases it declares installing, with the Claims behind them: the runtime-inventory "
+        "import's tap", "coverage", "coverage",
         [_hop("asset", "coverage", "security.asset.scanned_in", "asset", reverse=True),
-         _hop("run", "asset", "security.asset.runs", "release")],
-        [_field("coverage", "coverage"), _field("asset", "asset"), _field("run", "run"),
+         _hop("declared", "asset", "security.asset.installs", "release")],
+        [_field("coverage", "coverage"), _field("asset", "asset"),
          _field("source", "coverage", "security.coverage.source"),
          _field("revision", "coverage", "security.coverage.revision"),
          _field("looked_for", "coverage", "security.coverage.looked_for"),
          _field("hostname", "asset", "security.asset.hostname"),
-         _field("run_product", "run", "security.release.product_name"),
-         _field("run_version", "run", "security.release.version")],
+         _field("declared_product", "declared", "security.release.product_name")],
         in_scope, parameters=scope, max_results=2000, paths_per_result=1000, evaluation=HELD,
         includes=(_include("runs", "asset", "security.asset.runs"),
-                  _include("run_component", "run", "security.release.component"),
                   _include("scanned_in", "asset", "security.asset.scanned_in"),
                   _include("looked_for", "coverage", "security.coverage.looked_for"))))
+    q.append(_query(
+        "security.inventory_runs", "Every release an asset scanned in one inventory scope "
+        "runs, by key, with its components: the runtime-inventory import's second tap (what "
+        "each held run is)", "run", "release",
+        [_hop("asset", "run", "security.asset.runs", "asset", reverse=True, required=True),
+         _hop("coverage", "asset", "security.asset.scanned_in", "coverage", required=True,
+              where=in_scope)],
+        [_field("run", "run"), _field("asset", "asset"), _field("coverage", "coverage"),
+         _field("hostname", "asset", "security.asset.hostname"),
+         _field("run_product", "run", "security.release.product_name"),
+         _field("run_version", "run", "security.release.version")],
+        parameters=scope, max_results=2000, paths_per_result=1000, evaluation=HELD,
+        includes=(_include("run_component", "run", "security.release.component"),)))
     q.append(_query(
         "security.inventory_patches", "Every patch (a remediation with work.asset and "
         "work.assessment) of an asset scanned in one inventory scope, with its progress, "
@@ -1846,10 +1905,12 @@ def response_queries() -> list[QueryDefinitionSpec]:
     # security.scanned_runs, never through assessments.
     q.append(_query(
         "security.incident_exposure", "RQ1 for one incident (parameter incident, its name): "
-        "each of its CVEs with its record's title and the packages OSV says it affects, every "
-        "release assessed for one of them (any status, with the components the answer rests "
-        "on), and every asset a scan observed running it with its inventory coverage and "
-        "services", "incident", "incident",
+        "each of its CVEs with its record's title, the products it names and the packages OSV "
+        "says it affects, every release assessed for one of them (any status, with the "
+        "components the answer rests on), and every asset a scan observed running it with "
+        "its inventory coverage and services. Affected rows first, then inconclusive, then "
+        "not_affected (security.incident_affected lists only the affected and inconclusive "
+        "ones)", "incident", "incident",
         _cves(required=False, exposed=False) + [
             _hop("asset", "release", "security.asset.runs", "asset", reverse=True),
             _inventory_coverage("coverage", "asset"),
@@ -1862,22 +1923,46 @@ def response_queries() -> list[QueryDefinitionSpec]:
             _field("service_log_source", "service", "security.service.log_source"),
             _field("components", "release", "security.release.component"),
             _field("cve_title", "vulnerability", "security.vulnerability.title"),
+            _field("cve_products", "vulnerability", "security.vulnerability.affected_product"),
             _field("cve_packages", "vulnerability", "security.vulnerability.package")],
         ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000,
+        orderings=(BY_STATUS,),
         includes=(_include("package", "vulnerability", "security.vulnerability.package"),
                   _include("assessed_component", "assessment",
                            "security.assessment.component"))))
+    # The same rows for a reader, cut to what an incident is exposed through: affected and
+    # inconclusive assessments, affected first. How many releases are assessed
+    # not_affected is security.incident_exposure's (every row) minus these.
+    q.append(_query(
+        "security.incident_affected", "RQ1's exposure for a reader (parameter incident, its "
+        "name): each release assessed affected or inconclusive for one of the incident's "
+        "CVEs, affected first, with the assets a scan observed running it, their coverage and "
+        "services; the not_affected rows are security.incident_exposure's", "incident",
+        "incident",
+        _cves(required=True) + [
+            _hop("asset", "release", "security.asset.runs", "asset", reverse=True),
+            _inventory_coverage("coverage", "asset"),
+            _hop("service", "asset", "security.asset.serves", "service")],
+        _incident_fields() + _cve_fields() + _coverage_fields("", "coverage") + [
+            _field("asset", "asset"), _field("service", "service"),
+            _field("hostname", "asset", "security.asset.hostname"),
+            _field("internet_exposed", "asset", "security.asset.internet_exposed"),
+            _field("service_name", "service", "security.service.name"),
+            _field("components", "release", "security.release.component")],
+        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=2000, paths_per_result=1000,
+        orderings=(BY_STATUS, _order("asset", "security.asset.internet_exposed", "boolean"))))
     # RQ1's enumeration: every release a scan observed running on an asset of any
     # inventory scope, with its components and OSV coverage. The respond Line pairs each
     # with every incident CVE: a pair nobody assessed is none only from evidence.
     q.append(_query(
-        "security.scanned_runs", "Every asset an inventory scope's scan read and every "
-        "release it runs, with the release's components and OSV coverage: the respond Line "
-        "answers each incident CVE x each of these releases (none only when OSV answered "
-        "every component and none is a package OSV says the CVE affects)", "asset", "asset",
-        [_hop("coverage", "asset", "security.asset.scanned_in", "coverage", required=True,
-              where=_cmp("coverage", "security.coverage.scope", INVENTORY_SCOPE)),
-         _hop("release", "asset", "security.asset.runs", "release", required=True)],
+        "security.scanned_runs", "Every release a scan observed running on an asset an "
+        "inventory scope's scan read, with the release's components and OSV coverage: the "
+        "respond Line answers each incident CVE x each of these releases (none only when OSV "
+        "answered every component and none is a package OSV says the CVE affects)",
+        "release", "release",
+        [_hop("asset", "release", "security.asset.runs", "asset", reverse=True, required=True),
+         _hop("coverage", "asset", "security.asset.scanned_in", "coverage", required=True,
+              where=_cmp("coverage", "security.coverage.scope", INVENTORY_SCOPE))],
         [_field("asset", "asset"), _field("coverage", "coverage"), _field("release", "release"),
          _field("hostname", "asset", "security.asset.hostname"),
          _field("product_name", "release", "security.release.product_name"),
@@ -1894,10 +1979,12 @@ def response_queries() -> list[QueryDefinitionSpec]:
     # components and OSV coverage. A deployment nobody assessed or scanned is a gap.
     q.append(_query(
         "security.deployments", "Every asset, with its inventory coverage (revision and "
-        "looked_for: stale, missing or erased reads absent) and every release it declares "
-        "installing (with its components and OSV coverage): the respond Line enumerates "
-        "deployments from it, never through assessments, so an unscanned or unassessed "
-        "deployment is a gap, never silence", "asset", "asset",
+        "looked_for: stale, missing or erased reads absent), its current nones (asset.runs "
+        "inverses, include runs: a product a full scan that looked for it shows the asset "
+        "running none of) and every release it declares installing (with its components and "
+        "OSV coverage): the respond Line enumerates deployments from it, never through "
+        "assessments, so an unscanned or unassessed deployment is a gap, never silence",
+        "asset", "asset",
         [_inventory_coverage("coverage", "asset"),
          _hop("declared", "asset", "security.asset.installs", "release")],
         [_field("asset", "asset"), _field("coverage", "coverage"),
@@ -1911,7 +1998,8 @@ def response_queries() -> list[QueryDefinitionSpec]:
                 "security.release.unidentified_components")]
         + _coverage_fields("", "coverage")[1:],
         max_results=2000, paths_per_result=1000,
-        includes=(_include("declared_component", "declared", "security.release.component"),)))
+        includes=(_include("declared_component", "declared", "security.release.component"),
+                  _include("runs", "asset", "security.asset.runs"))))
     # RQ2: every patch of the incident; the open ones; the overdue ones (the query clock).
     q.append(_patch_query(
         "security.incident_patches", "RQ2 for one incident: every patch of an asset for one of "
@@ -2025,33 +2113,40 @@ def response_queries() -> list[QueryDefinitionSpec]:
             _active_exception("work")))
     q.append(_query(
         "security.incident_status", "The incident status page: per CVE and exposure, each "
-        "patch or unexpired exception (excepted_until) with its asset, service, coverage, "
-        "progress and verification, the audit result, and each credential's rotation progress "
-        "and verification (pending is its own state). No host: no action yet. Empty is "
-        "unknown", "incident", "incident",
+        "host a scan observed running the release (exposed_host), each patch or unexpired "
+        "exception (excepted_until) with its asset (host), service, coverage, progress and "
+        "verification, and per audit of the incident its service, result and each credential "
+        "the service uses with its rotation's progress and verification (pending is its own "
+        "state; an approved rotation is its progress, planned until it starts). No host: no "
+        "action yet. Empty is unknown",
+        "incident", "incident",
         _cves(required=True) + [
+            _hop("exposed", "release", "security.asset.runs", "asset", reverse=True),
             work,
             _hop("asset", "work", "security.work.asset", "asset"),
             _inventory_coverage("coverage", "asset"),
             _hop("service", "asset", "security.asset.serves", "service"),
-            _hop("audit", "service", AUD + "service", "audit", reverse=True,
-                 where=_is("audit", AUD + "incident_ref", "incident")),
-            _hop("credential", "service", CRED + "used_by", "credential", reverse=True),
+            _hop("audit", "incident", AUD + "incident", "audit", reverse=True),
+            _hop("audited", "audit", AUD + "service", "service"),
+            _hop("credential", "audited", CRED + "used_by", "credential", reverse=True),
             _hop("rotation", "credential", "security.work.credential", "remediation",
                  reverse=True)],
         [_field("cve", "vulnerability", "security.vulnerability.cve_id"),
          _field("exposure", "assessment", "security.assessment.status"),
+         _field("exposed_host", "exposed", "security.asset.hostname"),
          _field("host", "asset", "security.asset.hostname"),
          _field("service", "service", "security.service.name"),
          _field("coverage", "coverage", "security.coverage.revision"),
          _field("patch", "work", "security.remediation.progress"),
          _field("patch_verified", "work", "security.work.verification"),
          _field("excepted_until", "work", "security.exception.expires_at"),
+         _field("audit_service", "audited", "security.service.name"),
          _field("audit", "audit", AUD + "result"),
          _field("credential", "credential", CRED + "name"),
          _field("rotation", "rotation", "security.remediation.progress"),
          _field("rotation_verified", "rotation", "security.work.verification")],
-        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=500, paths_per_result=500))
+        ON_INCIDENT, parameters=INCIDENT_PARAM, max_results=500, paths_per_result=500,
+        orderings=(BY_STATUS,)))
     return q
 
 
@@ -2351,9 +2446,10 @@ SARIF_SUMMARY = _contract("security-sarif-summary", repo_ref=_S, tools=_J, revis
 # Incident response.
 INVENTORY_INPUT = _contract("security-inventory-import-input", scope=_S)
 _INVENTORY_COUNTS = _ints("mine", "assets", "runs", "unidentified", "added", "retired",
-                          "revised", "restated", "verified", "failed", "changed", "proposes")
+                          "revised", "restated", "verified", "failed", "changed", "proposes",
+                          "nones")
 INVENTORY_REQUEST = _contract("security-runtime-inventory-request", inventory_text=_S, held=_J,
-                              patches=_J, scope=_S, truncated=_J)
+                              runs=_J, patches=_J, scope=_S, truncated=_J)
 INVENTORY_RESULT = _contract("security-runtime-inventory-result", items=_J, scope=_S,
                              format=_S, coverage=_S, revision=_S, regressions=_J,
                              **_INVENTORY_COUNTS)
@@ -3048,7 +3144,9 @@ def cve_applicability(cx: Cruxible) -> Any:
             "(with the supplier): affected / not_affected by the record's version ranges, "
             "inconclusive when the ranges or the vendor are ambiguous; no partial match. A "
             "release OSV answered for, of a CVE OSV knows, is OSV's. States the record's title "
-            "for the CVE. Propose-only. Runs as a Line with trigger_input record."
+            "for the CVE and the products it names as affected (vulnerability.affected_product: "
+            "a matched release's product, else the entry's product or packageName). "
+            "Propose-only. Runs as a Line with trigger_input record."
         ),
         contract_in=EMPTY,
         contract_out=CVE_SUMMARY,
@@ -3389,7 +3487,9 @@ def inventory_import(cx: Cruxible) -> Any:
         [
             Source("inventory", capture_contract=INVENTORY_CONTRACT, next="held",
                    request=_workspace_file("security.inventory", "inventory.json")),
-            StateTap("held", query="security.inventory_index", next="patches",
+            StateTap("held", query="security.inventory_index", next="runs",
+                     parameters={"scope": "$input.scope"}),
+            StateTap("runs", query="security.inventory_runs", next="patches",
                      parameters={"scope": "$input.scope"}),
             StateTap("patches", query="security.inventory_patches", next="parse",
                      parameters={"scope": "$input.scope"}),
@@ -3397,8 +3497,10 @@ def inventory_import(cx: Cruxible) -> Any:
                  next="summary",
                  input={"inventory_text": "$steps.inventory.content.text",
                         "held": "$steps.held.result.rows",
+                        "runs": "$steps.runs.result.rows",
                         "patches": "$steps.patches.result.rows", "scope": "$input.scope",
                         "truncated": {"held": "$steps.held.truncated",
+                                      "runs": "$steps.runs.truncated",
                                       "patches": "$steps.patches.truncated"}}),
             _project(INVENTORY_SUMMARY, "parse", "mine"),
             Guard("mine", predicate=_changed("parse", "mine"), on_true="changed",
@@ -3421,7 +3523,13 @@ def inventory_import(cx: Cruxible) -> Any:
             "version, with its purl as release.component) as asset.runs; a full scan retires "
             "runs it no longer sees (of "
             "the products it looked for) and restates the coverage revision (an unchanged "
-            "scan re-observes it: freshness moves, nothing is proposed). For each open patch "
+            "scan re-observes it: freshness moves, nothing is proposed). A complete read "
+            "states each asset's nones (asset.runs inverses): every product it named in "
+            "looked_for that the asset does not run, and under * every product the asset ran "
+            "before and no longer does (the run retires in the same change: a flip) or "
+            "declares installing and does not run; a held "
+            "none is restated (refreshed), retired when the product runs again or the scan "
+            "no longer looks for it. For each open patch "
             "of a scanned asset: verification verified when a full scan shows the affected "
             "release no longer running, failed when it is claimed completed and a scan still "
             "shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, "
