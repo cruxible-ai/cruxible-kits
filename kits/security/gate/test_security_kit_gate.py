@@ -459,8 +459,8 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 18, "ClaimType": 136, "Procedure": 21,
-              "ProviderInterface": 21, "QueryDefinition": 48, "SourceAcquisitionPolicy": 1,
+KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 18, "ClaimType": 137, "Procedure": 21,
+              "ProviderInterface": 21, "QueryDefinition": 50, "SourceAcquisitionPolicy": 1,
               "SubjectKind": 23}
 
 
@@ -1258,6 +1258,12 @@ def test_19_sbom_reimport(gate: Gate) -> None:
            "1.1.0 (Log4Shell not_affected at log4j-core 2.17.1); 1.0.0 kept")
 
 
+#: The system model's pull Lines the example automation names for this repository; the
+#: gate enables them in steps 21-22.
+SYSTEM_PULL_LINES = ("security.registry-pull.cruxible", "security.registry-pull.cruxible-client",
+                     "security.repo-pull.cruxible-ci")
+
+
 def test_20_exit(gate: Gate) -> None:
     for item in _inbox(gate, "--status", "unread"):
         gate.out("inbox", "ack", item["item_id"])
@@ -1270,7 +1276,14 @@ def test_20_exit(gate: Gate) -> None:
         return any(row["reason"] == "line_settled_prior_refusals" for row in findings)
 
     gate.wait(restoration_warning, 120, "EPSS restoration warning not observed")
-    (warning,) = findings  # Do not hide unrelated repair work.
+    # Do not hide unrelated repair work. The system model's pull Lines (named for this
+    # repository in the example automation) stay off until steps 21-22 enable them:
+    # their line_not_enabled rows are expected here (run 2's noise, finding 8), and only
+    # those are set aside.
+    later = {f"Line:{name}" for name in SYSTEM_PULL_LINES}
+    findings = [row for row in findings if not (
+        row["reason"] == "line_not_enabled" and row.get("subject_identity") in later)]
+    (warning,) = findings
     (gate.root / "epss-restoration-warning.json").write_text(
         json.dumps(warning, indent=2) + "\n")
     identity = "Line:security.epss-triage"
@@ -1302,7 +1315,9 @@ def test_20_exit(gate: Gate) -> None:
     assert successor["max_authority"] == "propose"
     assert successor["procedure"] == old["envelope"]["procedure"]
     gate.out("line", "enable", "security.epss-triage")
-    gate.wait(lambda: "No repair work" in gate.next_text(), 120, "next not empty")
+    gate.wait(lambda: not [row for row in gate.json("next")["items"] if not (
+        row["reason"] == "line_not_enabled" and row.get("subject_identity") in later)],
+        120, "next not empty")
     kinds = set()
     for line in recipe.LINES:
         for run in gate.runs(line):
