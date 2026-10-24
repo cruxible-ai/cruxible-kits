@@ -847,8 +847,7 @@ prod scope; `github/acme-ops/wiki-deploy`). Each service states its log sources
 (affected first), host a scan observed running it (`exposed_host`), patch raised
 for an exposed asset or exception accepting its risk, and audit of the incident
 with each credential its service uses, with every state as held: `exposure` (the
-assessment), `exposed_host`, `host` and `service` (the patch's or exception's
-asset), `coverage` (the scope revision; empty: no current coverage), `patch`
+assessment), `exposed_host`, `host` (the patch's or exception's asset), `patch`
 (progress) and `patch_verified`, `excepted_until` (an approved exception's
 expiry, until it passes), `audit_service` and `audit` (the result;
 `(conflicted)` while disputed), `credential`, `rotation` (progress: an approved

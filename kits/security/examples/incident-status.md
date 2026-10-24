@@ -1,8 +1,10 @@
 # PHP2Shell: where we stand
 
-The incident status page: one row per CVE, exposure, patch raised for an exposed
-asset (or exception accepting its risk, until it expires) and credential of the
-asset's service, rendered from `security.incident_status` (parameter `incident`).
+The incident status page: one row per CVE, exposure (affected first), host a scan
+observed running it, patch raised for an exposed asset (or exception accepting its
+risk, until it expires), and audit of the incident with each credential its service
+uses and that credential's rotation, rendered from `security.incident_status`
+(parameter `incident`).
 Pending actions show as their own state (a patch or rotation `planned` or
 `in_progress`, beside its verification); an exposure with no host has no action
 raised yet. An empty cell is unknown (nothing recorded), never none; the respond

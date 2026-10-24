@@ -1904,13 +1904,12 @@ def response_queries() -> list[QueryDefinitionSpec]:
     # coverage and services). Deployments are enumerated by security.deployments and
     # security.scanned_runs, never through assessments.
     q.append(_query(
-        "security.incident_exposure", "RQ1 for one incident (parameter incident, its name): "
-        "each of its CVEs with its record's title, the products it names and the packages OSV "
-        "says it affects, every release assessed for one of them (any status, with the "
-        "components the answer rests on), and every asset a scan observed running it with "
-        "its inventory coverage and services. Affected rows first, then inconclusive, then "
-        "not_affected (security.incident_affected lists only the affected and inconclusive "
-        "ones)", "incident", "incident",
+        "security.incident_exposure", "RQ1 for one incident (parameter incident): each CVE "
+        "with its record's title, named products and OSV packages, every release assessed "
+        "for one (any status, with the components the answer rests on), affected first, "
+        "and every asset a scan observed running it with its coverage and services "
+        "(security.incident_affected: affected and inconclusive only)", "incident",
+        "incident",
         _cves(required=False, exposed=False) + [
             _hop("asset", "release", "security.asset.runs", "asset", reverse=True),
             _inventory_coverage("coverage", "asset"),
@@ -1979,9 +1978,8 @@ def response_queries() -> list[QueryDefinitionSpec]:
     # components and OSV coverage. A deployment nobody assessed or scanned is a gap.
     q.append(_query(
         "security.deployments", "Every asset, with its inventory coverage (revision and "
-        "looked_for: stale, missing or erased reads absent), its current nones (asset.runs "
-        "inverses, include runs: a product a full scan that looked for it shows the asset "
-        "running none of) and every release it declares installing (with its components and "
+        "looked_for: stale, missing or erased reads absent), its current nones (include "
+        "runs: asset.runs inverses) and every release it declares installing (components, "
         "OSV coverage): the respond Line enumerates deployments from it, never through "
         "assessments, so an unscanned or unassessed deployment is a gap, never silence",
         "asset", "asset",
@@ -2112,20 +2110,17 @@ def response_queries() -> list[QueryDefinitionSpec]:
             right=QueryLiteralRef(value="security.remediation"), value_type="string"),
             _active_exception("work")))
     q.append(_query(
-        "security.incident_status", "The incident status page: per CVE and exposure, each "
-        "host a scan observed running the release (exposed_host), each patch or unexpired "
-        "exception (excepted_until) with its asset (host), service, coverage, progress and "
-        "verification, and per audit of the incident its service, result and each credential "
-        "the service uses with its rotation's progress and verification (pending is its own "
-        "state; an approved rotation is its progress, planned until it starts). No host: no "
-        "action yet. Empty is unknown",
+        "security.incident_status", "The incident status page: per CVE and exposure "
+        "(affected first), each host a scan observed running it (exposed_host), each patch "
+        "or unexpired exception (excepted_until) with its asset (host), progress and "
+        "verification, and per audit of the incident its service, result and each "
+        "credential's rotation progress and verification (pending is its own state). Empty "
+        "is unknown",
         "incident", "incident",
         _cves(required=True) + [
             _hop("exposed", "release", "security.asset.runs", "asset", reverse=True),
             work,
             _hop("asset", "work", "security.work.asset", "asset"),
-            _inventory_coverage("coverage", "asset"),
-            _hop("service", "asset", "security.asset.serves", "service"),
             _hop("audit", "incident", AUD + "incident", "audit", reverse=True),
             _hop("audited", "audit", AUD + "service", "service"),
             _hop("credential", "audited", CRED + "used_by", "credential", reverse=True),
@@ -2135,8 +2130,6 @@ def response_queries() -> list[QueryDefinitionSpec]:
          _field("exposure", "assessment", "security.assessment.status"),
          _field("exposed_host", "exposed", "security.asset.hostname"),
          _field("host", "asset", "security.asset.hostname"),
-         _field("service", "service", "security.service.name"),
-         _field("coverage", "coverage", "security.coverage.revision"),
          _field("patch", "work", "security.remediation.progress"),
          _field("patch_verified", "work", "security.work.verification"),
          _field("excepted_until", "work", "security.exception.expires_at"),
