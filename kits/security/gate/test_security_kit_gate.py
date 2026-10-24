@@ -21,7 +21,8 @@ changed bundled analysis Provider build and live consumer automation, then runs
 the system model's scenarios (steps 21-27), the code findings' (steps 28-34,
 under independent approval with five principals), an incident response
 (steps 35-42, PHP2Shell: patch, audit, rotate) and no silent all-clears (steps
-43-44: OSV coverage, CVE records matched by data and by an analyst's alias) on the
+43-44: OSV coverage, CVE records matched by data and by an analyst's alias; step 45:
+an inverse flip, a vanished run to none and back) on the
 upgraded instance.
 ``SECURITY_KIT_GATE_CADENCE`` (seconds, default 30) sets the gate
 cadence Trigger. Results are written to ``<root>/gate-results.md``.
@@ -112,9 +113,9 @@ STEPS = {
           "services' log sources",
     "37": "G3 G4 G5: an exception holds RQ2 excepted until it expires; patches close only on "
           "a scan; a claim waits; the scan disagrees; unchanged",
-    "38": "G2 G6 K1: OSV decides the fixed Debian build and states coverage; the unassessed "
-          "8.3.36 reads unknown (generic not indexed), never none; the records decide it; stale "
-          "coverage unknown",
+    "38": "G2 G6 K1 K2: OSV decides the fixed Debian build and states coverage; the "
+          "unassessed 8.3.36 reads unknown (generic not indexed), never none, one judgment gap "
+          "per CVE; the records decide it; stale coverage unknown; absence read from nones",
     "39": "G7 G9: audits seeded from the services' log sources (one left out is named); audit "
           "three states with the uncovered interval named; own words refused",
     "40": "G8: a contended result is conflict, RQ3 unknown, RQ4 raises its rotation",
@@ -127,6 +128,9 @@ STEPS = {
     "44": "K1: Homebrew gh stays unknown (OSV doesn't index brew) until an analyst's product "
           "alias, citing the formula, lets the record match it; jq stays unknown, never none; "
           "the status page shows the exposures with no action yet",
+    "45": "K2: inverses: a re-scan of everything that no longer sees jq flips it to none in "
+          "one change (its run retired, asset.runs none of jq added); the query lists the "
+          "none, never as a value; jq seen again retires the none and adds the run",
 }
 
 
@@ -2747,6 +2751,15 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
         "looking_for": ["debian/libc6", "debian/libssl3", "debian/libxml2"]}, gaps
     assert len(_respond_posts(gate, "patch_missing")) == 3
     assert len(_respond_posts(gate, "exposed")) == 3
+    # The RQ1 views: incident_exposure lists the affected first (run 2: the affected row
+    # was row 17 of 102, alphabetical), incident_affected only the exposure.
+    statuses = [s for s in (_field(r, "status") for r in gate.rows(
+        "security.incident_exposure", incident=INCIDENT_NAME)) if s]
+    assert statuses and statuses == sorted(statuses) and statuses[0] == "affected", statuses
+    affected = gate.rows("security.incident_affected", incident=INCIDENT_NAME)
+    assert {_field(r, "status") for r in affected} == {"affected"}, affected
+    assert {_field(r, "hostname") for r in affected} == {
+        HOSTS["storefront-a"], HOSTS["storefront-b"], HOSTS["app-1"]}, affected
     # No audit is stated yet: each exposed service's gap names its standing log sources.
     assert _audit_asks(gate) == {name: list(SERVICE_LOGS[name])
                                  for name in ("partner-portal", "storefront")}
@@ -3010,10 +3023,14 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     summary = _respond(gate)
     assert _states(summary, "RQ1")[f"{HOSTS['storefront-a']}: php 8.3.36"] == "unknown", (
         summary["answers"])
+    # One judgment gap per CVE (run 2: one per release), each carrying the release.
     unindexed = [g["payload"] for g in _respond_posts(gate, "gap")
-                 if g["payload"]["subject"] == "php 8.3.36"]
-    assert [(g["pull"], g["input"]["osv_not_indexed"], g["input"]["cves"]) for g in unindexed
-            ] == [("statement", {"generic": 1}, list(PHP2SHELL))], unindexed
+                 if g["payload"]["pull"] == "statement"
+                 and "php 8.3.36" in (g["payload"]["input"].get("releases") or ())]
+    assert sorted((g["subject"], g["input"]["cve"]) for g in unindexed) == [
+        (cve, cve) for cve in sorted(PHP2SHELL)], unindexed
+    assert all(g["input"]["osv_not_indexed"].get("generic", 0) >= 1 for g in unindexed), (
+        unindexed)
     # The Debian libraries the Syft SBOM listed: OSV answered them and PHP2Shell's
     # packages (OSV's word) are not among them: none, citing those Claims.
     libs = {s: a for s, a in ((a["subject"], a) for a in summary["answers"]
@@ -3053,6 +3070,11 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     now = _respond(gate)
     assert set(_states(now, "RQ2").values()) == {"none"}, now["answers"]
     assert set(_states(now, "RQ1").values()) == {"none"}, now["answers"]
+    # K2: web-1's declared releases are none from its nones (the ops scan of everything
+    # states the none of each product web-1 declares and does not run), each cited.
+    web = [a for a in now["answers"] if a["question"] == "RQ1"
+           and a["subject"].startswith("web-1.example.com: ")]
+    assert web and all(a.get("cites") for a in web), web
     record("38", "OSV proposed debian/php8.2 8.2.29-1~deb12u1 not_affected "
            "(vulnerable_code_not_present, resting on its component) for both CVEs and each "
            "release's OSV coverage bound to its component set (php 8.3.36 partial: generic not "
@@ -3060,8 +3082,10 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
            f"RQ1 unknown naming OSV's unindexed type ({len(libs)} Debian libraries none, citing "
            "coverage, component and package Claims); re-reading both records proposed php "
            "8.3.36 not_affected and no Debian build; at +13 h the coverage revisions read "
-           "absent and RQ2 answers turn unknown x4, each naming its asset's scan; RQ1 (web-1 "
-           "under the ops scan that looked for everything) and RQ2 none now")
+           "absent and RQ2 answers turn unknown x4, each naming its asset's scan; RQ1 and RQ2 "
+           "none now (web-1's declared releases from the nones the ops scan of everything "
+           "stated for what web-1 declares, PHP2Shell's products from the nones of what it "
+           "named in looked_for), each declared answer citing its none")
 
 
 def _claim_ids_of(gate: Gate, kind: str, field: str) -> dict[str, list[dict[str, Any]]]:
@@ -3370,6 +3394,10 @@ def test_42_close(gate: Gate) -> None:
              "QueryDefinition:security.incident_status", "--params", params, "--render")
     text = page.read_text()
     assert "| subject |" in text and HOSTS["storefront-b"] in text and "verified" in text, text
+    # K5: the page reaches each audit's service, its credentials and their rotations.
+    status_rows = gate.rows("security.incident_status", incident=INCIDENT_NAME)
+    assert {_field(r, "audit_service") for r in status_rows} >= set(SERVICE_LOGS), status_rows
+    assert "verified" in {_field(r, "rotation_verified") for r in status_rows}, status_rows
     _ack_all(gate)
     rows = [row for row in gate.json("next")["items"]
             if RESPOND in json.dumps(row) or INCIDENT_NAME.lower() in json.dumps(row).lower()]
@@ -3501,8 +3529,13 @@ def test_43_workstation_and_record_match(gate: Gate) -> None:
     assert rq1[f"{MAC}: gh 2.86.0"] == "unknown", rq1
     unindexed = [g["payload"] for g in _respond_posts(gate, "gap", line=GH_RESPOND,
                                                       incident=GH_INCIDENT)
-                 if g["payload"]["subject"] == "gh 2.86.0"]
-    assert [g["input"]["osv_not_indexed"] for g in unindexed] == [{"brew": 1}], unindexed
+                 if g["payload"]["pull"] == "statement"]
+    # One judgment gap for the CVE (run 2: one per release), carrying every release a
+    # judgment answers: both Homebrew ones (OSV indexes no brew) among them.
+    (judgment,) = unindexed
+    assert judgment["subject"] == GH_CVE and {"gh 2.86.0", "jq 1.7.1"} <= set(
+        judgment["input"]["releases"]), judgment
+    assert judgment["input"]["osv_not_indexed"]["brew"] == 2, judgment
     gate.values["gh_releases"] = {"go": go, "brew": brew}
     record("43", f"hosts {MAC} (workstation) and {RUNNER} (ci); the workstation scope's scan "
            "named github.com/cli/cli/v2 v2.86.0 (never v2) and gh 2.86.0; OSV coverage: brew "
@@ -3559,9 +3592,55 @@ def test_44_product_alias(gate: Gate) -> None:
             if _field(r, "cve") == GH_CVE]
     assert rows and {(_field(r, "exposure"), _field(r, "host")) for r in rows} == {
         ("affected", None)}, rows
+    # K5: the hosts a scan observed running each exposure show, with no action yet.
+    assert {_field(r, "exposed_host") for r in rows} == {MAC, RUNNER}, rows
     record("44", "an own-words alias was refused (evidence_required); the responder's alias "
            "cli/cli on Homebrew gh 2.86.0, citing the retained formula, approved by the lead; "
            f"re-reading {GH_CVE}'s record matched it by the alias: affected, RQ1 found on "
            f"{MAC} and {RUNNER}; jq 1.7.1 stays unknown (brew not indexed); the status page "
            "shows both exposures with no host: no action raised yet")
 
+
+def _nones(gate: Gate, hostname: str) -> list[Any]:
+    """The products the asset holds a current asset.runs none of (the compact query lists
+    nones beside a field's values, never as one)."""
+
+    rows = gate.json("query", "security.asset", "--select",
+                     "security.asset.hostname,security.asset.runs", "--all")["rows"]
+    (row,) = [r for r in rows if r.get("hostname") == hostname]
+    return sorted(item.get("of") for item in (row.get("nones") or {}).get("runs") or ())
+
+
+def test_45_inverse_flip(gate: Gate) -> None:
+    _incident_ready(gate)
+    _ack_all(gate)
+    assert _nones(gate, MAC) == []  # a scan of everything states no none it has no reason for
+    # jq uninstalled: the scan of everything no longer sees it. Its run retires and its none
+    # is added in one change set (a flip), cited to the scan.
+    _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "workstation-after.json",
+                       "inventory/workstation.json", SCANNER, (WORKSTATION,))
+    proposal = _proposal(gate, runs[WORKSTATION])
+    assert proposal, gate.out("get", runs[WORKSTATION]["run"])[-1500:]
+    review = gate.out("proposal", "review", proposal)
+    assert f"{MAC} runs no jq" in review and f"{MAC} no longer runs jq" in review, review[-2500:]
+    _approve(gate, proposal, LEAD)
+    assert _nones(gate, MAC) == ["jq"]
+    summary = _respond(gate, GH_RESPOND)
+    rq1 = _states(summary, "RQ1")
+    assert f"{MAC}: jq 1.7.1" not in rq1 and rq1[f"{MAC}: gh 2.86.0"] == "found", rq1
+    # jq is back: its none retires and the run is added again (the other flip).
+    _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "workstation.json",
+                       "inventory/workstation.json", SCANNER, (WORKSTATION,))
+    proposal = _proposal(gate, runs[WORKSTATION])
+    assert proposal, gate.out("get", runs[WORKSTATION]["run"])[-1500:]
+    review = gate.out("proposal", "review", proposal)
+    assert f"{MAC} runs jq again" in review, review[-2500:]
+    _approve(gate, proposal, LEAD)
+    assert _nones(gate, MAC) == []
+    rq1 = _states(_respond(gate, GH_RESPOND), "RQ1")
+    assert rq1[f"{MAC}: jq 1.7.1"] == "unknown", rq1
+    record("45", f"the workstation re-scan of everything without jq proposed, in one change, "
+           f"the retirement of {MAC}'s jq run and the none of jq (asset.runs inverse, cited "
+           "to the scan); approved, the query listed jq under nones and the gh incident's "
+           "RQ1 no longer asked about jq; the next scan with jq retired the none and re-added "
+           "the run, and RQ1 read jq unknown again")
