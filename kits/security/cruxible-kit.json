@@ -1125,7 +1125,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:3b4cae2dfa54b5065cf9559ffd36d4c77f017a849c8e4c3e7b1e559603e3bb1b"
+      "sha256": "sha256:e701622e3c23e57b7bf2388814bc9df5241c9d7ce0df5951ef73d736dad229b7"
     },
     {
       "path": "examples/README.md",
@@ -1150,12 +1150,12 @@
     {
       "path": "skills/security-analyst/SKILL.md",
       "role": "skill",
-      "sha256": "sha256:85c9ece508110866122d0c8ae6e6b9dcb11c22f33db3b5b7025bf43f732d2922"
+      "sha256": "sha256:da6e19e85a060ab3505bde6cc57fffcea84a5456813d534b075850a766fd9b0b"
     },
     {
       "path": "skills/security-intake/SKILL.md",
       "role": "skill",
-      "sha256": "sha256:ddcfb5dad741c16ecac1006ec4a9f04a15afdea5da876d62a7b9bd9e542f3cfd"
+      "sha256": "sha256:63602990654561af70153c83eccb5187a94e65f66c81578e682158de327fc7ee"
     }
   ],
   "kit_id": "security",
