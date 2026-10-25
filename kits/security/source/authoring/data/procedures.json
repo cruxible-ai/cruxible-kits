@@ -1,0 +1,3145 @@
+[
+  {
+    "procedure": "security.sbom-acquire",
+    "description": "Read one CycloneDX JSON SBOM from the attached workspace (input.relative_path) and retain it under security.cyclonedx-sbom-v1; security.sbom-import reads it when it lands. At most 1 MiB (the built-in workspace.file's limit).",
+    "input": {
+      "relative_path": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "byte_length": "$sbom.source.byte_length",
+        "bytes_digest": "$sbom.source.bytes_digest"
+      }
+    },
+    "budget": {
+      "wall_clock": "PT60.000000S",
+      "provider_calls": 1
+    },
+    "caps": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 1,
+      "items": 1
+    },
+    "steps": [
+      {
+        "id": "sbom",
+        "source": "sbom",
+        "contract": "security.file-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "cyclonedx.sbom",
+          "relative_path": "$input.relative_path",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      }
+    ],
+    "input_contract": "security-path-input",
+    "output_contract": "security-file-evidence",
+    "output": {
+      "bytes_digest": {
+        "type": "string"
+      },
+      "byte_length": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-file-evidence": {
+        "fields": {
+          "bytes_digest": {
+            "type": "string"
+          },
+          "byte_length": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-path-input": {
+        "fields": {
+          "relative_path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "procedure": "security.evidence-acquire",
+    "description": "Read one workspace file an analyst cites for a judgment (input.relative_path: code, a config, an analysis note) and retain it under security.workspace-evidence-v1; cite the Capture with `cruxible set ... --capture CAP-...`. At most 1 MiB (the built-in workspace.file's limit).",
+    "input": {
+      "relative_path": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "byte_length": "$evidence.source.byte_length",
+        "bytes_digest": "$evidence.source.bytes_digest"
+      }
+    },
+    "budget": {
+      "wall_clock": "PT60.000000S",
+      "provider_calls": 1
+    },
+    "caps": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 1,
+      "items": 1
+    },
+    "steps": [
+      {
+        "id": "evidence",
+        "source": "evidence",
+        "contract": "security.file-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.analysis.evidence",
+          "relative_path": "$input.relative_path",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      }
+    ],
+    "input_contract": "security-path-input",
+    "output_contract": "security-file-evidence",
+    "output": {
+      "bytes_digest": {
+        "type": "string"
+      },
+      "byte_length": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-file-evidence": {
+        "fields": {
+          "bytes_digest": {
+            "type": "string"
+          },
+          "byte_length": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-path-input": {
+        "fields": {
+          "relative_path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "procedure": "security.kev-triage",
+    "description": "Read the KEV catalog Capture that triggered the Line (security.kev-http-v1) and the watched vulnerabilities, and settle one observation Claim per KEV field that changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use) under a settle mandate, or propose it under a propose cap. Halts no_change when nothing changed. Runs as a Line with trigger_input catalog.",
+    "input": {},
+    "returns": {
+      "fields": {
+        "catalog_version": "$parse.catalog_version",
+        "changed": "$parse.changed",
+        "listed": "$parse.listed",
+        "watched": "$parse.watched"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216,
+      "items": 5000
+    },
+    "steps": [
+      {
+        "id": "catalog",
+        "source": "catalog",
+        "contract": "security.fetched-v1",
+        "interface": "web.fetch",
+        "provider": "cruxible-provider-web",
+        "request": {
+          "expected_format": "json",
+          "extract": false,
+          "logical_source": "cisa.kev.catalog",
+          "max_bytes": 4194304,
+          "render": false,
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      },
+      {
+        "id": "watched",
+        "tap": "watched",
+        "query": "security.watched_vulnerabilities"
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.kev-catalog",
+        "provider": "security-analysis-provider",
+        "input": {
+          "catalog_base64": "$catalog.retrieved.body_base64",
+          "watched": "$watched.result.rows"
+        }
+      },
+      {
+        "id": "changed",
+        "guard": "parse.changed > 0",
+        "then": "settle",
+        "refusal_code": "no_change",
+        "message": "The catalog changes no watched Claim.",
+        "else_id": "nochange",
+        "else": "halt(no_change)"
+      },
+      {
+        "id": "settle",
+        "settle": "$parse.items",
+        "result": "$summary"
+      }
+    ],
+    "input_contract": "security-empty-input",
+    "output_contract": "security-kev-triage-summary",
+    "output": {
+      "catalog_version": {
+        "type": "string"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "watched": {
+        "type": "integer"
+      },
+      "listed": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-empty-input": {
+        "fields": {}
+      },
+      "security-kev-triage-summary": {
+        "fields": {
+          "catalog_version": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "watched": {
+            "type": "integer"
+          },
+          "listed": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "nochange"
+    ]
+  },
+  {
+    "procedure": "security.kev-attention",
+    "description": "Read the KEV catalog Capture that triggered the Line and post one inbox item per CVE added in the catalog's last 7 days whose vendor/product matches a release in inventory that nobody watches the CVE for or nobody has assessed: possibly exposed, nobody has looked. Never changes accepted state. Runs as a Line with trigger_input catalog.",
+    "input": {},
+    "returns": {
+      "fields": {
+        "catalog_version": "$match.catalog_version",
+        "newly_listed": "$match.newly_listed",
+        "posted": "$match.posted"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216,
+      "items": 1000
+    },
+    "steps": [
+      {
+        "id": "catalog",
+        "source": "catalog",
+        "contract": "security.fetched-v1",
+        "interface": "web.fetch",
+        "provider": "cruxible-provider-web",
+        "request": {
+          "expected_format": "json",
+          "extract": false,
+          "logical_source": "cisa.kev.catalog",
+          "max_bytes": 4194304,
+          "render": false,
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      },
+      {
+        "id": "releases",
+        "tap": "releases",
+        "query": "security.release_inventory"
+      },
+      {
+        "id": "watched",
+        "tap": "watched",
+        "query": "security.watched_vulnerabilities"
+      },
+      {
+        "id": "assessments",
+        "tap": "assessments",
+        "query": "security.assessment_index"
+      },
+      {
+        "id": "match",
+        "call": "match",
+        "interface": "security.kev-attention",
+        "provider": "security-analysis-provider",
+        "input": {
+          "assessments": "$assessments.result.rows",
+          "catalog_base64": "$catalog.retrieved.body_base64",
+          "releases": "$releases.result.rows",
+          "watched": "$watched.result.rows"
+        }
+      },
+      {
+        "id": "posted",
+        "guard": "match.posted > 0",
+        "then": "post",
+        "refusal_code": "nothing_to_post",
+        "message": "No newly listed CVE matches unwatched or unassessed inventory.",
+        "else_id": "quiet",
+        "else": "halt(nothing_to_post)"
+      },
+      {
+        "id": "post",
+        "inbox": {
+          "items": "$match.items"
+        },
+        "max_items": 1000
+      }
+    ],
+    "input_contract": "security-empty-input",
+    "output_contract": "security-kev-attention-summary",
+    "output": {
+      "catalog_version": {
+        "type": "string"
+      },
+      "posted": {
+        "type": "integer"
+      },
+      "newly_listed": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-empty-input": {
+        "fields": {}
+      },
+      "security-kev-attention-summary": {
+        "fields": {
+          "catalog_version": {
+            "type": "string"
+          },
+          "posted": {
+            "type": "integer"
+          },
+          "newly_listed": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "quiet"
+    ]
+  },
+  {
+    "procedure": "security.epss-triage",
+    "description": "Read the EPSS daily file Capture that triggered the Line (security.epss-daily-v1) and the watched vulnerabilities, and settle epss_score and epss_percentile for each watched CVE whose scores changed, exactly as the file states them (or propose them under a propose cap). Halts no_change when nothing changed. Runs as a Line with trigger_input epss.",
+    "input": {},
+    "returns": {
+      "fields": {
+        "changed": "$parse.changed",
+        "model_version": "$parse.model_version",
+        "score_date": "$parse.score_date",
+        "scored": "$parse.scored",
+        "watched": "$parse.watched"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 33554432
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 33554432,
+      "items": 5000
+    },
+    "steps": [
+      {
+        "id": "epss",
+        "source": "epss",
+        "contract": "security.fetched-v1",
+        "interface": "security.epss-daily",
+        "provider": "security-sources-provider",
+        "request": {}
+      },
+      {
+        "id": "watched",
+        "tap": "watched",
+        "query": "security.watched_vulnerabilities"
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.epss-scores",
+        "provider": "security-analysis-provider",
+        "input": {
+          "daily_base64": "$epss.retrieved.body_base64",
+          "watched": "$watched.result.rows"
+        }
+      },
+      {
+        "id": "changed",
+        "guard": "parse.changed > 0",
+        "then": "settle",
+        "refusal_code": "no_change",
+        "message": "The EPSS file changes no watched Claim.",
+        "else_id": "nochange",
+        "else": "halt(no_change)"
+      },
+      {
+        "id": "settle",
+        "settle": "$parse.items",
+        "result": "$summary"
+      }
+    ],
+    "input_contract": "security-empty-input",
+    "output_contract": "security-epss-summary",
+    "output": {
+      "model_version": {
+        "type": "string"
+      },
+      "score_date": {
+        "type": "string"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "watched": {
+        "type": "integer"
+      },
+      "scored": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-empty-input": {
+        "fields": {}
+      },
+      "security-epss-summary": {
+        "fields": {
+          "model_version": {
+            "type": "string"
+          },
+          "score_date": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "watched": {
+            "type": "integer"
+          },
+          "scored": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "nochange"
+    ]
+  },
+  {
+    "procedure": "security.sbom-import",
+    "description": "Read the CycloneDX SBOM Capture that triggered the Line (security.cyclonedx-sbom-v1) and propose its product and release (created by key, or the held ones), the release's product link, supplier, and one security.release.component observation per component purl the release does not hold yet. Propose-only. Runs as a Line with trigger_input sbom.",
+    "input": {},
+    "returns": {
+      "fields": {
+        "added": "$parse.added",
+        "changed": "$parse.changed",
+        "components": "$parse.components",
+        "product": "$parse.product",
+        "skipped": "$parse.skipped",
+        "version": "$parse.version"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216,
+      "items": 5000
+    },
+    "steps": [
+      {
+        "id": "sbom",
+        "source": "sbom",
+        "contract": "security.file-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "cyclonedx.sbom",
+          "relative_path": "sbom.cdx.json",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "id": "releases",
+        "tap": "releases",
+        "query": "security.release_inventory"
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.cyclonedx-components",
+        "provider": "security-analysis-provider",
+        "input": {
+          "releases": "$releases.result.rows",
+          "sbom_text": "$sbom.content.text"
+        }
+      },
+      {
+        "id": "changed",
+        "guard": "parse.changed > 0",
+        "then": "propose",
+        "refusal_code": "no_change",
+        "message": "The SBOM adds nothing inventory lacks.",
+        "else_id": "nochange",
+        "else": "halt(no_change)"
+      },
+      {
+        "id": "propose",
+        "propose": "$parse.items",
+        "result": "$summary"
+      }
+    ],
+    "input_contract": "security-empty-input",
+    "output_contract": "security-sbom-summary",
+    "output": {
+      "product": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "components": {
+        "type": "integer"
+      },
+      "added": {
+        "type": "integer"
+      },
+      "skipped": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-empty-input": {
+        "fields": {}
+      },
+      "security-sbom-summary": {
+        "fields": {
+          "product": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "components": {
+            "type": "integer"
+          },
+          "added": {
+            "type": "integer"
+          },
+          "skipped": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "nochange"
+    ]
+  },
+  {
+    "procedure": "security.cve-applicability",
+    "description": "Read the CVE record Capture that triggered the Line (security.cve-record-http-v1) and propose an assessment for every release an affected entry names by data: its collectionURL + packageName (the kit's collectionURL map, carried here) as a component's full namespace and name, its repo as the release's source repository, its CPEs, packageName or vendor/product as a product alias an analyst stated (security.release.product_alias), or its product as the release's product name (with the supplier): affected / not_affected by the record's version ranges, inconclusive when the ranges or the vendor are ambiguous; no partial match. A release OSV answered for, of a CVE OSV knows, is OSV's. States the record's title for the CVE and the products it names as affected (vulnerability.affected_product: a matched release's product, else the entry's product or packageName). Propose-only. Runs as a Line with trigger_input record.",
+    "input": {},
+    "returns": {
+      "fields": {
+        "affected": "$decide.affected",
+        "changed": "$decide.changed",
+        "cve_id": "$decide.cve_id",
+        "inconclusive": "$decide.inconclusive",
+        "judged": "$decide.judged",
+        "not_affected": "$decide.not_affected",
+        "unchanged": "$decide.unchanged"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216,
+      "items": 5000
+    },
+    "steps": [
+      {
+        "id": "record",
+        "source": "record",
+        "contract": "security.fetched-v1",
+        "interface": "web.fetch",
+        "provider": "cruxible-provider-web",
+        "request": {
+          "expected_format": "json",
+          "extract": false,
+          "logical_source": "cve.record",
+          "max_bytes": 1048576,
+          "render": false,
+          "url": "https://cveawg.mitre.org/api/cve/"
+        }
+      },
+      {
+        "id": "releases",
+        "tap": "releases",
+        "query": "security.release_inventory"
+      },
+      {
+        "id": "sources",
+        "tap": "sources",
+        "query": "security.release_sources"
+      },
+      {
+        "id": "watched",
+        "tap": "watched",
+        "query": "security.watched_vulnerabilities"
+      },
+      {
+        "id": "assessments",
+        "tap": "assessments",
+        "query": "security.assessment_index"
+      },
+      {
+        "id": "decide",
+        "call": "decide",
+        "interface": "security.cve-applicability",
+        "provider": "security-analysis-provider",
+        "input": {
+          "assessments": "$assessments.result.rows",
+          "collections": {
+            "collections": {
+              "https://anaconda.org": {
+                "type": "conda"
+              },
+              "https://bitbucket.org": {
+                "repository": true,
+                "type": "bitbucket"
+              },
+              "https://brew.sh": {
+                "type": "brew"
+              },
+              "https://cocoapods.org": {
+                "type": "cocoapods"
+              },
+              "https://cran.r-project.org/web/packages": {
+                "type": "cran"
+              },
+              "https://crates.io": {
+                "type": "cargo"
+              },
+              "https://formulae.brew.sh": {
+                "type": "brew"
+              },
+              "https://github.com": {
+                "repository": true,
+                "type": "github"
+              },
+              "https://gitlab.com": {
+                "repository": true,
+                "type": "gitlab"
+              },
+              "https://golang.org/pkg": {
+                "type": "golang"
+              },
+              "https://hackage.haskell.org": {
+                "type": "hackage"
+              },
+              "https://hex.pm": {
+                "type": "hex"
+              },
+              "https://hub.docker.com": {
+                "type": "docker"
+              },
+              "https://luarocks.org": {
+                "type": "luarocks"
+              },
+              "https://nuget.org/packages": {
+                "type": "nuget"
+              },
+              "https://packages.debian.org": {
+                "namespace": "debian",
+                "type": "deb"
+              },
+              "https://packages.ubuntu.com": {
+                "namespace": "ubuntu",
+                "type": "deb"
+              },
+              "https://packagist.org": {
+                "type": "composer"
+              },
+              "https://pkg.go.dev": {
+                "type": "golang"
+              },
+              "https://proxy.golang.org": {
+                "type": "golang"
+              },
+              "https://pub.dev/packages": {
+                "type": "pub"
+              },
+              "https://pypi.org": {
+                "type": "pypi"
+              },
+              "https://pypi.python.org": {
+                "type": "pypi"
+              },
+              "https://registry.npmjs.org": {
+                "type": "npm"
+              },
+              "https://repo.maven.apache.org/maven2": {
+                "name_separator": ":",
+                "type": "maven"
+              },
+              "https://repo1.maven.org/maven2": {
+                "name_separator": ":",
+                "type": "maven"
+              },
+              "https://rubygems.org": {
+                "type": "gem"
+              },
+              "https://www.npmjs.com": {
+                "type": "npm"
+              },
+              "https://www.nuget.org/packages": {
+                "type": "nuget"
+              }
+            },
+            "sources": [
+              "https://cveproject.github.io/cve-schema/schema/docs/ (CVE JSON 5.1: affected[].collectionURL, packageName, repo, cpes; the collectionURL examples)",
+              "https://github.com/package-url/purl-spec/blob/main/PURL-TYPES.rst (purl types, their namespaces and name forms)"
+            ]
+          },
+          "record_base64": "$record.retrieved.body_base64",
+          "releases": "$releases.result.rows",
+          "sources": "$sources.result.rows",
+          "watched": "$watched.result.rows"
+        }
+      },
+      {
+        "id": "changed",
+        "guard": "decide.changed > 0",
+        "then": "propose",
+        "refusal_code": "no_change",
+        "message": "The CVE record changes no assessment.",
+        "else_id": "nochange",
+        "else": "halt(no_change)"
+      },
+      {
+        "id": "propose",
+        "propose": "$decide.items",
+        "result": "$summary"
+      }
+    ],
+    "input_contract": "security-empty-input",
+    "output_contract": "security-cve-applicability-summary",
+    "output": {
+      "cve_id": {
+        "type": "string"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "affected": {
+        "type": "integer"
+      },
+      "not_affected": {
+        "type": "integer"
+      },
+      "inconclusive": {
+        "type": "integer"
+      },
+      "unchanged": {
+        "type": "integer"
+      },
+      "judged": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-cve-applicability-summary": {
+        "fields": {
+          "cve_id": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "affected": {
+            "type": "integer"
+          },
+          "not_affected": {
+            "type": "integer"
+          },
+          "inconclusive": {
+            "type": "integer"
+          },
+          "unchanged": {
+            "type": "integer"
+          },
+          "judged": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-empty-input": {
+        "fields": {}
+      }
+    },
+    "halt_order": [
+      "nochange"
+    ]
+  },
+  {
+    "procedure": "security.repo-parse",
+    "description": "Read the repository snapshot that triggered the Line (security.repo-snapshot-v1) for the Line's source (parameters: source, repo_source, forge_host, full_name, ref, scope, path) and propose what changed: workflows, jobs and their triggers, permissions, secrets, environment, actions and publish targets, or a manifest's declared digests, plus the source's coverage restated (an unchanged snapshot re-observes it; a new revision revises it). Halts other_source for another source's snapshot. Runs as a Line with trigger_input snapshot.",
+    "input": {
+      "source": {
+        "type": "string"
+      },
+      "repo_source": {
+        "type": "string"
+      },
+      "forge_host": {
+        "type": "string"
+      },
+      "full_name": {
+        "type": "string"
+      },
+      "ref": {
+        "type": "string"
+      },
+      "scope": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "added": "$parse.added",
+        "changed": "$parse.changed",
+        "jobs": "$parse.jobs",
+        "locator": "$parse.locator",
+        "restated": "$parse.restated",
+        "retired": "$parse.retired",
+        "revised": "$parse.revised",
+        "revision": "$parse.revision",
+        "scope": "$parse.scope",
+        "unparsed": "$parse.unparsed",
+        "workflows": "$parse.workflows"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216,
+      "items": 5000
+    },
+    "steps": [
+      {
+        "id": "snapshot",
+        "source": "snapshot",
+        "contract": "security.fetched-v1",
+        "interface": "security.repo-snapshot",
+        "provider": "security-sources-provider",
+        "request": {
+          "forge_host": "$input.forge_host",
+          "full_name": "$input.full_name",
+          "path": "$input.path",
+          "ref": "$input.ref",
+          "scope": "$input.scope"
+        }
+      },
+      {
+        "id": "mine",
+        "guard": "snapshot.locator == input.source",
+        "then": "coverage",
+        "refusal_code": "other_source",
+        "message": "The landed snapshot is another source's.",
+        "else_id": "other",
+        "else": "halt(other_source)"
+      },
+      {
+        "id": "coverage",
+        "tap": "coverage",
+        "query": "security.coverage_index",
+        "params": {
+          "scope": "$input.scope",
+          "source": "$input.source"
+        }
+      },
+      {
+        "id": "held",
+        "tap": "held",
+        "query": "security.source_facts",
+        "params": {
+          "source": "$input.repo_source"
+        }
+      },
+      {
+        "id": "targets",
+        "tap": "targets",
+        "query": "security.repo_targets",
+        "params": {
+          "forge_host": "$input.forge_host",
+          "full_name": "$input.full_name"
+        }
+      },
+      {
+        "id": "releases",
+        "tap": "releases",
+        "query": "security.registry_facts",
+        "params": {
+          "name": "$input.full_name",
+          "registry": "github_release"
+        }
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.workflow-facts",
+        "provider": "security-analysis-provider",
+        "input": {
+          "coverage": "$coverage.result.rows",
+          "held": "$held.result.rows",
+          "releases": "$releases.result.rows",
+          "snapshot": "$snapshot",
+          "targets": "$targets.result.rows"
+        }
+      },
+      {
+        "id": "propose",
+        "propose": "$parse.items",
+        "result": "$summary"
+      }
+    ],
+    "input_contract": "security-repo-parse-input",
+    "output_contract": "security-repo-parse-summary",
+    "output": {
+      "locator": {
+        "type": "string"
+      },
+      "revision": {
+        "type": "string"
+      },
+      "scope": {
+        "type": "string"
+      },
+      "unparsed": {
+        "type": "json"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "added": {
+        "type": "integer"
+      },
+      "revised": {
+        "type": "integer"
+      },
+      "retired": {
+        "type": "integer"
+      },
+      "restated": {
+        "type": "integer"
+      },
+      "workflows": {
+        "type": "integer"
+      },
+      "jobs": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-repo-parse-input": {
+        "fields": {
+          "source": {
+            "type": "string"
+          },
+          "repo_source": {
+            "type": "string"
+          },
+          "forge_host": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "security-repo-parse-summary": {
+        "fields": {
+          "locator": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "unparsed": {
+            "type": "json"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "added": {
+            "type": "integer"
+          },
+          "revised": {
+            "type": "integer"
+          },
+          "retired": {
+            "type": "integer"
+          },
+          "restated": {
+            "type": "integer"
+          },
+          "workflows": {
+            "type": "integer"
+          },
+          "jobs": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "other"
+    ]
+  },
+  {
+    "procedure": "security.registry-parse",
+    "description": "Read the PyPI release Capture that triggered the Line (security.pypi-release-v1) for the Line's project (parameters: source pypi/PROJECT, project, versions) and propose what changed: each served file as an artifact with its digest, release, and (from provenance) the workflow at the commit that published it, its environment and the commit; the target's source repository; the coverage restated. Halts other_source for another project. Runs as a Line with trigger_input registry.",
+    "input": {
+      "source": {
+        "type": "string"
+      },
+      "project": {
+        "type": "string"
+      },
+      "versions": {
+        "type": "integer"
+      }
+    },
+    "returns": {
+      "fields": {
+        "added": "$parse.added",
+        "changed": "$parse.changed",
+        "files": "$parse.files",
+        "locator": "$parse.locator",
+        "restated": "$parse.restated",
+        "retired": "$parse.retired",
+        "revised": "$parse.revised",
+        "revision": "$parse.revision"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216,
+      "items": 5000
+    },
+    "steps": [
+      {
+        "id": "registry",
+        "source": "registry",
+        "contract": "security.fetched-v1",
+        "interface": "security.pypi-release",
+        "provider": "security-sources-provider",
+        "request": {
+          "project": "$input.project",
+          "versions": "$input.versions"
+        }
+      },
+      {
+        "id": "mine",
+        "guard": "registry.project == input.project",
+        "then": "coverage",
+        "refusal_code": "other_source",
+        "message": "The landed release is another project's.",
+        "else_id": "other",
+        "else": "halt(other_source)"
+      },
+      {
+        "id": "coverage",
+        "tap": "coverage",
+        "query": "security.coverage_index",
+        "params": {
+          "scope": "registry.files",
+          "source": "$input.source"
+        }
+      },
+      {
+        "id": "held",
+        "tap": "held",
+        "query": "security.registry_facts",
+        "params": {
+          "name": "$input.project",
+          "registry": "pypi"
+        }
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.registry-facts",
+        "provider": "security-analysis-provider",
+        "input": {
+          "coverage": "$coverage.result.rows",
+          "held": "$held.result.rows",
+          "release": "$registry"
+        }
+      },
+      {
+        "id": "propose",
+        "propose": "$parse.items",
+        "result": "$summary"
+      }
+    ],
+    "input_contract": "security-registry-parse-input",
+    "output_contract": "security-registry-parse-summary",
+    "output": {
+      "locator": {
+        "type": "string"
+      },
+      "revision": {
+        "type": "string"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "added": {
+        "type": "integer"
+      },
+      "revised": {
+        "type": "integer"
+      },
+      "retired": {
+        "type": "integer"
+      },
+      "restated": {
+        "type": "integer"
+      },
+      "files": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-registry-parse-input": {
+        "fields": {
+          "source": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "versions": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-registry-parse-summary": {
+        "fields": {
+          "locator": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "added": {
+            "type": "integer"
+          },
+          "revised": {
+            "type": "integer"
+          },
+          "retired": {
+            "type": "integer"
+          },
+          "restated": {
+            "type": "integer"
+          },
+          "files": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "other"
+    ]
+  },
+  {
+    "procedure": "security.harden",
+    "description": "Ask the six hardening questions (HQ1-HQ6) about every gated target (a target with a security.target.publish_gate) and answer each in three states: found (posted as a finding), none (a current coverage answers it; run summary only) or unknown (posted as one gap item per source, naming the pull: {source, pull, input}). HQ6 (an open confirmed code finding in a release the target serves) is found or not recorded, never none. Observe-only. Runs as a Line (parameters: default_ref, repo_pull, registry_pull, release_pull, versions): daily, on a pull landing, or line run.",
+    "input": {
+      "default_ref": {
+        "type": "string"
+      },
+      "repo_pull": {
+        "type": "string"
+      },
+      "registry_pull": {
+        "type": "string"
+      },
+      "release_pull": {
+        "type": "string"
+      },
+      "versions": {
+        "type": "integer"
+      }
+    },
+    "returns": {
+      "fields": {
+        "answers": "$classify.answers",
+        "found": "$classify.found",
+        "gaps": "$classify.gaps",
+        "none": "$classify.none",
+        "posted": "$classify.posted",
+        "targets": "$classify.targets",
+        "unknown": "$classify.unknown"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 1
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 1,
+      "items": 200
+    },
+    "steps": [
+      {
+        "id": "hq1",
+        "tap": "hq1",
+        "query": "security.publish_paths"
+      },
+      {
+        "id": "hq2",
+        "tap": "hq2",
+        "query": "security.credentialed_jobs"
+      },
+      {
+        "id": "hq3",
+        "tap": "hq3",
+        "query": "security.mutable_actions"
+      },
+      {
+        "id": "hq4",
+        "tap": "hq4",
+        "query": "security.shared_dependencies"
+      },
+      {
+        "id": "hq5",
+        "tap": "hq5",
+        "query": "security.served_vs_declared"
+      },
+      {
+        "id": "hq6",
+        "tap": "hq6",
+        "query": "security.published_findings"
+      },
+      {
+        "id": "classify",
+        "call": "classify",
+        "interface": "security.harden",
+        "provider": "security-analysis-provider",
+        "input": {
+          "hq1": "$hq1.result.rows",
+          "hq2": "$hq2.result.rows",
+          "hq3": "$hq3.result.rows",
+          "hq4": "$hq4.result.rows",
+          "hq5": "$hq5.result.rows",
+          "hq6": "$hq6.result.rows",
+          "params": "$input",
+          "truncated": {
+            "hq1": "$hq1.truncated",
+            "hq2": "$hq2.truncated",
+            "hq3": "$hq3.truncated",
+            "hq4": "$hq4.truncated",
+            "hq5": "$hq5.truncated",
+            "hq6": "$hq6.truncated"
+          }
+        }
+      },
+      {
+        "id": "posted",
+        "guard": "classify.posted > 0",
+        "then": "post",
+        "refusal_code": "nothing_to_post",
+        "message": "Every hardening answer is none: nothing to post.",
+        "else_id": "quiet",
+        "else": "halt(nothing_to_post)"
+      },
+      {
+        "id": "post",
+        "inbox": {
+          "items": "$classify.items"
+        },
+        "max_items": 200
+      }
+    ],
+    "input_contract": "security-harden-input",
+    "output_contract": "security-harden-summary",
+    "output": {
+      "answers": {
+        "type": "json"
+      },
+      "posted": {
+        "type": "integer"
+      },
+      "targets": {
+        "type": "integer"
+      },
+      "gaps": {
+        "type": "integer"
+      },
+      "found": {
+        "type": "integer"
+      },
+      "none": {
+        "type": "integer"
+      },
+      "unknown": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-harden-input": {
+        "fields": {
+          "default_ref": {
+            "type": "string"
+          },
+          "repo_pull": {
+            "type": "string"
+          },
+          "registry_pull": {
+            "type": "string"
+          },
+          "release_pull": {
+            "type": "string"
+          },
+          "versions": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-harden-summary": {
+        "fields": {
+          "answers": {
+            "type": "json"
+          },
+          "posted": {
+            "type": "integer"
+          },
+          "targets": {
+            "type": "integer"
+          },
+          "gaps": {
+            "type": "integer"
+          },
+          "found": {
+            "type": "integer"
+          },
+          "none": {
+            "type": "integer"
+          },
+          "unknown": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "quiet"
+    ]
+  },
+  {
+    "procedure": "security.sarif-acquire",
+    "description": "Read one SARIF 2.1.0 scan log from the attached workspace (input.relative_path) and retain it under security.sarif-v1; the repository's security.sarif-import Line reads it when it lands. Annotate each run first: versionControlProvenance (repositoryUri, revisionId) and properties[\"cruxible.coverage\"] (full or partial).",
+    "input": {
+      "relative_path": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "byte_length": "$sarif.source.byte_length",
+        "bytes_digest": "$sarif.source.bytes_digest"
+      }
+    },
+    "budget": {
+      "wall_clock": "PT60.000000S",
+      "provider_calls": 1
+    },
+    "caps": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 1,
+      "items": 1
+    },
+    "steps": [
+      {
+        "id": "sarif",
+        "source": "sarif",
+        "contract": "security.file-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "sarif.log",
+          "relative_path": "$input.relative_path",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      }
+    ],
+    "input_contract": "security-path-input",
+    "output_contract": "security-file-evidence",
+    "output": {
+      "bytes_digest": {
+        "type": "string"
+      },
+      "byte_length": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-file-evidence": {
+        "fields": {
+          "bytes_digest": {
+            "type": "string"
+          },
+          "byte_length": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-path-input": {
+        "fields": {
+          "relative_path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "procedure": "security.reproduction-acquire",
+    "description": "Read one proof-of-concept run's report from the attached workspace (input.relative_path: a JUnit XML or a test log) and retain it under security.reproduction-v1; cite the Capture for security.finding.verdict (confirmed: the PoC fails while vulnerable) or verification (fixed: it passes).",
+    "input": {
+      "relative_path": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "byte_length": "$reproduction.source.byte_length",
+        "bytes_digest": "$reproduction.source.bytes_digest"
+      }
+    },
+    "budget": {
+      "wall_clock": "PT60.000000S",
+      "provider_calls": 1
+    },
+    "caps": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 1,
+      "items": 1
+    },
+    "steps": [
+      {
+        "id": "reproduction",
+        "source": "reproduction",
+        "contract": "security.file-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.reproduction",
+          "relative_path": "$input.relative_path",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      }
+    ],
+    "input_contract": "security-path-input",
+    "output_contract": "security-file-evidence",
+    "output": {
+      "bytes_digest": {
+        "type": "string"
+      },
+      "byte_length": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-file-evidence": {
+        "fields": {
+          "bytes_digest": {
+            "type": "string"
+          },
+          "byte_length": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-path-input": {
+        "fields": {
+          "relative_path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "procedure": "security.sarif-import",
+    "description": "Read the SARIF log Capture that triggered the Line (security.sarif-v1) for the Line's repository (parameter repo_ref, host/owner/repo) and propose what changed: each new finding by key (repository, weakness, locus) with the rules and finders that reported it and its severity; rules and finders a held finding lacks; verification fixed for a held finding a full scan of its rules no longer reports, present for a fixed one it reports again. Never a verdict. Halts wrong_repo for another repository's log, no_change when nothing changed. Propose-only. Runs as a Line with trigger_input sarif.",
+    "input": {
+      "repo_ref": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "added": "$parse.added",
+        "changed": "$parse.changed",
+        "findings": "$parse.findings",
+        "fixed": "$parse.fixed",
+        "full": "$parse.full",
+        "gaps": "$parse.gaps",
+        "mine": "$parse.mine",
+        "new": "$parse.new",
+        "posted": "$parse.posted",
+        "regressed": "$parse.regressed",
+        "repo_ref": "$parse.repo_ref",
+        "results": "$parse.results",
+        "revisions": "$parse.revisions",
+        "routed_to_assessment": "$parse.routed_to_assessment",
+        "tools": "$parse.tools"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216,
+      "items": 5000
+    },
+    "steps": [
+      {
+        "id": "sarif",
+        "source": "sarif",
+        "contract": "security.file-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "sarif.log",
+          "relative_path": "scan.sarif",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "id": "held",
+        "tap": "held",
+        "query": "security.finding_index",
+        "params": {
+          "repo_ref": "$input.repo_ref"
+        }
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.sarif-findings",
+        "provider": "security-analysis-provider",
+        "input": {
+          "held": "$held.result.rows",
+          "repo_ref": "$input.repo_ref",
+          "sarif_text": "$sarif.content.text",
+          "truncated": "$held.truncated"
+        }
+      },
+      {
+        "id": "mine",
+        "guard": "parse.mine > 0",
+        "then": "changed",
+        "refusal_code": "wrong_repo",
+        "message": "The landed SARIF log has no run of the Line's repository.",
+        "else_id": "other",
+        "else": "halt(wrong_repo)"
+      },
+      {
+        "id": "changed",
+        "guard": "parse.changed > 0",
+        "then": "propose",
+        "refusal_code": "no_change",
+        "message": "The scan reports nothing the held findings lack.",
+        "else_id": "nochange",
+        "else": "halt(no_change)"
+      },
+      {
+        "id": "propose",
+        "propose": "$parse.items",
+        "result": "$summary"
+      }
+    ],
+    "input_contract": "security-sarif-import-input",
+    "output_contract": "security-sarif-summary",
+    "output": {
+      "repo_ref": {
+        "type": "string"
+      },
+      "tools": {
+        "type": "json"
+      },
+      "revisions": {
+        "type": "json"
+      },
+      "full": {
+        "type": "json"
+      },
+      "mine": {
+        "type": "integer"
+      },
+      "results": {
+        "type": "integer"
+      },
+      "findings": {
+        "type": "integer"
+      },
+      "gaps": {
+        "type": "integer"
+      },
+      "routed_to_assessment": {
+        "type": "integer"
+      },
+      "new": {
+        "type": "integer"
+      },
+      "added": {
+        "type": "integer"
+      },
+      "fixed": {
+        "type": "integer"
+      },
+      "regressed": {
+        "type": "integer"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "posted": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-sarif-import-input": {
+        "fields": {
+          "repo_ref": {
+            "type": "string"
+          }
+        }
+      },
+      "security-sarif-summary": {
+        "fields": {
+          "repo_ref": {
+            "type": "string"
+          },
+          "tools": {
+            "type": "json"
+          },
+          "revisions": {
+            "type": "json"
+          },
+          "full": {
+            "type": "json"
+          },
+          "mine": {
+            "type": "integer"
+          },
+          "results": {
+            "type": "integer"
+          },
+          "findings": {
+            "type": "integer"
+          },
+          "gaps": {
+            "type": "integer"
+          },
+          "routed_to_assessment": {
+            "type": "integer"
+          },
+          "new": {
+            "type": "integer"
+          },
+          "added": {
+            "type": "integer"
+          },
+          "fixed": {
+            "type": "integer"
+          },
+          "regressed": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "posted": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "nochange",
+      "other"
+    ]
+  },
+  {
+    "procedure": "security.sarif-attention",
+    "description": "Read the SARIF log Capture that triggered the Line for the Line's repository (parameter repo_ref) and post one inbox item per location gap (a result with no repository-relative path or no stable locus: one per tool, rule and path) and per regression (a fixed finding a full scan reports again). Never changes accepted state. Runs as a Line with trigger_input sarif, beside security.sarif-import.",
+    "input": {
+      "repo_ref": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "added": "$parse.added",
+        "changed": "$parse.changed",
+        "findings": "$parse.findings",
+        "fixed": "$parse.fixed",
+        "full": "$parse.full",
+        "gaps": "$parse.gaps",
+        "mine": "$parse.mine",
+        "new": "$parse.new",
+        "posted": "$parse.posted",
+        "regressed": "$parse.regressed",
+        "repo_ref": "$parse.repo_ref",
+        "results": "$parse.results",
+        "revisions": "$parse.revisions",
+        "routed_to_assessment": "$parse.routed_to_assessment",
+        "tools": "$parse.tools"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "capture_bytes": 16777216,
+      "items": 1000
+    },
+    "steps": [
+      {
+        "id": "sarif",
+        "source": "sarif",
+        "contract": "security.file-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "sarif.log",
+          "relative_path": "scan.sarif",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "id": "held",
+        "tap": "held",
+        "query": "security.finding_index",
+        "params": {
+          "repo_ref": "$input.repo_ref"
+        }
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.sarif-findings",
+        "provider": "security-analysis-provider",
+        "input": {
+          "held": "$held.result.rows",
+          "repo_ref": "$input.repo_ref",
+          "sarif_text": "$sarif.content.text",
+          "truncated": "$held.truncated"
+        }
+      },
+      {
+        "id": "mine",
+        "guard": "parse.mine > 0",
+        "then": "posted",
+        "refusal_code": "wrong_repo",
+        "message": "The landed SARIF log has no run of the Line's repository.",
+        "else_id": "other",
+        "else": "halt(wrong_repo)"
+      },
+      {
+        "id": "posted",
+        "guard": "parse.posted > 0",
+        "then": "post",
+        "refusal_code": "nothing_to_post",
+        "message": "The scan has no location gap and no regression.",
+        "else_id": "quiet",
+        "else": "halt(nothing_to_post)"
+      },
+      {
+        "id": "post",
+        "inbox": {
+          "items": "$parse.inbox"
+        },
+        "max_items": 1000
+      }
+    ],
+    "input_contract": "security-sarif-import-input",
+    "output_contract": "security-sarif-summary",
+    "output": {
+      "repo_ref": {
+        "type": "string"
+      },
+      "tools": {
+        "type": "json"
+      },
+      "revisions": {
+        "type": "json"
+      },
+      "full": {
+        "type": "json"
+      },
+      "mine": {
+        "type": "integer"
+      },
+      "results": {
+        "type": "integer"
+      },
+      "findings": {
+        "type": "integer"
+      },
+      "gaps": {
+        "type": "integer"
+      },
+      "routed_to_assessment": {
+        "type": "integer"
+      },
+      "new": {
+        "type": "integer"
+      },
+      "added": {
+        "type": "integer"
+      },
+      "fixed": {
+        "type": "integer"
+      },
+      "regressed": {
+        "type": "integer"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "posted": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-sarif-import-input": {
+        "fields": {
+          "repo_ref": {
+            "type": "string"
+          }
+        }
+      },
+      "security-sarif-summary": {
+        "fields": {
+          "repo_ref": {
+            "type": "string"
+          },
+          "tools": {
+            "type": "json"
+          },
+          "revisions": {
+            "type": "json"
+          },
+          "full": {
+            "type": "json"
+          },
+          "mine": {
+            "type": "integer"
+          },
+          "results": {
+            "type": "integer"
+          },
+          "findings": {
+            "type": "integer"
+          },
+          "gaps": {
+            "type": "integer"
+          },
+          "routed_to_assessment": {
+            "type": "integer"
+          },
+          "new": {
+            "type": "integer"
+          },
+          "added": {
+            "type": "integer"
+          },
+          "fixed": {
+            "type": "integer"
+          },
+          "regressed": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "posted": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "quiet",
+      "other"
+    ]
+  },
+  {
+    "procedure": "security.inventory-acquire",
+    "description": "Read one runtime-inventory scan from the attached workspace (input.relative_path, at most 1 MiB) and retain it under security.runtime-inventory-v1; the scope's security.inventory-import Line reads it when it lands. Either the kit's tool-neutral body {scope, looked_for, coverage: full|partial, assets: [{hostname, runs: [purl@version]}]} with no timestamps (an unchanged fleet is the same bytes), or a CycloneDX JSON SBOM of one asset (Syft, Trivy) annotated with metadata properties cruxible.scope and cruxible.asset.",
+    "input": {
+      "relative_path": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "byte_length": "$inventory.source.byte_length",
+        "bytes_digest": "$inventory.source.bytes_digest"
+      }
+    },
+    "budget": {
+      "wall_clock": "PT60.000000S",
+      "provider_calls": 1
+    },
+    "caps": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 1,
+      "items": 1
+    },
+    "steps": [
+      {
+        "id": "inventory",
+        "source": "inventory",
+        "contract": "security.file-erasable-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.inventory",
+          "relative_path": "$input.relative_path",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      }
+    ],
+    "input_contract": "security-path-input",
+    "output_contract": "security-file-evidence",
+    "output": {
+      "bytes_digest": {
+        "type": "string"
+      },
+      "byte_length": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-file-evidence": {
+        "fields": {
+          "bytes_digest": {
+            "type": "string"
+          },
+          "byte_length": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-path-input": {
+        "fields": {
+          "relative_path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "procedure": "security.log-acquire",
+    "description": "Read one log read from the attached workspace (input.relative_path, at most 1 MiB): {audit: {incident, service}, source, query, from, to, complete, records_scanned, matches: [{at, summary}]}, written by the agent from its own log tool's answer, match summaries redacted. Retained under security.log-read-v1; the incident's security.log-import Line reads it when it lands. complete means every record in [from, to] was searched: no sampling, no result cap, retention reaching from.",
+    "input": {
+      "relative_path": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "byte_length": "$log.source.byte_length",
+        "bytes_digest": "$log.source.bytes_digest"
+      }
+    },
+    "budget": {
+      "wall_clock": "PT60.000000S",
+      "provider_calls": 1
+    },
+    "caps": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 1,
+      "items": 1
+    },
+    "steps": [
+      {
+        "id": "log",
+        "source": "log",
+        "contract": "security.file-erasable-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.log-read",
+          "relative_path": "$input.relative_path",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      }
+    ],
+    "input_contract": "security-path-input",
+    "output_contract": "security-file-evidence",
+    "output": {
+      "bytes_digest": {
+        "type": "string"
+      },
+      "byte_length": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-file-evidence": {
+        "fields": {
+          "bytes_digest": {
+            "type": "string"
+          },
+          "byte_length": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-path-input": {
+        "fields": {
+          "relative_path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "procedure": "security.credential-acquire",
+    "description": "Read one credential's key state from the attached workspace (input.relative_path): {issuer, name, read: receipt|state_read, keys: [{key_id, state: active|inactive|revoked|deleted, created_at, revoked_at, last_used_at, created_by}]} and nothing else (optionally complete: true when a state_read lists every key, every page): key ids or fp: fingerprints, never a secret. Retained under security.credential-state-v1; security.credential-import reads it when it lands. A receipt is what the issuer returned to the rotating agent; a state_read is a later, separate listing. Who acquires it is a convention the kit cannot check (the acquiring run's actor is on its ProcedureRun): let someone other than the rotator acquire it.",
+    "input": {
+      "relative_path": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "byte_length": "$credential.source.byte_length",
+        "bytes_digest": "$credential.source.bytes_digest"
+      }
+    },
+    "budget": {
+      "wall_clock": "PT60.000000S",
+      "provider_calls": 1
+    },
+    "caps": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 1,
+      "items": 1
+    },
+    "steps": [
+      {
+        "id": "credential",
+        "source": "credential",
+        "contract": "security.file-erasable-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.credential-state",
+          "relative_path": "$input.relative_path",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      }
+    ],
+    "input_contract": "security-path-input",
+    "output_contract": "security-file-evidence",
+    "output": {
+      "bytes_digest": {
+        "type": "string"
+      },
+      "byte_length": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-file-evidence": {
+        "fields": {
+          "bytes_digest": {
+            "type": "string"
+          },
+          "byte_length": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-path-input": {
+        "fields": {
+          "relative_path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "procedure": "security.inventory-import",
+    "description": "Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). A complete read states each asset's nones (asset.runs inverses): every product it named in looked_for that the asset does not run, and under * every product the asset ran before and no longer does (the run retires in the same change: a flip) or declares installing and does not run; a held none is restated (refreshed), retired when the product runs again or the scan no longer looks for it. For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage, and only while every component is identified (a purl with a version, an OS component too): one that isn't could be any product, so the SBOM then only adds (unidentified counts them). Two ecosystems' packages of one name and version are one release with both purls as components. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
+    "input": {
+      "scope": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "added": "$parse.added",
+        "assets": "$parse.assets",
+        "changed": "$parse.changed",
+        "coverage": "$parse.coverage",
+        "failed": "$parse.failed",
+        "format": "$parse.format",
+        "mine": "$parse.mine",
+        "nones": "$parse.nones",
+        "proposes": "$parse.proposes",
+        "regressions": "$parse.regressions",
+        "restated": "$parse.restated",
+        "retired": "$parse.retired",
+        "revised": "$parse.revised",
+        "revision": "$parse.revision",
+        "runs": "$parse.runs",
+        "scope": "$parse.scope",
+        "unidentified": "$parse.unidentified",
+        "verified": "$parse.verified"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 2,
+      "items": 5000
+    },
+    "steps": [
+      {
+        "id": "inventory",
+        "source": "inventory",
+        "contract": "security.file-erasable-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.inventory",
+          "relative_path": "inventory.json",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "id": "held",
+        "tap": "held",
+        "query": "security.inventory_index",
+        "params": {
+          "scope": "$input.scope"
+        }
+      },
+      {
+        "id": "runs",
+        "tap": "runs",
+        "query": "security.inventory_runs",
+        "params": {
+          "scope": "$input.scope"
+        }
+      },
+      {
+        "id": "patches",
+        "tap": "patches",
+        "query": "security.inventory_patches",
+        "params": {
+          "scope": "$input.scope"
+        }
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.runtime-inventory",
+        "provider": "security-analysis-provider",
+        "input": {
+          "held": "$held.result.rows",
+          "inventory_text": "$inventory.content.text",
+          "patches": "$patches.result.rows",
+          "runs": "$runs.result.rows",
+          "scope": "$input.scope",
+          "truncated": {
+            "held": "$held.truncated",
+            "patches": "$patches.truncated",
+            "runs": "$runs.truncated"
+          }
+        }
+      },
+      {
+        "id": "mine",
+        "guard": "parse.mine > 0",
+        "then": "changed",
+        "refusal_code": "other_scope",
+        "message": "The landed inventory is another scope's.",
+        "else_id": "other",
+        "else": "halt(other_scope)"
+      },
+      {
+        "id": "changed",
+        "guard": "parse.proposes > 0",
+        "then": "propose",
+        "refusal_code": "no_change",
+        "message": "The scan changes nothing inventory holds.",
+        "else_id": "nochange",
+        "else": "halt(no_change)"
+      },
+      {
+        "id": "propose",
+        "propose": "$parse.items",
+        "result": "$summary"
+      }
+    ],
+    "input_contract": "security-inventory-import-input",
+    "output_contract": "security-runtime-inventory-summary",
+    "output": {
+      "scope": {
+        "type": "string"
+      },
+      "format": {
+        "type": "string"
+      },
+      "coverage": {
+        "type": "string"
+      },
+      "revision": {
+        "type": "string"
+      },
+      "regressions": {
+        "type": "json"
+      },
+      "mine": {
+        "type": "integer"
+      },
+      "assets": {
+        "type": "integer"
+      },
+      "runs": {
+        "type": "integer"
+      },
+      "unidentified": {
+        "type": "integer"
+      },
+      "added": {
+        "type": "integer"
+      },
+      "retired": {
+        "type": "integer"
+      },
+      "revised": {
+        "type": "integer"
+      },
+      "restated": {
+        "type": "integer"
+      },
+      "verified": {
+        "type": "integer"
+      },
+      "failed": {
+        "type": "integer"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "proposes": {
+        "type": "integer"
+      },
+      "nones": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-inventory-import-input": {
+        "fields": {
+          "scope": {
+            "type": "string"
+          }
+        }
+      },
+      "security-runtime-inventory-summary": {
+        "fields": {
+          "scope": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "coverage": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "regressions": {
+            "type": "json"
+          },
+          "mine": {
+            "type": "integer"
+          },
+          "assets": {
+            "type": "integer"
+          },
+          "runs": {
+            "type": "integer"
+          },
+          "unidentified": {
+            "type": "integer"
+          },
+          "added": {
+            "type": "integer"
+          },
+          "retired": {
+            "type": "integer"
+          },
+          "revised": {
+            "type": "integer"
+          },
+          "restated": {
+            "type": "integer"
+          },
+          "verified": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "proposes": {
+            "type": "integer"
+          },
+          "nones": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "nochange",
+      "other"
+    ]
+  },
+  {
+    "procedure": "security.log-import",
+    "description": "Read the log-read Capture that triggered the Line (security.log-read-v1) for the Line's incident (parameter incident, its name) and propose the audit by key (incident, service) with its twins and one security.audit.read (SOURCE FROM/TO) for a complete read. An incomplete read is posted (read_incomplete) and never becomes a read: it is a finding about the logs, not about the attacker. Never a result. Halts other_incident for another incident's read. Runs as a Line with trigger_input log.",
+    "input": {
+      "incident": {
+        "type": "string"
+      }
+    },
+    "returns": {
+      "fields": {
+        "added": "$parse.added",
+        "changed": "$parse.changed",
+        "incident": "$parse.incident",
+        "matches": "$parse.matches",
+        "mine": "$parse.mine",
+        "posted": "$parse.posted",
+        "read": "$parse.read",
+        "recordable": "$parse.recordable",
+        "service": "$parse.service",
+        "source": "$parse.source"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT60.000000S",
+      "provider_calls": 2
+    },
+    "caps": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "items": 100
+    },
+    "steps": [
+      {
+        "id": "log",
+        "source": "log",
+        "contract": "security.file-erasable-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.log-read",
+          "relative_path": "log-read.json",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "id": "held",
+        "tap": "held",
+        "query": "security.audit_status",
+        "params": {
+          "incident": "$input.incident"
+        }
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.log-reads",
+        "provider": "security-analysis-provider",
+        "input": {
+          "held": "$held.result.rows",
+          "incident": "$input.incident",
+          "read_text": "$log.content.text",
+          "truncated": "$held.truncated"
+        }
+      },
+      {
+        "id": "mine",
+        "guard": "parse.mine > 0",
+        "then": "recordable",
+        "refusal_code": "other_incident",
+        "message": "The landed log read is another incident's.",
+        "else_id": "other",
+        "else": "halt(other_incident)"
+      },
+      {
+        "id": "recordable",
+        "guard": "parse.recordable > 0",
+        "then": "changed",
+        "refusal_code": "read_not_recordable",
+        "message": "The read is incomplete, or its audit is not stated: posted.",
+        "else": "post"
+      },
+      {
+        "id": "changed",
+        "guard": "parse.changed > 0",
+        "then": "propose",
+        "refusal_code": "no_change",
+        "message": "The audit already holds this read.",
+        "else_id": "nochange",
+        "else": "halt(no_change)"
+      },
+      {
+        "id": "propose",
+        "propose": "$parse.items",
+        "result": "$summary"
+      },
+      {
+        "id": "post",
+        "inbox": {
+          "items": "$parse.inbox"
+        },
+        "max_items": 10
+      }
+    ],
+    "input_contract": "security-log-import-input",
+    "output_contract": "security-log-read-summary",
+    "output": {
+      "incident": {
+        "type": "string"
+      },
+      "service": {
+        "type": "string"
+      },
+      "source": {
+        "type": "string"
+      },
+      "read": {
+        "type": "string"
+      },
+      "mine": {
+        "type": "integer"
+      },
+      "recordable": {
+        "type": "integer"
+      },
+      "matches": {
+        "type": "integer"
+      },
+      "added": {
+        "type": "integer"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "posted": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-log-import-input": {
+        "fields": {
+          "incident": {
+            "type": "string"
+          }
+        }
+      },
+      "security-log-read-summary": {
+        "fields": {
+          "incident": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "read": {
+            "type": "string"
+          },
+          "mine": {
+            "type": "integer"
+          },
+          "recordable": {
+            "type": "integer"
+          },
+          "matches": {
+            "type": "integer"
+          },
+          "added": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "posted": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "nochange",
+      "other"
+    ]
+  },
+  {
+    "procedure": "security.credential-import",
+    "description": "Read the credential-state Capture that triggered the Line (security.credential-state-v1) and propose what changed: the credential's current key_id, issued_at and issued_by from a receipt or a state read; revoked_key and a rotation's verification only from a state read (verified: the rotation's revokes_key is listed revoked or deleted, or absent from a listing that says complete, and an active key was issued after the incident's window_start; failed: claimed completed while revokes_key is still listed). A body outside the allow-list, or a key id, issuer, name or principal shaped like a secret, proposes nothing and is posted (secret_shape, with a fixed message: nothing from the body is echoed). Runs as a Line with trigger_input credential.",
+    "input": {},
+    "returns": {
+      "fields": {
+        "added": "$parse.added",
+        "changed": "$parse.changed",
+        "credential": "$parse.credential",
+        "failed": "$parse.failed",
+        "keys": "$parse.keys",
+        "posted": "$parse.posted",
+        "read": "$parse.read",
+        "revised": "$parse.revised",
+        "unproven": "$parse.unproven",
+        "verified": "$parse.verified"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT60.000000S",
+      "provider_calls": 2
+    },
+    "caps": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 2,
+      "items": 500
+    },
+    "steps": [
+      {
+        "id": "credential",
+        "source": "credential",
+        "contract": "security.file-erasable-v1",
+        "interface": "workspace.file",
+        "provider": "cruxible-builtin",
+        "request": {
+          "coordinate": {
+            "revision": "working"
+          },
+          "coordinate_type": "http-response-v1",
+          "logical_source": "security.credential-state",
+          "relative_path": "credential.json",
+          "replayability": "exact",
+          "selector": {
+            "whole": true
+          },
+          "selector_type": "whole-response-v1",
+          "tag": "playbill-workspace-file-source-request-v2"
+        }
+      },
+      {
+        "id": "held",
+        "tap": "held",
+        "query": "security.rotation_work"
+      },
+      {
+        "id": "parse",
+        "call": "parse",
+        "interface": "security.credential-state",
+        "provider": "security-analysis-provider",
+        "input": {
+          "held": "$held.result.rows",
+          "state_text": "$credential.content.text",
+          "truncated": "$held.truncated"
+        }
+      },
+      {
+        "id": "allowed",
+        "guard": "parse.posted == 0",
+        "then": "changed",
+        "refusal_code": "secret_shape",
+        "message": "The body is not the credential-state allow-list.",
+        "else": "post"
+      },
+      {
+        "id": "changed",
+        "guard": "parse.changed > 0",
+        "then": "propose",
+        "refusal_code": "no_change",
+        "message": "The read changes no held key state.",
+        "else_id": "nochange",
+        "else": "halt(no_change)"
+      },
+      {
+        "id": "propose",
+        "propose": "$parse.items",
+        "result": "$summary"
+      },
+      {
+        "id": "post",
+        "inbox": {
+          "items": "$parse.inbox"
+        },
+        "max_items": 10
+      }
+    ],
+    "input_contract": "security-empty-input",
+    "output_contract": "security-credential-state-summary",
+    "output": {
+      "credential": {
+        "type": "string"
+      },
+      "read": {
+        "type": "string"
+      },
+      "keys": {
+        "type": "integer"
+      },
+      "added": {
+        "type": "integer"
+      },
+      "revised": {
+        "type": "integer"
+      },
+      "verified": {
+        "type": "integer"
+      },
+      "failed": {
+        "type": "integer"
+      },
+      "unproven": {
+        "type": "integer"
+      },
+      "changed": {
+        "type": "integer"
+      },
+      "posted": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-credential-state-summary": {
+        "fields": {
+          "credential": {
+            "type": "string"
+          },
+          "read": {
+            "type": "string"
+          },
+          "keys": {
+            "type": "integer"
+          },
+          "added": {
+            "type": "integer"
+          },
+          "revised": {
+            "type": "integer"
+          },
+          "verified": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "unproven": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "posted": {
+            "type": "integer"
+          }
+        }
+      },
+      "security-empty-input": {
+        "fields": {}
+      }
+    },
+    "halt_order": [
+      "nochange"
+    ]
+  },
+  {
+    "procedure": "security.respond",
+    "description": "Ask one incident's five questions (parameter incident, its name) and answer each in three states: found (posted), none (run summary only) or unknown (posted as a gap naming the pull or statement that would answer it). RQ1 which deployments run an affected release: every asset (security.deployments) and every release a scan observed on one or it declares, for each incident CVE. A deployment's none needs a current full scan of the asset that looked for the product, and the release's none: its assessment (a negative that rests on components holds while they are the release's), or OSV's answer for every component of the exact current set with none a package OSV says the CVE affects (citing those Claims). Else unknown naming the next step (the inventory pull for a missing, stale or erased scan, or products a scan didn't look for; the CVE record pull; the purl types OSV does not index; the OSV Line; an analyst's judgment last): never silent. More than 200 items to post refuses (overflow) rather than cut the rest; RQ2 is each exposure patched (missing, overdue, disputed; none only when a full scan verified it; excepted while an approved exception for each of its CVEs has not expired, then missing again); RQ3 were we exploited in the window, per service (none only for not_exploited with complete reads of every stated log source covering the window); RQ4 which credentials warrant rotation (posted with the audit and patch state; rotating after a verified patch is the recommended order, the agent's call), and is each rotation verified by a separate state read; RQ5 can the incident close (ready_to_close, with any unknown audit as accepted residue). A closed incident posts nothing. Observe-only. Runs as a Line (parameters incident, inventory_pull, log_pull, credential_pull, record_pull, optional osv_line): daily, on a landing, after a window closes, or line run.",
+    "input": {
+      "incident": {
+        "type": "string"
+      },
+      "inventory_pull": {
+        "type": "string"
+      },
+      "log_pull": {
+        "type": "string"
+      },
+      "credential_pull": {
+        "type": "string"
+      },
+      "record_pull": {
+        "type": "string"
+      },
+      "osv_line": {
+        "type": "string",
+        "optional": true
+      }
+    },
+    "returns": {
+      "fields": {
+        "answers": "$classify.answers",
+        "found": "$classify.found",
+        "incident": "$classify.incident",
+        "none": "$classify.none",
+        "posted": "$classify.posted",
+        "ready_to_close": "$classify.ready_to_close",
+        "status": "$classify.status",
+        "unknown": "$classify.unknown"
+      }
+    },
+    "activation": "drain",
+    "budget": {
+      "wall_clock": "PT120.000000S",
+      "provider_calls": 1
+    },
+    "caps": {
+      "wall_clock": "PT300.000000S",
+      "provider_calls": 1,
+      "items": 200
+    },
+    "steps": [
+      {
+        "id": "exposure",
+        "tap": "exposure",
+        "query": "security.incident_exposure",
+        "params": {
+          "incident": "$input.incident"
+        }
+      },
+      {
+        "id": "hosts",
+        "tap": "hosts",
+        "query": "security.scanned_runs"
+      },
+      {
+        "id": "deployments",
+        "tap": "deployments",
+        "query": "security.deployments"
+      },
+      {
+        "id": "patches",
+        "tap": "patches",
+        "query": "security.incident_patches",
+        "params": {
+          "incident": "$input.incident"
+        }
+      },
+      {
+        "id": "overdue",
+        "tap": "overdue",
+        "query": "security.overdue_patches",
+        "params": {
+          "incident": "$input.incident"
+        }
+      },
+      {
+        "id": "exceptions",
+        "tap": "exceptions",
+        "query": "security.incident_exceptions",
+        "params": {
+          "incident": "$input.incident"
+        }
+      },
+      {
+        "id": "audits",
+        "tap": "audits",
+        "query": "security.audit_status",
+        "params": {
+          "incident": "$input.incident"
+        }
+      },
+      {
+        "id": "credentials",
+        "tap": "credentials",
+        "query": "security.incident_credentials",
+        "params": {
+          "incident": "$input.incident"
+        }
+      },
+      {
+        "id": "classify",
+        "call": "classify",
+        "interface": "security.respond",
+        "provider": "security-analysis-provider",
+        "input": {
+          "audits": "$audits.result.rows",
+          "credentials": "$credentials.result.rows",
+          "deployments": "$deployments.result.rows",
+          "exceptions": "$exceptions.result.rows",
+          "exposure": "$exposure.result.rows",
+          "hosts": "$hosts.result.rows",
+          "overdue": "$overdue.result.rows",
+          "params": "$input",
+          "patches": "$patches.result.rows",
+          "truncated": {
+            "audits": "$audits.truncated",
+            "credentials": "$credentials.truncated",
+            "deployments": "$deployments.truncated",
+            "exceptions": "$exceptions.truncated",
+            "exposure": "$exposure.truncated",
+            "hosts": "$hosts.truncated",
+            "overdue": "$overdue.truncated",
+            "patches": "$patches.truncated"
+          }
+        }
+      },
+      {
+        "id": "posted",
+        "guard": "classify.posted > 0",
+        "then": "post",
+        "refusal_code": "nothing_to_post",
+        "message": "Nothing to post: no question is found or unknown (every answer rests on evidence of none), or the incident is closed.",
+        "else_id": "quiet",
+        "else": "halt(nothing_to_post)"
+      },
+      {
+        "id": "post",
+        "inbox": {
+          "items": "$classify.items"
+        },
+        "max_items": 200
+      }
+    ],
+    "input_contract": "security-respond-input",
+    "output_contract": "security-respond-summary",
+    "output": {
+      "answers": {
+        "type": "json"
+      },
+      "incident": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "posted": {
+        "type": "integer"
+      },
+      "found": {
+        "type": "integer"
+      },
+      "none": {
+        "type": "integer"
+      },
+      "unknown": {
+        "type": "integer"
+      },
+      "ready_to_close": {
+        "type": "integer"
+      }
+    },
+    "contracts": {
+      "security-respond-input": {
+        "fields": {
+          "incident": {
+            "type": "string"
+          },
+          "inventory_pull": {
+            "type": "string"
+          },
+          "log_pull": {
+            "type": "string"
+          },
+          "credential_pull": {
+            "type": "string"
+          },
+          "record_pull": {
+            "type": "string"
+          },
+          "osv_line": {
+            "type": "string",
+            "optional": true
+          }
+        }
+      },
+      "security-respond-summary": {
+        "fields": {
+          "answers": {
+            "type": "json"
+          },
+          "incident": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "posted": {
+            "type": "integer"
+          },
+          "found": {
+            "type": "integer"
+          },
+          "none": {
+            "type": "integer"
+          },
+          "unknown": {
+            "type": "integer"
+          },
+          "ready_to_close": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "halt_order": [
+      "quiet"
+    ]
+  }
+]
