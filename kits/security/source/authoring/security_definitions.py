@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from cruxible_client import Cruxible
+from cruxible_core.claims.claim_type_inputs import ClaimTypeInputRecord, lower_claim_type_input
 from cruxible_client.authoring.inputs import CarriedContractInput
 from cruxible_client.authoring.procedures import (
     Call,
@@ -952,36 +953,37 @@ def claim_types(release: str) -> list[ClaimType]:
                 evidence_rules=(rule,),
                 stale_after=ClaimFreshnessDuration(microseconds=hours * 3_600_000_000),
                 description=meaning)
-        result.append(
-            ClaimType(
-                artifact_format=CLAIM_TYPE_V9_FORMAT if inverse else "playbill-claim-type-v8",
-                identity=ArtifactIdentity(kind="ClaimType", name=predicate),
-                predicate=predicate,
-                allowed_subject_kinds=tuple(sorted(kinds)),
-                object_kind=obj,  # type: ignore[arg-type]
-                literal_schema=shape if obj == "literal" else None,
-                allowed_object_subject_kinds=tuple(shape) if obj == "subject" else (),
-                cardinality=cardinality,  # type: ignore[arg-type]
-                permitted_roles=roles,  # type: ignore[arg-type]
-                evidence_admission_policy=ClaimEvidenceAdmissionPolicy(rules=rules),
-                admission_policy=ClaimAdmissionPolicy(),
-                resolution_policy=ClaimResolutionPolicy(
-                    cardinality=cardinality,  # type: ignore[arg-type]
-                    eligible_verdicts=("supported",),
-                    selector="only_contender" if cardinality == "one" else "all",
-                ),
-                description=description,
-                member_descriptions=members,
-                default_role=default_role,  # type: ignore[arg-type]
-                evidence_requirement=requirement,  # type: ignore[arg-type]
-                revision_evidence="replace",
-                canonical_form=tuple(form) if obj == "literal" else (),
-                evidence_freshness=ClaimEvidenceFreshness(stale_after=ClaimFreshnessDuration(
-                    microseconds=FRESHNESS[predicate] * 3_600_000_000))
-                if predicate in FRESHNESS else None,
-                inverse=inverse,
-            )
-        )
+        record: dict[str, Any] = {
+            "predicate": predicate, "cardinality": cardinality, "description": description,
+        }
+        if tuple(kinds) != (predicate.rpartition(".")[0],):
+            record["allowed_subject_kinds"] = tuple(sorted(kinds))
+        if obj == "subject":
+            record["allowed_object_subject_kinds"] = tuple(shape)
+        elif obj == "literal":
+            if shape != {"type": "string"}:
+                record["literal_schema"] = shape
+            if tuple(form) != ("nfc", "trim"):
+                record["canonical_form"] = tuple(form)
+        else:
+            record["object_kind"] = obj
+        if roles != ("normative",):
+            record["permitted_roles"] = roles
+        if default_role != "normative":
+            record["default_role"] = default_role
+        if rules:
+            record["evidence_admission_policy"] = ClaimEvidenceAdmissionPolicy(rules=rules).model_dump(mode="json")
+        default_requirement = "captured" if roles == ("observation",) else "self"
+        if requirement != default_requirement:
+            record["evidence_requirement"] = requirement
+        if members:
+            record["member_descriptions"] = [m.model_dump(mode="json") for m in members]
+        if predicate in FRESHNESS:
+            record["evidence_freshness"] = {"stale_after": {"microseconds": FRESHNESS[predicate] * 3_600_000_000}}
+        if inverse is not None:
+            record["inverse"] = inverse.model_dump(mode="json", exclude={"tag"})
+        result.append(lower_claim_type_input(ClaimTypeInputRecord.model_validate(record),
+                                            tree={}, identity_rules=True))
     return result
 
 
