@@ -293,7 +293,10 @@
       "line_name": "security.kev-triage",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.kev-http-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "cisa.kev.catalog"
+        ]
       }
     },
     {
@@ -302,7 +305,10 @@
       "line_name": "security.kev-attention",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.kev-http-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "cisa.kev.catalog"
+        ]
       }
     },
     {
@@ -311,7 +317,10 @@
       "line_name": "security.epss-triage",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.epss-daily-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "first.epss.daily"
+        ]
       }
     },
     {
@@ -320,7 +329,10 @@
       "line_name": "security.sbom-import",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.cyclonedx-sbom-v1"
+        "capture_contract": "security.file-v1",
+        "logical_sources": [
+          "cyclonedx.sbom"
+        ]
       }
     },
     {
@@ -329,7 +341,10 @@
       "line_name": "security.cve-applicability",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.cve-record-http-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "cve.record"
+        ]
       }
     },
     {
@@ -347,7 +362,10 @@
       "line_name": "security.repo-parse.cruxible-ci",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.repo-snapshot-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "github.repo.snapshot"
+        ]
       }
     },
     {
@@ -365,7 +383,10 @@
       "line_name": "security.registry-parse.cruxible",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.pypi-release-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "pypi.release"
+        ]
       }
     },
     {
@@ -383,7 +404,10 @@
       "line_name": "security.registry-parse.cruxible-client",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.pypi-release-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "pypi.release"
+        ]
       }
     },
     {
@@ -401,7 +425,10 @@
       "line_name": "security.harden",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.repo-snapshot-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "github.repo.snapshot"
+        ]
       }
     },
     {
@@ -410,7 +437,10 @@
       "line_name": "security.harden",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.pypi-release-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "pypi.release"
+        ]
       }
     },
     {
@@ -419,7 +449,10 @@
       "line_name": "security.sarif-import.cruxible",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.sarif-v1"
+        "capture_contract": "security.file-v1",
+        "logical_sources": [
+          "sarif.log"
+        ]
       }
     },
     {
@@ -428,7 +461,10 @@
       "line_name": "security.sarif-attention.cruxible",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.sarif-v1"
+        "capture_contract": "security.file-v1",
+        "logical_sources": [
+          "sarif.log"
+        ]
       }
     },
     {
@@ -437,7 +473,10 @@
       "line_name": "security.inventory-import.prod",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.runtime-inventory-v1"
+        "capture_contract": "security.file-erasable-v1",
+        "logical_sources": [
+          "security.inventory"
+        ]
       }
     },
     {
@@ -446,7 +485,10 @@
       "line_name": "security.credential-import",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.credential-state-v1"
+        "capture_contract": "security.file-erasable-v1",
+        "logical_sources": [
+          "security.credential-state"
+        ]
       }
     },
     {
