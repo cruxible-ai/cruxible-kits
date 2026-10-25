@@ -53,6 +53,7 @@ from cruxible_client.contracts.captures import (
     CaptureContract,
     capture_component_pin,
 )
+from cruxible_client.contracts.capture_contract_inputs import (CaptureContractInputRecord, lower_capture_contract_input)
 from cruxible_client.contracts.claim_types import (
     CLAIM_TYPE_V9_FORMAT,
     ClaimEvidenceFreshness,
@@ -63,6 +64,7 @@ from cruxible_client.contracts.claim_types import (
     ClaimTypeMemberDescription,
 )
 from cruxible_client.contracts.policies import (
+    CaptureContractAdmission,
     ClaimAdmissionPolicy,
     ClaimEvidenceAdmissionPolicy,
     ClaimEvidenceAdmissionRule,
@@ -192,11 +194,34 @@ JUSTIFICATIONS = {
 }
 WORKSPACE_EVIDENCE_CONTRACT = "security.workspace-evidence-v1"
 SELF_SOURCE_CONTRACT = "playbill.coordinator-self-source-v1"
-#: every other kit contract: http_response
-EVIDENCE_KINDS = {SBOM_CONTRACT: "sbom_document", WORKSPACE_EVIDENCE_CONTRACT: "workspace_file",
-                  SELF_SOURCE_CONTRACT: "self_asserted", SARIF_CONTRACT: "sarif_log",
-                  REPRO_CONTRACT: "test_report", INVENTORY_CONTRACT: "inventory_scan",
-                  LOG_CONTRACT: "log_query", CREDENTIAL_CONTRACT: "credential_state"}
+# Each use keeps its provider's source restriction when contract shapes coalesce.
+CONTRACT_USES = {
+    KEV_CONTRACT: ("security.fetched-v1", "cisa.kev.catalog"),
+    CVE_CONTRACT: ("security.fetched-v1", "cve.record"),
+    OSV_CONTRACT: ("security.fetched-v1", "osv.dev.query"),
+    OSV_ECOSYSTEMS_CONTRACT: ("security.fetched-v1", "osv.dev.ecosystems"),
+    EPSS_CONTRACT: ("security.fetched-v1", "first.epss.daily"),
+    REPO_CONTRACT: ("security.fetched-v1", "github.repo.snapshot"),
+    PYPI_CONTRACT: ("security.fetched-v1", "pypi.release"),
+    GH_RELEASE_CONTRACT: ("security.fetched-v1", "github.release"),
+    GH_API_CONTRACT: ("security.fetched-v1", "github.api"),
+    ASSET_CONTRACT: ("security.fetched-large-v1", "github.release.asset"),
+    SBOM_CONTRACT: ("security.file-v1", "cyclonedx.sbom"),
+    WORKSPACE_EVIDENCE_CONTRACT: ("security.file-v1", "security.analysis.evidence"),
+    SARIF_CONTRACT: ("security.file-v1", "sarif.log"),
+    REPRO_CONTRACT: ("security.file-v1", "security.reproduction"),
+    INVENTORY_CONTRACT: ("security.file-erasable-v1", "security.inventory"),
+    LOG_CONTRACT: ("security.file-erasable-v1", "security.log-read"),
+    CREDENTIAL_CONTRACT: ("security.file-erasable-v1", "security.credential-state"),
+    OUTPUT_CONTRACT: (OUTPUT_CONTRACT, None),
+    SELF_SOURCE_CONTRACT: (SELF_SOURCE_CONTRACT, None),
+}
+
+
+def _capture(use: str) -> str:
+    return CONTRACT_USES.get(use, (use, None))[0]
+
+
 #: What an analyst's judgment may cite: their own words, or a workspace file
 #: retained by security.evidence-acquire.
 JUDGMENT_EVIDENCE = (SELF_SOURCE_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT)
@@ -853,17 +878,22 @@ SUBJECT_KIND_DESCRIPTIONS = {
 
 
 def _rule(rule_id: str, role: str, contracts: tuple[str, ...]) -> ClaimEvidenceAdmissionRule:
+    grouped: dict[str, set[str]] = {}
+    for use in contracts:
+        contract, source = CONTRACT_USES[use]
+        sources = grouped.setdefault(contract, set())
+        if source is not None:
+            sources.add(source)
     return ClaimEvidenceAdmissionRule(
         rule_id=rule_id,
-        claim_roles=(role,),  # type: ignore[arg-type]
+        claim_roles=(role,),
         capture_contracts=tuple(
-            ArtifactRef(
+            CaptureContractAdmission(
                 role="capture-contract",
                 target=ArtifactIdentity(kind="CaptureContract", name=name),
-            )
-            for name in sorted(contracts)
+                logical_sources=tuple(sorted(sources)),
+            ) for name, sources in sorted(grouped.items())
         ),
-        evidence_kinds=tuple(sorted({EVIDENCE_KINDS.get(c, "http_response") for c in contracts})),
         admission="direct",
         subject_binding="exact_claim_subject",
     )
@@ -2146,55 +2176,19 @@ def response_queries() -> list[QueryDefinitionSpec]:
 # --- CaptureContracts and the acquisition policy -------------------------------
 
 
-def capture_contracts() -> list[CaptureContract]:
-    raw = json.loads((DATA / "capture_contracts.json").read_text())
-    template = next(item for item in raw if item["identity"]["name"] == KEV_CONTRACT)
-
-    def derived(name: str, source: str, kinds: list[str], evidence: str) -> dict[str, Any]:
-        item = json.loads(json.dumps(template))
-        item["identity"]["name"] = name
-        item["logical_source_identities"] = [source]
-        item["allowed_source_kinds"] = kinds
-        item["evidence_kinds"] = [evidence]
-        return item
-
-    raw += [
-        derived(OSV_CONTRACT, "osv.dev.query", ["external"], "http_response"),
-        derived(OSV_ECOSYSTEMS_CONTRACT, "osv.dev.ecosystems", ["external"], "http_response"),
-        derived(EPSS_CONTRACT, "first.epss.daily", ["external"], "http_response"),
-        derived(SBOM_CONTRACT, "cyclonedx.sbom", ["external"], "sbom_document"),
-        derived(WORKSPACE_EVIDENCE_CONTRACT, "security.analysis.evidence", ["external"],
-                "workspace_file"),
-        # The system model's pulls: what a repository declares, what a registry serves.
-        derived(REPO_CONTRACT, "github.repo.snapshot", ["external"], "http_response"),
-        derived(PYPI_CONTRACT, "pypi.release", ["external"], "http_response"),
-        derived(GH_RELEASE_CONTRACT, "github.release", ["external"], "http_response"),
-        derived(GH_API_CONTRACT, "github.api", ["external"], "http_response"),
-        derived(ASSET_CONTRACT, "github.release.asset", ["external"], "http_response"),
-        # Code findings: a scan's SARIF log, and a reproduction's test report.
-        derived(SARIF_CONTRACT, "sarif.log", ["external"], "sarif_log"),
-        derived(REPRO_CONTRACT, "security.reproduction", ["external"], "test_report"),
-        # Incident response: what runs where, one log read, one credential's key state.
-        # Each is a workspace file the user's agent writes from its own tools.
-        derived(INVENTORY_CONTRACT, "security.inventory", ["external"], "inventory_scan"),
-        derived(LOG_CONTRACT, "security.log-read", ["external"], "log_query"),
-        derived(CREDENTIAL_CONTRACT, "security.credential-state", ["external"],
-                "credential_state"),
+def capture_contracts() -> list[Any]:
+    """Shapes carry storage/replay decisions; provenance belongs to each use."""
+    records = [
+        {"name": "security.fetched-v1", "shape": "http_response"},
+        {"name": "security.fetched-large-v1", "shape": "http_response",
+         "max_bytes": 64 * 1024 * 1024},
+        {"name": "security.file-v1", "shape": "http_response", "replay": "exact"},
+        {"name": "security.file-erasable-v1", "shape": "http_response", "replay": "exact",
+         "erasable": True},
+        {"name": OUTPUT_CONTRACT, "shape": "procedure_output"},
     ]
-    erasure = capture_component_pin("erasure-rule", "playbill.capture-erasure-authority-v1")
-    for item in raw:
-        if item["identity"]["name"] == ASSET_CONTRACT:
-            # The retained bundle is the asset base64-encoded inside canonical JSON.
-            item["selection_budget"]["max_bytes"] = ASSET_MAX_BYTES * 2
-        if item["identity"]["name"] in ERASABLE_CONTRACTS:
-            # A secret that slips into one of these can be erased (`cruxible capture erase`).
-            item["retention_erasure_policy"].update(
-                erasure="authorized_by_rule", erasure_rule_digest=erasure.artifact_digest)
-            pins = [*item.get("pins", []), erasure.model_dump(mode="json")]
-            item["pins"] = sorted(pins, key=lambda pin: (pin["role"],
-                                                        f"{pin['target']['kind']}:"
-                                                        f"{pin['target']['name']}"))
-    return [CaptureContract.model_validate(item) for item in raw]
+    return [lower_capture_contract_input(CaptureContractInputRecord.model_validate(record),
+                                        named=True) for record in records]
 
 
 def acquisition_policy() -> SourceAcquisitionPolicy:
@@ -2583,10 +2577,10 @@ def kev_acquire(cx: Cruxible, release: str) -> BlueprintInput:
     budget_seconds = 90 if release == VARIANT else 60
     sequence = Sequence(
         [
-            Source("catalog", capture_contract=KEV_CONTRACT, next="summary",
+            Source("catalog", capture_contract=_capture(KEV_CONTRACT), next="summary",
                    request=_fetch(KEV_URL, KEV_SOURCE, KEV_MAX_BYTES)),
             _summary("catalog", next="emit"),
-            EmitCapture("emit", capture_contract=OUTPUT_CONTRACT, input=Output("summary"),
+            EmitCapture("emit", capture_contract=_capture(OUTPUT_CONTRACT), input=Output("summary"),
                         result=Output("summary")),
         ],
         name="security.kev-acquire",
@@ -2609,7 +2603,7 @@ def cve_record_acquire(cx: Cruxible) -> BlueprintInput:
     web = cx.provider_interface("web.fetch", provider=WEB_PROVIDER)
     sequence = Sequence(
         [
-            Source("record", capture_contract=CVE_CONTRACT, next="summary",
+            Source("record", capture_contract=_capture(CVE_CONTRACT), next="summary",
                    request=_fetch("$input.url", "cve.record", CVE_MAX_BYTES)),
             _summary("record"),
         ],
@@ -2633,9 +2627,9 @@ def epss_acquire(cx: Cruxible) -> BlueprintInput:
     epss = cx.provider_interface("security.epss-daily", provider=SOURCES_PROVIDER)
     sequence = Sequence(
         [
-            Source("epss", capture_contract=EPSS_CONTRACT, next="summary", request={}),
+            Source("epss", capture_contract=_capture(EPSS_CONTRACT), next="summary", request={}),
             _summary("epss", next="emit"),
-            EmitCapture("emit", capture_contract=OUTPUT_CONTRACT, input=Output("summary"),
+            EmitCapture("emit", capture_contract=_capture(OUTPUT_CONTRACT), input=Output("summary"),
                         result=Output("summary")),
         ],
         name="security.epss-acquire",
@@ -2672,7 +2666,7 @@ def _file_acquire(cx: Cruxible, name: str, alias: str, contract: str, logical_so
     builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
     sequence = Sequence(
         [
-            Source(alias, capture_contract=contract, next="summary",
+            Source(alias, capture_contract=_capture(contract), next="summary",
                    request=_workspace_file(logical_source, "$input.relative_path")),
             Project("summary", contract_out=FILE_SUMMARY, fields={
                 "bytes_digest": f"$steps.{alias}.source.bytes_digest",
@@ -2695,7 +2689,7 @@ def sbom_acquire(cx: Cruxible) -> Any:
     builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
     sequence = Sequence(
         [
-            Source("sbom", capture_contract=SBOM_CONTRACT, next="summary", request={
+            Source("sbom", capture_contract=_capture(SBOM_CONTRACT), next="summary", request={
                 "tag": "playbill-workspace-file-source-request-v2",
                 "logical_source": "cyclonedx.sbom",
                 "relative_path": "$input.relative_path",
@@ -2730,7 +2724,7 @@ def evidence_acquire(cx: Cruxible) -> Any:
     builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
     sequence = Sequence(
         [
-            Source("evidence", capture_contract=WORKSPACE_EVIDENCE_CONTRACT, next="summary",
+            Source("evidence", capture_contract=_capture(WORKSPACE_EVIDENCE_CONTRACT), next="summary",
                    request={
                 "tag": "playbill-workspace-file-source-request-v2",
                 "logical_source": "security.analysis.evidence",
@@ -2787,7 +2781,7 @@ def _sarif_steps(terminal: list[Any], guard: Guard) -> list[Any]:
     repository guard (another repository's log halts wrong_repo) and ``terminal``."""
 
     return [
-        Source("sarif", capture_contract=SARIF_CONTRACT, next="held",
+        Source("sarif", capture_contract=_capture(SARIF_CONTRACT), next="held",
                request=_workspace_file("sarif.log", "scan.sarif")),
         StateTap("held", query="security.finding_index", next="parse",
                  parameters={"repo_ref": "$input.repo_ref"}),
@@ -2878,7 +2872,7 @@ def kev_triage(cx: Cruxible) -> Any:
     kev = cx.provider_interface("security.kev-catalog", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("catalog", capture_contract=KEV_CONTRACT, next="watched",
+            Source("catalog", capture_contract=_capture(KEV_CONTRACT), next="watched",
                    request=_fetch(KEV_URL, KEV_SOURCE, KEV_MAX_BYTES)),
             StateTap("watched", query="security.watched_vulnerabilities", next="parse"),
             Call("parse", contract_in=KEV_REQUEST, contract_out=KEV_RESULT, next="summary",
@@ -2921,7 +2915,7 @@ def kev_attention(cx: Cruxible) -> Any:
     attention = cx.provider_interface("security.kev-attention", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("catalog", capture_contract=KEV_CONTRACT, next="releases",
+            Source("catalog", capture_contract=_capture(KEV_CONTRACT), next="releases",
                    request=_fetch(KEV_URL, KEV_SOURCE, KEV_MAX_BYTES)),
             StateTap("releases", query="security.release_inventory", next="watched"),
             StateTap("watched", query="security.watched_vulnerabilities", next="assessments"),
@@ -2963,7 +2957,7 @@ def epss_triage(cx: Cruxible) -> Any:
     scores = cx.provider_interface("security.epss-scores", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("epss", capture_contract=EPSS_CONTRACT, next="watched", request={}),
+            Source("epss", capture_contract=_capture(EPSS_CONTRACT), next="watched", request={}),
             StateTap("watched", query="security.watched_vulnerabilities", next="parse"),
             Call("parse", contract_in=EPSS_REQUEST, contract_out=EPSS_RESULT, next="summary",
                  input={"daily_base64": "$steps.epss.retrieved.body_base64",
@@ -2999,7 +2993,7 @@ def sbom_import(cx: Cruxible) -> Any:
     parse = cx.provider_interface("security.cyclonedx-components", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("sbom", capture_contract=SBOM_CONTRACT, next="releases", request={
+            Source("sbom", capture_contract=_capture(SBOM_CONTRACT), next="releases", request={
                 "tag": "playbill-workspace-file-source-request-v2",
                 "logical_source": "cyclonedx.sbom",
                 "relative_path": "sbom.cdx.json",
@@ -3049,11 +3043,11 @@ def osv_applicability(cx: Cruxible) -> BlueprintInput:
             StateTap("watched", query="security.watched_vulnerabilities", next="assessments"),
             StateTap("assessments", query="security.assessment_index", next="ecosystems"),
             # What OSV indexes, in its own words, retained as its own Capture.
-            Source("ecosystems", capture_contract=OSV_ECOSYSTEMS_CONTRACT, next="osv",
+            Source("ecosystems", capture_contract=_capture(OSV_ECOSYSTEMS_CONTRACT), next="osv",
                    request={}),
             # The purl type map is kit data (its sources cited): edit it by authoring a
             # successor of this Procedure.
-            Source("osv", capture_contract=OSV_CONTRACT, next="decide",
+            Source("osv", capture_contract=_capture(OSV_CONTRACT), next="decide",
                    request={"releases": "$steps.releases.result.rows",
                             "watched": "$steps.watched.result.rows",
                             "ecosystems": "$steps.ecosystems",
@@ -3101,7 +3095,7 @@ def cve_applicability(cx: Cruxible) -> Any:
     decide = cx.provider_interface("security.cve-applicability", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("record", capture_contract=CVE_CONTRACT, next="releases",
+            Source("record", capture_contract=_capture(CVE_CONTRACT), next="releases",
                    request=_fetch("https://cveawg.mitre.org/api/cve/", "cve.record",
                                   CVE_MAX_BYTES)),
             StateTap("releases", query="security.release_inventory", next="sources"),
@@ -3159,7 +3153,7 @@ def repo_acquire(cx: Cruxible) -> BlueprintInput:
     snapshot = cx.provider_interface("security.repo-snapshot", provider=SOURCES_PROVIDER)
     sequence = Sequence(
         [
-            Source("snapshot", capture_contract=REPO_CONTRACT, next="summary", request={
+            Source("snapshot", capture_contract=_capture(REPO_CONTRACT), next="summary", request={
                 name: f"$input.{name}" for name in ("forge_host", "full_name", "ref", "scope",
                                                     "path")}),
             Project("summary", contract_out=SNAPSHOT_SUMMARY, fields={
@@ -3188,7 +3182,7 @@ def registry_acquire(cx: Cruxible) -> BlueprintInput:
     registry = cx.provider_interface("security.pypi-release", provider=SOURCES_PROVIDER)
     sequence = Sequence(
         [
-            Source("registry", capture_contract=PYPI_CONTRACT, next="summary", request={
+            Source("registry", capture_contract=_capture(PYPI_CONTRACT), next="summary", request={
                 "project": "$input.project", "versions": "$input.versions"}),
             Project("summary", contract_out=REGISTRY_SUMMARY, fields={
                 "project": "$steps.registry.project",
@@ -3216,7 +3210,7 @@ def _github_fetch(cx: Cruxible, name: str, slot: str, contract: str, logical_sou
     request = _fetch("$input.url", logical_source, max_bytes)
     sequence = Sequence(
         [
-            Source(slot, capture_contract=contract, next="summary", request=request),
+            Source(slot, capture_contract=_capture(contract), next="summary", request=request),
             _summary(slot),
         ],
         name=name,
@@ -3246,7 +3240,7 @@ def asset_fetch(cx: Cruxible) -> BlueprintInput:
     asset = cx.provider_interface("security.release-asset", provider=SOURCES_PROVIDER)
     sequence = Sequence(
         [
-            Source("asset", capture_contract=ASSET_CONTRACT, next="summary",
+            Source("asset", capture_contract=_capture(ASSET_CONTRACT), next="summary",
                    request={"url": "$input.url"}),
             _summary("asset"),
         ],
@@ -3295,7 +3289,7 @@ def repo_parse(cx: Cruxible) -> Any:
     facts = cx.provider_interface("security.workflow-facts", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("snapshot", capture_contract=REPO_CONTRACT, next="mine", request={
+            Source("snapshot", capture_contract=_capture(REPO_CONTRACT), next="mine", request={
                 name: f"$input.{name}" for name in ("forge_host", "full_name", "ref", "scope",
                                                     "path")}),
             Guard("mine", predicate=_mine("snapshot", "locator", "source"), on_true="coverage",
@@ -3347,7 +3341,7 @@ def registry_parse(cx: Cruxible) -> Any:
     facts = cx.provider_interface("security.registry-facts", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("registry", capture_contract=PYPI_CONTRACT, next="mine", request={
+            Source("registry", capture_contract=_capture(PYPI_CONTRACT), next="mine", request={
                 "project": "$input.project", "versions": "$input.versions"}),
             Guard("mine", predicate=_mine("registry", "project", "project"), on_true="coverage",
                   on_false="other", refusal_code="other_source",
@@ -3478,7 +3472,7 @@ def inventory_import(cx: Cruxible) -> Any:
     parse = cx.provider_interface("security.runtime-inventory", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("inventory", capture_contract=INVENTORY_CONTRACT, next="held",
+            Source("inventory", capture_contract=_capture(INVENTORY_CONTRACT), next="held",
                    request=_workspace_file("security.inventory", "inventory.json")),
             StateTap("held", query="security.inventory_index", next="runs",
                      parameters={"scope": "$input.scope"}),
@@ -3552,7 +3546,7 @@ def log_import(cx: Cruxible) -> Any:
     parse = cx.provider_interface("security.log-reads", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("log", capture_contract=LOG_CONTRACT, next="held",
+            Source("log", capture_contract=_capture(LOG_CONTRACT), next="held",
                    request=_workspace_file("security.log-read", "log-read.json")),
             StateTap("held", query="security.audit_status", next="parse",
                      parameters={"incident": "$input.incident"}),
@@ -3602,7 +3596,7 @@ def credential_import(cx: Cruxible) -> Any:
     parse = cx.provider_interface("security.credential-state", provider=ANALYSIS_PROVIDER)
     sequence = Sequence(
         [
-            Source("credential", capture_contract=CREDENTIAL_CONTRACT, next="held",
+            Source("credential", capture_contract=_capture(CREDENTIAL_CONTRACT), next="held",
                    request=_workspace_file("security.credential-state", "credential.json")),
             StateTap("held", query="security.rotation_work", next="parse"),
             Call("parse", contract_in=CREDENTIAL_REQUEST, contract_out=CREDENTIAL_RESULT,
