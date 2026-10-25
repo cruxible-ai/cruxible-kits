@@ -88,14 +88,12 @@
       "kind": "line",
       "name": "security.kev-daily",
       "procedure_name": "security.kev-acquire",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe"
     },
     {
       "kind": "line",
       "name": "security.kev-triage",
       "procedure_name": "security.kev-triage",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "catalog"
     },
@@ -103,7 +101,6 @@
       "kind": "line",
       "name": "security.kev-attention",
       "procedure_name": "security.kev-attention",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "trigger_input": "catalog"
     },
@@ -111,14 +108,12 @@
       "kind": "line",
       "name": "security.epss-daily",
       "procedure_name": "security.epss-acquire",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe"
     },
     {
       "kind": "line",
       "name": "security.epss-triage",
       "procedure_name": "security.epss-triage",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "epss"
     },
@@ -126,7 +121,6 @@
       "kind": "line",
       "name": "security.sbom-import",
       "procedure_name": "security.sbom-import",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "sbom"
     },
@@ -134,14 +128,12 @@
       "kind": "line",
       "name": "security.osv-applicability",
       "procedure_name": "security.osv-applicability",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose"
     },
     {
       "kind": "line",
       "name": "security.cve-applicability",
       "procedure_name": "security.cve-applicability",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "record"
     },
@@ -149,7 +141,6 @@
       "kind": "line",
       "name": "security.repo-pull.cruxible-ci",
       "procedure_name": "security.repo-acquire",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "parameters": {
         "forge_host": "github.com",
@@ -163,7 +154,6 @@
       "kind": "line",
       "name": "security.repo-parse.cruxible-ci",
       "procedure_name": "security.repo-parse",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "snapshot",
       "parameters": {
@@ -180,7 +170,6 @@
       "kind": "line",
       "name": "security.registry-pull.cruxible",
       "procedure_name": "security.registry-acquire",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "parameters": {
         "project": "cruxible",
@@ -191,7 +180,6 @@
       "kind": "line",
       "name": "security.registry-parse.cruxible",
       "procedure_name": "security.registry-parse",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "registry",
       "parameters": {
@@ -204,7 +192,6 @@
       "kind": "line",
       "name": "security.registry-pull.cruxible-client",
       "procedure_name": "security.registry-acquire",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "parameters": {
         "project": "cruxible-client",
@@ -215,7 +202,6 @@
       "kind": "line",
       "name": "security.registry-parse.cruxible-client",
       "procedure_name": "security.registry-parse",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "registry",
       "parameters": {
@@ -241,7 +227,6 @@
       "kind": "line",
       "name": "security.sarif-import.cruxible",
       "procedure_name": "security.sarif-import",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "sarif",
       "parameters": {
@@ -252,7 +237,6 @@
       "kind": "line",
       "name": "security.sarif-attention.cruxible",
       "procedure_name": "security.sarif-attention",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "trigger_input": "sarif",
       "parameters": {
@@ -263,7 +247,6 @@
       "kind": "line",
       "name": "security.inventory-import.prod",
       "procedure_name": "security.inventory-import",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "inventory",
       "parameters": {
@@ -274,7 +257,6 @@
       "kind": "line",
       "name": "security.credential-import",
       "procedure_name": "security.credential-import",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "credential"
     },

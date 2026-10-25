@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-POLICY = "security.acquisition"
+POLICY = "default"
 #: Line -> (Procedure, max_authority, trigger_input)
 LINES: dict[str, tuple[str, str, str | None]] = {
     "security.kev-daily": ("security.kev-acquire", "observe", None),
@@ -131,7 +131,7 @@ def line(name: str, *, authority: str | None = None) -> dict[str, Any]:
     procedure, cap, trigger_input = LINES[name]
     payload: dict[str, Any] = {
         "kind": "line", "name": name, "procedure_name": procedure,
-        "acquisition_policy_name": POLICY, "max_authority": authority or cap,
+        "max_authority": authority or cap,
     }
     if trigger_input is not None:
         payload["trigger_input"] = trigger_input

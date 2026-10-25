@@ -129,7 +129,7 @@ ERASABLE_CONTRACTS = (INVENTORY_CONTRACT, LOG_CONTRACT, CREDENTIAL_CONTRACT)
 #: cites a Capture under one of them.
 SYSTEM_CONTRACTS = (REPO_CONTRACT, PYPI_CONTRACT, GH_RELEASE_CONTRACT, GH_API_CONTRACT,
                     ASSET_CONTRACT)
-POLICY = "security.acquisition"
+POLICY = "default"
 RELEASE = "1.3.0"  # the kit release
 VARIANT = "1.3.1"  # the release gate's upgrade variant (not published)
 WEB_PROVIDER = "cruxible-provider-web"
@@ -2192,45 +2192,10 @@ def capture_contracts() -> list[Any]:
 
 
 def acquisition_policy() -> SourceAcquisitionPolicy:
-    """`security.acquisition` covers every Source alias the kit uses: `catalog` (KEV),
-    `record` (CVE record), `epss`, `osv`, `ecosystems` (OSV's ecosystem list), `sbom` and
-    `evidence` (an analyst's
-    workspace file), the system model's `snapshot` (a repository), `registry`
-    (PyPI), `release`, `asset` and `history` (GitHub), and the code findings' `sarif`
-    (a scan's log) and `reproduction` (a PoC run's report), and incident response's
-    `inventory` (a runtime-inventory scan), `log` (one log read) and `credential` (one
-    credential's key state). Each is required, at most 24 h old, refused when stale,
-    unavailable or oversized. Network Captures replay as attested; workspace files (the
-    SBOM, evidence, SARIF, reproductions, inventories, log reads, credential states) replay
-    exactly."""
-
-    def rule(alias: str, replayability: str = "attested_only") -> dict[str, Any]:
-        return {
-            "conservative_default": None,
-            "correlation_keys": [],
-            "input_name": alias,
-            "join_semantics_digest": None,
-            "max_age": {"microseconds": 24 * 3_600_000_000},
-            "on_conflict": "preserve",
-            "on_oversized": "refuse",
-            "on_stale": "refuse",
-            "on_unavailable": "refuse",
-            "permitted_replayability": [replayability],
-            "requirement": "required",
-        }
-
-    return SourceAcquisitionPolicy.model_validate(
-        {
-            "coherence": {"kind": "independent"},
-            "identity": {"kind": "SourceAcquisitionPolicy", "name": POLICY},
-            "inputs": [rule("asset"), rule("catalog"), rule("credential", "exact"),
-                       rule("ecosystems"), rule("epss"), rule("evidence", "exact"),
-                       rule("history"),
-                       rule("inventory", "exact"), rule("log", "exact"), rule("osv"),
-                       rule("record"), rule("registry"), rule("release"),
-                       rule("reproduction", "exact"), rule("sarif", "exact"),
-                       rule("sbom", "exact"), rule("snapshot")],
-        }
+    """The instance default: every source is required, with one age bound."""
+    return SourceAcquisitionPolicy(
+        identity=ArtifactIdentity(kind="SourceAcquisitionPolicy", name=POLICY),
+        max_age="P1D",
     )
 
 
@@ -2592,7 +2557,6 @@ def kev_acquire(cx: Cruxible, release: str) -> BlueprintInput:
         ),
         contract_in=EMPTY,
         contract_out=HTTP_SUMMARY,
-        acquisition_policy=POLICY,
         budget=_budget(budget_seconds, 1, 16_777_216),
         hard_caps=_caps(120, 1, 16_777_216, 1),
     ).bind(catalog=web)
@@ -2616,7 +2580,6 @@ def cve_record_acquire(cx: Cruxible) -> BlueprintInput:
         contract_in=URL_INPUT,
         contract_out=HTTP_SUMMARY,
         returns="summary",
-        acquisition_policy=POLICY,
         budget=_budget(60, 1, 4_194_304),
         hard_caps=_caps(120, 1, 4_194_304, 1),
     ).bind(record=web)
@@ -2639,7 +2602,6 @@ def epss_acquire(cx: Cruxible) -> BlueprintInput:
         ),
         contract_in=EMPTY,
         contract_out=HTTP_SUMMARY,
-        acquisition_policy=POLICY,
         budget=_budget(120, 1, 33_554_432),
         hard_caps=_caps(300, 1, 33_554_432, 1),
     ).bind(epss=epss)
@@ -2678,7 +2640,6 @@ def _file_acquire(cx: Cruxible, name: str, alias: str, contract: str, logical_so
         contract_in=PATH_INPUT,
         contract_out=FILE_SUMMARY,
         returns="summary",
-        acquisition_policy=POLICY,
         budget=_budget(60, 1, WORKSPACE_FILE_MAX_BYTES),
         hard_caps=_caps(120, 1, WORKSPACE_FILE_MAX_BYTES, 1),
     ).bind(**{alias: builtin})
@@ -2713,7 +2674,6 @@ def sbom_acquire(cx: Cruxible) -> Any:
         contract_in=PATH_INPUT,
         contract_out=FILE_SUMMARY,
         returns="summary",
-        acquisition_policy=POLICY,
         budget=_budget(60, 1, WORKSPACE_FILE_MAX_BYTES),
         hard_caps=_caps(120, 1, WORKSPACE_FILE_MAX_BYTES, 1),
     ).bind(sbom=builtin)
@@ -2750,7 +2710,6 @@ def evidence_acquire(cx: Cruxible) -> Any:
         contract_in=PATH_INPUT,
         contract_out=FILE_SUMMARY,
         returns="summary",
-        acquisition_policy=POLICY,
         budget=_budget(60, 1, WORKSPACE_FILE_MAX_BYTES),
         hard_caps=_caps(120, 1, WORKSPACE_FILE_MAX_BYTES, 1),
     ).bind(evidence=builtin)
@@ -2825,7 +2784,6 @@ def sarif_import(cx: Cruxible) -> Any:
         contract_out=SARIF_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, 16_777_216),
         hard_caps=_caps(300, 2, 16_777_216, 5000),
     ).bind(sarif=builtin, parse=parse)
@@ -2855,7 +2813,6 @@ def sarif_attention(cx: Cruxible) -> Any:
         contract_out=SARIF_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, 16_777_216),
         hard_caps=_caps(300, 2, 16_777_216, 1000),
     ).bind(sarif=builtin, parse=parse)
@@ -2897,7 +2854,6 @@ def kev_triage(cx: Cruxible) -> Any:
         contract_out=TRIAGE_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, 16_777_216),
         hard_caps=_caps(300, 2, 16_777_216, 5000),
     ).bind(catalog=web, parse=kev)
@@ -2945,7 +2901,6 @@ def kev_attention(cx: Cruxible) -> Any:
         contract_out=ATTENTION_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, 16_777_216),
         hard_caps=_caps(300, 2, 16_777_216, 1000),
     ).bind(catalog=web, match=attention)
@@ -2981,7 +2936,6 @@ def epss_triage(cx: Cruxible) -> Any:
         contract_out=EPSS_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, 33_554_432),
         hard_caps=_caps(300, 2, 33_554_432, 5000),
     ).bind(epss=sources, parse=scores)
@@ -3026,7 +2980,6 @@ def sbom_import(cx: Cruxible) -> Any:
         contract_out=SBOM_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, 16_777_216),
         hard_caps=_caps(300, 2, 16_777_216, 5000),
     ).bind(sbom=builtin, parse=parse)
@@ -3082,7 +3035,6 @@ def osv_applicability(cx: Cruxible) -> BlueprintInput:
         contract_out=OSV_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(300, 3, 67_108_864),
         hard_caps=_caps(600, 3, 67_108_864, 5000),
     ).bind(osv=osv, ecosystems=ecosystems, decide=decide)
@@ -3139,7 +3091,6 @@ def cve_applicability(cx: Cruxible) -> Any:
         contract_out=CVE_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, 16_777_216),
         hard_caps=_caps(300, 2, 16_777_216, 5000),
     ).bind(record=web, decide=decide)
@@ -3171,7 +3122,6 @@ def repo_acquire(cx: Cruxible) -> BlueprintInput:
         contract_in=REPO_INPUT,
         contract_out=SNAPSHOT_SUMMARY,
         returns="summary",
-        acquisition_policy=POLICY,
         budget=_budget(120, 1, 16_777_216),
         hard_caps=_caps(300, 1, 16_777_216, 1),
     ).bind(snapshot=snapshot)
@@ -3197,7 +3147,6 @@ def registry_acquire(cx: Cruxible) -> BlueprintInput:
         contract_in=REGISTRY_INPUT,
         contract_out=REGISTRY_SUMMARY,
         returns="summary",
-        acquisition_policy=POLICY,
         budget=_budget(120, 1, 16_777_216),
         hard_caps=_caps(300, 1, 16_777_216, 1),
     ).bind(registry=registry)
@@ -3218,7 +3167,6 @@ def _github_fetch(cx: Cruxible, name: str, slot: str, contract: str, logical_sou
         contract_in=URL_INPUT,
         contract_out=HTTP_SUMMARY,
         returns="summary",
-        acquisition_policy=POLICY,
         budget=_budget(120, 1, max_bytes),
         hard_caps=_caps(300, 1, max_bytes, 1),
     ).bind(**{slot: web})
@@ -3254,7 +3202,6 @@ def asset_fetch(cx: Cruxible) -> BlueprintInput:
         contract_in=URL_INPUT,
         contract_out=HTTP_SUMMARY,
         returns="summary",
-        acquisition_policy=POLICY,
         budget=_budget(120, 1, ASSET_MAX_BYTES * 2),
         hard_caps=_caps(300, 1, ASSET_MAX_BYTES * 2, 1),
     ).bind(asset=asset)
@@ -3329,7 +3276,6 @@ def repo_parse(cx: Cruxible) -> Any:
         contract_out=REPO_PARSE_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, 16_777_216),
         hard_caps=_caps(300, 2, 16_777_216, 5000),
     ).bind(snapshot=snapshot, parse=facts)
@@ -3374,7 +3320,6 @@ def registry_parse(cx: Cruxible) -> Any:
         contract_out=REGISTRY_PARSE_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, 16_777_216),
         hard_caps=_caps(300, 2, 16_777_216, 5000),
     ).bind(registry=registry, parse=facts)
@@ -3532,7 +3477,6 @@ def inventory_import(cx: Cruxible) -> Any:
         contract_out=INVENTORY_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(120, 2, WORKSPACE_FILE_MAX_BYTES),
         hard_caps=_caps(300, 2, WORKSPACE_FILE_MAX_BYTES, 5000),
     ).bind(inventory=builtin, parse=parse)
@@ -3584,7 +3528,6 @@ def log_import(cx: Cruxible) -> Any:
         contract_out=LOG_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(60, 2, WORKSPACE_FILE_MAX_BYTES),
         hard_caps=_caps(120, 2, WORKSPACE_FILE_MAX_BYTES, 100),
     ).bind(log=builtin, parse=parse)
@@ -3635,7 +3578,6 @@ def credential_import(cx: Cruxible) -> Any:
         contract_out=CREDENTIAL_SUMMARY,
         returns="summary",
         activation_policy="drain",
-        acquisition_policy=POLICY,
         budget=_budget(60, 2, WORKSPACE_FILE_MAX_BYTES),
         hard_caps=_caps(120, 2, WORKSPACE_FILE_MAX_BYTES, 500),
     ).bind(credential=builtin, parse=parse)
