@@ -165,17 +165,27 @@ flowchart LR
   remediation -->|work.audit| audit
 ```
 
-**Your systems.** What you ship and how it is published. Pull Lines read your
-repository's workflow files at a ref and your registries' published files; parse
-Lines turn each read into observations: a workflow's triggers, a job's
-permissions, secrets, actions and publish targets, a published file's digest and
-the workflow and commit that built it. Releases and their components come from
-your CycloneDX SBOMs, hosts and what they install from your own inventory, and
-what each host or workload actually runs from your runtime-inventory scans.
-Nothing here is asserted by the kit: each fact cites the Capture it was read
-from, and the one policy statement, a target's `publish_gate`, is yours. A
-finding is one weakness in your own code: what scanners and agents report about
-it cites their SARIF log, and its `verdict` is your reviewers' decision.
+**Your systems: what you run.** Your hosts and workloads (`security.asset`):
+what each actually runs, from your runtime-inventory scans, and what each
+declares installing, from your own inventory. A scan reads one inventory scope
+in full, so a product's absence from a host is an answer only inside a current
+scan of that scope. Beside them, the business services the hosts serve
+(`security.service`), each with its owning team, criticality and the log
+sources an incident audit starts from, and the credentials those services use
+(`security.credential`), by their non-secret key ids.
+
+**Your systems: what you build and ship.** Pull Lines read your repository's
+workflow files at a ref and your registries' published files; parse Lines turn
+each read into observations: a workflow's triggers, a job's permissions,
+secrets, actions and publish targets, a published file's digest and the workflow
+and commit that built it. Releases and their components come from your
+CycloneDX SBOMs. A finding is one weakness in your own code: what scanners and
+agents report about it cites their SARIF log, and its `verdict` is your
+reviewers' decision.
+
+Nothing in your systems is asserted by the kit: each fact cites the Capture it
+was read from, or is your own statement (a service's criticality, a target's
+`publish_gate`).
 
 **The world's evidence.** What public sources say. KEV and EPSS facts land on a
 vulnerability (`security.vulnerability`, keyed by CVE id), verbatim from the
