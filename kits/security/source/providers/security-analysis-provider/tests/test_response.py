@@ -902,8 +902,8 @@ def test_rq1_answers_every_scanned_release_for_each_incident_cve_never_silently(
                   hosts=hosts[1:2])
     (gap,) = _posted(unread, "gap")
     assert (gap["subject"], gap["pull"], gap["input"]) == (
-        "CVE-2026-109619", "security.cve-record-acquire",
-        {"url": "https://cveawg.mitre.org/api/cve/CVE-2026-109619"})
+        "CVE-2026-109619", "security.fetch",
+        {"url": "https://cveawg.mitre.org/api/cve/CVE-2026-109619", "logical_source": "cve.record", "max_bytes": 1048576})
     # OSV doesn't know the CVE (no package): only an analyst's judgment decides it.
     unknown = _ask(exposure=[_incident_cve("CVE-2026-109619")], hosts=hosts[:1])
     (gap,) = [g for g in _posted(unknown, "gap") if g["pull"] == "statement"]

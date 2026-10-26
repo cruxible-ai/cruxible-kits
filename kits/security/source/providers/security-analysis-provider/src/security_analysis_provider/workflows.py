@@ -1,6 +1,6 @@
 """What one repository snapshot declares: workflows, jobs, and a release manifest's digests.
 
-``WorkflowFacts`` (``security.workflow-facts``) reads a ``security.repo-snapshot-v1``
+``WorkflowFacts`` (``security.workflow-facts``) reads a ``security.fetched-v1``
 Capture body (canonical JSON of the source locator, the revision R and every file
 read at R) beside what is held for that source: its coverage (rows of
 ``security.coverage_index``), its workflow and job facts (``security.source_facts``),

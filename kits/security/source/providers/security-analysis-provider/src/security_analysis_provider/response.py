@@ -200,7 +200,6 @@ COVERAGE = "security.coverage"
 AUDIT = "security.audit"
 CREDENTIAL = "security.credential"
 INVENTORY_SCOPE = "inventory.runtime"
-INVENTORY_CONTRACT = "security.runtime-inventory-v1"
 MAX_ASSETS = 2000
 MAX_RUNS = 20_000
 MAX_POSTS = 200
@@ -1161,7 +1160,7 @@ class Params:
     inventory_pull: str = "security.inventory-acquire"
     log_pull: str = "security.log-acquire"
     credential_pull: str = "security.credential-acquire"
-    record_pull: str = "security.cve-record-acquire"
+    record_pull: str = "security.fetch"
     osv_line: str = "security.osv-applicability"
 
 
@@ -1538,7 +1537,7 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
         if step == "record":
             why.append(f"{named}: no record of it read yet")
             gaps += [{"subject": cve, "pull": params.record_pull,
-                      "payload": {"url": CVE_RECORD_URL + cve}} for cve in waiting]
+                      "payload": {"url": CVE_RECORD_URL + cve, "logical_source": "cve.record", "max_bytes": 1048576}} for cve in waiting]
         elif step == "count":
             why.append(f"{named}: the release's unidentified-component count is contended "
                        "(no negative rests on an unresolved count)")
@@ -1883,7 +1882,7 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
             if untitled:
                 # What the incident affects is the record's to say: read it first.
                 for cve in untitled:
-                    out.gap(cve, params.record_pull, {"url": CVE_RECORD_URL + cve})
+                    out.gap(cve, params.record_pull, {"url": CVE_RECORD_URL + cve, "logical_source": "cve.record", "max_bytes": 1048576})
                 out.answers.append({
                     "question": "RQ1", "subject": entry.hostname, "state": "unknown",
                     "why": f"no record of {', '.join(untitled)} read yet: what the incident "

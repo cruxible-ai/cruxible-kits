@@ -1,6 +1,6 @@
 """CycloneDX JSON SBOM: the release it describes and that release's components.
 
-The input is the retained SBOM text (the ``security.cyclonedx-sbom-v1`` Capture's
+The input is the retained SBOM text (the ``security.file-v1`` Capture's
 ``content.text``) and the releases already in inventory (rows of
 ``security.release_inventory``). The SBOM's ``metadata.component`` names the
 product and version; its ``components`` with a package URL are the release's

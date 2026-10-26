@@ -1,6 +1,6 @@
 """What PyPI serves for one project: artifacts, digests, and who published them from where.
 
-``RegistryFacts`` (``security.registry-facts``) reads a ``security.pypi-release-v1``
+``RegistryFacts`` (``security.registry-facts``) reads a ``security.fetched-v1``
 Capture body (the newest versions' files, each with its digest and PyPI
 provenance) beside what is held for the project's target (rows of
 ``security.coverage_index`` and ``security.registry_facts``), and returns proposal
