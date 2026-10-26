@@ -215,20 +215,20 @@ It authors three kinds of member:
 
 | For | Lines (example names) | Started by | Max authority |
 |---|---|---|---|
-| KEV and EPSS | `security.kev-daily`, `security.epss-daily` | cron, daily | observe: retains the catalog or the daily file |
-| | `security.kev-triage`, `security.epss-triage` | their file's landing | propose, until graduated to settle (below) |
-| | `security.kev-attention` | the KEV catalog's landing | observe: posts inbox items |
-| Applicability | `security.sbom-import` | an SBOM's landing | propose |
-| | `security.osv-applicability` | cron, daily | propose |
-| | `security.cve-applicability` | a CVE record's landing | propose |
-| Your systems | `security.repo-pull.cruxible-ci`, `security.registry-pull.*` | cron: the repository every 6 h, PyPI daily | observe |
-| | `security.repo-parse.cruxible-ci`, `security.registry-parse.*` | their pull's landing | propose |
-| | `security.harden` | cron, daily, and each landing | observe: posts inbox items |
-| Your code's findings | `security.sarif-import.cruxible`, `security.sarif-attention.cruxible` (a pair per repository) | a SARIF log's landing | propose; observe |
-| Incidents | `security.inventory-import.prod` (one per scope), `security.credential-import` | their file's landing | propose |
-| | `security.respond.<incident>`, `security.log-import.<incident>` (declared with each incident) | cron and window close; a log read's landing | observe; propose |
+| KEV and EPSS | `security.kev-daily`, `security.epss-daily` | daily at 14:17 and 13:45 UTC | observe: retains the CISA KEV catalog or the FIRST EPSS daily scores file |
+| | `security.kev-triage`, `security.epss-triage` | when a CISA KEV catalog or a FIRST EPSS daily scores file lands, retained by `security.kev-daily` or `security.epss-daily` | propose, until graduated to settle (below) |
+| | `security.kev-attention` | when a CISA KEV catalog lands, retained by `security.kev-daily` | observe: posts inbox items |
+| Applicability | `security.sbom-import` | when a CycloneDX SBOM lands, retained by a direct `security.sbom-acquire` run on an agent's workspace file | propose |
+| | `security.osv-applicability` | daily at 15:30 UTC | propose |
+| | `security.cve-applicability` | when a CVE record lands, retained by a direct `security.fetch` run | propose |
+| Your systems | `security.repo-pull.cruxible-ci`, `security.registry-pull.*` | every 6 hours at :05 UTC (the repository); daily at 06:20 and 06:25 UTC (PyPI) | observe |
+| | `security.repo-parse.cruxible-ci`, `security.registry-parse.*` | when a GitHub repository snapshot or a PyPI release read lands, retained by a pull Line | propose |
+| | `security.harden` | daily at 07:40 UTC, and when either of those lands | observe: posts inbox items |
+| Your code's findings | `security.sarif-import.cruxible`, `security.sarif-attention.cruxible` (a pair per repository) | when a SARIF scan log lands, retained by a direct `security.sarif-acquire` run on an agent's workspace file | propose; observe |
+| Incidents | `security.inventory-import.prod` (one per scope), `security.credential-import` | when a runtime-inventory scan or a credential key-state read lands, retained by a direct `security.inventory-acquire` or `security.credential-acquire` run on an agent's workspace file | propose |
+| | `security.respond.<incident>`, `security.log-import.<incident>` (declared with each incident) | daily, and a day after a scan or key-state read lands (window close); when a log read lands, retained by a direct `security.log-acquire` run | observe; propose |
 
-Every Line with its Triggers and what it may settle is in [reference.md](reference.md#what-runs-on-its-own).
+Every Line, what starts it and what a run does is in [reference.md](reference.md#what-runs-on-its-own).
 
 The automation example states the instance acquisition default once:
 `SourceAcquisitionPolicy:default`, `max_age: P1D`. Kit ownership uses dotted
