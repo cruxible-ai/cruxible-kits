@@ -157,8 +157,8 @@ outputs:
   by its module (`go version -m $(command -v gh)` prints `path
   github.com/cli/cli/v2` and `mod ... v2.86.0`: run
   `pkg:golang/github.com/cli/cli/v2@v2.86.0`). Without Go: `brew info --json=v2
-  gh` gives `installed[0].version`, the version on this host (never
-  `versions.stable`, which is the newest formula). Read the upstream project's `go.mod` at that installed version's tag for its module path
+  gh` gives `formulae[0].installed[0].version`, the version on this host (never
+  `formulae[0].versions.stable`, which is the newest formula). Read the upstream project's `go.mod` at that installed version's tag for its module path
   (`module github.com/cli/cli/v2`); a Go module's version is the release tag
   (`v2.86.0`). A Python or Node tool is named by its PyPI or npm package. Keep `pkg:brew/<formula>@<version>` (from `brew list
   --versions`) only where there's nothing better, and state a product alias
