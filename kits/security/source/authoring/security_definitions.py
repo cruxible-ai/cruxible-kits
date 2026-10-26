@@ -74,7 +74,6 @@ from cruxible_client.contracts.procedures.models import (
 
 DATA = Path(__file__).resolve().parent / "data"
 KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-EPSS_URL = "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz"
 KEV_SOURCE = "cisa.kev.catalog"
 KEV_CONTRACT = "security.kev-http-v1"
 CVE_CONTRACT = "security.cve-record-http-v1"
@@ -95,8 +94,6 @@ REPRO_CONTRACT = "security.reproduction-v1"
 INVENTORY_CONTRACT = "security.runtime-inventory-v1"
 LOG_CONTRACT = "security.log-read-v1"
 CREDENTIAL_CONTRACT = "security.credential-state-v1"
-#: Contracts whose Captures may carry a secret by accident: erasure-authorized.
-ERASABLE_CONTRACTS = (INVENTORY_CONTRACT, LOG_CONTRACT, CREDENTIAL_CONTRACT)
 #: The system model's pull contracts: every fact about the organization's systems
 #: cites a Capture under one of them.
 SYSTEM_CONTRACTS = (REPO_CONTRACT, PYPI_CONTRACT, GH_RELEASE_CONTRACT, GH_API_CONTRACT,
@@ -107,7 +104,6 @@ VARIANT = "1.3.1"  # the release gate's upgrade variant (not published)
 WEB_PROVIDER = "cruxible-provider-web"
 ANALYSIS_PROVIDER = "security-analysis-provider"
 SOURCES_PROVIDER = "security-sources-provider"
-BUILTIN_PROVIDER = "cruxible-builtin"
 KEV_MAX_BYTES = 4_194_304  # the catalog is ~1.7 MB; web.fetch defaults to 256 KiB
 CVE_MAX_BYTES = 1_048_576
 GITHUB_MAX_BYTES = 4_194_304
@@ -115,7 +111,6 @@ ASSET_MAX_BYTES = 33_554_432  # security.release-asset's ceiling
 #: The built-in workspace.file structures at most 1 MiB (core
 #: providers/builtin_workspace_file.py MAX_STRUCTURED_BYTES): every workspace-file
 #: Procedure's budget says so.
-WORKSPACE_FILE_MAX_BYTES = 1_048_576
 DATE = {"type": "string", "pattern": r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"}
 DATETIME = {
     "format": "date-time",
@@ -139,7 +134,6 @@ OSV_COVERAGE = {"type": "string", "pattern": (
 #: which OSV ecosystem answers for a purl type.
 PURL_OSV_ECOSYSTEMS = json.loads((DATA / "purl_osv_ecosystems.json").read_text())
 #: Kit data: how a CVE record's collectionURL names a package (cve-applicability carries it).
-CVE_COLLECTIONS = json.loads((DATA / "cve_collections.json").read_text())
 #: Another name a release's product goes by in vulnerability records.
 ALIAS = {"type": "string", "pattern": (
     r"^(pkg:[a-z0-9.+-]+/[^@?#\s]+|cpe:2\.3:[aho]:[^:\s]+:[^:\s]+|https?://\S+"
@@ -1006,133 +1000,17 @@ def _ints(*names: str) -> dict[str, PropertySchema]:
 
 EMPTY = _contract("security-empty-input")
 URL_INPUT = _contract("security-url-input", url=PropertySchema(type="string"))
-PATH_INPUT = _contract("security-path-input", relative_path=PropertySchema(type="string"))
 HTTP_SUMMARY = _contract(
     "security-http-evidence",
     url=PropertySchema(type="string"),
     status=PropertySchema(type="int"),
     body_digest=PropertySchema(type="string"),
 )
-FILE_SUMMARY = _contract(
-    "security-file-evidence",
-    bytes_digest=PropertySchema(type="string"),
-    byte_length=PropertySchema(type="integer"),
-)
-KEV_REQUEST = _contract(
-    "security-kev-catalog-request",
-    catalog_base64=PropertySchema(type="string"),
-    watched=PropertySchema(type="json"),
-)
-KEV_RESULT = _contract(
-    "security-kev-catalog-result",
-    items=PropertySchema(type="json"),
-    catalog_version=PropertySchema(type="string"),
-    **_ints("changed", "watched", "listed", "catalog_count"),
-)
-TRIAGE_SUMMARY = _contract(
-    "security-kev-triage-summary",
-    catalog_version=PropertySchema(type="string"),
-    **_ints("changed", "watched", "listed"),
-)
-ATTENTION_REQUEST = _contract(
-    "security-kev-attention-request",
-    catalog_base64=PropertySchema(type="string"),
-    releases=PropertySchema(type="json"),
-    watched=PropertySchema(type="json"),
-    assessments=PropertySchema(type="json"),
-)
-ATTENTION_RESULT = _contract(
-    "security-kev-attention-result",
-    items=PropertySchema(type="json"),
-    catalog_version=PropertySchema(type="string"),
-    **_ints("posted", "newly_listed"),
-)
-ATTENTION_SUMMARY = _contract(
-    "security-kev-attention-summary",
-    catalog_version=PropertySchema(type="string"),
-    **_ints("posted", "newly_listed"),
-)
-EPSS_REQUEST = _contract(
-    "security-epss-request",
-    daily_base64=PropertySchema(type="string"),
-    watched=PropertySchema(type="json"),
-)
-EPSS_RESULT = _contract(
-    "security-epss-result",
-    items=PropertySchema(type="json"),
-    model_version=PropertySchema(type="string"),
-    score_date=PropertySchema(type="string"),
-    **_ints("changed", "watched", "scored"),
-)
-EPSS_SUMMARY = _contract(
-    "security-epss-summary",
-    model_version=PropertySchema(type="string"),
-    score_date=PropertySchema(type="string"),
-    **_ints("changed", "watched", "scored"),
-)
-SBOM_REQUEST = _contract(
-    "security-sbom-request",
-    sbom_text=PropertySchema(type="string"),
-    releases=PropertySchema(type="json"),
-)
-SBOM_RESULT = _contract(
-    "security-sbom-result",
-    items=PropertySchema(type="json"),
-    product=PropertySchema(type="string"),
-    version=PropertySchema(type="string"),
-    **_ints("changed", "components", "added", "skipped"),
-)
-SBOM_SUMMARY = _contract(
-    "security-sbom-summary",
-    product=PropertySchema(type="string"),
-    version=PropertySchema(type="string"),
-    **_ints("changed", "components", "added", "skipped"),
-)
-OSV_REQUEST = _contract(
-    "security-osv-applicability-request",
-    osv=PropertySchema(type="json"),
-    releases=PropertySchema(type="json"),
-    watched=PropertySchema(type="json"),
-    assessments=PropertySchema(type="json"),
-)
-OSV_RESULT = _contract(
-    "security-osv-applicability-result",
-    items=PropertySchema(type="json"),
-    unkeyed=PropertySchema(type="json"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged",
-            "coverage", "packages"),
-)
 OSV_SUMMARY = _contract(
     "security-osv-applicability-summary",
     unkeyed=PropertySchema(type="json"),
     **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged",
             "coverage", "packages"),
-)
-CVE_REQUEST = _contract(
-    "security-cve-applicability-request",
-    record_base64=PropertySchema(type="string"),
-    releases=PropertySchema(type="json"),
-    watched=PropertySchema(type="json"),
-    assessments=PropertySchema(type="json"),
-    sources=PropertySchema(type="json"),
-    collections=PropertySchema(type="json"),
-)
-CVE_RESULT = _contract(
-    "security-cve-applicability-result",
-    items=PropertySchema(type="json"),
-    cve_id=PropertySchema(type="string"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged"),
-)
-CVE_SUMMARY = _contract(
-    "security-cve-applicability-summary",
-    cve_id=PropertySchema(type="string"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged"),
-)
-EPSS_ACQUIRE_SUMMARY = _contract(
-    "security-epss-evidence",
-    url=PropertySchema(type="string"),
-    status=PropertySchema(type="int"),
-    body_digest=PropertySchema(type="string"),
 )
 
 
@@ -1144,101 +1022,9 @@ REPO_INPUT = _contract("security-repo-input", forge_host=_S, full_name=_S, ref=_
 SNAPSHOT_SUMMARY = _contract("security-repo-snapshot-summary", locator=_S, revision=_S)
 REGISTRY_INPUT = _contract("security-registry-input", project=_S, versions=_I)
 REGISTRY_SUMMARY = _contract("security-registry-summary", project=_S, versions=_J)
-REPO_PARSE_INPUT = _contract("security-repo-parse-input", source=_S, repo_source=_S,
-                             forge_host=_S, full_name=_S, ref=_S, scope=_S, path=_S)
-_FACT_COUNTS = _ints("changed", "added", "revised", "retired", "restated")
-WORKFLOW_FACTS_REQUEST = _contract("security-workflow-facts-request", snapshot=_J, coverage=_J,
-                                   held=_J, targets=_J, releases=_J)
-WORKFLOW_FACTS_RESULT = _contract("security-workflow-facts-result", items=_J, locator=_S,
-                                  revision=_S, scope=_S, unparsed=_J, **_FACT_COUNTS,
-                                  **_ints("workflows", "jobs"))
-REPO_PARSE_SUMMARY = _contract("security-repo-parse-summary", locator=_S, revision=_S,
-                               scope=_S, unparsed=_J, **_FACT_COUNTS,
-                               **_ints("workflows", "jobs"))
-REGISTRY_PARSE_INPUT = _contract("security-registry-parse-input", source=_S, project=_S,
-                                 versions=_I)
-REGISTRY_FACTS_REQUEST = _contract("security-registry-facts-request", release=_J, coverage=_J,
-                                   held=_J)
-REGISTRY_FACTS_RESULT = _contract("security-registry-facts-result", items=_J, locator=_S,
-                                  revision=_S, **_FACT_COUNTS, **_ints("files"))
-REGISTRY_PARSE_SUMMARY = _contract("security-registry-parse-summary", locator=_S, revision=_S,
-                                   **_FACT_COUNTS, **_ints("files"))
-HARDEN_INPUT = _contract("security-harden-input", default_ref=_S, repo_pull=_S,
-                         registry_pull=_S, release_pull=_S, versions=_I)
-HARDEN_REQUEST = _contract("security-harden-request", hq1=_J, hq2=_J, hq3=_J, hq4=_J, hq5=_J,
-                           hq6=_J, params=_J, truncated=_J)
-HARDEN_RESULT = _contract("security-harden-result", items=_J, answers=_J,
-                          **_ints("posted", "targets", "gaps", "found", "none", "unknown"))
-HARDEN_SUMMARY = _contract("security-harden-summary", answers=_J,
-                           **_ints("posted", "targets", "gaps", "found", "none", "unknown"))
 #: Hardening question -> the QueryDefinition the harden Procedure taps for it.
-HARDEN_QUERIES = {
-    "hq1": "security.publish_paths",
-    "hq2": "security.credentialed_jobs",
-    "hq3": "security.mutable_actions",
-    "hq4": "security.shared_dependencies",
-    "hq5": "security.served_vs_declared",
-    "hq6": "security.published_findings",
-}
-SARIF_INPUT = _contract("security-sarif-import-input", repo_ref=_S)
-_SARIF_COUNTS = _ints("mine", "results", "findings", "gaps", "routed_to_assessment", "new",
-                      "added", "fixed", "regressed", "changed", "posted")
-SARIF_REQUEST = _contract("security-sarif-request", sarif_text=_S, held=_J, repo_ref=_S,
-                          truncated=_J)
-SARIF_RESULT = _contract("security-sarif-result", items=_J, inbox=_J, repo_ref=_S, tools=_J,
-                         revisions=_J, full=_J, **_SARIF_COUNTS)
-SARIF_SUMMARY = _contract("security-sarif-summary", repo_ref=_S, tools=_J, revisions=_J,
-                          full=_J, **_SARIF_COUNTS)
 # Incident response.
-INVENTORY_INPUT = _contract("security-inventory-import-input", scope=_S)
-_INVENTORY_COUNTS = _ints("mine", "assets", "runs", "unidentified", "added", "retired",
-                          "revised", "restated", "verified", "failed", "changed", "proposes",
-                          "nones")
-INVENTORY_REQUEST = _contract("security-runtime-inventory-request", inventory_text=_S, held=_J,
-                              runs=_J, patches=_J, scope=_S, truncated=_J)
-INVENTORY_RESULT = _contract("security-runtime-inventory-result", items=_J, scope=_S,
-                             format=_S, coverage=_S, revision=_S, regressions=_J,
-                             **_INVENTORY_COUNTS)
-INVENTORY_SUMMARY = _contract("security-runtime-inventory-summary", scope=_S, format=_S,
-                              coverage=_S, revision=_S, regressions=_J, **_INVENTORY_COUNTS)
-LOG_INPUT = _contract("security-log-import-input", incident=_S)
-_LOG_COUNTS = _ints("mine", "recordable", "matches", "added", "changed", "posted")
-LOG_REQUEST = _contract("security-log-read-request", read_text=_S, held=_J, incident=_S,
-                        truncated=_J)
-LOG_RESULT = _contract("security-log-read-result", items=_J, inbox=_J, incident=_S,
-                       service=_S, source=_S, read=_S, **_LOG_COUNTS)
-LOG_SUMMARY = _contract("security-log-read-summary", incident=_S, service=_S, source=_S,
-                        read=_S, **_LOG_COUNTS)
-_CREDENTIAL_COUNTS = _ints("keys", "added", "revised", "verified", "failed", "unproven",
-                           "changed", "posted")
-CREDENTIAL_REQUEST = _contract("security-credential-state-request", state_text=_S, held=_J,
-                               truncated=_J)
-CREDENTIAL_RESULT = _contract("security-credential-state-result", items=_J, inbox=_J,
-                              credential=_S, read=_S, **_CREDENTIAL_COUNTS)
-CREDENTIAL_SUMMARY = _contract("security-credential-state-summary", credential=_S, read=_S,
-                               **_CREDENTIAL_COUNTS)
-RESPOND_INPUT = _contract("security-respond-input", incident=_S, inventory_pull=_S,
-                          log_pull=_S, credential_pull=_S, record_pull=_S,
-                          osv_line=PropertySchema(type="string", optional=True))
-RESPOND_REQUEST = _contract("security-respond-request", exposure=_J, hosts=_J,
-                            deployments=_J, patches=_J, overdue=_J, exceptions=_J, audits=_J,
-                            credentials=_J, params=_J, truncated=_J)
-_RESPOND_COUNTS = _ints("posted", "found", "none", "unknown", "ready_to_close")
-RESPOND_RESULT = _contract("security-respond-result", items=_J, answers=_J, incident=_S,
-                           status=_S, **_RESPOND_COUNTS)
-RESPOND_SUMMARY = _contract("security-respond-summary", answers=_J, incident=_S, status=_S,
-                            **_RESPOND_COUNTS)
 #: respond's taps, in order: alias -> QueryDefinition.
-RESPOND_QUERIES = {
-    "exposure": "security.incident_exposure",
-    "hosts": "security.scanned_runs",
-    "deployments": "security.deployments",
-    "patches": "security.incident_patches",
-    "overdue": "security.overdue_patches",
-    "exceptions": "security.incident_exceptions",
-    "audits": "security.audit_status",
-    "credentials": "security.incident_credentials",
-}
 
 
 def _seconds(value: int) -> CanonicalDuration:
@@ -1345,7 +1131,7 @@ def kev_acquire(cx: Cruxible, release: str) -> BlueprintInput:
         name="security.kev-acquire",
         description=(
             "Fetch the CISA KEV catalog (static JSON, no rendering) and retain it under "
-            "security.kev-http-v1. Interpretation is security.kev-triage's and "
+            "security.fetched-v1. Interpretation is security.kev-triage's and "
             "security.kev-attention's job."
             + (" 1.1.0: a 90 s budget." if release == VARIANT else "")
         ),
@@ -1368,7 +1154,7 @@ def cve_record_acquire(cx: Cruxible) -> BlueprintInput:
         name="security.cve-record-acquire",
         description=(
             "Fetch one CVE record (pass the full https://cveawg.mitre.org/api/cve/<CVE> URL "
-            "as input.url) and retain it under security.cve-record-http-v1; "
+            "as input.url) and retain it under security.fetched-v1; "
             "security.cve-applicability reads it when it lands."
         ),
         contract_in=URL_INPUT,
@@ -1392,7 +1178,7 @@ def epss_acquire(cx: Cruxible) -> BlueprintInput:
         name="security.epss-acquire",
         description=(
             "Fetch FIRST's current EPSS daily scores file (gzip CSV) and retain it under "
-            "security.epss-daily-v1. Interpretation is security.epss-triage's job."
+            "security.fetched-v1. Interpretation is security.epss-triage's job."
         ),
         contract_in=EMPTY,
         contract_out=HTTP_SUMMARY,
@@ -1400,67 +1186,6 @@ def epss_acquire(cx: Cruxible) -> BlueprintInput:
         hard_caps=_caps(300, 1, 33_554_432, 1),
     ).bind(epss=epss)
     return _blueprint(sequence, _interface(cx, "security.epss-daily"), "epss")
-
-
-def _workspace_file(logical_source: str, relative_path: str) -> dict[str, Any]:
-    return {
-        "tag": "playbill-workspace-file-source-request-v2",
-        "logical_source": logical_source,
-        "relative_path": relative_path,
-        "coordinate_type": "http-response-v1",
-        "coordinate": {"revision": "working"},
-        "selector_type": "whole-response-v1",
-        "selector": {"whole": True},
-        "replayability": "exact",
-    }
-
-
-def _file_acquire(cx: Cruxible, name: str, alias: str, contract: str, logical_source: str,
-                  description: str) -> Any:
-    """Read one workspace file (input.relative_path) and retain it under ``contract``."""
-
-    builtin = cx.provider_interface("workspace.file", provider=BUILTIN_PROVIDER)
-    sequence = Sequence(
-        [
-            Source(alias, capture_contract=_capture(contract), next="summary",
-                   request=_workspace_file(logical_source, "$input.relative_path")),
-            Project("summary", contract_out=FILE_SUMMARY, fields={
-                "bytes_digest": f"$steps.{alias}.source.bytes_digest",
-                "byte_length": f"$steps.{alias}.source.byte_length",
-            }),
-        ],
-        name=name,
-        description=description,
-        contract_in=PATH_INPUT,
-        contract_out=FILE_SUMMARY,
-        returns="summary",
-        budget=_budget(60, 1, WORKSPACE_FILE_MAX_BYTES),
-        hard_caps=_caps(120, 1, WORKSPACE_FILE_MAX_BYTES, 1),
-    ).bind(**{alias: builtin})
-    return sequence.build()
-
-
-def _sarif_steps(terminal: list[Any], guard: Guard) -> list[Any]:
-    """The landed SARIF log, the Line repository's held findings, the analysis, then the
-    repository guard (another repository's log halts wrong_repo) and ``terminal``."""
-
-    return [
-        Source("sarif", capture_contract=_capture(SARIF_CONTRACT), next="held",
-               request=_workspace_file("sarif.log", "scan.sarif")),
-        StateTap("held", query="security.finding_index", next="parse",
-                 parameters={"repo_ref": "$input.repo_ref"}),
-        Call("parse", next="summary",
-             input={"sarif_text": "$steps.sarif.content.text",
-                    "held": "$steps.held.result.rows", "repo_ref": "$input.repo_ref",
-                    "truncated": "$steps.held.truncated"}),
-        _project(SARIF_SUMMARY, "parse", "mine"),
-        Guard("mine", predicate=_changed("parse", "mine"), on_true=guard.name,
-              on_false="other", refusal_code="wrong_repo",
-              message="The landed SARIF log has no run of the Line's repository."),
-        guard,
-        *terminal,
-        Halt("other", reason="wrong_repo"),
-    ]
 
 
 def osv_applicability(cx: Cruxible) -> BlueprintInput:
@@ -1497,11 +1222,11 @@ def osv_applicability(cx: Cruxible) -> BlueprintInput:
         ],
         name="security.osv-applicability",
         description=(
-            "Retain OSV's ecosystem list (ecosystems.txt, under security.osv-ecosystems-v1), "
+            "Retain OSV's ecosystem list (ecosystems.txt, under security.fetched-v1), "
             "then ask OSV.dev about every SBOM component (purl@version) of every release whose "
             "ecosystem OSV indexes (by the kit's purl type map, carried in this Procedure; the "
             "rest are recorded not_indexed, never asked) and every watched CVE, retain the "
-            "answer under security.osv-query-v1, and propose what changed: each release's OSV "
+            "answer under security.fetched-v1, and propose what changed: each release's OSV "
             "coverage (complete, or partial with the purl types not indexed), the packages "
             "OSV says each watched CVE affects, and an assessment per (release, CVE): affected "
             "(watching the CVE when it is new), not_affected with its VEX justification, or "
@@ -1537,7 +1262,7 @@ def repo_acquire(cx: Cruxible) -> BlueprintInput:
         description=(
             "Read what one GitHub repository declares at one ref for one scope (input: "
             "forge_host, full_name, ref, scope ci.workflows or release.manifest, path) and "
-            "retain it under security.repo-snapshot-v1: the revision R and every file at R. "
+            "retain it under security.fetched-v1: the revision R and every file at R. "
             "An unchanged source is the same bytes. A parse Line for that source reads it "
             "when it lands."
         ),
@@ -1564,7 +1289,7 @@ def registry_acquire(cx: Cruxible) -> BlueprintInput:
         description=(
             "Read what PyPI serves for one project (input: project, versions = the newest N, "
             "default 3): each file's digest and provenance, retained under "
-            "security.pypi-release-v1. A parse Line for that project reads it when it lands."
+            "security.fetched-v1. A parse Line for that project reads it when it lands."
         ),
         contract_in=REGISTRY_INPUT,
         contract_out=REGISTRY_SUMMARY,
@@ -1637,16 +1362,6 @@ def history_acquire(cx: Cruxible) -> BlueprintInput:
         "actions/workflows/W/runs?branch=...) and retain it under "
         f"{GH_API_CONTRACT}: which commit changed a path, which runs ran.",
         max_bytes=GITHUB_MAX_BYTES)
-
-
-def _mine(alias: str, field: str, parameter: str) -> GuardPredicate:
-    """The landed Capture is the one this Line's source names."""
-
-    return GuardPredicate(
-        left=PredicateOperand(kind="step", alias=alias, path=(field,)),
-        operator="eq",
-        right=PredicateOperand(kind="input", input_name=parameter),
-    )
 
 
 # --- incident response: acquire, import, respond ----------------------------------
