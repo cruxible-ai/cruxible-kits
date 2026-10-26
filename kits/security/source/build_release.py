@@ -14,7 +14,7 @@ adds the changed KEV field to each Claim rationale), author the 1.3.1 successors
 build`` 1.3.1, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
 and ``providers/`` and 1.3.1 over ``source/variants/1.3.1-gate``, stop the daemon, regenerate
 the release's reference (``source/reference.py``: the README's generated sections
-and ``reference.md``), and list the kit's inert files (README, reference, examples,
+and ``reference.md``), and list the kit's inert files (the top-level pages, reference, examples,
 skills) in its manifest (``scripts/kits.py files``), outside the release's content digest.
 """
 

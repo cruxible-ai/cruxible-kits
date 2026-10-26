@@ -14,11 +14,11 @@ installed) proposes the acquisition Procedures and the triage, attention,
 import and applicability Procedures, the system model's pull Procedures, parse
 Procedures and the hardening Procedure, and the code findings' acquisition, import
 and attention Procedures. Then ``cruxible kit build`` exports the
-release (the kit README's "Building a release").
+release (the kit's ``source/README.md``, "Building a release").
 
 The connection comes from the CLI context (``cruxible init`` remembered it).
 Nothing here writes Subjects, Claims, Lines, Triggers or mandates: a kit
-carries definitions only; the README is the consumer recipe for the rest.
+carries definitions only; the README and its pages are the consumer recipe for the rest.
 """
 
 from __future__ import annotations

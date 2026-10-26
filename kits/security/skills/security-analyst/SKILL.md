@@ -8,8 +8,9 @@ description: Work as a security analyst on an instance with the Cruxible securit
 Use this skill when the user wants security questions answered or security work judged on an instance with
 the security kit. The state says what is waiting: `cruxible next`, the inbox (what Lines posted for
 judgment) and open proposals. This skill says what the answers mean and what a sound judgment rests on. The
-kit's README is the source for every name, query and exact write, `reference.md` for every kind and field;
-the [security intake skill](../security-intake/SKILL.md) says what each unknown is asking for.
+kit's docs are the source for every name, query and exact write (its README and `walkthroughs.md`; an
+analyst's judgment writes in `in-depth.md`), `reference.md` for every kind and field; the [security intake
+skill](../security-intake/SKILL.md) says what each unknown is asking for.
 
 ## Ground rules
 

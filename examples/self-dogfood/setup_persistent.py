@@ -9,7 +9,7 @@ without teardown or scale:
 
 1. start the daemon; ``init``; ``kit add`` the kit directory (this repository's
    current build); bind Procedure slots by fit
-   (``cruxible-provider-web``, ``security-sources-provider``); the README's
+   (``cruxible-provider-web``, ``security-sources-provider``); the kit's example
    automation change set (Lines, cron and landing Triggers, propose mandates);
 2. graduate KEV and EPSS triage to settle under their mandates at once (their
    Claims are verbatim copies of CISA's and FIRST's data); OSV and CVE-record
