@@ -89,7 +89,7 @@ STEPS = {
     "15": "restart: gap rows, lapsed ticks listed, dispatched, none at restart",
     "16": "measure pending; readings pending/open/expired",
     "17": "graduate KEV and EPSS triage to settle by max_authority",
-    "18": "changed analysis build: one kit add, D8 carry, enable/re-grant, settles resume; keep/re-add/downgrade",
+    "18": "changed analysis build: named Lines unchanged, mandates re-granted; settles resume; keep/re-add/downgrade",
     "19": "SBOM re-import: a changed SBOM and a new release land; OSV assesses the new one",
     "20": "exit: resolve EPSS prior-refusal warning, next empty, run history",
     "21": "system model: gates asked; every answer unknown; one gap item per source",
@@ -1097,6 +1097,8 @@ def test_18_upgrade(gate: Gate) -> None:
     assert "edited locally: query-definitions/security.kev_exposure.json" in gate.out("kit", "status")
     old_lines = {name: gate.proof(f"Line:{name}") for name in recipe.LINES}
     old_acquire_origin = gate.proof("Procedure:security.kev-acquire")
+    old_enablements = {name: gate.card(f"Line:{name}").get("triggers_inactive")
+                       for name in ("security.kev-triage", "security.epss-triage")}
     old_mandates = {f"{name}-{grant}": gate.proof(f"ProcedureMandate:{name}-{grant}")
                     for name in recipe.MANDATES for grant in
                     (("propose", "settle") if name in
@@ -1133,8 +1135,7 @@ def test_18_upgrade(gate: Gate) -> None:
     carries = preview["automation_carries"]
     lines = {item["identity"]: item for item in carries if item["kind"] == "line"}
     mandates = {item["identity"]: item for item in carries if item["kind"] == "mandate"}
-    assert {"Line:security.kev-triage", "Line:security.epss-triage"} <= lines.keys(), carries
-    assert all(item["enablement"] == "disabled" for item in lines.values())
+    assert not lines, carries  # Compatible named references need no Line successor.
     assert all(item["new_grant"] == "propose" for item in mandates.values())
     for name in ("security.kev-triage", "security.epss-triage"):
         assert mandates[f"ProcedureMandate:{name}-settle"]["loses_settle"]
@@ -1148,18 +1149,17 @@ def test_18_upgrade(gate: Gate) -> None:
     assert new_provider_pins != {pin["artifact_digest"] for pin in old_provider_pins.values()}
     for name, pin in old_provider_pins.items():
         assert gate.proof(f"Provider:{name}")["artifact_digest"] == pin["artifact_digest"]
-    for identity, item in lines.items():
-        name = identity.removeprefix("Line:")
-        proof = gate.proof(identity)
-        assert proof["artifact_digest"] != old_lines[name]["artifact_digest"]
-        envelope = proof["envelope"]
-        assert envelope["identity"] == old_lines[name]["envelope"]["identity"]
-        assert envelope["lifecycle"]["predecessor_digest"] == old_lines[name]["artifact_digest"]
-        assert envelope["procedure"]["target"] == old_lines[name]["envelope"]["procedure"]["target"]
-        assert gate.proof("Procedure:" + envelope["procedure"]["target"]["name"],
-                          at=proof["coordinate"]["git_oid"])["artifact_digest"] != old_procedure_digests[name]
-        assert gate.card(identity)["triggers_inactive"] == "not enabled"
-        assert item["old_artifact_digest"] == old_lines[name]["artifact_digest"]
+    for name, old in old_lines.items():
+        proof = gate.proof(f"Line:{name}")
+        assert proof["artifact_digest"] == old["artifact_digest"]
+        assert proof["envelope"] == old["envelope"]
+        assert proof["envelope"]["procedure"]["target"] == old["envelope"]["procedure"]["target"]
+    for name, inactive in old_enablements.items():
+        proof = gate.proof(f"Line:{name}")
+        target = proof["envelope"]["procedure"]["target"]["name"]
+        assert gate.proof("Procedure:" + target, at=proof["coordinate"]["git_oid"])[
+            "artifact_digest"] != old_procedure_digests[name]
+        assert gate.card(f"Line:{name}").get("triggers_inactive") == inactive
     for identity in mandates:
         name = identity.removeprefix("ProcedureMandate:")
         envelope = gate.proof(identity)["envelope"]
@@ -1176,17 +1176,9 @@ def test_18_upgrade(gate: Gate) -> None:
             old["envelope"], sort_keys=True), name
     findings = [row for row in gate.json("next")["items"]
                 if row["reason"] == "line_disabled_by_upgrade"]
-    assert len(findings) == len(lines), findings
-    assert {row["subject_identity"] for row in findings} == lines.keys()
-    for row in findings:
-        assert row["repair"]["operation"] == "cruxible.line.enable"
-        assert row["repair"]["target"] == row["subject_identity"]
-        assert "disabled by upgrade to" in row["detail"]["detail"]
-        gate.out("line", "enable", row["repair"]["arguments"]["line"])
-    assert not [row for row in gate.json("next")["items"]
-                if row["reason"] == "line_disabled_by_upgrade"]
+    assert not findings, findings
 
-    # Enabling alone restores proposing; only an approved re-grant may restore settle.
+    # Existing enablements follow the named Procedure; only a re-grant restores settle.
     probe = "CVE-2023-4966"  # fresh watched CVE in KEV, not among the OSV assessments
     gate.submit("watch-after-upgrade", recipe.watch(probe))
     seen = {r["run"] for r in gate.runs("security.kev-triage")}
@@ -1239,9 +1231,9 @@ def test_18_upgrade(gate: Gate) -> None:
     assert gate.proof("Blueprint:security.kev-acquire", at=current_origin["coordinate"]["git_oid"])[
         "artifact_digest"] != gate.values["kev_acquire_blueprint"]
     record("18", f"ONE kit add {VERSION} -> {UPGRADE_VERSION}: changed analysis code/build; "
-           f"{len(lines)} same-identity Lines disabled; {len(mandates)} Mandates propose-only; "
-           "Triggers byte-identical; old exact Provider retained; next/line enable repairs; "
-           "enable alone proposed; approved KEV/EPSS re-grants resumed settling; new rationale "
+           f"{len(old_lines)} Lines unchanged and compatible enablements retained; {len(mandates)} Mandates propose-only; "
+           "Triggers byte-identical; old exact Provider retained; named references resolve at the accepted coordinate; "
+           "existing enablements proposed; approved KEV/EPSS re-grants resumed settling; new rationale "
            "executed; local edit kept; re-add unchanged; downgrade blocked")
 
 
