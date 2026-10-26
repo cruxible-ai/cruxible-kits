@@ -16,7 +16,7 @@
   "description": "When the service's last affected asset was verified patched (the verifying scan's time): the audit's window is [incident.window_start, window_end].",
   "evidence_admission_policy": {
     "rules": [],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "none",

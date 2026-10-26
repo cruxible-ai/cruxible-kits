@@ -13,9 +13,8 @@
   "allowed_subject_kinds": [
     "security.finding"
   ],
-  "artifact_format": "playbill-claim-type-v8",
+  "artifact_format": "playbill-claim-type-v7",
   "attestation_consequence_policy": null,
-  "canonical_form": [],
   "cardinality": "many",
   "default_role": "normative",
   "description": "What the finding is in: a release, a service, a job or an artifact (joins the system model; HQ6 asks it of every gated target).",
@@ -26,6 +25,7 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
@@ -36,44 +36,35 @@
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "self_asserted"
-        ],
         "rule_id": "own-words",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       },
       {
         "admission": "direct",
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [
+              "github.api",
+              "github.release"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.github-api-v1"
-            }
-          },
-          {
-            "role": "capture-contract",
-            "target": {
-              "kind": "CaptureContract",
-              "name": "security.github-release-v1"
+              "name": "security.fetched-v1"
             }
           }
         ],
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "http_response"
-        ],
         "rule_id": "stated-by-source",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "self",

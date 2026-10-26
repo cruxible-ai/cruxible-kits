@@ -1,75 +1,54 @@
 {
   "activation_policy": "drain",
-  "artifact_format": "playbill-procedure-v2",
+  "artifact_format": "cruxible-procedure-v3",
   "definition": {
-    "annotations": {},
     "budget": {
       "max_capture_bytes": 16777216,
       "max_provider_calls": 2,
-      "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
-        "microseconds": 120000000,
-        "tag": "playbill-duration-v1"
+        "microseconds": 120000000
       }
     },
     "contract_in": {
-      "artifact_digest": "sha256:fe47e18ab6c0cd828d2a91a2f02cb7202f42fedf9602e9e754553b5f975b3f84",
-      "role": "contract-in",
       "target": {
         "kind": "Contract",
         "name": "security-registry-parse-input"
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:312249aa9f0b949c0525260a747f1d0f03b2f6dcea17b181a898baced3ed14d2",
-      "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-registry-parse-summary"
       }
     },
-    "description": "Read the PyPI release Capture that triggered the Line (security.pypi-release-v1) for the Line's project (parameters: source pypi/PROJECT, project, versions) and propose what changed: each served file as an artifact with its digest, release, and (from provenance) the workflow at the commit that published it, its environment and the commit; the target's source repository; the coverage restated. Halts other_source for another project. Runs as a Line with trigger_input registry.",
-    "graph_format": 6,
+    "description": "Read the PyPI release Capture that triggered the Line (security.fetched-v1) for the Line's project (parameters: source pypi/PROJECT, project, versions) and propose what changed: each served file as an artifact with its digest, release, and (from provenance) the workflow at the commit that published it, its environment and the commit; the target's source repository; the coverage restated. Halts other_source for another project. Runs as a Line with trigger_input registry.",
     "hard_caps": {
       "max_capture_bytes": 16777216,
       "max_items": 5000,
       "max_provider_calls": 2,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
-        "microseconds": 300000000,
-        "tag": "playbill-duration-v1"
-      },
-      "tag": "playbill-procedure-hard-caps-v1"
+        "microseconds": 300000000
+      }
     },
-    "measurements": [],
     "name": "security.registry-parse",
     "nodes": [
       {
-        "as": "registry",
         "capture_contract": {
-          "artifact_digest": "sha256:a4172c526e76abc4e19d94856a66bad01304b293bb6358c578b0d9ca58897d08",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
-            "name": "security.pypi-release-v1"
+            "name": "security.fetched-v1"
           }
         },
-        "implementation_digest": "sha256:ff3ad47c2b0d2a520ec8e58947e3fa064281c3bca08763c223e69d902a0e3a7f",
+        "id": "registry",
         "interface": {
-          "artifact_digest": "sha256:e83e25f7d196718e3fb86db6a7ceee39485b50c55566bc8763cfb955a861ba5c",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.pypi-release/ec5ddc209b8f1dd632230bd2c45a7f51ca87c5085154d6c6164981d2b808c009"
+            "name": "security.pypi-release/v1"
           }
         },
-        "interface_digest": "sha256:0804f4b5e1b6b08d9e7fcadd63147d72d5ee3f7dcf433003f5a7154534c9cfb7",
         "kind": "source",
-        "next": "mine",
-        "node_id": "registry",
         "provider": {
-          "artifact_digest": "sha256:21c3f660f86d896c9b88d9b15db4289c68de1aefec95e8977cb700af711eec81",
-          "role": "provider",
           "target": {
             "kind": "Provider",
             "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
@@ -81,131 +60,77 @@
         }
       },
       {
+        "id": "mine",
         "kind": "guard",
         "message": "The landed release is another project's.",
-        "node_id": "mine",
         "on_false": "other",
-        "on_true": "coverage",
         "predicate": {
-          "all_of": null,
-          "any_of": null,
           "left": {
             "alias": "registry",
-            "input_name": null,
             "kind": "step",
-            "parameter_name": null,
             "path": [
               "project"
-            ],
-            "tag": "playbill-predicate-operand-v1",
-            "value": null
+            ]
           },
-          "not_of": null,
           "operator": "eq",
           "right": {
-            "alias": null,
             "input_name": "project",
-            "kind": "input",
-            "parameter_name": null,
-            "path": [],
-            "tag": "playbill-predicate-operand-v1",
-            "value": null
-          },
-          "tag": "playbill-guard-predicate-v1"
+            "kind": "input"
+          }
         },
         "refusal_code": "other_source"
       },
       {
-        "as": "coverage",
-        "budgets": null,
+        "id": "coverage",
         "kind": "state_tap",
-        "next": "held",
-        "node_id": "coverage",
         "parameters": {
           "scope": "registry.files",
           "source": "$input.source"
         },
         "query": {
-          "artifact_digest": "sha256:97bc958ebd500796f4824faf1d384b26e9283e10825d7bb4eb82d7e6737ae62c",
-          "role": "query",
           "target": {
             "kind": "QueryDefinition",
             "name": "security.coverage_index"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "held",
-        "budgets": null,
+        "id": "held",
         "kind": "state_tap",
-        "next": "parse",
-        "node_id": "held",
         "parameters": {
           "name": "$input.project",
           "registry": "pypi"
         },
         "query": {
-          "artifact_digest": "sha256:9bceccc97ff29217a2efafb4b76f30f822e01a762cf232b6831cfc404590004f",
-          "role": "query",
           "target": {
             "kind": "QueryDefinition",
             "name": "security.registry_facts"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "parse",
-        "contract_in": {
-          "artifact_digest": "sha256:36f643b8ae1b3560d594630b1ec9a7efb563d5c595a83fa297fc6100bc9c97c1",
-          "role": "contract-in",
-          "target": {
-            "kind": "Contract",
-            "name": "security-registry-facts-request"
-          }
-        },
-        "contract_out": {
-          "artifact_digest": "sha256:33a32198ae44fe677f7cc66da8384ebf7ab2706b8d2f81e97e13eae1a1b9470c",
-          "role": "contract-out",
-          "target": {
-            "kind": "Contract",
-            "name": "security-registry-facts-result"
-          }
-        },
-        "effect_policy": null,
-        "implementation_digest": "sha256:1824805abef78b17f9b52bfe1b81faf5bf5caf295fa521dc1d64f0d1cb892da6",
+        "id": "parse",
         "input": {
           "coverage": "$steps.coverage.result.rows",
           "held": "$steps.held.result.rows",
           "release": "$steps.registry"
         },
         "interface": {
-          "artifact_digest": "sha256:d7449c993ae5721f93e18ea84d095e448322285bc7df63792538cdd43490c137",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.registry-facts/f6b4c74b65bc775bccd87d205e0f391f76c1c5a74d085b79062f27f2dc3f5238"
+            "name": "security.registry-facts/v1"
           }
         },
-        "interface_digest": "sha256:b71e7074a41cb13edcf4715f03b983c8031e3b436f98c6da14b9f9c729be79b8",
         "kind": "call",
-        "next": "summary",
-        "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:13b93204d53aed8333afa590567db414555b71fa195ab3f03ca3512a11a8cb72",
-          "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/c7a853603d64e7598215f39f59d035c6f9d6a8e872c352f35f662f229ae7c5a1"
+            "name": "security-analysis-provider/a250c95f355f9aebf5212848004e70597af75d4093f1302ea2ff6883ee0e1b1f"
           }
         }
       },
       {
-        "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:312249aa9f0b949c0525260a747f1d0f03b2f6dcea17b181a898baced3ed14d2",
-          "role": "contract-out",
           "target": {
             "kind": "Contract",
             "name": "security-registry-parse-summary"
@@ -221,244 +146,50 @@
           "revised": "$steps.parse.revised",
           "revision": "$steps.parse.revision"
         },
-        "kind": "project",
-        "next": "propose",
-        "node_id": "summary"
+        "id": "summary",
+        "kind": "project"
       },
       {
         "candidate_templates": {
           "items": "$steps.parse.items"
         },
-        "claim_types": [],
+        "id": "propose",
         "kind": "propose_change_set",
-        "node_id": "propose",
         "result": "$steps.summary"
       },
       {
+        "id": "other",
         "kind": "halt",
-        "node_id": "other",
         "reason": "other_source"
       }
     ],
-    "parameter_contract": null,
-    "pin_slots": [],
     "returns": "summary",
-    "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:75d7e7a299bf6f1ea1eeab8e1eca7534fb0130b57734b917516b32d1dff19c1b",
+  "definition_digest": "sha256:f141611d431a4142270245173c17cea49ee8cfe626e6ff4884275eab454dcaf0",
   "identity": {
     "kind": "Procedure",
     "name": "security.registry-parse"
-  },
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
   },
   "owned_contracts": [
     {
       "identity": {
         "kind": "Contract",
-        "name": "security-registry-facts-request"
-      },
-      "schema": {
-        "allow_extra": false,
-        "description": null,
-        "fields": {
-          "coverage": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "held": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "release": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          }
-        }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-registry-facts-result"
-      },
-      "schema": {
-        "allow_extra": false,
-        "description": null,
-        "fields": {
-          "added": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "changed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "files": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "items": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "locator": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "restated": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "retired": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "revised": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "revision": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          }
-        }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    },
-    {
-      "identity": {
-        "kind": "Contract",
         "name": "security-registry-parse-input"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "project": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "source": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "versions": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
+      }
     },
     {
       "identity": {
@@ -466,197 +197,32 @@
         "name": "security-registry-parse-summary"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "added": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "changed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "files": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "locator": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "restated": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "retired": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "revised": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "revision": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:1b55927e8f8549bd91de9b6562869038a6f4b400e42f2d615bb343c7064d3780",
-      "role": "acquisition-policy",
-      "target": {
-        "kind": "SourceAcquisitionPolicy",
-        "name": "security.acquisition"
-      }
-    },
-    {
-      "artifact_digest": "sha256:a4172c526e76abc4e19d94856a66bad01304b293bb6358c578b0d9ca58897d08",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.pypi-release-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:36f643b8ae1b3560d594630b1ec9a7efb563d5c595a83fa297fc6100bc9c97c1",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-registry-facts-request"
-      }
-    },
-    {
-      "artifact_digest": "sha256:fe47e18ab6c0cd828d2a91a2f02cb7202f42fedf9602e9e754553b5f975b3f84",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-registry-parse-input"
-      }
-    },
-    {
-      "artifact_digest": "sha256:33a32198ae44fe677f7cc66da8384ebf7ab2706b8d2f81e97e13eae1a1b9470c",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-registry-facts-result"
-      }
-    },
-    {
-      "artifact_digest": "sha256:312249aa9f0b949c0525260a747f1d0f03b2f6dcea17b181a898baced3ed14d2",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-registry-parse-summary"
-      }
-    },
-    {
-      "artifact_digest": "sha256:13b93204d53aed8333afa590567db414555b71fa195ab3f03ca3512a11a8cb72",
-      "role": "provider",
-      "target": {
-        "kind": "Provider",
-        "name": "security-analysis-provider/c7a853603d64e7598215f39f59d035c6f9d6a8e872c352f35f662f229ae7c5a1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:21c3f660f86d896c9b88d9b15db4289c68de1aefec95e8977cb700af711eec81",
-      "role": "provider",
-      "target": {
-        "kind": "Provider",
-        "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
-      }
-    },
-    {
-      "artifact_digest": "sha256:e83e25f7d196718e3fb86db6a7ceee39485b50c55566bc8763cfb955a861ba5c",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "security.pypi-release/ec5ddc209b8f1dd632230bd2c45a7f51ca87c5085154d6c6164981d2b808c009"
-      }
-    },
-    {
-      "artifact_digest": "sha256:d7449c993ae5721f93e18ea84d095e448322285bc7df63792538cdd43490c137",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "security.registry-facts/f6b4c74b65bc775bccd87d205e0f391f76c1c5a74d085b79062f27f2dc3f5238"
-      }
-    },
-    {
-      "artifact_digest": "sha256:97bc958ebd500796f4824faf1d384b26e9283e10825d7bb4eb82d7e6737ae62c",
-      "role": "query",
-      "target": {
-        "kind": "QueryDefinition",
-        "name": "security.coverage_index"
-      }
-    },
-    {
-      "artifact_digest": "sha256:9bceccc97ff29217a2efafb4b76f30f822e01a762cf232b6831cfc404590004f",
-      "role": "query",
-      "target": {
-        "kind": "QueryDefinition",
-        "name": "security.registry_facts"
       }
     }
   ]

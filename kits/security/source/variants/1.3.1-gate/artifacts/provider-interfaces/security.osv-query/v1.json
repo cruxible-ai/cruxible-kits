@@ -1,0 +1,65 @@
+{
+  "artifact_format": "cruxible-provider-interface-v4",
+  "identity": {
+    "kind": "ProviderInterface",
+    "name": "security.osv-query/v1"
+  },
+  "interface": {
+    "contracts": {
+      "input": {
+        "allow_extra": false,
+        "fields": {
+          "ecosystems": {
+            "type": "json"
+          },
+          "purl_types": {
+            "type": "json"
+          },
+          "releases": {
+            "type": "json"
+          },
+          "watched": {
+            "type": "json"
+          }
+        }
+      },
+      "material": {
+        "allow_extra": false,
+        "fields": {
+          "exchanges": {
+            "type": "json"
+          },
+          "input_bucket": {
+            "type": "string"
+          },
+          "not_indexed": {
+            "type": "json"
+          },
+          "osv_ecosystems": {
+            "type": "json"
+          },
+          "purl_types": {
+            "type": "json"
+          },
+          "service": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      },
+      "output": "playbill-provider-result-to-external-capture-v1"
+    },
+    "effect_class": "external_read",
+    "interface_id": "security.osv-query",
+    "refusals": [
+      "provider_declined"
+    ],
+    "version": 1
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

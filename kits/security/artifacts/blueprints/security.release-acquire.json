@@ -1,6 +1,6 @@
 {
   "activation_policy": "snapshot",
-  "artifact_format": "cruxible-blueprint-v1",
+  "artifact_format": "cruxible-blueprint-v2",
   "definition": {
     "annotations": {},
     "budget": {
@@ -13,23 +13,19 @@
       }
     },
     "contract_in": {
-      "artifact_digest": "sha256:19d0dab3f35d05136f1089cedb2aadc8f04c6704c20d2bdcdc27130f9069c43f",
-      "role": "contract-in",
       "target": {
         "kind": "Contract",
         "name": "security-url-input"
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-      "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-http-evidence"
       }
     },
     "description": "Fetch one GitHub release (input.url: https://api.github.com/repos/OWNER/REPO/releases/tags/TAG) and retain it under security.github-release-v1: its assets, their digests, uploader and update times. Cite the Capture for artifact facts.",
-    "graph_format": 6,
+    "graph_format": 7,
     "hard_caps": {
       "max_capture_bytes": 4194304,
       "max_items": 1,
@@ -47,25 +43,19 @@
       {
         "as": "release",
         "capture_contract": {
-          "artifact_digest": "sha256:448914b7c29fb3c95c1a6550ae0d0302b032bdf273ad7875177a8393f17a9c7a",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
-            "name": "security.github-release-v1"
+            "name": "security.fetched-v1"
           }
         },
-        "implementation_digest": null,
         "interface": {
-          "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
+            "name": "web.fetch/v3"
           }
         },
-        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
         "kind": "source",
-        "next": "summary",
+        "next": null,
         "node_id": "release",
         "provider": {
           "slot_name": "release",
@@ -83,8 +73,6 @@
       {
         "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-          "role": "contract-out",
           "target": {
             "kind": "Contract",
             "name": "security-http-evidence"
@@ -103,18 +91,21 @@
     "parameter_contract": null,
     "pin_slots": [
       {
-        "artifact_kind": "Provider",
-        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
-        "pin_role": "provider",
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch/v3"
+          }
+        },
         "slot_name": "release",
-        "tag": "playbill-procedure-pin-slot-v1"
+        "tag": "cruxible-procedure-slot-v2"
       }
     ],
     "returns": "summary",
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:d56d685aebc5cb767578d6a16dc4783861ef6d99978bcb028b6e6037670424b5",
+  "definition_digest": "sha256:674959a2c4e2157c18c2afd557ef5857c3a3262a2f9582dbc6aeb9fcba829747",
   "identity": {
     "kind": "Blueprint",
     "name": "security.release-acquire"
@@ -193,40 +184,6 @@
         }
       },
       "tag": "playbill-procedure-owned-contract-v1"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:448914b7c29fb3c95c1a6550ae0d0302b032bdf273ad7875177a8393f17a9c7a",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.github-release-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:19d0dab3f35d05136f1089cedb2aadc8f04c6704c20d2bdcdc27130f9069c43f",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-url-input"
-      }
-    },
-    {
-      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-http-evidence"
-      }
-    },
-    {
-      "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
-      }
     }
   ]
 }

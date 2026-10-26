@@ -1,75 +1,54 @@
 {
   "activation_policy": "drain",
-  "artifact_format": "playbill-procedure-v2",
+  "artifact_format": "cruxible-procedure-v3",
   "definition": {
-    "annotations": {},
     "budget": {
       "max_capture_bytes": 1048576,
       "max_provider_calls": 2,
-      "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
-        "microseconds": 60000000,
-        "tag": "playbill-duration-v1"
+        "microseconds": 60000000
       }
     },
     "contract_in": {
-      "artifact_digest": "sha256:a99cd79bf2ed5dabe1dfeab2970a092aeab93999843d9544ed6b595e308498a3",
-      "role": "contract-in",
       "target": {
         "kind": "Contract",
         "name": "security-log-import-input"
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:57e5819d96c2a58ca48ca975ed8a3d930e78e40e71c0f20a67decb8518273488",
-      "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-log-read-summary"
       }
     },
-    "description": "Read the log-read Capture that triggered the Line (security.log-read-v1) for the Line's incident (parameter incident, its name) and propose the audit by key (incident, service) with its twins and one security.audit.read (SOURCE FROM/TO) for a complete read. An incomplete read is posted (read_incomplete) and never becomes a read: it is a finding about the logs, not about the attacker. Never a result. Halts other_incident for another incident's read. Runs as a Line with trigger_input log.",
-    "graph_format": 6,
+    "description": "Read the log-read Capture that triggered the Line (security.file-erasable-v1) for the Line's incident (parameter incident, its name) and propose the audit by key (incident, service) with its twins and one security.audit.read (SOURCE FROM/TO) for a complete read. An incomplete read is posted (read_incomplete) and never becomes a read: it is a finding about the logs, not about the attacker. Never a result. Halts other_incident for another incident's read. Runs as a Line with trigger_input log.",
     "hard_caps": {
       "max_capture_bytes": 1048576,
       "max_items": 100,
       "max_provider_calls": 2,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
-        "microseconds": 120000000,
-        "tag": "playbill-duration-v1"
-      },
-      "tag": "playbill-procedure-hard-caps-v1"
+        "microseconds": 120000000
+      }
     },
-    "measurements": [],
     "name": "security.log-import",
     "nodes": [
       {
-        "as": "log",
         "capture_contract": {
-          "artifact_digest": "sha256:40f02b2df14ffac0bbacda3fb94fde2873dcdf13683a77b4b41e766b91929bf4",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
-            "name": "security.log-read-v1"
+            "name": "security.file-erasable-v1"
           }
         },
-        "implementation_digest": "sha256:67c337ac0a87cfe8ee42da30a21c4cce658a0ad6bb3944b39a81e921aaba843c",
+        "id": "log",
         "interface": {
-          "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
             "name": "workspace.file"
           }
         },
-        "interface_digest": "sha256:faa92552bd6032d3280753881ce991501013b2eaa2005e0f974820f01248d866",
         "kind": "source",
-        "next": "held",
-        "node_id": "log",
         "provider": {
-          "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
-          "role": "provider",
           "target": {
             "kind": "Provider",
             "name": "cruxible-builtin"
@@ -91,44 +70,20 @@
         }
       },
       {
-        "as": "held",
-        "budgets": null,
+        "id": "held",
         "kind": "state_tap",
-        "next": "parse",
-        "node_id": "held",
         "parameters": {
           "incident": "$input.incident"
         },
         "query": {
-          "artifact_digest": "sha256:551355584cf39b64a1fcc64a742c19ffaf0bb52660021338693540c9e24ff519",
-          "role": "query",
           "target": {
             "kind": "QueryDefinition",
             "name": "security.audit_status"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "parse",
-        "contract_in": {
-          "artifact_digest": "sha256:75fbe2c5f22b064ad03f54a3f72f79d1d7b99cad7e5b4f8f5271e99474a3ee8e",
-          "role": "contract-in",
-          "target": {
-            "kind": "Contract",
-            "name": "security-log-read-request"
-          }
-        },
-        "contract_out": {
-          "artifact_digest": "sha256:608810a82bd69523ffd123ba30018ac11f4580cd1c137dfb708efa3d5e5c4106",
-          "role": "contract-out",
-          "target": {
-            "kind": "Contract",
-            "name": "security-log-read-result"
-          }
-        },
-        "effect_policy": null,
-        "implementation_digest": "sha256:b8597f66507b3a04b2fb9638744260292c7d2dc1ac8f3cface4d7bf51e3e8d80",
+        "id": "parse",
         "input": {
           "held": "$steps.held.result.rows",
           "incident": "$input.incident",
@@ -136,31 +91,21 @@
           "truncated": "$steps.held.truncated"
         },
         "interface": {
-          "artifact_digest": "sha256:b5c292fe4afca8df5498923f6b2b86f0ad3c9d526d87d29c7fd303f533b046bd",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.log-reads/9f14fd8f5c2bce87cc3246e850c39c4bc8140293118382aff34b108194d1c599"
+            "name": "security.log-reads/v1"
           }
         },
-        "interface_digest": "sha256:030fde6457cfe42c5eeab1aac3c656af5c4155bf6bcb3d9fc928b8b0d6c722a8",
         "kind": "call",
-        "next": "summary",
-        "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:13b93204d53aed8333afa590567db414555b71fa195ab3f03ca3512a11a8cb72",
-          "role": "provider",
           "target": {
             "kind": "Provider",
-            "name": "security-analysis-provider/c7a853603d64e7598215f39f59d035c6f9d6a8e872c352f35f662f229ae7c5a1"
+            "name": "security-analysis-provider/a250c95f355f9aebf5212848004e70597af75d4093f1302ea2ff6883ee0e1b1f"
           }
         }
       },
       {
-        "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:57e5819d96c2a58ca48ca975ed8a3d930e78e40e71c0f20a67decb8518273488",
-          "role": "contract-out",
           "target": {
             "kind": "Contract",
             "name": "security-log-read-summary"
@@ -178,112 +123,60 @@
           "service": "$steps.parse.service",
           "source": "$steps.parse.source"
         },
-        "kind": "project",
-        "next": "mine",
-        "node_id": "summary"
+        "id": "summary",
+        "kind": "project"
       },
       {
+        "id": "mine",
         "kind": "guard",
         "message": "The landed log read is another incident's.",
-        "node_id": "mine",
         "on_false": "other",
-        "on_true": "recordable",
         "predicate": {
-          "all_of": null,
-          "any_of": null,
           "left": {
             "alias": "parse",
-            "input_name": null,
             "kind": "step",
-            "parameter_name": null,
             "path": [
               "mine"
-            ],
-            "tag": "playbill-predicate-operand-v1",
-            "value": null
+            ]
           },
-          "not_of": null,
           "operator": "gt",
-          "right": {
-            "alias": null,
-            "input_name": null,
-            "kind": "literal",
-            "parameter_name": null,
-            "path": [],
-            "tag": "playbill-predicate-operand-v1",
-            "value": 0
-          },
-          "tag": "playbill-guard-predicate-v1"
+          "right": 0
         },
         "refusal_code": "other_incident"
       },
       {
+        "id": "recordable",
         "kind": "guard",
         "message": "The read is incomplete, or its audit is not stated: posted.",
-        "node_id": "recordable",
         "on_false": "post",
-        "on_true": "changed",
         "predicate": {
-          "all_of": null,
-          "any_of": null,
           "left": {
             "alias": "parse",
-            "input_name": null,
             "kind": "step",
-            "parameter_name": null,
             "path": [
               "recordable"
-            ],
-            "tag": "playbill-predicate-operand-v1",
-            "value": null
+            ]
           },
-          "not_of": null,
           "operator": "gt",
-          "right": {
-            "alias": null,
-            "input_name": null,
-            "kind": "literal",
-            "parameter_name": null,
-            "path": [],
-            "tag": "playbill-predicate-operand-v1",
-            "value": 0
-          },
-          "tag": "playbill-guard-predicate-v1"
+          "right": 0
         },
         "refusal_code": "read_not_recordable"
       },
       {
+        "id": "changed",
         "kind": "guard",
         "message": "The audit already holds this read.",
-        "node_id": "changed",
         "on_false": "nochange",
-        "on_true": "propose",
         "predicate": {
-          "all_of": null,
-          "any_of": null,
           "left": {
             "alias": "parse",
-            "input_name": null,
             "kind": "step",
-            "parameter_name": null,
             "path": [
               "changed"
-            ],
-            "tag": "playbill-predicate-operand-v1",
-            "value": null
+            ]
           },
-          "not_of": null,
           "operator": "gt",
-          "right": {
-            "alias": null,
-            "input_name": null,
-            "kind": "literal",
-            "parameter_name": null,
-            "path": [],
-            "tag": "playbill-predicate-operand-v1",
-            "value": 0
-          },
-          "tag": "playbill-guard-predicate-v1"
+          "right": 0
         },
         "refusal_code": "no_change"
       },
@@ -291,44 +184,36 @@
         "candidate_templates": {
           "items": "$steps.parse.items"
         },
-        "claim_types": [],
+        "id": "propose",
         "kind": "propose_change_set",
-        "node_id": "propose",
         "result": "$steps.summary"
       },
       {
+        "id": "post",
         "input": {
           "items": "$steps.parse.inbox"
         },
         "kind": "post_inbox",
-        "max_items": 10,
-        "node_id": "post"
+        "max_items": 10
       },
       {
+        "id": "nochange",
         "kind": "halt",
-        "node_id": "nochange",
         "reason": "no_change"
       },
       {
+        "id": "other",
         "kind": "halt",
-        "node_id": "other",
         "reason": "other_incident"
       }
     ],
-    "parameter_contract": null,
-    "pin_slots": [],
     "returns": "summary",
-    "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:c1addfc202745eac9fb23dd2598fbf3ebb3f3c4baadb37eae42ff83faf415e3b",
+  "definition_digest": "sha256:bc86688832fb2eedec064ec03e0482da2520b02e78de03f34bdf46cc0240d91a",
   "identity": {
     "kind": "Procedure",
     "name": "security.log-import"
-  },
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
   },
   "owned_contracts": [
     {
@@ -337,225 +222,12 @@
         "name": "security-log-import-input"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "incident": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-log-read-request"
-      },
-      "schema": {
-        "allow_extra": false,
-        "description": null,
-        "fields": {
-          "held": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "incident": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "read_text": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "truncated": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          }
-        }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-log-read-result"
-      },
-      "schema": {
-        "allow_extra": false,
-        "description": null,
-        "fields": {
-          "added": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "changed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "inbox": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "incident": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "items": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "matches": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "mine": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "posted": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "read": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "recordable": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "service": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "source": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          }
-        }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
+      }
     },
     {
       "identity": {
@@ -563,211 +235,38 @@
         "name": "security-log-read-summary"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "added": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "changed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "incident": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "matches": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "mine": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "posted": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "read": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "recordable": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "service": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "source": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:1b55927e8f8549bd91de9b6562869038a6f4b400e42f2d615bb343c7064d3780",
-      "role": "acquisition-policy",
-      "target": {
-        "kind": "SourceAcquisitionPolicy",
-        "name": "security.acquisition"
-      }
-    },
-    {
-      "artifact_digest": "sha256:40f02b2df14ffac0bbacda3fb94fde2873dcdf13683a77b4b41e766b91929bf4",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.log-read-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:a99cd79bf2ed5dabe1dfeab2970a092aeab93999843d9544ed6b595e308498a3",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-log-import-input"
-      }
-    },
-    {
-      "artifact_digest": "sha256:75fbe2c5f22b064ad03f54a3f72f79d1d7b99cad7e5b4f8f5271e99474a3ee8e",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-log-read-request"
-      }
-    },
-    {
-      "artifact_digest": "sha256:608810a82bd69523ffd123ba30018ac11f4580cd1c137dfb708efa3d5e5c4106",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-log-read-result"
-      }
-    },
-    {
-      "artifact_digest": "sha256:57e5819d96c2a58ca48ca975ed8a3d930e78e40e71c0f20a67decb8518273488",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-log-read-summary"
-      }
-    },
-    {
-      "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
-      "role": "provider",
-      "target": {
-        "kind": "Provider",
-        "name": "cruxible-builtin"
-      }
-    },
-    {
-      "artifact_digest": "sha256:13b93204d53aed8333afa590567db414555b71fa195ab3f03ca3512a11a8cb72",
-      "role": "provider",
-      "target": {
-        "kind": "Provider",
-        "name": "security-analysis-provider/c7a853603d64e7598215f39f59d035c6f9d6a8e872c352f35f662f229ae7c5a1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:b5c292fe4afca8df5498923f6b2b86f0ad3c9d526d87d29c7fd303f533b046bd",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "security.log-reads/9f14fd8f5c2bce87cc3246e850c39c4bc8140293118382aff34b108194d1c599"
-      }
-    },
-    {
-      "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "workspace.file"
-      }
-    },
-    {
-      "artifact_digest": "sha256:551355584cf39b64a1fcc64a742c19ffaf0bb52660021338693540c9e24ff519",
-      "role": "query",
-      "target": {
-        "kind": "QueryDefinition",
-        "name": "security.audit_status"
       }
     }
   ]

@@ -1,6 +1,6 @@
 {
   "activation_policy": "snapshot",
-  "artifact_format": "cruxible-blueprint-v1",
+  "artifact_format": "cruxible-blueprint-v2",
   "definition": {
     "annotations": {},
     "budget": {
@@ -13,23 +13,19 @@
       }
     },
     "contract_in": {
-      "artifact_digest": "sha256:19d0dab3f35d05136f1089cedb2aadc8f04c6704c20d2bdcdc27130f9069c43f",
-      "role": "contract-in",
       "target": {
         "kind": "Contract",
         "name": "security-url-input"
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-      "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-http-evidence"
       }
     },
     "description": "Read the bytes one GitHub release asset serves (input.url: its download URL, https://github.com/OWNER/REPO/releases/download/TAG/NAME) and retain them under security.release-asset-v1; the summary's body_digest is the served digest (security.artifact.sha256).",
-    "graph_format": 6,
+    "graph_format": 7,
     "hard_caps": {
       "max_capture_bytes": 67108864,
       "max_items": 1,
@@ -47,25 +43,19 @@
       {
         "as": "asset",
         "capture_contract": {
-          "artifact_digest": "sha256:18b69778e037aa061492f60101645755c5e393fba7ead9358c17e8637b5874c0",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
-            "name": "security.release-asset-v1"
+            "name": "security.fetched-large-v1"
           }
         },
-        "implementation_digest": null,
         "interface": {
-          "artifact_digest": "sha256:4db53e7ee851c45920bc70fd51d84878ee5daf0ad9412fa6cec1b2934b263771",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.release-asset/fdcda711577e95b772d90ae005197baf6dbb396afac97e0dd2adda06fe459798"
+            "name": "security.release-asset/v1"
           }
         },
-        "interface_digest": "sha256:9f856f117a2b700118092a8bd1e50d0436ba429b3615b73e7083c9b3d9a6827e",
         "kind": "source",
-        "next": "summary",
+        "next": null,
         "node_id": "asset",
         "provider": {
           "slot_name": "asset",
@@ -78,8 +68,6 @@
       {
         "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-          "role": "contract-out",
           "target": {
             "kind": "Contract",
             "name": "security-http-evidence"
@@ -98,18 +86,21 @@
     "parameter_contract": null,
     "pin_slots": [
       {
-        "artifact_kind": "Provider",
-        "interface_digest": "sha256:9f856f117a2b700118092a8bd1e50d0436ba429b3615b73e7083c9b3d9a6827e",
-        "pin_role": "provider",
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.release-asset/v1"
+          }
+        },
         "slot_name": "asset",
-        "tag": "playbill-procedure-pin-slot-v1"
+        "tag": "cruxible-procedure-slot-v2"
       }
     ],
     "returns": "summary",
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:15c144929a92504fb0636b80a59c93ff87fff592c103c3d84c6bad3c035c313c",
+  "definition_digest": "sha256:c9d7302aa88e037c38bc542662a7b9641d2b6f2c556b92c3acf6a49a0b967079",
   "identity": {
     "kind": "Blueprint",
     "name": "security.asset-fetch"
@@ -188,40 +179,6 @@
         }
       },
       "tag": "playbill-procedure-owned-contract-v1"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:18b69778e037aa061492f60101645755c5e393fba7ead9358c17e8637b5874c0",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.release-asset-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:19d0dab3f35d05136f1089cedb2aadc8f04c6704c20d2bdcdc27130f9069c43f",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-url-input"
-      }
-    },
-    {
-      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-http-evidence"
-      }
-    },
-    {
-      "artifact_digest": "sha256:4db53e7ee851c45920bc70fd51d84878ee5daf0ad9412fa6cec1b2934b263771",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "security.release-asset/fdcda711577e95b772d90ae005197baf6dbb396afac97e0dd2adda06fe459798"
-      }
     }
   ]
 }

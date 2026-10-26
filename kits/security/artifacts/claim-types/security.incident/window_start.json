@@ -16,7 +16,7 @@
   "description": "The start of the exposure window (the lead's call, e.g. the earliest known exploitation minus a margin): audits read from it, rotations must post-date it.",
   "evidence_admission_policy": {
     "rules": [],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "none",

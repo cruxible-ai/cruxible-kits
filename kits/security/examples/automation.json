@@ -18,8 +18,7 @@
       "blueprint": "security.kev-acquire",
       "bindings": {
         "catalog": "cruxible-provider-web"
-      },
-      "acquisition_policy": "security.acquisition"
+      }
     },
     {
       "kind": "blueprint_instance",
@@ -27,8 +26,7 @@
       "blueprint": "security.cve-record-acquire",
       "bindings": {
         "record": "cruxible-provider-web"
-      },
-      "acquisition_policy": "security.acquisition"
+      }
     },
     {
       "kind": "blueprint_instance",
@@ -36,8 +34,7 @@
       "blueprint": "security.epss-acquire",
       "bindings": {
         "epss": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
+      }
     },
     {
       "kind": "blueprint_instance",
@@ -46,8 +43,7 @@
       "bindings": {
         "ecosystems": "security-sources-provider",
         "osv": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
+      }
     },
     {
       "kind": "blueprint_instance",
@@ -55,8 +51,7 @@
       "blueprint": "security.repo-acquire",
       "bindings": {
         "snapshot": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
+      }
     },
     {
       "kind": "blueprint_instance",
@@ -64,8 +59,7 @@
       "blueprint": "security.registry-acquire",
       "bindings": {
         "registry": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
+      }
     },
     {
       "kind": "blueprint_instance",
@@ -73,8 +67,7 @@
       "blueprint": "security.release-acquire",
       "bindings": {
         "release": "cruxible-provider-web"
-      },
-      "acquisition_policy": "security.acquisition"
+      }
     },
     {
       "kind": "blueprint_instance",
@@ -82,8 +75,7 @@
       "blueprint": "security.asset-fetch",
       "bindings": {
         "asset": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
+      }
     },
     {
       "kind": "blueprint_instance",
@@ -91,8 +83,7 @@
       "blueprint": "security.history-acquire",
       "bindings": {
         "history": "cruxible-provider-web"
-      },
-      "acquisition_policy": "security.acquisition"
+      }
     },
     {
       "kind": "line",

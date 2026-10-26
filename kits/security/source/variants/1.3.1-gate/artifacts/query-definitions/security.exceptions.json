@@ -1,28 +1,21 @@
 {
-  "artifact_format": "playbill-query-definition-v1",
+  "artifact_format": "cruxible-query-definition-v3",
   "dedupe": "path",
   "default_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 100,
     "max_results": 200,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
   "description": "Scoped risk exceptions and expiry. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "exception",
-    "subject_id": null,
     "subject_kinds": [
       "security.exception"
-    ],
-    "tag": "playbill-query-entry-v1"
+    ]
   },
   "evaluation_policy": {
     "conflict_behavior": "surface_conflicts",
-    "requires_accepted_coordinate": true,
-    "requires_explicit_evaluation_time": true,
-    "result_expiry": null,
-    "tag": "playbill-query-evaluation-policy-v1",
     "visible_currency": [
       "current"
     ],
@@ -34,165 +27,80 @@
     "kind": "QueryDefinition",
     "name": "security.exceptions"
   },
-  "includes": [],
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
-  },
   "maximum_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 1000,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
-  "orderings": [],
-  "parameters": [],
-  "pins": [
-    {
-      "artifact_digest": "sha256:50a489ce0116180bd1ea088ce3a791521a3a0179c61646fd784189d11ae1a644",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.exception.approval"
-      }
-    },
-    {
-      "artifact_digest": "sha256:12174a74ba83dcd47fe896a5ea8d6c6109ec657682f1f4249907fddc7c93c9c0",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.exception.expires_at"
-      }
-    },
-    {
-      "artifact_digest": "sha256:2a29f2494840a6dea9e7da0c7d0bf458b6022a1e45cdefc78476c95c29239857",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.work.assessment"
-      }
-    },
-    {
-      "artifact_digest": "sha256:62ff1936036ef6b36a7223c478fc31bbae2076450f1e524b5296cf18781320fe",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.work.asset"
-      }
-    },
-    {
-      "artifact_digest": "sha256:abb8f39dc629f6ae6f50d876b396740e3cced99d65d22c8e9da0bb5b6b9b75c7",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.work.owner"
-      }
-    },
-    {
-      "artifact_digest": "sha256:0954f2ac7a329507371c62a37de294cd171f5e7fb5ebb02d85d77031cda3379c",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.work.rationale"
-      }
-    },
-    {
-      "artifact_digest": "sha256:8fe9f54a64e2876aa1d71365b70635e9d808f2e2ea36b23cbfe061b5b96e3f41",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.work.review_at"
-      }
-    }
-  ],
   "projection": {
     "fields": [
       {
         "name": "assessment",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "assessment",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "asset",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "asset",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "exception",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "exception",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "expires_at",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "exception",
           "kind": "claim_value",
-          "predicate": "security.exception.expires_at",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.exception.expires_at"
         }
       },
       {
         "name": "owner",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "owner",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "rationale",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "exception",
           "kind": "claim_value",
-          "predicate": "security.work.rationale",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.work.rationale"
         }
       },
       {
         "name": "review_at",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "exception",
           "kind": "claim_value",
-          "predicate": "security.work.review_at",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.work.review_at"
         }
       },
       {
         "name": "status",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "exception",
           "kind": "claim_value",
-          "predicate": "security.exception.approval",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.exception.approval"
         }
       }
-    ],
-    "tag": "playbill-query-projection-v1"
+    ]
   },
-  "result_binding": "exception",
-  "result_cardinality": "many",
   "result_shape": "path",
   "traversal": [
     {
@@ -201,11 +109,9 @@
       "from_binding": "exception",
       "predicate": "security.work.asset",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.asset"
-      ],
-      "where": null
+      ]
     },
     {
       "binding": "assessment",
@@ -213,11 +119,9 @@
       "from_binding": "exception",
       "predicate": "security.work.assessment",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.assessment"
-      ],
-      "where": null
+      ]
     },
     {
       "binding": "owner",
@@ -225,12 +129,9 @@
       "from_binding": "exception",
       "predicate": "security.work.owner",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.team"
-      ],
-      "where": null
+      ]
     }
-  ],
-  "where": null
+  ]
 }

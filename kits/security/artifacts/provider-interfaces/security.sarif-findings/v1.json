@@ -1,0 +1,94 @@
+{
+  "artifact_format": "cruxible-provider-interface-v4",
+  "identity": {
+    "kind": "ProviderInterface",
+    "name": "security.sarif-findings/v1"
+  },
+  "interface": {
+    "contracts": {
+      "input": {
+        "allow_extra": false,
+        "fields": {
+          "held": {
+            "type": "json"
+          },
+          "repo_ref": {
+            "type": "string"
+          },
+          "sarif_text": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "json"
+          }
+        }
+      },
+      "output": {
+        "allow_extra": false,
+        "fields": {
+          "added": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "findings": {
+            "type": "integer"
+          },
+          "fixed": {
+            "type": "integer"
+          },
+          "full": {
+            "type": "json"
+          },
+          "gaps": {
+            "type": "integer"
+          },
+          "inbox": {
+            "type": "json"
+          },
+          "items": {
+            "type": "json"
+          },
+          "mine": {
+            "type": "integer"
+          },
+          "new": {
+            "type": "integer"
+          },
+          "posted": {
+            "type": "integer"
+          },
+          "regressed": {
+            "type": "integer"
+          },
+          "repo_ref": {
+            "type": "string"
+          },
+          "results": {
+            "type": "integer"
+          },
+          "revisions": {
+            "type": "json"
+          },
+          "routed_to_assessment": {
+            "type": "integer"
+          },
+          "tools": {
+            "type": "json"
+          }
+        }
+      }
+    },
+    "effect_class": "pure",
+    "interface_id": "security.sarif-findings",
+    "refusals": [
+      "provider_declined"
+    ],
+    "version": 1
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

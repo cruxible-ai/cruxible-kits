@@ -333,8 +333,18 @@ class Gate:
     def card(self, ref: str) -> dict[str, Any]:
         return dict(self.json("get", ref)["card"])
 
-    def proof(self, ref: str) -> dict[str, Any]:
-        return dict(self.json("get", ref, "--detail", "proof")["proof"])
+    def proof(self, ref: str, *, at: str | None = None) -> dict[str, Any]:
+        args = ("--at", at) if at is not None else ()
+        return dict(self.json("get", ref, "--detail", "proof", *args)["proof"])
+
+    def provider_pins(self, procedure: str) -> dict[str, dict[str, Any]]:
+        """Resolve named provider references at the Procedure proof's coordinate."""
+        proof = self.proof(f"Procedure:{procedure}")
+        at = proof["coordinate"]["git_oid"]
+        names = {node["provider"]["target"]["name"] for node in proof["artifact"]["definition"]["nodes"]
+                 if node["kind"] in {"source", "call"}}
+        return {name: {"artifact_digest": self.proof(f"Provider:{name}", at=at)["artifact_digest"]}
+                for name in names}
 
     def runs(self, line: str) -> list[dict[str, Any]]:
         return list(self.card(f"Line:{line}").get("recent_runs") or [])
@@ -459,8 +469,8 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 18, "ClaimType": 137, "Procedure": 21,
-              "ProviderInterface": 21, "QueryDefinition": 50, "SourceAcquisitionPolicy": 1,
+KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 6, "ClaimType": 137, "Procedure": 21,
+              "ProviderInterface": 21, "QueryDefinition": 50,
               "SubjectKind": 23}
 
 
@@ -473,6 +483,11 @@ def test_02_kit_add(gate: Gate) -> None:
         kind = item["identity"].split(":", 1)[0]
         counts[kind] = counts.get(kind, 0) + 1
     assert counts == KIT_COUNTS, counts
+    from cruxible_client.contracts.captures import builtin_contract_for_write, render_capture_contract
+    # Five kit contracts, plus the exact compiler-owned self-source dependency.
+    from cruxible_client.contracts.captures import COORDINATOR_SELF_SOURCE_CAPTURE_CONTRACT
+    expected_self = builtin_contract_for_write(COORDINATOR_SELF_SOURCE_CAPTURE_CONTRACT, None)
+    assert (KIT / "artifacts/capture-contracts/playbill.coordinator-self-source-v1.json").read_bytes() == render_capture_contract(expected_self)
     actions = {p["package"]: p["action"] for p in preview["providers"]}
     assert set(actions) == {"cruxible-provider-web", "security-analysis-provider",
                             "security-sources-provider"}, actions
@@ -522,9 +537,8 @@ def test_04_instantiate(gate: Gate) -> None:
     assert "bindings" in unbound.stdout + unbound.stderr
     wrong = gate.out("authoring", "submit", gate.payload("wrong", {
         "kind": "blueprint_instance", "name": "security.epss-acquire",
-        "blueprint": "security.epss-acquire", "bindings": {"epss": "cruxible-provider-web"},
-        "acquisition_policy": "security.acquisition"}), "--dry-run")
-    assert "blueprint_provider_interface_mismatch" in wrong
+        "blueprint": "security.epss-acquire", "bindings": {"epss": "cruxible-provider-web"}}), "--dry-run")
+    assert "blueprint_provider_interface_mismatch" in wrong, wrong
     gate.submit("instances", recipe.instantiate("security-gate-sources", "security-gate-sources"))
     runnable = {name: gate.card(f"Procedure:{name}")["runnable"] for name in (
         "security.kev-acquire", "security.cve-record-acquire", "security.epss-acquire",
@@ -532,10 +546,13 @@ def test_04_instantiate(gate: Gate) -> None:
     assert runnable == {"security.kev-acquire": "line", "security.cve-record-acquire": "direct",
                         "security.epss-acquire": "line", "security.osv-applicability": "line",
                         "security.sbom-acquire": "direct"}, runnable
-    origin = json.dumps(gate.proof("Procedure:security.kev-acquire"))
+    origin = gate.proof("Procedure:security.kev-acquire")
     gate.values["kev_acquire_blueprint"] = gate.proof(
         "Blueprint:security.kev-acquire")["artifact_digest"]
-    assert gate.values["kev_acquire_blueprint"] in origin
+    assert origin["artifact"]["blueprint"]["blueprint"]["target"] == {
+        "kind": "Blueprint", "name": "security.kev-acquire"}
+    assert gate.proof("Blueprint:security.kev-acquire", at=origin["coordinate"]["git_oid"])[
+        "artifact_digest"] == gate.values["kev_acquire_blueprint"]
     record("04", f"unbound refused; mismatch refused; runnable {runnable}; Blueprint origin "
            "recorded")
 
@@ -716,7 +733,7 @@ def test_08_osv_applicability(gate: Gate) -> None:
     assessment = gate.values["assessment_ids"][(app, LOG4SHELL)]
     statuses = gate.claims("security.assessment", "security.assessment.status")
     evidence = gate.out("get", statuses[assessment][1], "--detail", "evidence")
-    assert "CaptureContract:security.osv-query-v1" in evidence, evidence
+    assert "CaptureContract:security.fetched-v1" in evidence and "source=osv.dev.query" in evidence, evidence
     # Which dependency brings it in: the assessment names the component OSV listed.
     urgent = {_field(r, "cve_id"): r for r in gate.rows("security.urgent_exposures")}
     assert "pkg:pypi/jinja2@3.1.3" in json.dumps(_field(urgent[JINJA], "component")), urgent
@@ -778,7 +795,7 @@ def test_09_analyst_judgment(gate: Gate) -> None:
     assert cells["justification"][0]["role"] == "normative", cells
     assert _field(_index_row(gate, assessment), "status_role") == "normative"
     evidence = gate.out("get", cells["status"][0]["claim"], "--detail", "evidence")
-    assert "security.workspace-evidence-v1" in evidence, evidence
+    assert "CaptureContract:security.file-v1" in evidence and "source=security.analysis.evidence" in evidence, evidence
     assert "the vulnerable path is unreachable" in evidence, evidence  # the write's because
     # An observation in someone's own words has no admitted evidence: its verdict is
     # uncovered, so no worklist (supported Claims only) would ever show it.
@@ -925,7 +942,7 @@ def test_13_accept_and_dedupe(gate: Gate) -> None:
     added = gate.claims("security.vulnerability", "security.vulnerability.kev_date_added")
     assert added["cve-2021-44228"][0] == "2021-12-10", added
     evidence = gate.out("get", listed["cve-2021-44832"][1], "--detail", "evidence")
-    assert "CaptureContract:security.kev-http-v1" in evidence, evidence
+    assert "CaptureContract:security.fetched-v1" in evidence and "source=cisa.kev.catalog" in evidence, evidence
     head = gate.json("orient")["coordinate"]["git_oid"]
 
     def floor_current() -> bool:
@@ -1079,14 +1096,18 @@ def test_18_upgrade(gate: Gate) -> None:
     gate.py(HERE / "edit_kev_exposure.py", "250")
     assert "edited locally: query-definitions/security.kev_exposure.json" in gate.out("kit", "status")
     old_lines = {name: gate.proof(f"Line:{name}") for name in recipe.LINES}
+    old_acquire_origin = gate.proof("Procedure:security.kev-acquire")
     old_mandates = {f"{name}-{grant}": gate.proof(f"ProcedureMandate:{name}-{grant}")
                     for name in recipe.MANDATES for grant in
                     (("propose", "settle") if name in
                      {"security.kev-triage", "security.epss-triage"} else ("propose",))}
     triggers = {row["name"]: gate.proof(f"Trigger:{row['name']}")
                 for row in gate.json("query", "Trigger")["rows"]}
-    old_provider_pins = {pin["target"]["name"]: pin for pin in gate.proof(
-        "Procedure:security.kev-triage")["artifact"]["pins"] if pin["role"] == "provider"}
+    old_provider_pins = gate.provider_pins("security.kev-triage")
+    old_procedure_digests = {
+        name: gate.proof("Procedure:" + proof["envelope"]["procedure"]["target"]["name"],
+                         at=proof["coordinate"]["git_oid"])["artifact_digest"]
+        for name, proof in old_lines.items()}
     old_analysis = next(p for p in json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())[
         "providers"] if p["package"] == "security-analysis-provider")
     new_analysis = next(p for p in json.loads((RELEASE_1_1 / "cruxible-kit.json").read_text())[
@@ -1123,8 +1144,7 @@ def test_18_upgrade(gate: Gate) -> None:
                           preview["coordinate"]["git_oid"])
     (gate.root / "upgrade-commit.json").write_text(json.dumps(committed, indent=2) + "\n")
     assert committed["status"] == "accepted", committed
-    new_provider_pins = {pin["artifact_digest"] for pin in gate.proof(
-        "Procedure:security.kev-triage")["artifact"]["pins"] if pin["role"] == "provider"}
+    new_provider_pins = {pin["artifact_digest"] for pin in gate.provider_pins("security.kev-triage").values()}
     assert new_provider_pins != {pin["artifact_digest"] for pin in old_provider_pins.values()}
     for name, pin in old_provider_pins.items():
         assert gate.proof(f"Provider:{name}")["artifact_digest"] == pin["artifact_digest"]
@@ -1135,8 +1155,9 @@ def test_18_upgrade(gate: Gate) -> None:
         envelope = proof["envelope"]
         assert envelope["identity"] == old_lines[name]["envelope"]["identity"]
         assert envelope["lifecycle"]["predecessor_digest"] == old_lines[name]["artifact_digest"]
-        assert envelope["procedure"]["artifact_digest"] != old_lines[name]["envelope"][
-            "procedure"]["artifact_digest"]
+        assert envelope["procedure"]["target"] == old_lines[name]["envelope"]["procedure"]["target"]
+        assert gate.proof("Procedure:" + envelope["procedure"]["target"]["name"],
+                          at=proof["coordinate"]["git_oid"])["artifact_digest"] != old_procedure_digests[name]
         assert gate.card(identity)["triggers_inactive"] == "not enabled"
         assert item["old_artifact_digest"] == old_lines[name]["artifact_digest"]
     for identity in mandates:
@@ -1209,10 +1230,14 @@ def test_18_upgrade(gate: Gate) -> None:
     assert again["status"] == "unchanged", again
     down = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--dry-run")
     assert (down["status"], down["transition"]) == ("would_block", "downgrade"), down
-    assert gate.proof("QueryDefinition:security.kev_exposure")["envelope"][
-        "default_budgets"]["max_results"] == 250
-    assert gate.values["kev_acquire_blueprint"] in json.dumps(gate.proof(
-        "Procedure:security.kev-acquire"))
+    assert gate.proof("QueryDefinition:security.kev_exposure")["envelope"]["limit"] == 250
+    current_origin = gate.proof("Procedure:security.kev-acquire")
+    assert current_origin["artifact"]["blueprint"]["blueprint"]["target"] == {
+        "kind":"Blueprint", "name":"security.kev-acquire"}
+    assert gate.proof("Blueprint:security.kev-acquire", at=old_acquire_origin["coordinate"]["git_oid"])[
+        "artifact_digest"] == gate.values["kev_acquire_blueprint"]
+    assert gate.proof("Blueprint:security.kev-acquire", at=current_origin["coordinate"]["git_oid"])[
+        "artifact_digest"] != gate.values["kev_acquire_blueprint"]
     record("18", f"ONE kit add {VERSION} -> {UPGRADE_VERSION}: changed analysis code/build; "
            f"{len(lines)} same-identity Lines disabled; {len(mandates)} Mandates propose-only; "
            "Triggers byte-identical; old exact Provider retained; next/line enable repairs; "
@@ -1480,7 +1505,7 @@ def _parse_line(name: str, *, ref: str, scope: str = "ci.workflows",
          "parameters": {"source": f"{source}:{path}", "repo_source": source, **REPO_KEY,
                         "ref": ref, "scope": scope, "path": path}},
         {"kind": "trigger", "name": name.replace("repo-parse", "repo-landed"), "line_name": name,
-         "schedule": {"kind": "capture_landing", "capture_contract": "security.repo-snapshot-v1"}},
+         "schedule": {"kind": "capture_landing", "capture_contract": "security.fetched-v1", "logical_sources": ["github.repo.snapshot"]}},
     ]}
 
 
@@ -1724,8 +1749,8 @@ def test_27_investigation(gate: Gate) -> None:
     _, summary = _harden(gate)
     disagreement = next(f["payload"] for f in _posted(gate, "finding")
                         if f["payload"].get("disagreement") == "digest")
-    for side, contract in (("declared", "security.repo-snapshot-v1"),
-                           ("served", "security.release-asset-v1")):
+    for side, contract in (("declared", "security.fetched-v1"),
+                           ("served", "security.fetched-large-v1")):
         assert disagreement[side]["value"] == (declared if side == "declared" else served)
         assert contract in gate.out("get", disagreement[side]["claim"], "--detail", "evidence")
     # Hop 0: the signal, its observation and the note, in one write.
@@ -2007,10 +2032,10 @@ def test_28_findings_setup(gate: Gate) -> None:
          "parameters": {"repo_ref": GATE_APP}},
         {"kind": "trigger", "name": "security.sarif-landed.gate-app",
          "line_name": FINDING_LINES["import"],
-         "schedule": {"kind": "capture_landing", "capture_contract": "security.sarif-v1"}},
+         "schedule": {"kind": "capture_landing", "capture_contract": "security.file-v1", "logical_sources": ["sarif.log"]}},
         {"kind": "trigger", "name": "security.sarif-landed-attention.gate-app",
          "line_name": FINDING_LINES["attention"],
-         "schedule": {"kind": "capture_landing", "capture_contract": "security.sarif-v1"}}]})
+         "schedule": {"kind": "capture_landing", "capture_contract": "security.file-v1", "logical_sources": ["sarif.log"]}}]})
     # The scanner arms its Lines: their runs act as it, so it creates their proposals.
     for name in FINDING_LINES.values():
         gate.out("line", "enable", name, who="scanner")
@@ -2683,7 +2708,7 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
     statuses = gate.claims("security.assessment", "security.assessment.status")
     evidence = gate.out("get", statuses[gate.values["assessment_ids"][(debian, PHP2SHELL[0])]][1],
                         "--detail", "evidence")
-    assert "security.osv-query-v1" in evidence, evidence
+    assert "CaptureContract:security.fetched-v1" in evidence and "source=osv.dev.query" in evidence, evidence
     gate.values.update(php_release=php, debian_release=debian)
     # Exposure joins what scans observe too: storefront-a/-b and app-1 are known only from
     # scans (observed), wiki-1 only declares php 8.3.10 (asset, not seen running).
@@ -2736,11 +2761,11 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
              "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
              "trigger_input": "log", "parameters": {"incident": INCIDENT_NAME}},
             {"kind": "trigger", "name": "security.log-landed.php2shell", "line_name": LOG_IMPORT,
-             "schedule": {"kind": "capture_landing", "capture_contract": "security.log-read-v1"}},
+             "schedule": {"kind": "capture_landing", "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.log-read"]}},
             # The gate's re-ask window is 30 s (a deployment's, a day).
             {"kind": "trigger", "name": "security.respond-after-rotation.php2shell",
              "line_name": RESPOND, "schedule": {"kind": "window_close", "window": {
-                 "kind": "capture_event", "capture_contract": "security.credential-state-v1",
+                 "kind": "capture_event", "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.credential-state"],
                  "duration_seconds": 30}}}]}, approver=LEAD)
     for line in (RESPOND, LOG_IMPORT):
         gate.out("line", "enable", line, who=RESPONDER)
@@ -2928,7 +2953,7 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
              "trigger_input": "inventory", "parameters": {"scope": "ops"}},
             {"kind": "trigger", "name": "security.inventory-landed.ops", "line_name": OPS_SCOPE,
              "schedule": {"kind": "capture_landing",
-                          "capture_contract": "security.runtime-inventory-v1"}}]}, approver=LEAD)
+                          "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.inventory"]}}]}, approver=LEAD)
     gate.out("line", "enable", OPS_SCOPE, who=SCANNER)
     _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "ops-before.json",
                        "inventory/ops.json", SCANNER, (PROD, OPS_SCOPE))
@@ -3322,10 +3347,9 @@ def test_41_rotate(gate: Gate) -> None:
     assert any("secret_shape" in b for b in bodies) and not any(
         "wJalrXUtnFEMI" in b for b in bodies), bodies
     # The contracts a secret may slip into authorize erasure (`cruxible capture erase`).
-    for contract in ("security.credential-state-v1", "security.log-read-v1",
-                     "security.runtime-inventory-v1"):
+    for contract in ("security.file-erasable-v1",):
         policy = gate.proof(f"CaptureContract:{contract}")["envelope"]["retention_erasure_policy"]
-        assert policy["erasure"] == "authorized_by_rule" and policy["erasure_rule_digest"], policy
+        assert policy["erasure"] == "authorized_by_rule" and policy["erasure_rule"]["target"]["name"] == "playbill.capture-erasure-authority-v1", policy
     # G12: 30 s after that landing the respond Line re-asks on its own (window_close): the
     # acknowledged gap is sighted again and counts the recurrence, keeping its decision.
     def resighted() -> bool:
@@ -3462,7 +3486,7 @@ def test_43_workstation_and_record_match(gate: Gate) -> None:
              "trigger_input": "inventory", "parameters": {"scope": "workstation"}},
             {"kind": "trigger", "name": "security.inventory-landed.workstation",
              "line_name": WORKSTATION, "schedule": {
-                 "kind": "capture_landing", "capture_contract": "security.runtime-inventory-v1"}}]},
+                 "kind": "capture_landing", "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.inventory"]}}]},
         approver=LEAD)
     gate.out("line", "enable", WORKSTATION, who=SCANNER)
     # Homebrew purls for the laptop (from brew list), the Go module `go version -m` names

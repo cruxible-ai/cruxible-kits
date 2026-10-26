@@ -19,7 +19,7 @@
   "description": "The repository as host/owner/repo (github.com/owner/repo); with weakness and locus, the finding's key.",
   "evidence_admission_policy": {
     "rules": [],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "none",

@@ -1,32 +1,23 @@
 {
-  "artifact_format": "playbill-query-definition-v1",
+  "artifact_format": "cruxible-query-definition-v3",
   "dedupe": "subject",
   "default_budgets": {
-    "max_paths": null,
-    "max_paths_per_result": null,
     "max_results": 1,
-    "max_traversal_depth": 1,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 1
   },
   "description": "One vulnerability by id with its CVE key; the condition the KEV and EPSS triage settle mandates evaluate per changed Claim (triage only changes watched ones).",
   "entry": {
     "binding": "vulnerability",
     "subject_id": {
       "kind": "parameter",
-      "parameter": "vulnerability_id",
-      "tag": "playbill-query-parameter-ref-v1"
+      "parameter": "vulnerability_id"
     },
     "subject_kinds": [
       "security.vulnerability"
-    ],
-    "tag": "playbill-query-entry-v1"
+    ]
   },
   "evaluation_policy": {
     "conflict_behavior": "surface_conflicts",
-    "requires_accepted_coordinate": true,
-    "requires_explicit_evaluation_time": true,
-    "result_expiry": null,
-    "tag": "playbill-query-evaluation-policy-v1",
     "visible_currency": [
       "current"
     ],
@@ -38,66 +29,35 @@
     "kind": "QueryDefinition",
     "name": "security.settle_condition"
   },
-  "includes": [],
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
-  },
   "maximum_budgets": {
-    "max_paths": null,
-    "max_paths_per_result": null,
     "max_results": 10,
-    "max_traversal_depth": 1,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 1
   },
-  "orderings": [],
   "parameters": [
     {
-      "default": null,
       "name": "vulnerability_id",
-      "required": true,
-      "tag": "playbill-query-parameter-v1",
       "value_type": "string"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:71d273d960c85450760acab13b526712916c7a62125ff08d0837999a4c358ea9",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.vulnerability.cve_id"
-      }
     }
   ],
   "projection": {
     "fields": [
       {
         "name": "cve_id",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "vulnerability",
           "kind": "claim_value",
-          "predicate": "security.vulnerability.cve_id",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.vulnerability.cve_id"
         }
       },
       {
         "name": "vulnerability",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "vulnerability",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       }
-    ],
-    "tag": "playbill-query-projection-v1"
+    ]
   },
-  "result_binding": "vulnerability",
-  "result_cardinality": "many",
-  "result_shape": "subject",
-  "traversal": [],
-  "where": null
+  "result_shape": "subject"
 }

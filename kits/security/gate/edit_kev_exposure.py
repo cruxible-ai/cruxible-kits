@@ -11,10 +11,9 @@ from __future__ import annotations
 import sys
 
 from cruxible_client import Cruxible
-from cruxible_client.contracts.artifacts import ArtifactLifecycle
 from cruxible_client.contracts.authoring.inputs import QueryDefinitionInput
 from cruxible_client.contracts.get_reads import GetRequest
-from cruxible_client.contracts.query.definitions import QueryDefinitionSpec
+from cruxible_client.contracts.query.authored import QuerySpecInput
 
 NAME = "security.kev_exposure"
 
@@ -23,23 +22,18 @@ def main() -> None:
     max_results = int(sys.argv[1])
     with Cruxible.connect() as cx:
         proof = cx._client.get(
-            cx._instance_id, request=GetRequest(ref=f"QueryDefinition:{NAME}", detail="proof")
+            cx._instance_id,
+            request=GetRequest(ref=f"QueryDefinition:{NAME}", detail="proof"),
         ).proof
         assert proof is not None
-        spec = QueryDefinitionSpec.model_validate(proof["envelope"])
-        spec = spec.model_copy(
-            update={
-                "default_budgets": spec.default_budgets.model_copy(
-                    update={"max_results": max_results}
-                ),
-                "lifecycle": ArtifactLifecycle(predecessor_digest=proof["artifact_digest"]),
-            }
+        spec = QuerySpecInput.model_validate(proof["envelope"]).model_copy(
+            update={"limit": max_results}
         )
-        world = cx.world()
-        draft = cx.changes(rationale=f"Show up to {max_results} KEV exposures by default.")
+        draft = cx.changes(
+            rationale=f"Show up to {max_results} KEV exposures by default."
+        )
         draft.query_definition(
             QueryDefinitionInput(kind="query_definition", query_definition=spec),
-            vocabulary=tuple(world.claim_type(p) for p in sorted(spec.referenced_predicates)),
         )
         intent = draft.prepare()
         if intent.refused:

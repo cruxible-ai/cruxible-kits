@@ -31,6 +31,9 @@ from pathlib import Path
 from typing import Any
 
 from cruxible_client.kits import read_kit_directory
+from cruxible_client.contracts.procedures.artifacts import parse_procedure
+from cruxible_client.contracts.procedures.blueprints import parse_blueprint
+from cruxible_client.contracts.query.definitions import parse_query_definition
 
 KIT = Path(__file__).resolve().parents[1]
 README = "README.md"
@@ -63,6 +66,7 @@ class ClaimTypeDoc:
     roles: tuple[str, ...]
     default_role: str
     contracts: tuple[str, ...]
+    source_uses: tuple[tuple[str, tuple[str, ...]], ...]
     requirement: str
     freshness: str
     contention: str
@@ -101,7 +105,8 @@ class DefinitionDoc:
 class ContractDoc:
     name: str
     sources: tuple[str, ...]
-    evidence_kinds: tuple[str, ...]
+    shape: str
+    replay: str
     grade: str
 
 
@@ -213,6 +218,9 @@ def _claim_type(raw: Json) -> ClaimTypeDoc:
         roles=tuple(sorted(raw["permitted_roles"])),
         default_role=raw["default_role"],
         contracts=tuple(contracts),
+        source_uses=tuple(sorted({(use["target"]["name"], tuple(use.get("logical_sources", ())))
+                                 for rule in raw["evidence_admission_policy"]["rules"]
+                                 for use in rule["capture_contracts"]})),
         requirement=raw["evidence_requirement"],
         freshness=f"stale after {_hours(freshness['stale_after'])}" if freshness else "",
         contention=_contention(raw),
@@ -311,6 +319,10 @@ def load(kit_dir: Path) -> KitDocs:
     for artifact in bundle.artifacts:
         raw = json.loads(artifact.content)
         top = artifact.path.split("/")[0]
+        if top in {"procedures", "blueprints", "query-definitions"}:
+            parse = {"procedures": parse_procedure, "blueprints": parse_blueprint,
+                     "query-definitions": parse_query_definition}[top]
+            raw = parse(artifact.content, path=artifact.path).model_dump(mode="json", by_alias=True)
         if top == "subject-kinds":
             kind = _kind(raw)
             docs.kinds[kind.name] = kind
@@ -320,8 +332,9 @@ def load(kit_dir: Path) -> KitDocs:
         elif top == "capture-contracts":
             docs.contracts[raw["identity"]["name"]] = ContractDoc(
                 name=raw["identity"]["name"],
-                sources=tuple(sorted(raw["logical_source_identities"])),
-                evidence_kinds=tuple(sorted(raw["evidence_kinds"])),
+                sources=(),
+                shape=raw.get("shape", "http_response"),
+                replay=raw.get("replay", "attested"),
                 grade=raw["epistemic_grade"],
             )
         elif top in {"procedures", "blueprints"}:
@@ -334,7 +347,7 @@ def load(kit_dir: Path) -> KitDocs:
             query = _query(raw)
             docs.queries[query.name] = query
         elif top == "provider-interfaces":
-            docs.interfaces.add(raw["interface_id"])
+            docs.interfaces.add(raw.get("interface", raw)["interface_id"])
         elif top == "source-acquisition-policies":
             docs.policies.add(raw["identity"]["name"])
     example = kit_dir / EXAMPLE
@@ -518,7 +531,9 @@ def _glance(docs: KitDocs) -> list[str]:
 
 
 _EVIDENCE_GROUPS = {
-    "http_response": "Fetched from a source (HTTP)",
+    "http_response": "HTTP and file captures",
+    "procedure_output": "Procedure outputs",
+    "coordinator_self_source": "Core self-source dependency",
     "sbom_document": "SBOM documents",
     "workspace_file": "Workspace files an analyst cites",
     "sarif_log": "Scan results (SARIF)",
@@ -535,7 +550,7 @@ def _evidence_diagram(docs: KitDocs) -> list[str]:
         "### How evidence reaches each kind",
         "",
         "Each box on the left is one source and the Capture contract it is retained under, "
-        "grouped by the kind of evidence it is; an arrow points to a Subject kind whose "
+        "grouped by shape; ClaimType rules below name the permitted logical sources. An arrow points to a Subject kind whose "
         "ClaimTypes may cite it. A thick arrow carries at least one ClaimType that requires a "
         "Capture (`captured`); a dotted arrow only ClaimTypes that may cite one. The number is "
         "how many of that kind's ClaimTypes the contract backs. Names drop the "
@@ -552,14 +567,13 @@ def _evidence_diagram(docs: KitDocs) -> list[str]:
     groups: dict[str, list[str]] = defaultdict(list)
     for contract in contracts:
         doc = docs.contracts[contract]
-        for kind in doc.evidence_kinds[:1]:
+        for kind in (doc.shape,):
             groups[_EVIDENCE_GROUPS.get(kind, kind)].append(contract)
     for index, title in enumerate(sorted(groups)):
         out.append(f'  subgraph g{index}["{title}"]')
         out.append("    direction TB")
         for contract in groups[title]:
-            source = ", ".join(docs.contracts[contract].sources)
-            label = f"{source}<br/>as {_short(docs, contract)}"
+            label = f"{_short(docs, contract)}<br/>{docs.contracts[contract].replay}"
             out.append(f'    {_node_id("c", contract)}["{label}"]')
         out.append("  end")
     kinds = sorted({kind for name in contracts for item in evidenced[name] for kind in item.kinds})
@@ -673,7 +687,9 @@ def _roles(claim_type: ClaimTypeDoc) -> str:
 
 def _evidence(claim_type: ClaimTypeDoc) -> str:
     return ", ".join(
-        "own word" if name == SELF_SOURCE else f"`{name}`" for name in claim_type.contracts
+        "own word" if name == SELF_SOURCE else (
+            f"`{name}`" + (f" from {', '.join(sources)}" if sources else ""))
+        for name, sources in claim_type.source_uses
     )
 
 
@@ -798,7 +814,7 @@ def _contracts(docs: KitDocs) -> list[str]:
         rows.append(
             (
                 f"`{contract.name}`",
-                ", ".join(contract.sources) + f" ({', '.join(contract.evidence_kinds)})",
+                ", ".join(contract.sources) + f"{contract.shape}, {contract.replay}",
                 contract.grade,
                 "; ".join(
                     _producer_text(docs, n, by_definition) for n in producers.get(contract.name, [])
@@ -925,8 +941,8 @@ def _short_glance(docs: KitDocs) -> list[str]:
         ("Kinds of thing it models", str(len(docs.kinds)), "what-it-models"),
         ("Fields (ClaimTypes) across them", str(len(docs.claim_types)), "what-it-models"),
         (
-            "Evidence sources (Capture contracts)",
-            str(len(docs.contracts)),
+            "Capture shapes (plus core self-source)",
+            f"{len(docs.contracts) - int(SELF_SOURCE in docs.contracts)} + {int(SELF_SOURCE in docs.contracts)}",
             "where-evidence-comes-from",
         ),
         ("Procedures / Blueprints", f"{procedures} / {blueprints}", "what-runs-on-its-own"),

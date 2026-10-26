@@ -10,9 +10,8 @@
   "allowed_subject_kinds": [
     "security.asset"
   ],
-  "artifact_format": "playbill-claim-type-v8",
+  "artifact_format": "playbill-claim-type-v7",
   "attestation_consequence_policy": null,
-  "canonical_form": [],
   "cardinality": "many",
   "default_role": "observation",
   "description": "The inventory scope coverage that read the asset: its runs are complete there while that coverage is current.",
@@ -23,25 +22,25 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [
+              "security.inventory"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.runtime-inventory-v1"
+              "name": "security.file-erasable-v1"
             }
           }
         ],
         "claim_roles": [
           "observation"
         ],
-        "evidence_kinds": [
-          "inventory_scan"
-        ],
         "rule_id": "retained-security-evidence",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "captured",

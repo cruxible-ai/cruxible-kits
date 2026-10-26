@@ -1,6 +1,6 @@
 {
   "activation_policy": "snapshot",
-  "artifact_format": "cruxible-blueprint-v1",
+  "artifact_format": "cruxible-blueprint-v2",
   "definition": {
     "annotations": {},
     "budget": {
@@ -13,23 +13,19 @@
       }
     },
     "contract_in": {
-      "artifact_digest": "sha256:19d0dab3f35d05136f1089cedb2aadc8f04c6704c20d2bdcdc27130f9069c43f",
-      "role": "contract-in",
       "target": {
         "kind": "Contract",
         "name": "security-url-input"
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-      "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-http-evidence"
       }
     },
     "description": "Fetch one GitHub API answer about history (input.url: commits?path=...&sha=..., or actions/workflows/W/runs?branch=...) and retain it under security.github-api-v1: which commit changed a path, which runs ran.",
-    "graph_format": 6,
+    "graph_format": 7,
     "hard_caps": {
       "max_capture_bytes": 4194304,
       "max_items": 1,
@@ -47,25 +43,19 @@
       {
         "as": "history",
         "capture_contract": {
-          "artifact_digest": "sha256:39773002ba38b01e058f7e2c552dd226e820987e7923c7af47bc77a7349b6c80",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
-            "name": "security.github-api-v1"
+            "name": "security.fetched-v1"
           }
         },
-        "implementation_digest": null,
         "interface": {
-          "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
+            "name": "web.fetch/v3"
           }
         },
-        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
         "kind": "source",
-        "next": "summary",
+        "next": null,
         "node_id": "history",
         "provider": {
           "slot_name": "history",
@@ -83,8 +73,6 @@
       {
         "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-          "role": "contract-out",
           "target": {
             "kind": "Contract",
             "name": "security-http-evidence"
@@ -103,18 +91,21 @@
     "parameter_contract": null,
     "pin_slots": [
       {
-        "artifact_kind": "Provider",
-        "interface_digest": "sha256:f09e1553b05d72a9e58ed3a260417c41992ccd34b2f2541958c5733723ac2121",
-        "pin_role": "provider",
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch/v3"
+          }
+        },
         "slot_name": "history",
-        "tag": "playbill-procedure-pin-slot-v1"
+        "tag": "cruxible-procedure-slot-v2"
       }
     ],
     "returns": "summary",
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:44afe6123732b151ef6236ff4f99f855a8551b87eaee596b2f1d767e08a0c3a9",
+  "definition_digest": "sha256:54e8102ddce33fa4e22728cec469f4610e89b6cfa832f2fc2b47a8a8f19db52c",
   "identity": {
     "kind": "Blueprint",
     "name": "security.history-acquire"
@@ -193,40 +184,6 @@
         }
       },
       "tag": "playbill-procedure-owned-contract-v1"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:39773002ba38b01e058f7e2c552dd226e820987e7923c7af47bc77a7349b6c80",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.github-api-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:19d0dab3f35d05136f1089cedb2aadc8f04c6704c20d2bdcdc27130f9069c43f",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-url-input"
-      }
-    },
-    {
-      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-http-evidence"
-      }
-    },
-    {
-      "artifact_digest": "sha256:fb9d2c8b26c8c6a6c4425706dd53c2341896ac70cfdc8ce13aca6321aff3dad4",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "web.fetch/39b2b0bf01fe44bcbacf533344bfaeeeff70a04480135b1085708956bb9d6a3c"
-      }
     }
   ]
 }

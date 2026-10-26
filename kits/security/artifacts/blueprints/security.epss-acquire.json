@@ -1,6 +1,6 @@
 {
   "activation_policy": "snapshot",
-  "artifact_format": "cruxible-blueprint-v1",
+  "artifact_format": "cruxible-blueprint-v2",
   "definition": {
     "annotations": {},
     "budget": {
@@ -13,23 +13,19 @@
       }
     },
     "contract_in": {
-      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
-      "role": "contract-in",
       "target": {
         "kind": "Contract",
         "name": "security-empty-input"
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-      "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-http-evidence"
       }
     },
-    "description": "Fetch FIRST's current EPSS daily scores file (gzip CSV) and retain it under security.epss-daily-v1. Interpretation is security.epss-triage's job.",
-    "graph_format": 6,
+    "description": "Fetch FIRST's current EPSS daily scores file (gzip CSV) and retain it under security.fetched-v1. Interpretation is security.epss-triage's job.",
+    "graph_format": 7,
     "hard_caps": {
       "max_capture_bytes": 33554432,
       "max_items": 1,
@@ -47,25 +43,19 @@
       {
         "as": "epss",
         "capture_contract": {
-          "artifact_digest": "sha256:1cf4b39dae1713d2675fd138b5589f36219e9085d1c9354c564fa24934cca7bb",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
-            "name": "security.epss-daily-v1"
+            "name": "security.fetched-v1"
           }
         },
-        "implementation_digest": null,
         "interface": {
-          "artifact_digest": "sha256:6d6b4034fd0f0c87936b7786e4df5152f3dc35efb1fe21f82716637dd5ba67b2",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-daily/5f7b04d392fc9a1264721b96a0f609f8e5a7c8846f9c9673b1dca8766377a9b8"
+            "name": "security.epss-daily/v1"
           }
         },
-        "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
         "kind": "source",
-        "next": "summary",
+        "next": null,
         "node_id": "epss",
         "provider": {
           "slot_name": "epss",
@@ -76,8 +66,6 @@
       {
         "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-          "role": "contract-out",
           "target": {
             "kind": "Contract",
             "name": "security-http-evidence"
@@ -89,13 +77,11 @@
           "url": "$steps.epss.retrieved.final_url"
         },
         "kind": "project",
-        "next": "emit",
+        "next": null,
         "node_id": "summary"
       },
       {
         "capture_contract": {
-          "artifact_digest": "sha256:204609ce92af2744651e9dd40ac2073b74b0129cba3e44511266e6bbc0ea0c3f",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
             "name": "security.observation-output-v1"
@@ -110,18 +96,21 @@
     "parameter_contract": null,
     "pin_slots": [
       {
-        "artifact_kind": "Provider",
-        "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
-        "pin_role": "provider",
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.epss-daily/v1"
+          }
+        },
         "slot_name": "epss",
-        "tag": "playbill-procedure-pin-slot-v1"
+        "tag": "cruxible-procedure-slot-v2"
       }
     ],
     "returns": "summary",
     "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:57cdeabc2bf88061899963cfc89d2dff99507ae48c05fcca32d0596164924436",
+  "definition_digest": "sha256:d663cc29e6f247509dea767845299cb055725fea65a411fa2b029c3364ac17e7",
   "identity": {
     "kind": "Blueprint",
     "name": "security.epss-acquire"
@@ -188,48 +177,6 @@
         }
       },
       "tag": "playbill-procedure-owned-contract-v1"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:1cf4b39dae1713d2675fd138b5589f36219e9085d1c9354c564fa24934cca7bb",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.epss-daily-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:204609ce92af2744651e9dd40ac2073b74b0129cba3e44511266e6bbc0ea0c3f",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.observation-output-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-empty-input"
-      }
-    },
-    {
-      "artifact_digest": "sha256:bb6c83d34b8e5d80b21150f59347988392e7a1efe60024e0e6f2d3da128a6115",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-http-evidence"
-      }
-    },
-    {
-      "artifact_digest": "sha256:6d6b4034fd0f0c87936b7786e4df5152f3dc35efb1fe21f82716637dd5ba67b2",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "security.epss-daily/5f7b04d392fc9a1264721b96a0f609f8e5a7c8846f9c9673b1dca8766377a9b8"
-      }
     }
   ]
 }

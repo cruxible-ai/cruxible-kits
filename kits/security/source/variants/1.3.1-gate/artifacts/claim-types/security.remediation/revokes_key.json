@@ -18,7 +18,7 @@
   "description": "The key id a rotation must retire: the credential's key_id when the rotation was raised.",
   "evidence_admission_policy": {
     "rules": [],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "none",

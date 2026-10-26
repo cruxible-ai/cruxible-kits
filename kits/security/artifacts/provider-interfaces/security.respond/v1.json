@@ -1,0 +1,88 @@
+{
+  "artifact_format": "cruxible-provider-interface-v4",
+  "identity": {
+    "kind": "ProviderInterface",
+    "name": "security.respond/v1"
+  },
+  "interface": {
+    "contracts": {
+      "input": {
+        "allow_extra": false,
+        "fields": {
+          "audits": {
+            "type": "json"
+          },
+          "credentials": {
+            "type": "json"
+          },
+          "deployments": {
+            "type": "json"
+          },
+          "exceptions": {
+            "type": "json"
+          },
+          "exposure": {
+            "type": "json"
+          },
+          "hosts": {
+            "type": "json"
+          },
+          "overdue": {
+            "type": "json"
+          },
+          "params": {
+            "type": "json"
+          },
+          "patches": {
+            "type": "json"
+          },
+          "truncated": {
+            "type": "json"
+          }
+        }
+      },
+      "output": {
+        "allow_extra": false,
+        "fields": {
+          "answers": {
+            "type": "json"
+          },
+          "found": {
+            "type": "integer"
+          },
+          "incident": {
+            "type": "string"
+          },
+          "items": {
+            "type": "json"
+          },
+          "none": {
+            "type": "integer"
+          },
+          "posted": {
+            "type": "integer"
+          },
+          "ready_to_close": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "unknown": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "effect_class": "pure",
+    "interface_id": "security.respond",
+    "refusals": [
+      "provider_declined"
+    ],
+    "version": 1
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

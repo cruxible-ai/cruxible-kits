@@ -1,0 +1,55 @@
+{
+  "artifact_format": "cruxible-provider-interface-v4",
+  "identity": {
+    "kind": "ProviderInterface",
+    "name": "security.kev-attention/v1"
+  },
+  "interface": {
+    "contracts": {
+      "input": {
+        "allow_extra": false,
+        "fields": {
+          "assessments": {
+            "type": "json"
+          },
+          "catalog_base64": {
+            "type": "string"
+          },
+          "releases": {
+            "type": "json"
+          },
+          "watched": {
+            "type": "json"
+          }
+        }
+      },
+      "output": {
+        "allow_extra": false,
+        "fields": {
+          "catalog_version": {
+            "type": "string"
+          },
+          "items": {
+            "type": "json"
+          },
+          "newly_listed": {
+            "type": "integer"
+          },
+          "posted": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "effect_class": "pure",
+    "interface_id": "security.kev-attention",
+    "refusals": [
+      "provider_declined"
+    ],
+    "version": 1
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

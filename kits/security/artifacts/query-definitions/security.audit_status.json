@@ -1,28 +1,21 @@
 {
-  "artifact_format": "playbill-query-definition-v1",
+  "artifact_format": "cruxible-query-definition-v3",
   "dedupe": "path",
   "default_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 100,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
   "description": "RQ3 for one incident: every audit (one per service) with its log sources and the service's (service_log_source), complete reads, window end and result (conflict while disputed); the respond Line unions the reads per source against the window. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "incident",
-    "subject_id": null,
     "subject_kinds": [
       "security.incident"
-    ],
-    "tag": "playbill-query-entry-v1"
+    ]
   },
   "evaluation_policy": {
     "conflict_behavior": "surface_conflicts",
-    "requires_accepted_coordinate": true,
-    "requires_explicit_evaluation_time": true,
-    "result_expiry": null,
-    "tag": "playbill-query-evaluation-policy-v1",
     "visible_currency": [
       "current"
     ],
@@ -34,271 +27,126 @@
     "kind": "QueryDefinition",
     "name": "security.audit_status"
   },
-  "includes": [],
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
-  },
   "maximum_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 1000,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
-  "orderings": [],
   "parameters": [
     {
-      "default": null,
       "name": "incident",
-      "required": true,
-      "tag": "playbill-query-parameter-v1",
       "value_type": "string"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:f081c27e51058bf1d7f4a034dbe4d3df0896a616875b24239237e5db10e1a984",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.audit.incident"
-      }
-    },
-    {
-      "artifact_digest": "sha256:567b0926c2e075d585580a9f61042290131f7b2bfbe6e598f689929126e5d758",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.audit.log_source"
-      }
-    },
-    {
-      "artifact_digest": "sha256:9114b616b85f50456833ac6c69f72af31ae15ce4fa94b34f8e42cc1dedb1277d",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.audit.read"
-      }
-    },
-    {
-      "artifact_digest": "sha256:c7bb3251a66a1f7fc3cdd38b29ba9c6acdb3f34b1f818a6ad56898107def9c79",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.audit.result"
-      }
-    },
-    {
-      "artifact_digest": "sha256:13a10ea74cbcedbe8076d806597e91fadda365c5b892e0e2378287df790dd263",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.audit.service"
-      }
-    },
-    {
-      "artifact_digest": "sha256:f46c327ddcb64b27e4c14541a81c54b059f32e1971bae66fc18921ab003a5429",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.audit.service_ref"
-      }
-    },
-    {
-      "artifact_digest": "sha256:f278b72ac13deaa8546e81a16d4afc52dfdfa9946f8f0fb16016c6e5589cd064",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.audit.window_end"
-      }
-    },
-    {
-      "artifact_digest": "sha256:5f6eed77486406c3935556c70ca39f086122298729de18016d04e5b3c3566f6f",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.incident.name"
-      }
-    },
-    {
-      "artifact_digest": "sha256:c27b5c0525a43fd067483f1cb85940100450d6cedcd23cc86df6623ae6e7c871",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.incident.rotation_policy"
-      }
-    },
-    {
-      "artifact_digest": "sha256:39aa3ed7feece74dd4a11443150295b78daeef4755f35ddfd95dc405766acb68",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.incident.status"
-      }
-    },
-    {
-      "artifact_digest": "sha256:86719c39d254a79e10c422aba9d29d255f280807b7db076f21e773bf9eb5d39b",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.incident.window_start"
-      }
-    },
-    {
-      "artifact_digest": "sha256:e4908940fd79e87a29d82d940f25ad3c2864871998436373a26dab8265177a8a",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.service.log_source"
-      }
-    },
-    {
-      "artifact_digest": "sha256:8c764d43db001b7ffb2a7534394394792b82253a10ab57f372263e959f3a4926",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.service.name"
-      }
     }
   ],
   "projection": {
     "fields": [
       {
         "name": "audit",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "audit",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "incident",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "incident",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "incident_status",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "incident",
           "kind": "claim_value",
-          "predicate": "security.incident.status",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.incident.status"
         }
       },
       {
         "name": "log_source",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "audit",
           "kind": "claim_value",
-          "predicate": "security.audit.log_source",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.audit.log_source"
         }
       },
       {
         "name": "read",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "audit",
           "kind": "claim_value",
-          "predicate": "security.audit.read",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.audit.read"
         }
       },
       {
         "name": "result",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "audit",
           "kind": "claim_value",
-          "predicate": "security.audit.result",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.audit.result"
         }
       },
       {
         "name": "rotation_policy",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "incident",
           "kind": "claim_value",
-          "predicate": "security.incident.rotation_policy",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.incident.rotation_policy"
         }
       },
       {
         "name": "service",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "service",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "service_log_source",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "service",
           "kind": "claim_value",
-          "predicate": "security.service.log_source",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.service.log_source"
         }
       },
       {
         "name": "service_name",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "service",
           "kind": "claim_value",
-          "predicate": "security.service.name",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.service.name"
         }
       },
       {
         "name": "service_ref",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "audit",
           "kind": "claim_value",
-          "predicate": "security.audit.service_ref",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.audit.service_ref"
         }
       },
       {
         "name": "window_end",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "audit",
           "kind": "claim_value",
-          "predicate": "security.audit.window_end",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.audit.window_end"
         }
       },
       {
         "name": "window_start",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "incident",
           "kind": "claim_value",
-          "predicate": "security.incident.window_start",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.incident.window_start"
         }
       }
-    ],
-    "tag": "playbill-query-projection-v1"
+    ]
   },
-  "result_binding": "incident",
-  "result_cardinality": "many",
   "result_shape": "path",
   "traversal": [
     {
@@ -306,12 +154,9 @@
       "direction": "reverse",
       "from_binding": "incident",
       "predicate": "security.audit.incident",
-      "required": true,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.audit"
-      ],
-      "where": null
+      ]
     },
     {
       "binding": "service",
@@ -319,11 +164,9 @@
       "from_binding": "audit",
       "predicate": "security.audit.service",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.service"
-      ],
-      "where": null
+      ]
     }
   ],
   "where": {
@@ -331,16 +174,13 @@
     "left": {
       "binding": "incident",
       "kind": "claim_value",
-      "predicate": "security.incident.name",
-      "tag": "playbill-query-claim-value-ref-v1"
+      "predicate": "security.incident.name"
     },
     "operator": "eq",
     "right": {
       "kind": "parameter",
-      "parameter": "incident",
-      "tag": "playbill-query-parameter-ref-v1"
+      "parameter": "incident"
     },
-    "tag": "playbill-query-comparison-filter-v1",
     "value_type": "string"
   }
 }

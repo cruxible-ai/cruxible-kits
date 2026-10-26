@@ -183,7 +183,7 @@ key you may need to rotate, by its non-secret id.
 |---|---|
 | [Kinds of thing it models](reference.md#what-it-models) | 23 |
 | [Fields (ClaimTypes) across them](reference.md#what-it-models) | 137 |
-| [Evidence sources (Capture contracts)](reference.md#where-evidence-comes-from) | 18 |
+| [Capture shapes (plus core self-source)](reference.md#where-evidence-comes-from) | 5 + 1 |
 | [Procedures / Blueprints](reference.md#what-runs-on-its-own) | 21 / 9 |
 | [Queries](reference.md#what-you-can-ask) | 50 |
 | [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 19 / 21 / 11 |
@@ -201,7 +201,7 @@ example automation uses for `cruxible-ai/cruxible`:
 
 1. **Pull (automatic).** Every 6 hours the Line `security.repo-pull.cruxible-ci`
    runs the Blueprint `security.repo-acquire`, which reads `.github/workflows/`
-   at `main` and retains it as one Capture under `security.repo-snapshot-v1`.
+   at `main` and retains it as one Capture under `security.fetched-v1`.
    The Line's max authority is `observe`: it records the read and nothing else.
 2. **Parse (a proposal).** The landing starts `security.repo-parse.cruxible-ci`.
    It proposes observation Claims citing that Capture, among them, for the job
@@ -236,12 +236,11 @@ decides, `explained_by`, a publish gate) always stay with people and agents.
 
 ## Install and first answers
 
-Prerequisites: `uv` on `PATH` (the bundled Providers install and run through
-it), and `npm`/`npx` if you generate JavaScript SBOMs. The [security intake
-skill](skills/security-intake/SKILL.md) has the SBOM commands that work (a uv
-project: `uv export --format requirements.txt --no-dev --no-hashes
---no-emit-project`, then `cyclonedx-py requirements`; JavaScript: `npx
-@cyclonedx/cdxgen`) and which purl types OSV answers for.
+Cruxible includes `uv` for Provider installation and execution. The generator
+recipes below need their own tools (`uv`/`uvx` for Python or `npm`/`npx` for
+JavaScript). [Intake recipes](#intake-recipes) holds the commands and their gaps;
+the [security intake skill](skills/security-intake/SKILL.md) explains the inputs
+and what unknown answers mean.
 
 1. **Install.** `cruxible kit add security:1.3.0` previews the change; commit it
    at the coordinate the preview prints: `cruxible kit add security:1.3.0
@@ -441,7 +440,7 @@ would). A rename or move is a new key; the old finding is then verified absent.
 What finders report (`rule`, `reported_by`, a scan's `severity`, `verification`) are
 observations citing the SARIF log or a reproduction. What reviewers decide is
 normative: `verdict` needs a retained Capture (a reproduction under
-`security.reproduction-v1`, or the code read under `security.workspace-evidence-v1`;
+`security.file-v1`, or the code read under `security.file-v1`;
 own words are refused), and `location` (`path:start-end`) is a file citation of the
 sink line, origin-only, so `cruxible next` resurfaces it (`citation_drifted`) when
 that code changes. `affects` joins a finding to a release, service, job or artifact;
@@ -475,11 +474,11 @@ The gate's names, for `github.com/cruxible-ai/gate-app` (principals `scanner`,
    `versionControlProvenance: [{"repositoryUri": "https://github.com/cruxible-ai/gate-app",
    "revisionId": "<commit>"}]` and `properties: {"cruxible.coverage": "full"}` (every rule
    of the configuration over the whole repository; `partial` otherwise, which never
-   verifies a fix). SARIF carries code snippets, and `security.sarif-v1` keeps its
+   verifies a fix). SARIF carries code snippets, and `security.file-v1` keeps its
    bytes for good: don't acquire a secret scanner's results (their snippets are
    the secrets), and check a scan of code that embeds credentials before you do.
 2. **Report (a proposal).** `cruxible procedure run security.sarif-acquire` with
-   `{"relative_path": "scans/semgrep.sarif"}` retains it under `security.sarif-v1`; the
+   `{"relative_path": "scans/semgrep.sarif"}` retains it under `security.file-v1`; the
    landing runs `security.sarif-import.gate-app` (parameter `repo_ref`), which proposes
    `security.finding` `CWE-89` at `app/db.py#snippet:...` with `rule`
    `semgrep:sqli-fstring-execute`, `reported_by` `semgrep` and `severity` `high`. Another
@@ -577,8 +576,8 @@ The inventory and log-read imports refuse the same way (a position such as
 source or `incomplete_reason` holds a secret-shaped token is refused, since those
 are copied into the audit's Claims and inbox items. The bytes are already retained when that happens: stop, rotate whatever it
 exposed, and erase the Capture's body. The three incident contracts
-(`security.runtime-inventory-v1`, `security.log-read-v1` and
-`security.credential-state-v1`) declare `erasure: authorized_by_rule`, so
+(`security.file-erasable-v1`, `security.file-erasable-v1` and
+`security.file-erasable-v1`) declare `erasure: authorized_by_rule`, so
 `cruxible capture erase CAP-... --because "..."` (preview, then `--commit --at`)
 removes the bytes and keeps the envelope and an erasure record; never put the
 secret in `--because`. A Capture under any other kit contract keeps its bytes.
@@ -617,9 +616,9 @@ secret](https://docs.cruxible.ai/evidence-and-admission/#erasing-a-capture-that-
 
 | Contract | Acquired by | Body (a workspace file, at most 1 MiB) | Read by |
 |---|---|---|---|
-| `security.runtime-inventory-v1` | `security.inventory-acquire` | the kit body `{"scope", "looked_for": ["php", "debian/php8.2"] or ["*"], "coverage": "full" or "partial", "assets": [{"hostname", "runs": ["pkg:generic/php@8.3.10"]}]}`, no timestamps; or a CycloneDX JSON SBOM of one asset (Syft, Trivy) with metadata properties `cruxible.scope` and `cruxible.asset` | `security.inventory-import.<scope>` (parameter `scope`) |
-| `security.log-read-v1` | `security.log-acquire` | `{"audit": {"incident", "service"}, "source", "query", "from", "to", "complete", "records_scanned", "matches": [{"at", "summary"}]}`; `complete` = every record in [from, to] searched (no sampling, no result cap, retention reaching `from`); redact match summaries | `security.log-import.<incident>` (parameter `incident`) |
-| `security.credential-state-v1` | `security.credential-acquire` | `{"issuer", "name", "read": "receipt" or "state_read", "keys": [{"key_id", "state": "active" / "inactive" / "revoked" / "deleted", "created_at", "revoked_at", "last_used_at", "created_by"}]}` and nothing else, plus `"complete": true` when a `state_read` lists every key the issuer holds for it (every page read) | `security.credential-import` |
+| `security.file-erasable-v1` | `security.inventory-acquire` | the kit body `{"scope", "looked_for": ["php", "debian/php8.2"] or ["*"], "coverage": "full" or "partial", "assets": [{"hostname", "runs": ["pkg:generic/php@8.3.10"]}]}`, no timestamps; or a CycloneDX JSON SBOM of one asset (Syft, Trivy) with metadata properties `cruxible.scope` and `cruxible.asset` | `security.inventory-import.<scope>` (parameter `scope`) |
+| `security.file-erasable-v1` | `security.log-acquire` | `{"audit": {"incident", "service"}, "source", "query", "from", "to", "complete", "records_scanned", "matches": [{"at", "summary"}]}`; `complete` = every record in [from, to] searched (no sampling, no result cap, retention reaching `from`); redact match summaries | `security.log-import.<incident>` (parameter `incident`) |
+| `security.file-erasable-v1` | `security.credential-acquire` | `{"issuer", "name", "read": "receipt" or "state_read", "keys": [{"key_id", "state": "active" / "inactive" / "revoked" / "deleted", "created_at", "revoked_at", "last_used_at", "created_by"}]}` and nothing else, plus `"complete": true` when a `state_read` lists every key the issuer holds for it (every page read) | `security.credential-import` |
 
 What each import proposes:
 
@@ -708,18 +707,18 @@ approval). Rename `php2shell` and the window for yours:
                   "log_pull": "security.log-acquire", "credential_pull": "security.credential-acquire",
                   "record_pull": "security.cve-record-acquire"}},
   {"kind": "line", "name": "security.log-import.php2shell", "procedure_name": "security.log-import",
-   "acquisition_policy_name": "security.acquisition", "max_authority": "propose",
+   "max_authority": "propose",
    "trigger_input": "log", "parameters": {"incident": "PHP2Shell"}},
   {"kind": "trigger", "name": "security.log-landed.php2shell", "line_name": "security.log-import.php2shell",
-   "schedule": {"kind": "capture_landing", "capture_contract": "security.log-read-v1"}},
+   "schedule": {"kind": "capture_landing", "capture_contract": "security.file-erasable-v1"}},
   {"kind": "trigger", "name": "security.respond-daily.php2shell", "line_name": "security.respond.php2shell",
    "schedule": {"kind": "cron", "expression": "50 7 * * *"}},
   {"kind": "trigger", "name": "security.respond-after-rotation.php2shell", "line_name": "security.respond.php2shell",
    "schedule": {"kind": "window_close", "window": {"kind": "capture_event",
-     "capture_contract": "security.credential-state-v1", "duration_seconds": 86400}}},
+     "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.inventory"], "duration_seconds": 86400}}},
   {"kind": "trigger", "name": "security.respond-after-scan.php2shell", "line_name": "security.respond.php2shell",
    "schedule": {"kind": "window_close", "window": {"kind": "capture_event",
-     "capture_contract": "security.runtime-inventory-v1", "duration_seconds": 86400}}}
+     "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.inventory"], "duration_seconds": 86400}}}
 ]}
 ```
 
@@ -973,7 +972,7 @@ query --name security.assessment_index` shows any assessment without one.
 
 - **`security.osv-applicability`** (open source, by SBOM component). Each run
   first retains OSV's own list of what it indexes (`ecosystems.txt`, under
-  `security.osv-ecosystems-v1`). OSV is then asked about every component
+  `security.fetched-v1`). OSV is then asked about every component
   `purl@version` of every release whose ecosystem is on that list, and for the
   record of every watched CVE and its aliases. Which ecosystem answers for a
   purl type is kit data, carried in the Procedure with its sources (the purl
@@ -1101,7 +1100,7 @@ The workflow, for a proposed `affected` or `inconclusive` you have reviewed:
    file in the workspace (code, a config, an analysis note) and
    `echo '{"relative_path": "analysis/jinja2.md"}' > ev.json; cruxible procedure run
    security.evidence-acquire ev.json`; note its `Capture evidence: sha256:...`.
-   Its bytes are kept for good (`security.workspace-evidence-v1` can't be
+   Its bytes are kept for good (`security.file-v1` can't be
    erased), so check the file holds no secret first: retain a config with its
    credentials cut out, never as deployed.
 3. Record the judgment in one write (`cruxible write judgment.json`), with your
@@ -1245,8 +1244,8 @@ settle mandates and raise the triage Lines to `settle` (`gate/recipe.py`'s
             {"claim_type": "security.vulnerability.epss_score", "change_kinds": ["create", "revise"]}],
   "condition": {"query_name": "security.settle_condition", "binding_parameter": "vulnerability_id",
     "required_fields": ["cve_id"], "fallback": "propose"}},
- {"kind": "line", "name": "security.kev-triage", "procedure_name": "security.kev-triage", "acquisition_policy_name": "security.acquisition", "max_authority": "settle", "trigger_input": "catalog"},
- {"kind": "line", "name": "security.epss-triage", "procedure_name": "security.epss-triage", "acquisition_policy_name": "security.acquisition", "max_authority": "settle", "trigger_input": "epss"}]}
+ {"kind": "line", "name": "security.kev-triage", "procedure_name": "security.kev-triage", "max_authority": "settle", "trigger_input": "catalog"},
+ {"kind": "line", "name": "security.epss-triage", "procedure_name": "security.epss-triage", "max_authority": "settle", "trigger_input": "epss"}]}
 ```
 
 Re-enable both Lines. The KEV and EPSS fields are verbatim copies of CISA's and
@@ -1262,8 +1261,8 @@ not change, so their digests and track records carry through.
 ## Upgrading
 
 From 1.1.0, `kit add security:1.2.0` adds the code findings' definitions (the
-`security.finding` kind, its ClaimTypes, `security.sarif-v1` and
-`security.reproduction-v1`, four Procedures, six queries), widens
+`security.finding` kind, its ClaimTypes, `security.file-v1` and
+`security.file-v1`, four Procedures, six queries), widens
 `signal.explained_by` to a finding, adds HQ6 to `security.harden` (its Provider
 interface gains the `hq6` rows) and bumps the bundled analysis Provider to 1.2.0;
 everything else is unchanged except re-pinned Procedures (D8 carries the affected
@@ -1424,6 +1423,11 @@ Setup and refresh require `--core-repo PATH --core-sha FULL_SHA
 Setup prints and retains these exact inputs in `source-pins.json` before
 importing the SBOMs. Choose the actual repositories and reviewed commits; the
 scripts never change those repositories.
+
+The automation example states the instance acquisition default once:
+`SourceAcquisitionPolicy:default`, `max_age: P1D`. Kit ownership uses dotted
+prefixes, so this instance setting is part of the consumer ChangeSet rather than
+the exported `security.` definitions. Lines inherit it without policy references.
 
 ## Intake recipes
 
@@ -1670,3 +1674,15 @@ docs:
 `cruxible write intake/log-sources.yaml`. When a source moves or a new one
 appears, change the list the same way (`retire` an old value, `add` a new one).
 
+### Host SBOM context
+
+The file Source retains the bytes it reads. A host SBOM therefore names its scope
+and asset in `cruxible.scope` and `cruxible.asset` metadata properties. An acquire
+input cannot currently carry those values into the landing import. A Line's fixed
+asset parameter cannot safely supply them: every inventory Line sees every landing.
+The unannotated host route remains open pending a source that retains that context.
+
+The inventory and SBOM import summaries include `osv_unindexed` and
+`osv_not_indexed` (counts by purl type). Their proposal rationales name these
+counts; the kit map describes candidate ecosystems, while captured OSV responses
+remain the authority for coverage.
