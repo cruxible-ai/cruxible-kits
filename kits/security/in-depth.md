@@ -48,7 +48,19 @@ cruxible set security.vulnerability/CVE-2021-44228 watch_reason "Log4j in vendor
   --because "Security review 2026-10-11."
 ```
 
-In a JSON change set, a `subject` member plus a `watch_reason` claim member.
+Several at once are one batch from the Python SDK (`cruxible-client`, which
+`cruxible` installs); the examples below share its `cx`:
+
+```python
+from cruxible_client import Cruxible
+
+cx = Cruxible.connect()
+watch = cx.changes(because="Tracked by the security team.")
+for cve in ("CVE-2021-44228", "CVE-2021-44832"):
+    watch.set(f"security.vulnerability/{cve}", "watch_reason", "Tracked by the security team.")
+outcome = watch.write()
+outcome.subjects_added   # each vulnerability the batch created by its key
+```
 
 **Naming Subjects.** A reference takes key text as written, on every route
 (`set`, `get`, `inbox link`, authoring): `security.vulnerability/CVE-2021-44228`,
@@ -59,28 +71,34 @@ key (a mapping of key parts, even for a one-key kind), never by a predicted id:
 (the SDK's `SubjectKeyReference`). Core resolves it to the Subject a `subject`
 member of the same set lands on, else to the live holder of the key.
 
-Inventory by hand, for what no SBOM describes (vendor products, hosts):
+Inventory by hand, for what no SBOM describes (vendor products, hosts), is one
+change set that creates each Subject by its key and states its Claims:
 
-```json
-{"kind": "change_set", "rationale": "Inventory.", "members": [
- {"kind": "subject", "subject_kind": "security.supplier", "key": "Apache Software Foundation", "rationale": "Our Log4j vendor."},
- {"kind": "subject", "subject_kind": "security.product", "key": "Apache Log4j2", "rationale": "We run it."},
- {"kind": "subject", "subject_kind": "security.release", "key": {"product_name": "Apache Log4j2", "version": "2.14.1"}, "rationale": "Installed on web-1."},
- {"kind": "subject", "subject_kind": "security.asset", "key": "web-1.example.com", "rationale": "The storefront host."},
- {"kind": "claim", "subject": {"subject_kind": "security.release", "key": {"product_name": "Apache Log4j2", "version": "2.14.1"}},
-  "predicate": "security.release.product",
-  "object": {"kind": "subject", "subject": {"subject_kind": "security.product", "key": {"name": "Apache Log4j2"}}}, "role": "normative", "rationale": "Its product.",
-  "source": {"kind": "self_source", "body": "product: Apache Log4j2\n"}},
- {"kind": "claim", "subject": {"subject_kind": "security.product", "key": {"name": "Apache Log4j2"}}, "predicate": "security.product.supplied_by",
-  "object": {"kind": "subject", "subject": {"subject_kind": "security.supplier", "key": {"name": "Apache Software Foundation"}}}, "role": "normative", "rationale": "Its vendor.",
-  "source": {"kind": "self_source", "body": "supplier: Apache Software Foundation\n"}},
- {"kind": "claim", "subject": {"subject_kind": "security.asset", "key": {"hostname": "web-1.example.com"}}, "predicate": "security.asset.installs",
-  "object": {"kind": "subject", "subject": {"subject_kind": "security.release", "key": {"product_name": "Apache Log4j2", "version": "2.14.1"}}},
-  "role": "normative", "rationale": "Installed.",
-  "source": {"kind": "self_source", "body": "installs Apache Log4j2 2.14.1\n"}},
- {"kind": "claim", "subject": {"subject_kind": "security.asset", "key": {"hostname": "web-1.example.com"}}, "predicate": "security.asset.internet_exposed",
-  "object": {"kind": "literal", "value": true}, "role": "normative", "rationale": "Public.",
-  "source": {"kind": "self_source", "body": "internet exposed\n"}}]}
+```python
+draft = cx.changes(rationale="Inventory.")
+supplier = draft.subject(cx.new_subject(
+    "security.supplier", key="Apache Software Foundation", rationale="Our Log4j vendor."))
+product = draft.subject(cx.new_subject(
+    "security.product", key="Apache Log4j2", rationale="We run it."))
+release = draft.subject(cx.new_subject(
+    "security.release", key={"product_name": "Apache Log4j2", "version": "2.14.1"},
+    rationale="Installed on web-1."))
+host = draft.subject(cx.new_subject(
+    "security.asset", key="web-1.example.com", rationale="The storefront host."))
+
+
+def state(subject, predicate, value, rationale, body):
+    draft.claim(subject=subject, predicate=predicate, value=value, role="normative",
+                rationale=rationale, self_source=body)
+
+
+state(release, "security.release.product", product, "Its product.", "product: Apache Log4j2\n")
+state(product, "security.product.supplied_by", supplier, "Its vendor.",
+      "supplier: Apache Software Foundation\n")
+state(host, "security.asset.installs", release, "Installed.", "installs Apache Log4j2 2.14.1\n")
+state(host, "security.asset.internet_exposed", True, "Public.", "internet exposed\n")
+intent = draft.submit()
+intent.outcome.status   # 'landed'
 ```
 
 Add another value of a many-valued field (`installs`, `serves`) with `cruxible
@@ -226,28 +244,36 @@ The workflow, for a proposed `affected` or `inconclusive` you have reviewed:
 1. Find it: `cruxible proposal review ID` (before activating), or after,
    `cruxible query --name security.assessment_index` / `security.coverage_gaps`.
 2. Retain the evidence (optional; your own words are evidence too): put the
-   file in the workspace (code, a config, an analysis note) and
-   `echo '{"relative_path": "analysis/jinja2.md"}' > ev.json; cruxible procedure run
-   security.evidence-acquire ev.json`; note its `Capture evidence: sha256:...`.
+   file in the workspace (code, a config, an analysis note) and run
+   `security.evidence-acquire` on it (below; on the CLI, `echo '{"relative_path":
+   "analysis/jinja2.md"}' > ev.json; cruxible procedure run security.evidence-acquire
+   ev.json` prints its `Capture evidence: sha256:...`).
    Its bytes are kept for good (`security.file-v1` can't be
    erased), so check the file holds no secret first: retain a config with its
    credentials cut out, never as deployed.
-3. Record the judgment in one write (`cruxible write judgment.json`), with your
-   reasoning as its `because`:
+3. Record the judgment in one write, with your reasoning as its `because`:
 
-   ```json
-   {"because": "We compile only packaged templates; the attacker-controlled filename never reaches Jinja.",
-    "subject": "security.assessment/gate-app-1.0.0--cve-2024-56201",
-    "changes": [
-     {"op": "set", "field": "status", "value": "not_affected", "role": "normative",
-      "evidence": {"kind": "capture", "capture": "sha256:..."}},
-     {"op": "set", "field": "justification", "value": "vulnerable_code_not_in_execute_path",
-      "role": "normative", "evidence": {"kind": "capture", "capture": "sha256:..."}}]}
+   ```python
+   from cruxible_client.contracts.write import CaptureEvidence
+
+   acquire = cx.accepted_procedure("security.evidence-acquire")
+   run = acquire.run(input=acquire.input(relative_path="analysis/jinja2.md"))
+   (read,) = run.outcome.source_observations
+   evidence = CaptureEvidence(capture=read.capture_digest)   # the retained file
+
+   judgment = cx.changes(
+       because="We compile only packaged templates; "
+               "the attacker-controlled filename never reaches Jinja.",
+       subject="security.assessment/gate-app-1.0.0--cve-2024-56201")
+   judgment.set("status", "not_affected", role="normative", evidence=evidence)
+   judgment.set("justification", "vulnerable_code_not_in_execute_path", role="normative",
+                evidence=evidence)
+   outcome = judgment.write()
    ```
 
-   Without `evidence` each change cites `because` as your own words. `role:
-   normative` is the default for these two fields; stating it keeps the write
-   readable.
+   Without `evidence` each change cites `because` as your own words.
+   `role="normative"` is the default for these two fields; stating it keeps the
+   write readable.
 
 A `not_affected` assessment no longer keeps its CVE watched; if the CVE should
 stay on the watch list, state a `watch_reason`.
@@ -262,27 +288,71 @@ release: create the assessment by key and set `release`, `vulnerability`,
 `status` and `justification`, each `normative` and citing that section. That's
 5 changes a release, and a write takes at most 500 changes, so put at most **100
 releases in one write** (run 2: 101 Homebrew releases were 505 changes, two
-writes):
+writes). This write creates each assessment by its composite key, which the
+SDK's `cx.changes(because=...)` batch has no change for, so it is JSON: send it
+with `cruxible write FILE`, or as `cruxible_write`'s arguments from MCP:
 
 ```json
-{"because": "None of these Homebrew formulas is PHP or links libphp (brew info --json=v2, section 'Not PHP').",
- "docs": [{"op": "append", "file": "incidents/php2shell.md",
-           "text": "## Not PHP\n\nThe workstation's formulas ... none is PHP or links libphp.\n"}],
- "changes": [
-  {"op": "create", "label": "a-jq", "subject_kind": "security.assessment",
-   "key": [{"predicate": "security.assessment.release_id", "value": "jq--1.7.1"},
-           {"predicate": "security.assessment.cve_id", "value": "CVE-2026-109618"}]},
-  {"op": "set", "subject": {"created": "a-jq"}, "field": "security.assessment.release",
-   "value": "security.release/jq--1.7.1"},
-  {"op": "set", "subject": {"created": "a-jq"}, "field": "security.assessment.vulnerability",
-   "value": "security.vulnerability/cve-2026-109618"},
-  {"op": "set", "subject": {"created": "a-jq"}, "field": "security.assessment.status",
-   "value": "not_affected", "role": "normative",
-   "evidence": {"kind": "section", "file": "incidents/php2shell.md", "section": ["Not PHP"], "own_words": true}},
-  {"op": "set", "subject": {"created": "a-jq"}, "field": "security.assessment.justification",
-   "value": "component_not_present", "role": "normative",
-   "evidence": {"kind": "section", "file": "incidents/php2shell.md", "section": ["Not PHP"], "own_words": true}},
-  "... the same five for each further release of input.releases, at most 100 per write ..."]}
+{
+  "because": "None of these Homebrew formulas is PHP or links libphp (brew info --json=v2, section 'Not PHP').",
+  "docs": [
+    {
+      "op": "append",
+      "file": "incidents/php2shell.md",
+      "text": "## Not PHP\n\nThe workstation's formulas ... none is PHP or links libphp.\n"
+    }
+  ],
+  "changes": [
+    {
+      "op": "create",
+      "label": "a-jq",
+      "subject_kind": "security.assessment",
+      "key": [
+        {"predicate": "security.assessment.release_id", "value": "jq--1.7.1"},
+        {"predicate": "security.assessment.cve_id", "value": "CVE-2026-109618"}
+      ]
+    },
+    {
+      "op": "set",
+      "subject": {"created": "a-jq"},
+      "field": "security.assessment.release",
+      "value": "security.release/jq--1.7.1"
+    },
+    {
+      "op": "set",
+      "subject": {"created": "a-jq"},
+      "field": "security.assessment.vulnerability",
+      "value": "security.vulnerability/cve-2026-109618"
+    },
+    {
+      "op": "set",
+      "subject": {"created": "a-jq"},
+      "field": "security.assessment.status",
+      "value": "not_affected",
+      "role": "normative",
+      "evidence": {
+        "kind": "section",
+        "file": "incidents/php2shell.md",
+        "section": ["Not PHP"],
+        "own_words": true
+      }
+    },
+    {
+      "op": "set",
+      "subject": {"created": "a-jq"},
+      "field": "security.assessment.justification",
+      "value": "component_not_present",
+      "role": "normative",
+      "evidence": {
+        "kind": "section",
+        "file": "incidents/php2shell.md",
+        "section": ["Not PHP"],
+        "own_words": true
+      }
+    },
+    "... the same five for each further release of input.releases, at most 100 per write ..."
+  ]
+}
 ```
 
 Append the note in the first write only; the later writes cite the section it
@@ -328,13 +398,29 @@ artifact path, the id core gave it (`cruxible query --name
 security.assessment_index` lists it):
 
 ```json
-{"contract": {"identity": {"kind": "ResolutionContract", "name": "bet-log4j-2.17.1"},
- "hypothesis": "CLM-...",
- "observation": {"subject": {"tag": "playbill-semantic-address-v1",
-   "artifact_path": "subjects/security.assessment/apache-log4j2-2.17.1--cve-2021-44228.json",
-   "selector": {"scheme": "artifact-v1", "value": ""}}, "predicate": "security.assessment.status"},
- "rule": {"tag": "playbill-prediction-equality-rule-v1", "operator": "equality"},
- "window": {"kind": "fixed", "starts_at": "NOW", "duration_seconds": 2592000}}}
+{
+  "contract": {
+    "identity": {"kind": "ResolutionContract", "name": "bet-log4j-2.17.1"},
+    "hypothesis": "CLM-...",
+    "observation": {
+      "subject": {
+        "tag": "playbill-semantic-address-v1",
+        "artifact_path": "subjects/security.assessment/apache-log4j2-2.17.1--cve-2021-44228.json",
+        "selector": {"scheme": "artifact-v1", "value": ""}
+      },
+      "predicate": "security.assessment.status"
+    },
+    "rule": {
+      "tag": "playbill-prediction-equality-rule-v1",
+      "operator": "equality"
+    },
+    "window": {
+      "kind": "fixed",
+      "starts_at": "NOW",
+      "duration_seconds": 2592000
+    }
+  }
+}
 ```
 
 `cruxible prediction propose FILE`, activate it, and once an applicability

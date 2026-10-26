@@ -10,7 +10,8 @@ runs, and whenever an answer comes back **unknown**. The state says what to do n
 inbox and each Line's runs name what is waiting, failing or missing, with the fetch or repair for each. This
 skill says what those things mean and what only the user can tell you. The kit's `intake.md` is the source
 for every name, body format and recipe, `walkthroughs.md` (*The evidence each action lands*) for the incident
-bodies; the [security analyst skill](../security-analyst/SKILL.md) works the answers.
+bodies; the [security analyst skill](../security-analyst/SKILL.md) works the answers. Write with the Python
+SDK as `intake.md` does (`cx.changes(...)`); `cruxible write` and MCP's `cruxible_write` take the same.
 
 ## What only the user can tell you
 
