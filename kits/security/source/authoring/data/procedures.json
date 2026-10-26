@@ -1,7 +1,7 @@
 [
   {
     "procedure": "security.sbom-acquire",
-    "description": "Read one CycloneDX JSON SBOM from the attached workspace (input.relative_path) and retain it under security.cyclonedx-sbom-v1; security.sbom-import reads it when it lands. At most 1 MiB (the built-in workspace.file's limit).",
+    "description": "Read one CycloneDX JSON SBOM from the attached workspace (input.relative_path) and retain it under security.file-v1; security.sbom-import reads it when it lands. At most 1 MiB (the built-in workspace.file's limit).",
     "input": {
       "relative_path": {
         "type": "string"
@@ -77,7 +77,7 @@
   },
   {
     "procedure": "security.evidence-acquire",
-    "description": "Read one workspace file an analyst cites for a judgment (input.relative_path: code, a config, an analysis note) and retain it under security.workspace-evidence-v1; cite the Capture with `cruxible set ... --capture CAP-...`. At most 1 MiB (the built-in workspace.file's limit).",
+    "description": "Read one workspace file an analyst cites for a judgment (input.relative_path: code, a config, an analysis note) and retain it under security.file-v1; cite the Capture with `cruxible set ... --capture CAP-...`. At most 1 MiB (the built-in workspace.file's limit).",
     "input": {
       "relative_path": {
         "type": "string"
@@ -153,7 +153,7 @@
   },
   {
     "procedure": "security.kev-triage",
-    "description": "Read the KEV catalog Capture that triggered the Line (security.kev-http-v1) and the watched vulnerabilities, and settle one observation Claim per KEV field that changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use) under a settle mandate, or propose it under a propose cap. Halts no_change when nothing changed. Runs as a Line with trigger_input catalog.",
+    "description": "Read the KEV catalog Capture that triggered the Line (security.fetched-v1) and the watched vulnerabilities, and settle one observation Claim per KEV field that changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use) under a settle mandate, or propose it under a propose cap. Halts no_change when nothing changed. Runs as a Line with trigger_input catalog.",
     "input": {},
     "returns": {
       "fields": {
@@ -382,7 +382,7 @@
   },
   {
     "procedure": "security.epss-triage",
-    "description": "Read the EPSS daily file Capture that triggered the Line (security.epss-daily-v1) and the watched vulnerabilities, and settle epss_score and epss_percentile for each watched CVE whose scores changed, exactly as the file states them (or propose them under a propose cap). Halts no_change when nothing changed. Runs as a Line with trigger_input epss.",
+    "description": "Read the EPSS daily file Capture that triggered the Line (security.fetched-v1) and the watched vulnerabilities, and settle epss_score and epss_percentile for each watched CVE whose scores changed, exactly as the file states them (or propose them under a propose cap). Halts no_change when nothing changed. Runs as a Line with trigger_input epss.",
     "input": {},
     "returns": {
       "fields": {
@@ -493,7 +493,7 @@
   },
   {
     "procedure": "security.sbom-import",
-    "description": "Read the CycloneDX SBOM Capture that triggered the Line (security.cyclonedx-sbom-v1) and propose its product and release (created by key, or the held ones), the release's product link, supplier, and one security.release.component observation per component purl the release does not hold yet. Propose-only. Runs as a Line with trigger_input sbom.",
+    "description": "Read the CycloneDX SBOM Capture that triggered the Line (security.file-v1) and propose its product and release (created by key, or the held ones), the release's product link, supplier, and one security.release.component observation per component purl the release does not hold yet. Propose-only. Runs as a Line with trigger_input sbom.",
     "input": {},
     "returns": {
       "fields": {
@@ -502,7 +502,9 @@
         "components": "$parse.components",
         "product": "$parse.product",
         "skipped": "$parse.skipped",
-        "version": "$parse.version"
+        "version": "$parse.version",
+        "osv_not_indexed": "$parse.osv_not_indexed",
+        "osv_unindexed": "$parse.osv_unindexed"
       }
     },
     "activation": "drain",
@@ -551,7 +553,37 @@
         "provider": "security-analysis-provider",
         "input": {
           "releases": "$releases.result.rows",
-          "sbom_text": "$sbom.content.text"
+          "sbom_text": "$sbom.content.text",
+          "osv_ecosystems": {
+            "apk/alpine": "Alpine",
+            "apk/chainguard": "Chainguard",
+            "apk/wolfi": "Wolfi",
+            "bitnami": "Bitnami",
+            "cargo": "crates.io",
+            "composer": "Packagist",
+            "conan": "ConanCenter",
+            "cran": "CRAN",
+            "deb/debian": "Debian",
+            "deb/ubuntu": "Ubuntu",
+            "gem": "RubyGems",
+            "githubactions": "GitHub Actions",
+            "golang": "Go",
+            "hackage": "Hackage",
+            "hex": "Hex",
+            "maven": "Maven",
+            "npm": "npm",
+            "nuget": "NuGet",
+            "pub": "Pub",
+            "pypi": "PyPI",
+            "rpm/almalinux": "AlmaLinux",
+            "rpm/mageia": "Mageia",
+            "rpm/openeuler": "openEuler",
+            "rpm/opensuse": "openSUSE",
+            "rpm/redhat": "Red Hat",
+            "rpm/rocky-linux": "Rocky Linux",
+            "rpm/suse": "SUSE",
+            "swift": "SwiftURL"
+          }
         }
       },
       {
@@ -589,6 +621,12 @@
       },
       "skipped": {
         "type": "integer"
+      },
+      "osv_not_indexed": {
+        "type": "json"
+      },
+      "osv_unindexed": {
+        "type": "integer"
       }
     },
     "contracts": {
@@ -614,6 +652,12 @@
           },
           "skipped": {
             "type": "integer"
+          },
+          "osv_not_indexed": {
+            "type": "json"
+          },
+          "osv_unindexed": {
+            "type": "integer"
           }
         }
       }
@@ -624,7 +668,7 @@
   },
   {
     "procedure": "security.cve-applicability",
-    "description": "Read the CVE record Capture that triggered the Line (security.cve-record-http-v1) and propose an assessment for every release an affected entry names by data: its collectionURL + packageName (the kit's collectionURL map, carried here) as a component's full namespace and name, its repo as the release's source repository, its CPEs, packageName or vendor/product as a product alias an analyst stated (security.release.product_alias), or its product as the release's product name (with the supplier): affected / not_affected by the record's version ranges, inconclusive when the ranges or the vendor are ambiguous; no partial match. A release OSV answered for, of a CVE OSV knows, is OSV's. States the record's title for the CVE and the products it names as affected (vulnerability.affected_product: a matched release's product, else the entry's product or packageName). Propose-only. Runs as a Line with trigger_input record.",
+    "description": "Read the CVE record Capture that triggered the Line (security.fetched-v1) and propose an assessment for every release an affected entry names by data: its collectionURL + packageName (the kit's collectionURL map, carried here) as a component's full namespace and name, its repo as the release's source repository, its CPEs, packageName or vendor/product as a product alias an analyst stated (security.release.product_alias), or its product as the release's product name (with the supplier): affected / not_affected by the record's version ranges, inconclusive when the ranges or the vendor are ambiguous; no partial match. A release OSV answered for, of a CVE OSV knows, is OSV's. States the record's title for the CVE and the products it names as affected (vulnerability.affected_product: a matched release's product, else the entry's product or packageName). Propose-only. Runs as a Line with trigger_input record.",
     "input": {},
     "returns": {
       "fields": {
@@ -876,7 +920,7 @@
   },
   {
     "procedure": "security.repo-parse",
-    "description": "Read the repository snapshot that triggered the Line (security.repo-snapshot-v1) for the Line's source (parameters: source, repo_source, forge_host, full_name, ref, scope, path) and propose what changed: workflows, jobs and their triggers, permissions, secrets, environment, actions and publish targets, or a manifest's declared digests, plus the source's coverage restated (an unchanged snapshot re-observes it; a new revision revises it). Halts other_source for another source's snapshot. Runs as a Line with trigger_input snapshot.",
+    "description": "Read the repository snapshot that triggered the Line (security.fetched-v1) for the Line's source (parameters: source, repo_source, forge_host, full_name, ref, scope, path) and propose what changed: workflows, jobs and their triggers, permissions, secrets, environment, actions and publish targets, or a manifest's declared digests, plus the source's coverage restated (an unchanged snapshot re-observes it; a new revision revises it). Halts other_source for another source's snapshot. Runs as a Line with trigger_input snapshot.",
     "input": {
       "source": {
         "type": "string"
@@ -1112,7 +1156,7 @@
   },
   {
     "procedure": "security.registry-parse",
-    "description": "Read the PyPI release Capture that triggered the Line (security.pypi-release-v1) for the Line's project (parameters: source pypi/PROJECT, project, versions) and propose what changed: each served file as an artifact with its digest, release, and (from provenance) the workflow at the commit that published it, its environment and the commit; the target's source repository; the coverage restated. Halts other_source for another project. Runs as a Line with trigger_input registry.",
+    "description": "Read the PyPI release Capture that triggered the Line (security.fetched-v1) for the Line's project (parameters: source pypi/PROJECT, project, versions) and propose what changed: each served file as an artifact with its digest, release, and (from provenance) the workflow at the commit that published it, its environment and the commit; the target's source repository; the coverage restated. Halts other_source for another project. Runs as a Line with trigger_input registry.",
     "input": {
       "source": {
         "type": "string"
@@ -1468,7 +1512,7 @@
   },
   {
     "procedure": "security.sarif-acquire",
-    "description": "Read one SARIF 2.1.0 scan log from the attached workspace (input.relative_path) and retain it under security.sarif-v1; the repository's security.sarif-import Line reads it when it lands. Annotate each run first: versionControlProvenance (repositoryUri, revisionId) and properties[\"cruxible.coverage\"] (full or partial).",
+    "description": "Read one SARIF 2.1.0 scan log from the attached workspace (input.relative_path) and retain it under security.file-v1; the repository's security.sarif-import Line reads it when it lands. Annotate each run first: versionControlProvenance (repositoryUri, revisionId) and properties[\"cruxible.coverage\"] (full or partial).",
     "input": {
       "relative_path": {
         "type": "string"
@@ -1544,7 +1588,7 @@
   },
   {
     "procedure": "security.reproduction-acquire",
-    "description": "Read one proof-of-concept run's report from the attached workspace (input.relative_path: a JUnit XML or a test log) and retain it under security.reproduction-v1; cite the Capture for security.finding.verdict (confirmed: the PoC fails while vulnerable) or verification (fixed: it passes).",
+    "description": "Read one proof-of-concept run's report from the attached workspace (input.relative_path: a JUnit XML or a test log) and retain it under security.file-v1; cite the Capture for security.finding.verdict (confirmed: the PoC fails while vulnerable) or verification (fixed: it passes).",
     "input": {
       "relative_path": {
         "type": "string"
@@ -1620,7 +1664,7 @@
   },
   {
     "procedure": "security.sarif-import",
-    "description": "Read the SARIF log Capture that triggered the Line (security.sarif-v1) for the Line's repository (parameter repo_ref, host/owner/repo) and propose what changed: each new finding by key (repository, weakness, locus) with the rules and finders that reported it and its severity; rules and finders a held finding lacks; verification fixed for a held finding a full scan of its rules no longer reports, present for a fixed one it reports again. Never a verdict. Halts wrong_repo for another repository's log, no_change when nothing changed. Propose-only. Runs as a Line with trigger_input sarif.",
+    "description": "Read the SARIF log Capture that triggered the Line (security.file-v1) for the Line's repository (parameter repo_ref, host/owner/repo) and propose what changed: each new finding by key (repository, weakness, locus) with the rules and finders that reported it and its severity; rules and finders a held finding lacks; verification fixed for a held finding a full scan of its rules no longer reports, present for a fixed one it reports again. Never a verdict. Halts wrong_repo for another repository's log, no_change when nothing changed. Propose-only. Runs as a Line with trigger_input sarif.",
     "input": {
       "repo_ref": {
         "type": "string"
@@ -2056,7 +2100,7 @@
   },
   {
     "procedure": "security.inventory-acquire",
-    "description": "Read one runtime-inventory scan from the attached workspace (input.relative_path, at most 1 MiB) and retain it under security.runtime-inventory-v1; the scope's security.inventory-import Line reads it when it lands. Either the kit's tool-neutral body {scope, looked_for, coverage: full|partial, assets: [{hostname, runs: [purl@version]}]} with no timestamps (an unchanged fleet is the same bytes), or a CycloneDX JSON SBOM of one asset (Syft, Trivy) annotated with metadata properties cruxible.scope and cruxible.asset.",
+    "description": "Read one runtime-inventory scan from the attached workspace (input.relative_path, at most 1 MiB) and retain it under security.file-erasable-v1; the scope's security.inventory-import Line reads it when it lands. Either the kit's tool-neutral body {scope, looked_for, coverage: full|partial, assets: [{hostname, runs: [purl@version]}]} with no timestamps (an unchanged fleet is the same bytes), or a CycloneDX JSON SBOM of one asset (Syft, Trivy) annotated with metadata properties cruxible.scope and cruxible.asset.",
     "input": {
       "relative_path": {
         "type": "string"
@@ -2132,7 +2176,7 @@
   },
   {
     "procedure": "security.log-acquire",
-    "description": "Read one log read from the attached workspace (input.relative_path, at most 1 MiB): {audit: {incident, service}, source, query, from, to, complete, records_scanned, matches: [{at, summary}]}, written by the agent from its own log tool's answer, match summaries redacted. Retained under security.log-read-v1; the incident's security.log-import Line reads it when it lands. complete means every record in [from, to] was searched: no sampling, no result cap, retention reaching from.",
+    "description": "Read one log read from the attached workspace (input.relative_path, at most 1 MiB): {audit: {incident, service}, source, query, from, to, complete, records_scanned, matches: [{at, summary}]}, written by the agent from its own log tool's answer, match summaries redacted. Retained under security.file-erasable-v1; the incident's security.log-import Line reads it when it lands. complete means every record in [from, to] was searched: no sampling, no result cap, retention reaching from.",
     "input": {
       "relative_path": {
         "type": "string"
@@ -2208,7 +2252,7 @@
   },
   {
     "procedure": "security.credential-acquire",
-    "description": "Read one credential's key state from the attached workspace (input.relative_path): {issuer, name, read: receipt|state_read, keys: [{key_id, state: active|inactive|revoked|deleted, created_at, revoked_at, last_used_at, created_by}]} and nothing else (optionally complete: true when a state_read lists every key, every page): key ids or fp: fingerprints, never a secret. Retained under security.credential-state-v1; security.credential-import reads it when it lands. A receipt is what the issuer returned to the rotating agent; a state_read is a later, separate listing. Who acquires it is a convention the kit cannot check (the acquiring run's actor is on its ProcedureRun): let someone other than the rotator acquire it.",
+    "description": "Read one credential's key state from the attached workspace (input.relative_path): {issuer, name, read: receipt|state_read, keys: [{key_id, state: active|inactive|revoked|deleted, created_at, revoked_at, last_used_at, created_by}]} and nothing else (optionally complete: true when a state_read lists every key, every page): key ids or fp: fingerprints, never a secret. Retained under security.file-erasable-v1; security.credential-import reads it when it lands. A receipt is what the issuer returned to the rotating agent; a state_read is a later, separate listing. Who acquires it is a convention the kit cannot check (the acquiring run's actor is on its ProcedureRun): let someone other than the rotator acquire it.",
     "input": {
       "relative_path": {
         "type": "string"
@@ -2284,10 +2328,15 @@
   },
   {
     "procedure": "security.inventory-import",
-    "description": "Read the runtime-inventory Capture that triggered the Line (security.runtime-inventory-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). A complete read states each asset's nones (asset.runs inverses): every product it named in looked_for that the asset does not run, and under * every product the asset ran before and no longer does (the run retires in the same change: a flip) or declares installing and does not run; a held none is restated (refreshed), retired when the product runs again or the scan no longer looks for it. For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage, and only while every component is identified (a purl with a version, an OS component too): one that isn't could be any product, so the SBOM then only adds (unidentified counts them). Two ecosystems' packages of one name and version are one release with both purls as components. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
+    "description": "Read the runtime-inventory Capture that triggered the Line (security.file-erasable-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). A complete read states each asset's nones (asset.runs inverses): every product it named in looked_for that the asset does not run, and under * every product the asset ran before and no longer does (the run retires in the same change: a flip) or declares installing and does not run; a held none is restated (refreshed), retired when the product runs again or the scan no longer looks for it. For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage, and only while every component is identified (a purl with a version, an OS component too): one that isn't could be any product, so the SBOM then only adds (unidentified counts them). Two ecosystems' packages of one name and version are one release with both purls as components. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
     "input": {
       "scope": {
         "type": "string"
+      },
+      "asset": {
+        "type": "string",
+        "optional": true,
+        "default": ""
       }
     },
     "returns": {
@@ -2309,7 +2358,9 @@
         "runs": "$parse.runs",
         "scope": "$parse.scope",
         "unidentified": "$parse.unidentified",
-        "verified": "$parse.verified"
+        "verified": "$parse.verified",
+        "osv_not_indexed": "$parse.osv_not_indexed",
+        "osv_unindexed": "$parse.osv_unindexed"
       }
     },
     "activation": "drain",
@@ -2383,7 +2434,38 @@
             "held": "$held.truncated",
             "patches": "$patches.truncated",
             "runs": "$runs.truncated"
-          }
+          },
+          "osv_ecosystems": {
+            "apk/alpine": "Alpine",
+            "apk/chainguard": "Chainguard",
+            "apk/wolfi": "Wolfi",
+            "bitnami": "Bitnami",
+            "cargo": "crates.io",
+            "composer": "Packagist",
+            "conan": "ConanCenter",
+            "cran": "CRAN",
+            "deb/debian": "Debian",
+            "deb/ubuntu": "Ubuntu",
+            "gem": "RubyGems",
+            "githubactions": "GitHub Actions",
+            "golang": "Go",
+            "hackage": "Hackage",
+            "hex": "Hex",
+            "maven": "Maven",
+            "npm": "npm",
+            "nuget": "NuGet",
+            "pub": "Pub",
+            "pypi": "PyPI",
+            "rpm/almalinux": "AlmaLinux",
+            "rpm/mageia": "Mageia",
+            "rpm/openeuler": "openEuler",
+            "rpm/opensuse": "openSUSE",
+            "rpm/redhat": "Red Hat",
+            "rpm/rocky-linux": "Rocky Linux",
+            "rpm/suse": "SUSE",
+            "swift": "SwiftURL"
+          },
+          "asset": "$input.asset"
         }
       },
       {
@@ -2466,6 +2548,12 @@
       },
       "nones": {
         "type": "integer"
+      },
+      "osv_not_indexed": {
+        "type": "json"
+      },
+      "osv_unindexed": {
+        "type": "integer"
       }
     },
     "contracts": {
@@ -2473,6 +2561,11 @@
         "fields": {
           "scope": {
             "type": "string"
+          },
+          "asset": {
+            "type": "string",
+            "optional": true,
+            "default": ""
           }
         }
       },
@@ -2531,6 +2624,12 @@
           },
           "nones": {
             "type": "integer"
+          },
+          "osv_not_indexed": {
+            "type": "json"
+          },
+          "osv_unindexed": {
+            "type": "integer"
           }
         }
       }
@@ -2542,7 +2641,7 @@
   },
   {
     "procedure": "security.log-import",
-    "description": "Read the log-read Capture that triggered the Line (security.log-read-v1) for the Line's incident (parameter incident, its name) and propose the audit by key (incident, service) with its twins and one security.audit.read (SOURCE FROM/TO) for a complete read. An incomplete read is posted (read_incomplete) and never becomes a read: it is a finding about the logs, not about the attacker. Never a result. Halts other_incident for another incident's read. Runs as a Line with trigger_input log.",
+    "description": "Read the log-read Capture that triggered the Line (security.file-erasable-v1) for the Line's incident (parameter incident, its name) and propose the audit by key (incident, service) with its twins and one security.audit.read (SOURCE FROM/TO) for a complete read. An incomplete read is posted (read_incomplete) and never becomes a read: it is a finding about the logs, not about the attacker. Never a result. Halts other_incident for another incident's read. Runs as a Line with trigger_input log.",
     "input": {
       "incident": {
         "type": "string"
@@ -2737,7 +2836,7 @@
   },
   {
     "procedure": "security.credential-import",
-    "description": "Read the credential-state Capture that triggered the Line (security.credential-state-v1) and propose what changed: the credential's current key_id, issued_at and issued_by from a receipt or a state read; revoked_key and a rotation's verification only from a state read (verified: the rotation's revokes_key is listed revoked or deleted, or absent from a listing that says complete, and an active key was issued after the incident's window_start; failed: claimed completed while revokes_key is still listed). A body outside the allow-list, or a key id, issuer, name or principal shaped like a secret, proposes nothing and is posted (secret_shape, with a fixed message: nothing from the body is echoed). Runs as a Line with trigger_input credential.",
+    "description": "Read the credential-state Capture that triggered the Line (security.file-erasable-v1) and propose what changed: the credential's current key_id, issued_at and issued_by from a receipt or a state read; revoked_key and a rotation's verification only from a state read (verified: the rotation's revokes_key is listed revoked or deleted, or absent from a listing that says complete, and an active key was issued after the incident's window_start; failed: claimed completed while revokes_key is still listed). A body outside the allow-list, or a key id, issuer, name or principal shaped like a secret, proposes nothing and is posted (secret_shape, with a fixed message: nothing from the body is echoed). Runs as a Line with trigger_input credential.",
     "input": {},
     "returns": {
       "fields": {

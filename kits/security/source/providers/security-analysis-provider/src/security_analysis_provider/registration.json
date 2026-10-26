@@ -83,20 +83,20 @@
         "entrypoint": "security_analysis_provider.sbom:classify",
         "identity": "security.cyclonedx-components.input",
         "source": {
-          "digest": "sha256:83815e582ea0ac12ed31eefcf380282d422068e7c7989884e015723c6aaeeece",
+          "digest": "sha256:5378b83551bfc932e5bf1921f44c0c028f2dbb899aa40c2b69168f7c0f6d8fe5",
           "path": "sbom.py"
         },
         "version": 1
       },
       "definition": {
-        "digest": "sha256:c072f57d6b8b51f19c8a97c3417dda395db15fd09bb4c800311d3129c88fbb44",
+        "digest": "sha256:5547979f269cc4bf01a570366a53b53fc5a75ae028ea40e7b4a2041c185b56a9",
         "path": "contracts/security.cyclonedx-components.json"
       },
       "fixtures": {
         "digest": "sha256:85541a6e2e69a118c278402cea659dba5a12cea2536d9db59d8363f6856f8e05",
         "path": "registration-fixtures/security.cyclonedx-components.json"
       },
-      "interface_digest": "sha256:c36b224a1408c34a4cf651218e117db35ab294a0de8c822686394729a4f94a65",
+      "interface_digest": "sha256:f0fc2d38688adebb77890ba78daed09315a7b9021f1f385a5f0453d69bbcc13f",
       "interface_id": "security.cyclonedx-components",
       "predecessors": [],
       "vocabulary": {
@@ -239,20 +239,20 @@
         "entrypoint": "security_analysis_provider.response:classify_inventory",
         "identity": "security.runtime-inventory.input",
         "source": {
-          "digest": "sha256:f2bfe5b9b53af69e5612759c24c564ac23a34109b5fd594d549b496b36cd2274",
+          "digest": "sha256:57ce2d93775833da3dcf5ba4e3a4c3f74072049fd80c9b8cd4b4e1bb4591620b",
           "path": "response.py"
         },
         "version": 1
       },
       "definition": {
-        "digest": "sha256:9f0823acc68c48125c8420a0a9a5dfff3db91a30f5a49461a229d408013ea23e",
+        "digest": "sha256:a40ea9004809ab83313d6050957cc534b8a9cacdd0dffde53fe07ac963ca8e61",
         "path": "contracts/security.runtime-inventory.json"
       },
       "fixtures": {
         "digest": "sha256:7e3caa01a4d79c1838571411afb91b054bdd9482e459cc73ea2e0cfdca9ef474",
         "path": "registration-fixtures/security.runtime-inventory.json"
       },
-      "interface_digest": "sha256:5bd1483ae45090fe75e7088404bd7bb083e83e8537adf58975141b9a02acebd7",
+      "interface_digest": "sha256:4ac42ae4116d5e8b1ac14c65964a45c407e80d2c63575c9185297da1884c7881",
       "interface_id": "security.runtime-inventory",
       "predecessors": [],
       "vocabulary": {
@@ -265,7 +265,7 @@
         "entrypoint": "security_analysis_provider.response:classify_log",
         "identity": "security.log-reads.input",
         "source": {
-          "digest": "sha256:f2bfe5b9b53af69e5612759c24c564ac23a34109b5fd594d549b496b36cd2274",
+          "digest": "sha256:57ce2d93775833da3dcf5ba4e3a4c3f74072049fd80c9b8cd4b4e1bb4591620b",
           "path": "response.py"
         },
         "version": 1
@@ -291,7 +291,7 @@
         "entrypoint": "security_analysis_provider.response:classify_credential",
         "identity": "security.credential-state.input",
         "source": {
-          "digest": "sha256:f2bfe5b9b53af69e5612759c24c564ac23a34109b5fd594d549b496b36cd2274",
+          "digest": "sha256:57ce2d93775833da3dcf5ba4e3a4c3f74072049fd80c9b8cd4b4e1bb4591620b",
           "path": "response.py"
         },
         "version": 1
@@ -317,7 +317,7 @@
         "entrypoint": "security_analysis_provider.response:classify_respond",
         "identity": "security.respond.input",
         "source": {
-          "digest": "sha256:f2bfe5b9b53af69e5612759c24c564ac23a34109b5fd594d549b496b36cd2274",
+          "digest": "sha256:57ce2d93775833da3dcf5ba4e3a4c3f74072049fd80c9b8cd4b4e1bb4591620b",
           "path": "response.py"
         },
         "version": 1
@@ -366,7 +366,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:43df92ca9fea94b2311df33c2fd62fa2a697b47b81bb8990592dca895f16e746",
+    "digest": "sha256:b3e6b9554bc68afdf867b67c18659a6a336541ab43e00f25eaac5917ca512d72",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

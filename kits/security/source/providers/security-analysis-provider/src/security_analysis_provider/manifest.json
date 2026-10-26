@@ -76,7 +76,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.sbom:CycloneDxComponents",
-      "interface_digest": "sha256:c36b224a1408c34a4cf651218e117db35ab294a0de8c822686394729a4f94a65",
+      "interface_digest": "sha256:f0fc2d38688adebb77890ba78daed09315a7b9021f1f385a5f0453d69bbcc13f",
       "interface_id": "security.cyclonedx-components",
       "requires_extras": [],
       "side_effects": false
@@ -190,7 +190,7 @@
       ],
       "deterministic": true,
       "entrypoint": "security_analysis_provider.response:RuntimeInventory",
-      "interface_digest": "sha256:5bd1483ae45090fe75e7088404bd7bb083e83e8537adf58975141b9a02acebd7",
+      "interface_digest": "sha256:4ac42ae4116d5e8b1ac14c65964a45c407e80d2c63575c9185297da1884c7881",
       "interface_id": "security.runtime-inventory",
       "requires_extras": [],
       "side_effects": false

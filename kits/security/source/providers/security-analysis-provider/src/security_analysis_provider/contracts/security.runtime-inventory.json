@@ -22,6 +22,16 @@
         },
         "truncated": {
           "type": "json"
+        },
+        "osv_ecosystems": {
+          "type": "json",
+          "optional": true,
+          "default": {}
+        },
+        "asset": {
+          "type": "string",
+          "optional": true,
+          "default": ""
         }
       },
       "allow_extra": false
@@ -83,6 +93,12 @@
           "type": "integer"
         },
         "nones": {
+          "type": "integer"
+        },
+        "osv_not_indexed": {
+          "type": "json"
+        },
+        "osv_unindexed": {
           "type": "integer"
         }
       },

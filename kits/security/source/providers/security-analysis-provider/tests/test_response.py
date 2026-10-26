@@ -890,9 +890,8 @@ def test_rq1_answers_every_scanned_release_for_each_incident_cve_never_silently(
         "releases": ["gh 2.86.0"], "osv_not_indexed": {"brew": 1},
         "alternatives": ["security.release.product_alias", "security.inventory-acquire"]}
     # No coverage yet, or the CVE's own package with no assessment: the OSV Line answers.
-    assert gaps[("jq 1.7.1", "security.osv-applicability")] == {"release": "jq 1.7.1"}
-    assert gaps[("debian/php8.2 8.2.99-1", "security.osv-applicability")] == {
-        "release": "debian/php8.2 8.2.99-1"}
+    assert gaps[("jq 1.7.1", "security.osv-applicability")] == {}  # The Procedure accepts no release parameter.
+    assert gaps[("debian/php8.2 8.2.99-1", "security.osv-applicability")] == {}
     # A scan of everything states no none for a product it never saw: storefront-a and
     # dev-mac hold none of debian/php8.2, so each asset is unknown, naming it.
     assert result["posted"] > 0 and result["unknown"] == 5 and result["none"] == 1

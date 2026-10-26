@@ -186,6 +186,7 @@ from .common import (
     name_form,
     parse_coverage,
     parse_rows,
+    unindexed_counts,
     replacing,
     retirement_item,
     secret_in_text,
@@ -423,10 +424,11 @@ def _components(items: object) -> Iterable[Mapping[str, Any]]:
             yield from _components(item.get("components"))
 
 
-def _cyclonedx_scan(document: Mapping[str, Any]) -> Scan:
+def _cyclonedx_scan(document: Mapping[str, Any], *, scope: str = "", asset: str = "") -> Scan:
     metadata = document.get("metadata") if isinstance(document.get("metadata"), Mapping) else {}
     properties = _properties(metadata, metadata.get("component"))
-    scope, asset = properties.get("cruxible.scope"), properties.get("cruxible.asset")
+    scope = properties.get("cruxible.scope") or scope
+    asset = properties.get("cruxible.asset") or asset
     if not scope or not asset:
         raise InputError("a CycloneDX inventory names its asset and scope in metadata "
                          "properties cruxible.asset and cruxible.scope")
@@ -456,7 +458,7 @@ def _cyclonedx_scan(document: Mapping[str, Any]) -> Scan:
     return scan
 
 
-def read_inventory(text: str) -> Scan:
+def read_inventory(text: str, *, scope: str = "", asset: str = "") -> Scan:
     try:
         document = json.loads(text)
     except ValueError as error:
@@ -464,7 +466,7 @@ def read_inventory(text: str) -> Scan:
     if not isinstance(document, Mapping):
         raise InputError("the inventory is not a JSON object")
     if document.get("bomFormat") == "CycloneDX":
-        return _cyclonedx_scan(document)
+        return _cyclonedx_scan(document, scope=scope, asset=asset)
     return _kit_scan(document)
 
 
@@ -574,10 +576,14 @@ def held_patches(rows: list[Row]) -> dict[str, HeldPatch]:
 
 
 def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
-              line_scope: str, run_rows: list[Row] | None = None) -> dict[str, Any]:
-    scan = read_inventory(text)
+              line_scope: str, run_rows: list[Row] | None = None, *,
+              asset: str = "", ecosystems: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    scan = read_inventory(text, scope=line_scope, asset=asset)
+    skipped = unindexed_counts((run.purl for _, runs, _ in scan.assets.values()
+                                for run in runs.values()), ecosystems or {})
     summary: dict[str, Any] = {
-        "scope": line_scope, "format": scan.format,
+        "scope": line_scope, "format": scan.format, "osv_not_indexed": skipped,
+        "osv_unindexed": sum(skipped.values()),
         "coverage": "full" if scan.full_scope else (
             "asset" if scan.format == "cyclonedx" else "partial"),
         "revision": revision(scan) if scan.full_scope else "", "regressions": [],
@@ -591,7 +597,10 @@ def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
     held = held_scope(held_rows + (run_rows or []))
     items = _Items()
     said = (f"Runtime inventory of {line_scope} ({scan.format}, {summary['coverage']}, "
-            f"looked for {', '.join(sorted(scan.looked_for))})")
+            f"looked for {', '.join(sorted(scan.looked_for))}); "
+            + ("OSV will not answer " + ", ".join(f"{kind} {count}" for kind, count in skipped.items())
+               if skipped else "all run purl types are named by the kit OSV map")
+            + ". New releases need OSV coverage after acceptance.")
     cover: Any = held.coverage or key_ref(COVERAGE, source=line_scope, scope=INVENTORY_SCOPE)
     if held.coverage is None:
         items.subject(COVERAGE, {"source": line_scope, "scope": INVENTORY_SCOPE},
@@ -744,7 +753,9 @@ class RuntimeInventory:
                                parse_rows(context.input.get("held")),
                                parse_rows(context.input.get("patches")),
                                str(context.input.get("scope") or ""),
-                               parse_rows(context.input.get("runs") or []))
+                               parse_rows(context.input.get("runs") or []),
+                               asset=str(context.input.get("asset") or ""),
+                               ecosystems=context.input.get("osv_ecosystems") or {})
         except InputError as error:
             return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, str(error))
         return ProviderResult.ok(result, metrics={"items": float(len(result["items"]))})
@@ -1539,7 +1550,7 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
             why.append(f"{named}: assessed not_affected on components the release no longer "
                        "has as they were (OSV, or the record, answers its components now)")
             gaps.append({"subject": label, "pull": params.osv_line,
-                         "payload": {"release": label}})
+                         "payload": {}})
         elif step == "not_indexed":
             assert coverage is not None
             said = []
@@ -1561,7 +1572,7 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
             why.append(f"{named}: OSV has not answered this release's current components "
                        "for it")
             gaps.append({"subject": label, "pull": params.osv_line,
-                         "payload": {"release": label}})
+                         "payload": {}})
         else:
             why.append(f"{named}: no source decides it (an analyst's judgment answers it)")
             gaps.append({"subject": label, "pull": "statement", "payload": {

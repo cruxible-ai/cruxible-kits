@@ -10,6 +10,11 @@
         },
         "releases": {
           "type": "json"
+        },
+        "osv_ecosystems": {
+          "type": "json",
+          "optional": true,
+          "default": {}
         }
       },
       "allow_extra": false
@@ -35,6 +40,12 @@
           "type": "integer"
         },
         "skipped": {
+          "type": "integer"
+        },
+        "osv_not_indexed": {
+          "type": "json"
+        },
+        "osv_unindexed": {
           "type": "integer"
         }
       },
