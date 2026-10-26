@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "inventory"
         },
         "request": {
           "coordinate": {
@@ -160,10 +157,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/a250c95f355f9aebf5212848004e70597af75d4093f1302ea2ff6883ee0e1b1f"
-          }
+          "slot_name": "parse"
         }
       },
       {
@@ -253,10 +247,30 @@
         "reason": "other_scope"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "inventory"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.runtime-inventory/v1"
+          }
+        },
+        "slot_name": "parse"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:3b5e8e09d19fb3f178a1d5e7ec484d1023151a15e6216975c38a960a1ab927fb",
+  "definition_digest": "sha256:c4aa684695f06a9b6db750351fb8be5634f2c22af853050d92b1158651691a08",
   "identity": {
     "kind": "Procedure",
     "name": "security.inventory-import"

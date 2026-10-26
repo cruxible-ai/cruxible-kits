@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "reproduction"
         },
         "request": {
           "coordinate": {
@@ -84,10 +81,21 @@
         "kind": "project"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "reproduction"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:9e43fd1e779e06be53bc46ef744253aa3d34271569d78cce7ce41446486108db",
+  "definition_digest": "sha256:7da05b5e99d75dd80f05a8e3eb1850a3ab1e947706c247b615be4eaf6ce121b4",
   "identity": {
     "kind": "Procedure",
     "name": "security.reproduction-acquire"

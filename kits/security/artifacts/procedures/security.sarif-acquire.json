@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "sarif"
         },
         "request": {
           "coordinate": {
@@ -84,10 +81,21 @@
         "kind": "project"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "sarif"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:69750fdbb439f2637ac4722239d8db785d4dd3d1e298174e9081fd614c7d8835",
+  "definition_digest": "sha256:10389c17e47bdd1088bb7cd95009429f8f88196578d21c895a40223aa06b8fdf",
   "identity": {
     "kind": "Procedure",
     "name": "security.sarif-acquire"

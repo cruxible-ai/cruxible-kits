@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "log"
         },
         "request": {
           "coordinate": {
@@ -84,10 +81,21 @@
         "kind": "project"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "log"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:d46678f3a20a51750661a99b08088632624509c1bf2bae1c8b2c61cdcd127bb4",
+  "definition_digest": "sha256:181aea377a829be65f7f04a476ce9563df57a19bae6315dacf8c056208ac6fb0",
   "identity": {
     "kind": "Procedure",
     "name": "security.log-acquire"

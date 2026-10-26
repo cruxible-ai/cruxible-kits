@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "evidence"
         },
         "request": {
           "coordinate": {
@@ -84,10 +81,21 @@
         "kind": "project"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "evidence"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:e0aeb61f9ead9628ae7479da2be0ca39527bab54baebe268a658846b53310728",
+  "definition_digest": "sha256:ee65fc5eb34ee07d0ae8b88d79747034b93f599f0a91f84e37698be0390dd41d",
   "identity": {
     "kind": "Procedure",
     "name": "security.evidence-acquire"

@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-provider-web/ddc99c153ce3ca4226d991f11ab40f1d96fa0ad4364c8918f8aa82b0c840218b"
-          }
+          "slot_name": "catalog"
         },
         "request": {
           "expected_format": "json",
@@ -109,10 +106,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/a250c95f355f9aebf5212848004e70597af75d4093f1302ea2ff6883ee0e1b1f"
-          }
+          "slot_name": "match"
         }
       },
       {
@@ -162,10 +156,30 @@
         "reason": "nothing_to_post"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch/v3"
+          }
+        },
+        "slot_name": "catalog"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.kev-attention/v1"
+          }
+        },
+        "slot_name": "match"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:8defa6d1495c99959e330f3f642893a05b11812d978e6e4fd83476c86b63e5d5",
+  "definition_digest": "sha256:52cfc4f9597910053f068c8a893dc923087566476da0cd29767743337b593209",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-attention"

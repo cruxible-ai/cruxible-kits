@@ -120,10 +120,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/a250c95f355f9aebf5212848004e70597af75d4093f1302ea2ff6883ee0e1b1f"
-          }
+          "slot_name": "classify"
         }
       },
       {
@@ -177,10 +174,21 @@
         "reason": "nothing_to_post"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.harden/v1"
+          }
+        },
+        "slot_name": "classify"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:ca376d794999fa1aa90a13b31203f3f08915639d31ed3f39b0bdc0223f655e7a",
+  "definition_digest": "sha256:167247349399542341ddeb2899528501f733ae829d3f94ac9a12f2b37d548adb",
   "identity": {
     "kind": "Procedure",
     "name": "security.harden"

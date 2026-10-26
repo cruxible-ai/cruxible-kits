@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "sbom"
         },
         "request": {
           "coordinate": {
@@ -123,10 +120,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/32c7f0af74c944543dd5d06ec7fcceb0610265de1cef3a1e0d32d9b5da9e35fc"
-          }
+          "slot_name": "parse"
         }
       },
       {
@@ -181,10 +175,30 @@
         "reason": "no_change"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.cyclonedx-components/v1"
+          }
+        },
+        "slot_name": "parse"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "sbom"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:941c831b740257afafb2da673f4e5b4df56ad4dd2e95dd4bcd43d6ab16e22436",
+  "definition_digest": "sha256:412a88224513ddacf4365db20d37cc3491310c75c12746027bbc113a067fa8af",
   "identity": {
     "kind": "Procedure",
     "name": "security.sbom-import"

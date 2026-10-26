@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "log"
         },
         "request": {
           "coordinate": {
@@ -98,10 +95,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/32c7f0af74c944543dd5d06ec7fcceb0610265de1cef3a1e0d32d9b5da9e35fc"
-          }
+          "slot_name": "parse"
         }
       },
       {
@@ -207,10 +201,30 @@
         "reason": "other_incident"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "log"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.log-reads/v1"
+          }
+        },
+        "slot_name": "parse"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:8222043e643b5011b79f0d1dc24b7dd402fd4b7db23bad877b38c53d394ae5b6",
+  "definition_digest": "sha256:3928793a4d338dba2cecad84c6b83ff108c043dd878f8ee50ed8e9ed6ee039fe",
   "identity": {
     "kind": "Procedure",
     "name": "security.log-import"

@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "inventory"
         },
         "request": {
           "coordinate": {
@@ -84,10 +81,21 @@
         "kind": "project"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "inventory"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:8864c3bb05bf562004d5f7cced66d2101219b54fb20732e18a6cbff65a61ea8a",
+  "definition_digest": "sha256:4ee69923f4641df7408c457202447258a22a805d48bde738e653840abc62e540",
   "identity": {
     "kind": "Procedure",
     "name": "security.inventory-acquire"

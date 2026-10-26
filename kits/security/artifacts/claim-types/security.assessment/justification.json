@@ -13,7 +13,7 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "Why a not_affected release is not affected (the VEX/CSAF justification): an observation from a source, or (normative) an analyst's judgment citing their own words or a workspace file (security.workspace-evidence-v1). Required in practice with every not_affected status; core cannot require it.",
+  "description": "Why a not_affected release is not affected (the VEX/CSAF justification): an observation from a source, or (normative) an analyst's judgment citing their own words or a workspace file (security.file-v1). Required in practice with every not_affected status; core cannot require it.",
   "evidence_admission_policy": {
     "rules": [
       {

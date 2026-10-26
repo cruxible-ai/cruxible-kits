@@ -15,7 +15,7 @@
   ],
   "cardinality": "many",
   "default_role": "normative",
-  "description": "The release's component that brings the vulnerability in (purl@version): which dependency an affected release needs to change. An observation is a source's word (OSV's answer for the component, or a CVE record whose packageName names it); a normative Claim is an analyst's, citing their own words or a workspace file (security.workspace-evidence-v1, via security.evidence-acquire).",
+  "description": "The release's component that brings the vulnerability in (purl@version): which dependency an affected release needs to change. An observation is a source's word (OSV's answer for the component, or a CVE record whose packageName names it); a normative Claim is an analyst's, citing their own words or a workspace file (security.file-v1, via security.evidence-acquire).",
   "evidence_admission_policy": {
     "rules": [
       {

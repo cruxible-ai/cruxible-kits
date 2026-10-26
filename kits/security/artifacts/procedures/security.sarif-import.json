@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "sarif"
         },
         "request": {
           "coordinate": {
@@ -98,10 +95,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/32c7f0af74c944543dd5d06ec7fcceb0610265de1cef3a1e0d32d9b5da9e35fc"
-          }
+          "slot_name": "parse"
         }
       },
       {
@@ -186,10 +180,30 @@
         "reason": "wrong_repo"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.sarif-findings/v1"
+          }
+        },
+        "slot_name": "parse"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "sarif"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:6d145aee1990bf87a2bd6f7a8a055cb09d6406399396b8f5f6746ce3c9810175",
+  "definition_digest": "sha256:8fa3b2eedd51afa5acfa2a265d234d0a4feeac2191317c75f15093c7f8dd4c22",
   "identity": {
     "kind": "Procedure",
     "name": "security.sarif-import"

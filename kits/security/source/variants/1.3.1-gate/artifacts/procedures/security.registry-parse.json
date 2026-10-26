@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
-          }
+          "slot_name": "registry"
         },
         "request": {
           "project": "$input.project",
@@ -123,10 +120,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/a250c95f355f9aebf5212848004e70597af75d4093f1302ea2ff6883ee0e1b1f"
-          }
+          "slot_name": "parse"
         }
       },
       {
@@ -163,10 +157,30 @@
         "reason": "other_source"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.registry-facts/v1"
+          }
+        },
+        "slot_name": "parse"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.pypi-release/v1"
+          }
+        },
+        "slot_name": "registry"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:f141611d431a4142270245173c17cea49ee8cfe626e6ff4884275eab454dcaf0",
+  "definition_digest": "sha256:bb6c2d98611503206f35910b653627e5424dcd9f315658808d37b7068f529882",
   "identity": {
     "kind": "Procedure",
     "name": "security.registry-parse"

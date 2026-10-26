@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "sbom"
         },
         "request": {
           "coordinate": {
@@ -84,10 +81,21 @@
         "kind": "project"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "sbom"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:f128141c72757e8e602ef93f09160f80f763fbebabbc0f4e40385b4755d28acf",
+  "definition_digest": "sha256:80a620829fbe37765d286d8c39e375f6f8baac0b7fd37ad85d82b191fcb38176",
   "identity": {
     "kind": "Procedure",
     "name": "security.sbom-acquire"

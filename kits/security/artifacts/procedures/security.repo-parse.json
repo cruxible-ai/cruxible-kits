@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
-          }
+          "slot_name": "snapshot"
         },
         "request": {
           "forge_host": "$input.forge_host",
@@ -155,10 +152,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/32c7f0af74c944543dd5d06ec7fcceb0610265de1cef3a1e0d32d9b5da9e35fc"
-          }
+          "slot_name": "parse"
         }
       },
       {
@@ -198,10 +192,30 @@
         "reason": "other_source"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.workflow-facts/v1"
+          }
+        },
+        "slot_name": "parse"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.repo-snapshot/v1"
+          }
+        },
+        "slot_name": "snapshot"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:7408a8a37dd71a15dfa2770fe396c2a6418afd81b6f4cc5b169baf70813beab3",
+  "definition_digest": "sha256:6469db45d45a91a5d336ecf7b6c87ccd085482cc2b18add3d27e7a541068539d",
   "identity": {
     "kind": "Procedure",
     "name": "security.repo-parse"

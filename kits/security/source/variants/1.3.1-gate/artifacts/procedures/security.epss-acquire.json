@@ -1,21 +1,18 @@
 {
   "activation_policy": "snapshot",
-  "artifact_format": "cruxible-blueprint-v2",
+  "artifact_format": "cruxible-procedure-v3",
   "definition": {
-    "annotations": {},
     "budget": {
       "max_capture_bytes": 33554432,
       "max_provider_calls": 1,
-      "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
-        "microseconds": 120000000,
-        "tag": "playbill-duration-v1"
+        "microseconds": 120000000
       }
     },
     "contract_in": {
       "target": {
         "kind": "Contract",
-        "name": "security-empty-input"
+        "name": "security.epss-acquire-input"
       }
     },
     "contract_out": {
@@ -24,30 +21,26 @@
         "name": "security-http-evidence"
       }
     },
-    "description": "Fetch FIRST's current EPSS daily scores file (gzip CSV) and retain it under security.fetched-v1. Interpretation is security.epss-triage's job.",
-    "graph_format": 7,
+    "description": "Fetch FIRST's current EPSS daily scores and emit their retained summary; security.epss-triage reads the first.epss.daily landing.",
     "hard_caps": {
       "max_capture_bytes": 33554432,
       "max_items": 1,
       "max_provider_calls": 1,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
-        "microseconds": 300000000,
-        "tag": "playbill-duration-v1"
-      },
-      "tag": "playbill-procedure-hard-caps-v1"
+        "microseconds": 300000000
+      }
     },
-    "measurements": [],
     "name": "security.epss-acquire",
     "nodes": [
       {
-        "as": "epss",
         "capture_contract": {
           "target": {
             "kind": "CaptureContract",
             "name": "security.fetched-v1"
           }
         },
+        "id": "epss",
         "interface": {
           "target": {
             "kind": "ProviderInterface",
@@ -55,16 +48,12 @@
           }
         },
         "kind": "source",
-        "next": null,
-        "node_id": "epss",
         "provider": {
-          "slot_name": "epss",
-          "tag": "playbill-procedure-pin-slot-ref-v1"
+          "slot_name": "epss"
         },
         "request": {}
       },
       {
-        "as": "summary",
         "contract_out": {
           "target": {
             "kind": "Contract",
@@ -76,9 +65,8 @@
           "status": "$steps.epss.retrieved.status_code",
           "url": "$steps.epss.retrieved.final_url"
         },
-        "kind": "project",
-        "next": null,
-        "node_id": "summary"
+        "id": "summary",
+        "kind": "project"
       },
       {
         "capture_contract": {
@@ -87,13 +75,12 @@
             "name": "security.observation-output-v1"
           }
         },
+        "id": "step_2",
         "input": "$steps.summary",
         "kind": "emit_capture",
-        "node_id": "emit",
         "result": "$steps.summary"
       }
     ],
-    "parameter_contract": null,
     "pin_slots": [
       {
         "interface": {
@@ -102,81 +89,45 @@
             "name": "security.epss-daily/v1"
           }
         },
-        "slot_name": "epss",
-        "tag": "cruxible-procedure-slot-v2"
+        "slot_name": "epss"
       }
     ],
     "returns": "summary",
-    "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:d663cc29e6f247509dea767845299cb055725fea65a411fa2b029c3364ac17e7",
+  "definition_digest": "sha256:cdf5a5007ddbb0068e49a3d908a5cfb0671bc52d6c14c688a95c1f7c97307427",
   "identity": {
-    "kind": "Blueprint",
+    "kind": "Procedure",
     "name": "security.epss-acquire"
   },
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
-  },
   "owned_contracts": [
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-empty-input"
-      },
-      "schema": {
-        "allow_extra": false,
-        "description": null,
-        "fields": {}
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    },
     {
       "identity": {
         "kind": "Contract",
         "name": "security-http-evidence"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "body_digest": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "status": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "int"
           },
           "url": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           }
         }
+      }
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security.epss-acquire-input"
       },
-      "tag": "playbill-procedure-owned-contract-v1"
+      "schema": {
+        "fields": {}
+      }
     }
   ]
 }

@@ -6,7 +6,7 @@
       "max_capture_bytes": 16777216,
       "max_provider_calls": 2,
       "wall_clock": {
-        "microseconds": 120000000
+        "microseconds": 150000000
       }
     },
     "contract_in": {
@@ -21,7 +21,7 @@
         "name": "security-kev-triage-summary"
       }
     },
-    "description": "Read the KEV catalog Capture that triggered the Line (security.fetched-v1) and the watched vulnerabilities, and settle one observation Claim per KEV field that changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use) under a settle mandate, or propose it under a propose cap. Halts no_change when nothing changed. Runs as a Line with trigger_input catalog.",
+    "description": "Read the KEV catalog Capture that triggered the Line (security.fetched-v1) and the watched vulnerabilities, and settle one observation Claim per KEV field that changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use) under a settle mandate, or propose it under a propose cap. Halts no_change when nothing changed. Runs as a Line with trigger_input catalog. Gate variant: a 150 second triage budget.",
     "hard_caps": {
       "max_capture_bytes": 16777216,
       "max_items": 5000,
@@ -86,10 +86,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-provider-web/ddc99c153ce3ca4226d991f11ab40f1d96fa0ad4364c8918f8aa82b0c840218b"
-          }
+          "slot_name": "catalog"
         },
         "request": {
           "expected_format": "json",
@@ -124,10 +121,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/a250c95f355f9aebf5212848004e70597af75d4093f1302ea2ff6883ee0e1b1f"
-          }
+          "slot_name": "parse"
         }
       },
       {
@@ -178,10 +172,30 @@
         "reason": "no_change"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch/v3"
+          }
+        },
+        "slot_name": "catalog"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.kev-catalog/v2"
+          }
+        },
+        "slot_name": "parse"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:3555bcf80ef6eff7cb1cf8a3d2b8ec78238acfa68f9a3e355185ae58e30a1bbf",
+  "definition_digest": "sha256:d5cea113f4143d3280a6d8face7a427790ecc276c3b113ee02ef721acf862405",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-triage"

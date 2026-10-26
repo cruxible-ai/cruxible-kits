@@ -49,10 +49,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
-          }
+          "slot_name": "epss"
         },
         "request": {}
       },
@@ -80,10 +77,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/32c7f0af74c944543dd5d06ec7fcceb0610265de1cef3a1e0d32d9b5da9e35fc"
-          }
+          "slot_name": "parse"
         }
       },
       {
@@ -135,10 +129,30 @@
         "reason": "no_change"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.epss-daily/v1"
+          }
+        },
+        "slot_name": "epss"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.epss-scores/v1"
+          }
+        },
+        "slot_name": "parse"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:0c90d536acd2347bf1dda2d048d011d1e7468a3b5a948ec092354d24141e01ab",
+  "definition_digest": "sha256:f76de64a94e928cda18ffa72352d3d13175a21c851060f8df65cbc5eed6da078",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"

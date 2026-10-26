@@ -1,98 +1,76 @@
 {
   "activation_policy": "drain",
-  "artifact_format": "cruxible-blueprint-v2",
+  "artifact_format": "cruxible-procedure-v3",
   "definition": {
-    "annotations": {},
     "budget": {
       "max_capture_bytes": 67108864,
       "max_provider_calls": 3,
-      "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
-        "microseconds": 300000000,
-        "tag": "playbill-duration-v1"
+        "microseconds": 300000000
       }
     },
     "contract_in": {
       "target": {
         "kind": "Contract",
-        "name": "security-empty-input"
+        "name": "security.osv-applicability-input"
       }
     },
     "contract_out": {
       "target": {
         "kind": "Contract",
-        "name": "security-osv-applicability-summary"
+        "name": "security.osv-applicability-output"
       }
     },
-    "description": "Retain OSV's ecosystem list (ecosystems.txt, under security.fetched-v1), then ask OSV.dev about every SBOM component (purl@version) of every release whose ecosystem OSV indexes (by the kit's purl type map, carried in this Procedure; the rest are recorded not_indexed, never asked) and every watched CVE, retain the answer under security.fetched-v1, and propose what changed: each release's OSV coverage (complete, or partial with the purl types not indexed), the packages OSV says each watched CVE affects, and an assessment per (release, CVE): affected (watching the CVE when it is new), not_affected with its VEX justification, or inconclusive. Propose-only; never settles. Runs as a Line (daily, or `line run` after an SBOM or inventory import is accepted).",
-    "graph_format": 7,
+    "description": "Read OSV's published ecosystem list and query indexed components and watched CVEs; retain both provider answers under security.fetched-v1, sources osv.dev.ecosystems and osv.dev.query. Propose changed coverage and applicability, recording unindexed types without asserting coverage. Runs as a Line; never settles.",
     "hard_caps": {
       "max_capture_bytes": 67108864,
       "max_items": 5000,
       "max_provider_calls": 3,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
-        "microseconds": 600000000,
-        "tag": "playbill-duration-v1"
-      },
-      "tag": "playbill-procedure-hard-caps-v1"
+        "microseconds": 600000000
+      }
     },
-    "measurements": [],
     "name": "security.osv-applicability",
     "nodes": [
       {
-        "as": "releases",
-        "budgets": null,
+        "id": "releases",
         "kind": "state_tap",
-        "next": null,
-        "node_id": "releases",
-        "parameters": {},
         "query": {
           "target": {
             "kind": "QueryDefinition",
             "name": "security.release_inventory"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "watched",
-        "budgets": null,
+        "id": "watched",
         "kind": "state_tap",
-        "next": null,
-        "node_id": "watched",
-        "parameters": {},
         "query": {
           "target": {
             "kind": "QueryDefinition",
             "name": "security.watched_vulnerabilities"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "assessments",
-        "budgets": null,
+        "id": "assessments",
         "kind": "state_tap",
-        "next": null,
-        "node_id": "assessments",
-        "parameters": {},
         "query": {
           "target": {
             "kind": "QueryDefinition",
             "name": "security.assessment_index"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "ecosystems",
         "capture_contract": {
           "target": {
             "kind": "CaptureContract",
             "name": "security.fetched-v1"
           }
         },
+        "id": "ecosystems",
         "interface": {
           "target": {
             "kind": "ProviderInterface",
@@ -100,22 +78,19 @@
           }
         },
         "kind": "source",
-        "next": null,
-        "node_id": "ecosystems",
         "provider": {
-          "slot_name": "ecosystems",
-          "tag": "playbill-procedure-pin-slot-ref-v1"
+          "slot_name": "ecosystems"
         },
         "request": {}
       },
       {
-        "as": "osv",
         "capture_contract": {
           "target": {
             "kind": "CaptureContract",
             "name": "security.fetched-v1"
           }
         },
+        "id": "osv",
         "interface": {
           "target": {
             "kind": "ProviderInterface",
@@ -123,11 +98,8 @@
           }
         },
         "kind": "source",
-        "next": null,
-        "node_id": "osv",
         "provider": {
-          "slot_name": "osv",
-          "tag": "playbill-procedure-pin-slot-ref-v1"
+          "slot_name": "osv"
         },
         "request": {
           "ecosystems": "$steps.ecosystems",
@@ -173,8 +145,7 @@
         }
       },
       {
-        "as": "decide",
-        "effect_policy": null,
+        "id": "decide",
         "input": {
           "assessments": "$steps.assessments.result.rows",
           "osv": "$steps.osv",
@@ -188,21 +159,15 @@
           }
         },
         "kind": "call",
-        "next": null,
-        "node_id": "decide",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/32c7f0af74c944543dd5d06ec7fcceb0610265de1cef3a1e0d32d9b5da9e35fc"
-          }
+          "slot_name": "decide"
         }
       },
       {
-        "as": "summary",
         "contract_out": {
           "target": {
             "kind": "Contract",
-            "name": "security-osv-applicability-summary"
+            "name": "security.osv-applicability-output"
           }
         },
         "fields": {
@@ -216,42 +181,24 @@
           "unchanged": "$steps.decide.unchanged",
           "unkeyed": "$steps.decide.unkeyed"
         },
-        "kind": "project",
-        "next": null,
-        "node_id": "summary"
+        "id": "summary",
+        "kind": "project"
       },
       {
+        "id": "changed",
         "kind": "guard",
         "message": "OSV changes no assessment.",
-        "node_id": "changed",
         "on_false": "nochange",
-        "on_true": "propose",
         "predicate": {
-          "all_of": null,
-          "any_of": null,
           "left": {
             "alias": "decide",
-            "input_name": null,
             "kind": "step",
-            "parameter_name": null,
             "path": [
               "changed"
-            ],
-            "tag": "playbill-predicate-operand-v1",
-            "value": null
+            ]
           },
-          "not_of": null,
           "operator": "gt",
-          "right": {
-            "alias": null,
-            "input_name": null,
-            "kind": "literal",
-            "parameter_name": null,
-            "path": [],
-            "tag": "playbill-predicate-operand-v1",
-            "value": 0
-          },
-          "tag": "playbill-guard-predicate-v1"
+          "right": 0
         },
         "refusal_code": "no_change"
       },
@@ -259,19 +206,26 @@
         "candidate_templates": {
           "items": "$steps.decide.items"
         },
-        "claim_types": [],
+        "id": "propose",
         "kind": "propose_change_set",
-        "node_id": "propose",
         "result": "$steps.summary"
       },
       {
+        "id": "nochange",
         "kind": "halt",
-        "node_id": "nochange",
         "reason": "no_change"
       }
     ],
-    "parameter_contract": null,
     "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-applicability/v1"
+          }
+        },
+        "slot_name": "decide"
+      },
       {
         "interface": {
           "target": {
@@ -279,8 +233,7 @@
             "name": "security.osv-ecosystems/v1"
           }
         },
-        "slot_name": "ecosystems",
-        "tag": "cruxible-procedure-slot-v2"
+        "slot_name": "ecosystems"
       },
       {
         "interface": {
@@ -289,147 +242,63 @@
             "name": "security.osv-query/v1"
           }
         },
-        "slot_name": "osv",
-        "tag": "cruxible-procedure-slot-v2"
+        "slot_name": "osv"
       }
     ],
     "returns": "summary",
-    "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:28b8c7a5fc05c56ea6aea97bece5d91d1fe1a0dc2fdb4fc7b1eaa66d10af2040",
+  "definition_digest": "sha256:0d4506af9136044d2b92ea5b4abc13251cb208ab983860b7d99c9f194b21ade8",
   "identity": {
-    "kind": "Blueprint",
+    "kind": "Procedure",
     "name": "security.osv-applicability"
-  },
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
   },
   "owned_contracts": [
     {
       "identity": {
         "kind": "Contract",
-        "name": "security-empty-input"
+        "name": "security.osv-applicability-input"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {}
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
+      }
     },
     {
       "identity": {
         "kind": "Contract",
-        "name": "security-osv-applicability-summary"
+        "name": "security.osv-applicability-output"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "affected": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "changed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "coverage": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "inconclusive": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "judged": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "not_affected": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "packages": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "unchanged": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "unkeyed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "json"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
+      }
     }
   ]
 }

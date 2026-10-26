@@ -86,10 +86,7 @@
         },
         "kind": "source",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-provider-web/ddc99c153ce3ca4226d991f11ab40f1d96fa0ad4364c8918f8aa82b0c840218b"
-          }
+          "slot_name": "catalog"
         },
         "request": {
           "expected_format": "json",
@@ -124,10 +121,7 @@
         },
         "kind": "call",
         "provider": {
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/32c7f0af74c944543dd5d06ec7fcceb0610265de1cef3a1e0d32d9b5da9e35fc"
-          }
+          "slot_name": "parse"
         }
       },
       {
@@ -178,10 +172,30 @@
         "reason": "no_change"
       }
     ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch/v3"
+          }
+        },
+        "slot_name": "catalog"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.kev-catalog/v2"
+          }
+        },
+        "slot_name": "parse"
+      }
+    ],
     "returns": "summary",
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:e4a4749162210ccb2272807880101e73397662d3b415c0c36a52733565340d9e",
+  "definition_digest": "sha256:c49ae30a980db6bf8e0d894a6ca21435605511fb35714878ac255aa443f9e90f",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-triage"
