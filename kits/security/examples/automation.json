@@ -3,6 +3,16 @@
   "rationale": "Example consumer automation for the security kit (vulnerability loop, system model, code findings and incident response); adapt before submitting.",
   "members": [
     {
+      "kind": "acquisition_policy",
+      "acquisition_policy": {
+        "identity": {
+          "kind": "SourceAcquisitionPolicy",
+          "name": "default"
+        },
+        "max_age": "P1D"
+      }
+    },
+    {
       "kind": "blueprint_instance",
       "name": "security.kev-acquire",
       "blueprint": "security.kev-acquire",

@@ -85,8 +85,10 @@ def instantiate(fetch: str, sources: str) -> dict[str, Any]:
     """Step 1: the acquisition Blueprints, bound to installed Providers."""
 
     members = [member for member in example()["members"]
-               if member["kind"] == "blueprint_instance"]
+               if member["kind"] in {"blueprint_instance", "acquisition_policy"}]
     for member in members:
+        if member["kind"] != "blueprint_instance":
+            continue
         member["bindings"] = {slot: fetch if slot in FETCH_SLOTS else sources
                               for slot in member["bindings"]}
     return {"kind": "change_set", "rationale": "Instantiate the security Blueprints.",

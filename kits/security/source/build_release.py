@@ -135,7 +135,7 @@ def main() -> None:
                 if result.returncode != 0:
                     raise SystemExit(result.stdout + result.stderr)
             args = ["kit", "build", "--id", "security", "--version", release, "--owns",
-                    "security.", "--owns", "default", "--out", str(out / release)]
+                    "security.", "--out", str(out / release)]
             for name in BUNDLED:
                 package = (variant_provider if release == VARIANT and
                            name == "security-analysis-provider" else PROVIDERS / name)

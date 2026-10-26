@@ -1,0 +1,150 @@
+"""Independent light-artifact oracles and exact lowering checks for the release sources.
+
+Procedure oracle: kitcore 63947cbff tests/fixtures/procedures/security-p1.json.
+Query oracle: the same core's test_query/fixtures/security_authored_queries.json tree hashes.
+No decompiler supplies authoring input to these checks.
+"""
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import json
+from pathlib import Path
+
+import pytest
+from cruxible_client.contracts.authoring.inputs import lower_authoring_input
+from cruxible_client.contracts.canonical import canonical_bytes
+from cruxible_client.contracts.procedures.artifacts import parse_procedure, render_procedure
+from cruxible_client.contracts.procedures.authored import lower_procedure_spec
+from cruxible_client.contracts.procedures.graph import compute_procedure_definition_digest
+from cruxible_client.contracts.procedures.named_models import NamedProcedureDefinition
+from cruxible_client.contracts.provider_contracts import ProviderOperationContract
+from cruxible_client.contracts.query.authored import lower_query_spec
+from cruxible_client.contracts.query.definitions import render_query_definition
+from cruxible_core.service.discovery.authored_query import AuthoredQueryResolver, candidate_query_vocabulary
+
+KIT = Path(__file__).parents[1]
+MODULE = KIT / 'source/authoring/security_definitions.py'
+module_spec = importlib.util.spec_from_file_location('security_definitions', MODULE)
+defs = importlib.util.module_from_spec(module_spec)
+module_spec.loader.exec_module(defs)
+ORACLE = json.loads((Path(__file__).parent / 'data/light-artifacts/procedures.json').read_text())
+QUERY_ORACLE = json.loads((Path(__file__).parent / 'data/light-artifacts/query-trees.json').read_text())
+SPECS = {spec.procedure: spec for spec in defs.procedure_specs()}
+
+
+def _operation(interface):
+    interface = interface.partition('/')[0]
+    for provider in ('security-analysis-provider', 'security-sources-provider'):
+        path = KIT / f'source/providers/{provider}/src/{provider.replace("-", "_")}/contracts/{interface}.json'
+        if path.is_file():
+            return ProviderOperationContract.model_validate(json.loads(path.read_text())['contracts'])
+    # The built-in and web schemas are carried by the source's explicitly declared return fields.
+    return None
+
+
+@pytest.mark.parametrize('name', sorted(SPECS))
+def test_authored_procedure_lowers_to_stored_bytes(name):
+    path = f'procedures/{name}.json'
+    wire = (KIT / 'artifacts' / path).read_bytes()
+    stored = parse_procedure(wire, path=path)
+    nodes = {node.as_: node for node in stored.definition.nodes if hasattr(node, 'as_')}
+    def resolve(kind, step):
+        node = nodes[getattr(step, 'call', None) or getattr(step, 'source', None)]
+        op = _operation(node.interface.target.name)
+        output = None if op is None else (op.material if node.kind == 'source' else op.output)
+        return {'bindings': {'provider': node.provider.model_dump(mode='json'),
+                             'interface': node.interface.model_dump(mode='json')},
+                'output': None if output is None else output.fields}
+    lowered = lower_procedure_spec(SPECS[name], resolve=resolve)
+    payload = lower_authoring_input(lowered)
+    definition = NamedProcedureDefinition.model_validate(payload.definition)
+    actual = stored.model_copy(update={'definition':definition,
+        'definition_digest':compute_procedure_definition_digest(definition).tagged,
+        'owned_contracts':payload.owned_contracts})
+    assert render_procedure(actual) == wire
+
+
+def _semantic(value):
+    if isinstance(value, list):
+        return [_semantic(item) for item in value]
+    if isinstance(value, dict):
+        # New provider builds and named interface versions are acceptance coordinates.
+        if set(value) == {'kind', 'name'} and value['kind'] in {'Provider', 'ProviderInterface'}:
+            return {**value, 'name':value['name'].partition('/')[0]}
+        if value.get('role') == 'query' and value.get('target', {}).get('name') == 'security.kev_triage_backlog':
+            return {'role':'query','target':value['target']}
+        return {key:_semantic(item) for key,item in value.items() if key != 'definition_digest'}
+    if isinstance(value, str):
+        for old,(new,_) in defs.CONTRACT_USES.items():
+            value = value.replace(old,new)
+    return value
+
+
+@pytest.mark.parametrize('filename', sorted(ORACLE))
+def test_procedure_semantics_match_independent_core_oracle(filename):
+    actual = json.loads((KIT / 'artifacts/procedures' / filename).read_text())
+    expected = ORACLE[filename]
+    # G6/G7 intentionally extend two import contracts, summaries and parse requests.
+    if filename in {'security.inventory-import.json','security.sbom-import.json'}:
+        def strip_extensions(item):
+            if isinstance(item, dict):
+                for key in ('osv_unindexed','osv_not_indexed','osv_ecosystems'):
+                    item.pop(key,None)
+                if 'asset' in item and (item['asset'] == '$input.asset' or
+                                      item['asset'] == {'default':'','optional':True,'type':'string'}):
+                    item.pop('asset')
+                for child in item.values(): strip_extensions(child)
+            elif isinstance(item, list):
+                for child in item: strip_extensions(child)
+        strip_extensions(actual)
+    assert _semantic(actual) == _semantic(expected)
+
+
+@pytest.mark.parametrize('spec', defs.query_definitions(defs.RELEASE), ids=lambda spec:spec.query)
+def test_authored_query_matches_tree_oracle_and_stored_bytes(spec):
+    tree = {str(path.relative_to(KIT / 'artifacts')):path.read_bytes()
+            for path in (KIT / 'artifacts/claim-types').rglob('*.json')}
+    resolver = AuthoredQueryResolver(candidate_query_vocabulary(tree))
+    query = lower_query_spec(spec,resolver)
+    body = query.model_dump(mode='json')
+    body.pop('pins',None)
+    assert hashlib.sha256(canonical_bytes(body)).hexdigest() == QUERY_ORACLE[spec.query]
+    assert render_query_definition(query) == (KIT / f'artifacts/query-definitions/{spec.query}.json').read_bytes()
+
+
+def test_capture_contracts_are_shared_shapes_with_use_site_sources():
+    contracts = defs.capture_contracts()
+    assert len(contracts) == 5
+    assert {contract.shape for contract in contracts} == {'http_response','procedure_output'}
+    for contract in contracts:
+        body = contract.model_dump(mode='json')
+        assert not {'evidence_kinds','allowed_source_kinds','logical_source_identities','pins'} & body.keys()
+    for claim_type in defs.claim_types(defs.RELEASE):
+        for rule in claim_type.evidence_admission_policy.rules:
+            for use in rule.capture_contracts:
+                if use.target.name in {'security.fetched-v1','security.fetched-large-v1',
+                                        'security.file-v1','security.file-erasable-v1'}:
+                    assert use.logical_sources
+
+
+def test_all_21_triggers_name_contracts_and_sources():
+    members = json.loads((KIT / 'examples/automation.json').read_text())['members']
+    triggers = [member for member in members if member['kind'] == 'trigger']
+    assert len(triggers) == 21
+    names = {contract.identity.name for contract in defs.capture_contracts()}
+    for trigger in triggers:
+        schedule = trigger['schedule']
+        if schedule['kind'] == 'capture_landing':
+            assert schedule['capture_contract'] in names
+            assert schedule['logical_sources']
+            assert not any('digest' in key for key in schedule)
+
+
+def test_measurement_keeps_exact_accepted_query_evidence():
+    from cruxible_client.contracts.query.definitions import parse_query_definition, query_definition_digest
+    path = 'query-definitions/security.kev_triage_backlog.json'
+    query = parse_query_definition((KIT / 'artifacts' / path).read_bytes(), path=path)
+    spec = SPECS['security.kev-triage']
+    measurement, = spec.measurements
+    assert measurement.measurement.query.artifact_digest == query_definition_digest(query).tagged

@@ -37,29 +37,22 @@ from cruxible_client.authoring.procedures import (
     Guard,
     Halt,
     Output,
-    PostInbox,
     Project,
     ProposeChangeSet,
     Sequence,
-    SettleChangeSet,
     Source,
     StateTap,
 )
 from cruxible_client.contracts.acquisition_policies import SourceAcquisitionPolicy
-from cruxible_client.contracts.artifacts import ArtifactIdentity, ArtifactLifecycle, ArtifactRef
+from cruxible_client.contracts.artifacts import ArtifactIdentity
 from cruxible_client.contracts.authoring.inputs import BlueprintInput, ProcedureInput, QueryDefinitionInput
-from cruxible_client.contracts.canonical import canonical_bytes
 from cruxible_client.contracts.procedures.authored import ProcedureSpec, lower_procedure_spec
 from cruxible_client.contracts.query.authored import QuerySpecInput
 from cruxible_client.contracts.captures import (
     CanonicalDuration,
-    CaptureContract,
-    capture_component_pin,
 )
 from cruxible_client.contracts.capture_contract_inputs import (CaptureContractInputRecord, lower_capture_contract_input)
 from cruxible_client.contracts.claim_types import (
-    CLAIM_TYPE_V9_FORMAT,
-    ClaimEvidenceFreshness,
     ClaimFreshnessDuration,
     ClaimInverse,
     ClaimInverseObjectKeyPart,
@@ -68,10 +61,8 @@ from cruxible_client.contracts.claim_types import (
 )
 from cruxible_client.contracts.policies import (
     CaptureContractAdmission,
-    ClaimAdmissionPolicy,
     ClaimEvidenceAdmissionPolicy,
     ClaimEvidenceAdmissionRule,
-    ClaimResolutionPolicy,
 )
 from cruxible_client.contracts.procedures.contract_schema import PropertySchema
 from cruxible_client.contracts.procedures.models import (
@@ -79,28 +70,6 @@ from cruxible_client.contracts.procedures.models import (
     PredicateOperand,
     ProcedureBudget,
     ProcedureHardCaps,
-)
-from cruxible_client.contracts.query.definitions import QueryDefinitionSpec, QueryEvaluationPolicy
-from cruxible_client.contracts.query.grammar import (
-    QueryBudgets,
-    QueryClaimFieldRef,
-    QueryClaimPresenceFilter,
-    QueryClaimValueRef,
-    QueryComparisonFilter,
-    QueryConjunctionFilter,
-    QueryDisjunctionFilter,
-    QueryEntry,
-    QueryEvaluationTimeRef,
-    QueryInclude,
-    QueryLiteralRef,
-    QueryNegationFilter,
-    QueryOrdering,
-    QueryParameterDeclaration,
-    QueryParameterRef,
-    QueryProjection,
-    QueryProjectionField,
-    QuerySubjectFieldRef,
-    QueryTraversalStep,
 )
 
 DATA = Path(__file__).resolve().parent / "data"
@@ -1331,7 +1300,7 @@ def _blueprint(sequence: Sequence, interface: dict[str, Any], slot: str,
     by its interface: every network Source is the consumer's to bind."""
 
     slots = {slot: interface, **(also or {})}
-    built = lower_procedure_spec(sequence.build().spec)
+    built = lower_procedure_spec(sequence.build().spec, named=False)
     definition = dict(built.definition)
     nodes = []
     for node in definition["nodes"]:
@@ -1345,8 +1314,8 @@ def _blueprint(sequence: Sequence, interface: dict[str, Any], slot: str,
     definition["pin_slots"] = [
         {
             "slot_name": name,
-            "interface": {"target": {"kind": "ProviderInterface",
-                                       "name": slots[name]["identity"]["name"]}},
+            "pin_role": "provider",
+            "artifact_kind": "Provider",
         }
         for name in sorted(slots)
     ]
@@ -1472,14 +1441,6 @@ def _file_acquire(cx: Cruxible, name: str, alias: str, contract: str, logical_so
     return sequence.build()
 
 
-
-
-
-
-
-
-
-
 def _sarif_steps(terminal: list[Any], guard: Guard) -> list[Any]:
     """The landed SARIF log, the Line repository's held findings, the analysis, then the
     repository guard (another repository's log halts wrong_repo) and ``terminal``."""
@@ -1501,18 +1462,6 @@ def _sarif_steps(terminal: list[Any], guard: Guard) -> list[Any]:
         *terminal,
         Halt("other", reason="wrong_repo"),
     ]
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def osv_applicability(cx: Cruxible) -> BlueprintInput:
@@ -1569,8 +1518,6 @@ def osv_applicability(cx: Cruxible) -> BlueprintInput:
     ).bind(osv=osv, ecosystems=ecosystems, decide=decide)
     return _blueprint(sequence, _interface(cx, "security.osv-query"), "osv",
                       also={"ecosystems": _interface(cx, "security.osv-ecosystems")})
-
-
 
 
 # --- the system model: pull, parse, harden -------------------------------------
@@ -1703,39 +1650,19 @@ def _mine(alias: str, field: str, parameter: str) -> GuardPredicate:
     )
 
 
-
-
-
-
-
-
 # --- incident response: acquire, import, respond ----------------------------------
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def _backlog_measurement() -> dict[str, Any]:
+def _backlog_measurement(digest: str) -> dict[str, Any]:
     return {
         "name": "kev-backlog-cleared",
         "subject_grain": "procedure_unit",
         "measurement": {
             "kind": "accepted_query",
             "query": {
-                "kind": "accepted",
                 "role": "query",
-                "target": "QueryDefinition:security.kev_triage_backlog",
+                "target": {"kind": "QueryDefinition", "name": "security.kev_triage_backlog"},
+                "artifact_digest": digest,
             },
             "parameters": {},
             "execution_options": {},
@@ -1814,9 +1741,29 @@ def _held_query(cx: Cruxible, name: str) -> tuple[dict[str, Any], str] | None:
     return dict(proof["envelope"]), str(proof["artifact_digest"])
 
 
-def procedure_specs() -> list[ProcedureSpec]:
-    return [ProcedureSpec.model_validate(record)
-            for record in json.loads((DATA / "procedures.json").read_text())]
+def procedure_specs(cx: Cruxible | None = None) -> list[ProcedureSpec]:
+    records = json.loads((DATA / "procedures.json").read_text())
+    if cx is not None:
+        # K1b will make these provider positions slots. K1a retains the selected builds.
+        bindings = {}
+        for record in records:
+            for step in record["steps"]:
+                if "call" in step or "source" in step:
+                    key = (step["interface"], step["provider"])
+                    if key not in bindings:
+                        bindings[key] = cx.provider_interface(key[0], provider=key[1])
+                    step["provider"] = bindings[key].provider
+    from cruxible_client.contracts.query.definitions import parse_query_definition, query_definition_digest
+    if cx is not None:
+        _, digest = _held_query(cx, "security.kev_triage_backlog")
+    else:
+        path = "query-definitions/security.kev_triage_backlog.json"
+        digest = query_definition_digest(parse_query_definition(
+            (Path(__file__).parents[2] / "artifacts" / path).read_bytes(), path=path)).tagged
+    for record in records:
+        if record["procedure"] == "security.kev-triage":
+            record["measurements"] = [_backlog_measurement(digest)]
+    return [ProcedureSpec.model_validate(record) for record in records]
 
 
 def procedures(cx: Cruxible, release: str) -> None:
@@ -1825,7 +1772,7 @@ def procedures(cx: Cruxible, release: str) -> None:
                     osv_applicability, repo_acquire, registry_acquire, release_acquire,
                     asset_fetch, history_acquire):
         draft.procedure(definition=factory(cx))
-    for spec in procedure_specs():
+    for spec in procedure_specs(cx):
         draft.procedure(definition=ProcedureInput(kind="procedure", spec=spec))
     submit(cx, draft, "procedures")
 
