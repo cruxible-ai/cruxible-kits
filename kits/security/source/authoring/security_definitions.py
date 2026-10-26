@@ -78,13 +78,6 @@ SYSTEM_CONTRACTS = (REPO_CONTRACT, PYPI_CONTRACT, GH_RELEASE_CONTRACT, GH_API_CO
 POLICY = "default"
 RELEASE = "1.3.0"  # the kit release
 VARIANT = "1.3.1"  # the release gate's upgrade variant (not published)
-WEB_PROVIDER = "cruxible-provider-web"
-ANALYSIS_PROVIDER = "security-analysis-provider"
-SOURCES_PROVIDER = "security-sources-provider"
-KEV_MAX_BYTES = 4_194_304  # the catalog is ~1.7 MB; web.fetch defaults to 256 KiB
-CVE_MAX_BYTES = 1_048_576
-GITHUB_MAX_BYTES = 4_194_304
-ASSET_MAX_BYTES = 33_554_432  # security.release-asset's ceiling
 #: The built-in workspace.file structures at most 1 MiB (core
 #: providers/builtin_workspace_file.py MAX_STRUCTURED_BYTES): every workspace-file
 #: Procedure's budget says so.
@@ -109,7 +102,6 @@ OSV_COVERAGE = {"type": "string", "pattern": (
     r"(; unidentified [0-9]+)?; set [0-9a-f]{16}$")}
 #: Kit data (cited, editable by authoring a successor of the Procedure that carries it):
 #: which OSV ecosystem answers for a purl type.
-PURL_OSV_ECOSYSTEMS = json.loads((DATA / "purl_osv_ecosystems.json").read_text())
 #: Kit data: how a CVE record's collectionURL names a package (cve-applicability carries it).
 #: Another name a release's product goes by in vulnerability records.
 ALIAS = {"type": "string", "pattern": (
@@ -159,10 +151,6 @@ CONTRACT_USES = {
     OUTPUT_CONTRACT: (OUTPUT_CONTRACT, None),
     SELF_SOURCE_CONTRACT: (SELF_SOURCE_CONTRACT, None),
 }
-
-
-def _capture(use: str) -> str:
-    return CONTRACT_USES.get(use, (use, None))[0]
 
 
 #: What an analyst's judgment may cite: their own words, or a workspace file
@@ -1065,6 +1053,9 @@ def procedure_specs(cx: Cruxible | None = None, release: str = RELEASE) -> list[
         if release == VARIANT and record["procedure"] == "security.fetch-observed":
             record["budget"]["wall_clock"] = "PT90S"
             record["description"] += " Gate variant: a 90 second budget."
+        if release == VARIANT and record["procedure"] == "security.kev-triage":
+            record["budget"]["wall_clock"] = "PT150S"
+            record["description"] += " Gate variant: a 150 second triage budget."
         if record["procedure"] == "security.kev-triage":
             record["measurements"] = [_backlog_measurement(digest)]
     return [ProcedureSpec.model_validate(record) for record in records]

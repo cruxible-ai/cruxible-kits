@@ -20,6 +20,7 @@ from cruxible_client.contracts.procedures.artifacts import (
     render_procedure,
 )
 from cruxible_client.contracts.procedures.authored import lower_procedure_spec
+from cruxible_client.contracts.procedures.decompile import decompile_procedure
 from cruxible_client.contracts.procedures.graph import (
     compute_procedure_definition_digest,
 )
@@ -85,17 +86,21 @@ def test_authored_procedure_has_consistent_stored_bytes(name):
             "output": None if output is None else output.fields,
         }
 
-    lowered = lower_procedure_spec(SPECS[name], resolve=resolve)
-    payload = lower_authoring_input(lowered)
-    definition = NamedProcedureDefinition.model_validate(payload.definition)
-    actual = stored.model_copy(
-        update={
-            "definition": definition,
-            "definition_digest": compute_procedure_definition_digest(definition).tagged,
-            "owned_contracts": payload.owned_contracts,
-        }
-    )
-    assert render_procedure(actual) == wire
+    for spec in (SPECS[name], decompile_procedure(stored)):
+        assert spec.slots == SPECS[name].slots
+        lowered = lower_procedure_spec(spec, resolve=resolve)
+        payload = lower_authoring_input(lowered)
+        definition = NamedProcedureDefinition.model_validate(payload.definition)
+        actual = stored.model_copy(
+            update={
+                "definition": definition,
+                "definition_digest": compute_procedure_definition_digest(
+                    definition
+                ).tagged,
+                "owned_contracts": payload.owned_contracts,
+            }
+        )
+        assert render_procedure(actual) == wire
 
 
 def _semantic(value):
@@ -106,7 +111,7 @@ def _semantic(value):
         # the core oracle remains the independent behavior/evidence/topology reference.
         if "provider" in value and "interface" in value:
             value = {**value, "provider": {"by_interface": value["interface"]}}
-        value = {k: ([] if k == "pin_slots" else v) for k, v in value.items()}
+        value = {k: v for k, v in value.items() if k != "pin_slots"}
         # New provider builds and named interface versions are acceptance coordinates.
         if set(value) == {"kind", "name"} and value["kind"] in {
             "Provider",
@@ -124,7 +129,12 @@ def _semantic(value):
             if key != "definition_digest"
         }
     if isinstance(value, str):
-        replacements = json.loads((Path(__file__).parent / "data/version-history/contract-replacements.json").read_text())
+        replacements = json.loads(
+            (
+                Path(__file__).parent
+                / "data/version-history/contract-replacements.json"
+            ).read_text()
+        )
         for old, (new, _) in replacements.items():
             value = value.replace(old, new)
     return value
@@ -256,7 +266,11 @@ def test_claim_type_defaults_preserve_all_137_structural_and_admission_decisions
             == oracle["evidence_hashes"][claim_type.predicate]
         ), claim_type.predicate
         data = {field: body.get(field) for field in oracle["fields"]}
-        repairs = json.loads((Path(__file__).parent / "data/version-history/description-repairs.json").read_text())
+        repairs = json.loads(
+            (
+                Path(__file__).parent / "data/version-history/description-repairs.json"
+            ).read_text()
+        )
         if claim_type.predicate in repairs:
             repair = repairs[claim_type.predicate]
             assert data["description"] == repair["after"]
@@ -292,8 +306,12 @@ def test_folded_inventory_and_slot_interfaces_are_explicit():
     assert len(SPECS) == 28
     assert not list((KIT / "artifacts/blueprints").rglob("*.json"))
     assert set(SPECS) - {name.removesuffix(".json") for name in ORACLE} == {
-        "security.fetch", "security.fetch-observed", "security.epss-acquire",
-        "security.asset-fetch", "security.registry-acquire", "security.repo-acquire",
+        "security.fetch",
+        "security.fetch-observed",
+        "security.epss-acquire",
+        "security.asset-fetch",
+        "security.registry-acquire",
+        "security.repo-acquire",
         "security.osv-applicability",
     }
     assert SPECS["security.osv-applicability"].activation == "drain"
