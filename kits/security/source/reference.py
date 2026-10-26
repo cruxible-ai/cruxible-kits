@@ -48,6 +48,11 @@ SELF_SOURCE = "playbill.coordinator-self-source-v1"
 # stated once above the table instead of in every row.
 QUERY_SCOPE = "Scoped to supported, current Claims; missing evidence is not a negative finding."
 _MICROS_PER_HOUR = 3_600_000_000
+# Procedures a Line declared with each incident runs (walkthroughs.md), not an example
+# Line: the source node that Line feeds from its landing (None: it has none). ``check``
+# refuses an entry that is not a Procedure, names no source node, or an example Line runs.
+PER_INCIDENT = {"security.log-import": "log", "security.respond": None}
+PER_INCIDENT_TEXT = "a Line per incident ([walkthroughs](walkthroughs.md))"
 
 Json = dict[str, Any]
 
@@ -90,6 +95,7 @@ class SourceNode:
     interface: str | None
     provider: str | None
     emitted: bool  # an emit_capture terminal: the run's own output, retained
+    logical_source: str | None  # the request's, literal or an ``$input.`` reference
 
 
 @dataclass(frozen=True)
@@ -104,7 +110,6 @@ class DefinitionDoc:
 @dataclass(frozen=True)
 class ContractDoc:
     name: str
-    sources: tuple[str, ...]
     shape: str
     replay: str
     grade: str
@@ -123,6 +128,7 @@ class LineDoc:
     procedure: str
     max_authority: str
     trigger_input: str | None
+    parameters: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -270,6 +276,11 @@ def _definition(raw: Json, kind: str) -> tuple[DefinitionDoc, list[SourceNode]]:
                 interface=interface.get("target", {}).get("name", "").split("/")[0] or None,
                 provider=provider.get("target", {}).get("name", "").split("/")[0] or None,
                 emitted=node["kind"] == "emit_capture",
+                logical_source=(
+                    source
+                    if isinstance(source := (node.get("request") or {}).get("logical_source"), str)
+                    else None
+                ),
             )
         )
     summary = _first_sentence(definition["description"])
@@ -336,7 +347,6 @@ def load(kit_dir: Path) -> KitDocs:
         elif top == "capture-contracts":
             docs.contracts[raw["identity"]["name"]] = ContractDoc(
                 name=raw["identity"]["name"],
-                sources=(),
                 shape=raw.get("shape", "http_response"),
                 replay=raw.get("replay", "attested"),
                 grade=raw["epistemic_grade"],
@@ -370,6 +380,7 @@ def _load_example(docs: KitDocs, change_set: Json) -> None:
                 procedure=member["procedure_name"],
                 max_authority=member["max_authority"],
                 trigger_input=member.get("trigger_input"),
+                parameters=member.get("parameters") or {},
             )
         elif kind == "trigger":
             schedule = member["schedule"]
@@ -403,9 +414,14 @@ def _definition_of(docs: KitDocs, procedure: str) -> str:
 
 
 def _reads_landing(docs: KitDocs, node: SourceNode) -> bool:
-    """A source node an example Line feeds from the Capture that started it."""
+    """A source node a Line feeds from the Capture that started it: an example Line's, or
+    the Line each incident declares."""
 
-    return node.alias is not None and any(
+    if node.alias is None:
+        return False
+    if node.definition in PER_INCIDENT:
+        return PER_INCIDENT[node.definition] == node.alias
+    return any(
         _definition_of(docs, line.procedure) == node.definition and line.trigger_input == node.alias
         for line in docs.lines.values()
     )
@@ -430,6 +446,13 @@ def _producers(docs: KitDocs) -> dict[str, list[SourceNode]]:
         if not _reads_landing(docs, node):
             produced[node.contract].append(node)
     return produced
+
+
+def _by_definition(nodes: Iterable[SourceNode]) -> list[tuple[str, list[SourceNode]]]:
+    grouped: dict[str, list[SourceNode]] = defaultdict(list)
+    for node in nodes:
+        grouped[node.definition].append(node)
+    return sorted(grouped.items())
 
 
 def _landings(docs: KitDocs) -> dict[str, list[TriggerDoc]]:
@@ -804,17 +827,37 @@ def _models(docs: KitDocs) -> list[str]:
     return out[:-1]
 
 
-def _producer_text(docs: KitDocs, node: SourceNode, lines: Mapping[str, list[str]]) -> str:
-    via = f"`{node.provider}`" if node.provider else "a Provider you bind"
-    if node.provider == "cruxible-builtin":
-        via = f"core's built-in `{node.interface}`"
-    if node.emitted:
-        via = "its run's output"
-    elif node.provider is None:
-        via = f"slot `{node.interface}`" if node.interface else "a slot you bind"
-    named = lines.get(node.definition)
-    where = f"Line {_code(sorted(named))}" if named else "direct run"
-    return f"{node.definition_kind} `{node.definition}` ({via}; {where})"
+def _server(docs: KitDocs, interface: str | None) -> str:
+    """Who serves an interface: the installed Provider package, or core's built-in reader."""
+
+    packages = [item.package for item in docs.providers if interface in item.interfaces]
+    return f"{_code(packages)} serving" if packages else "core's built-in"
+
+
+def _where_run(definition: str, lines: Mapping[str, list[str]]) -> str:
+    named = sorted(lines.get(definition, []))
+    if named:
+        return ("Line " if len(named) == 1 else "Lines ") + _code(named)
+    if definition in PER_INCIDENT:
+        return PER_INCIDENT_TEXT
+    return "run directly"
+
+
+def _producer_text(
+    docs: KitDocs, definition: str, nodes: list[SourceNode], lines: Mapping[str, list[str]]
+) -> str:
+    """One Procedure's retention of a contract: where it runs and what serves each read."""
+
+    served: dict[str, list[str]] = defaultdict(list)
+    for node in nodes:
+        if node.emitted:
+            served["its run's own output"] = []
+        elif node.provider:
+            served[f"`{node.provider}`"] = []
+        else:
+            served[_server(docs, node.interface)].append(f"`{node.interface}`")
+    via = [" ".join([server, ", ".join(sorted(set(items)))]).strip() for server, items in served.items()]
+    return f"`{definition}` ({_where_run(definition, lines)}; {'; '.join(via)})"
 
 
 def _contracts(docs: KitDocs) -> list[str]:
@@ -828,8 +871,8 @@ def _contracts(docs: KitDocs) -> list[str]:
         "## Where evidence comes from",
         "",
         "One row per Capture contract. **Produced by**: the Procedures that "
-        "retain it, with the Provider (or the Procedure slot you bind) and the example Lines "
-        "that run them. **Landings start**: the example Lines a landing Trigger on it starts. "
+        "retain it, where they run (an example Line, a direct `cruxible procedure run`, or a "
+        "Line each incident declares) and what serves each read. **Landings start**: the example Lines a landing Trigger on it starts. "
         "**Supports**: the ClaimTypes that may cite it.",
         "",
     ]
@@ -841,10 +884,11 @@ def _contracts(docs: KitDocs) -> list[str]:
         rows.append(
             (
                 f"`{contract.name}`",
-                ", ".join(contract.sources) + f"{contract.shape}, {contract.replay}",
+                f"{contract.shape}, {contract.replay}",
                 contract.grade,
                 "; ".join(
-                    _producer_text(docs, n, by_definition) for n in producers.get(contract.name, [])
+                    _producer_text(docs, definition, nodes, by_definition)
+                    for definition, nodes in _by_definition(producers.get(contract.name, []))
                 ),
                 _code(started),
                 f"{len(backs)} ClaimTypes; {captured} {'requires' if captured == 1 else 'require'} a Capture"
@@ -933,7 +977,8 @@ def _runs(docs: KitDocs) -> list[str]:
                 item.kind,
                 ", ".join(_effects(docs, item)),
                 item.summary,
-                _code(sorted(by_definition[item.name])) or "direct",
+                _code(sorted(by_definition[item.name]))
+                or (PER_INCIDENT_TEXT if item.name in PER_INCIDENT else "direct"),
             )
             for item in sorted(docs.definitions.values(), key=lambda item: item.name)
         ),
@@ -1089,7 +1134,29 @@ def check(kit_dir: Path) -> list[str]:
         for path, text in expected(kit_dir).items()
         if not path.is_file() or path.read_text() != text
     ]
-    return problems + concept_map_problems(load(kit_dir), (kit_dir / README).read_text())
+    docs = load(kit_dir)
+    return (
+        problems
+        + concept_map_problems(docs, (kit_dir / README).read_text())
+        + derivation_problems(docs)
+    )
+
+
+def derivation_problems(docs: KitDocs) -> list[str]:
+    """Hand-kept maps the generator reads that disagree with the definitions."""
+
+    problems = []
+    run_by_example = {line.procedure for line in docs.lines.values()}
+    for name, alias in sorted(PER_INCIDENT.items()):
+        if name not in docs.definitions:
+            problems.append(f"PER_INCIDENT names {name}, which is not a Procedure of the kit")
+        elif name in run_by_example:
+            problems.append(f"PER_INCIDENT names {name}, which an example Line runs")
+        elif alias is not None and not any(
+            node.definition == name and node.alias == alias for node in docs.source_nodes
+        ):
+            problems.append(f"PER_INCIDENT names source {alias!r} of {name}, which it lacks")
+    return problems
 
 
 def main(argv: list[str]) -> int:
