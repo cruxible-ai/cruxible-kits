@@ -1011,7 +1011,7 @@ query --name security.assessment_index` shows any assessment without one.
   be keyed; the run's result lists it under `unkeyed`.
 - **`security.cve-applicability`** (vendor products, by CVE record). When a CVE
   record lands (`cruxible procedure run security.fetch` with
-  `{"url": "https://cveawg.mitre.org/api/cve/CVE-..."}`), each `affected` entry
+  `{"url": "https://cveawg.mitre.org/api/cve/CVE-...", "logical_source": "cve.record", "max_bytes": 1048576}`), each `affected` entry
   is matched to releases by data, never by a partial name:
   - its `collectionURL` + `packageName` against each component purl's full
     namespace and name (`https://pkg.go.dev` + `github.com/cli/cli/v2` names
@@ -1341,8 +1341,8 @@ version. `source/providers/cruxible-provider-web` holds the published 0.2.2
 wheel, the lock it embeds and the runtime wheel that lock names by path, so
 `kit build` can record the default's hashes; none of those files ship.
 `source/variants/1.3.1-gate` is a release-gate fixture (changes `kev_exposure`,
-adds `vulnerability.kev_cwes`, changes the fetch-observed Procedure and the analysis
-Provider's KEV rationale), not a published version.
+adds `vulnerability.kev_cwes`, changes fetch-observed from 60 to 90 seconds and KEV triage from 120 to 150
+seconds, and changes the analysis Provider's KEV rationale), not a published version.
 
 ### Release gate
 
@@ -1421,7 +1421,7 @@ the exported `security.` definitions. Lines inherit it without policy references
 
 ## Intake recipes
 
-These are reference recipes for the intake skill. The maintainer chooses sources,
+These are reference recipes for the intake skill. The user chooses sources,
 scopes and enabled Lines; state records what is waiting.
 
 ### An SBOM per repository
@@ -1454,7 +1454,7 @@ mishandles, so fix them before building the SBOM:
   version; otherwise `pkg:github/<org>/<repo>@<sha>`, which OSV doesn't index, so
   the release stays honestly partial until an analyst judges it).
 
-The maintainer should check the generated purls and versions against the installed
+The user should check the generated purls and versions against the installed
 software; the Syft command below is a generator recipe, not a verified host scan.
 ~~~bash
 syft dir:. -o cyclonedx-json > sboms/myapp.cdx.json                       # any ecosystem
@@ -1663,6 +1663,22 @@ docs:
 
 `cruxible write intake/log-sources.yaml`. When a source moves or a new one
 appears, change the list the same way (`retire` an old value, `add` a new one).
+
+### Generic HTTP reads
+
+`security.fetch` takes `url`, `logical_source` and `max_bytes`. A CVE record uses
+`cve.record` and 1,048,576 bytes; a GitHub release uses `github.release`, and API
+history uses `github.api`, both with 4,194,304 bytes. For example:
+
+```json
+{"url": "https://cveawg.mitre.org/api/cve/CVE-2021-44228",
+ "logical_source": "cve.record", "max_bytes": 1048576}
+```
+
+Save it as `intake/cve.json` and run
+`cruxible procedure run security.fetch intake/cve.json`. The KEV daily Line uses
+`security.fetch-observed` with the CISA URL, source `cisa.kev.catalog` and
+`max_bytes: 4194304`; its emitted summary makes it Line-only.
 
 ### Host SBOM context
 

@@ -200,12 +200,6 @@
       "schedule": {
         "kind": "cron",
         "expression": "17 14 * * *"
-      },
-      "procedure_name": "security.fetch-observed",
-      "parameters": {
-        "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
-        "logical_source": "cisa.kev.catalog",
-        "max_bytes": 4194304
       }
     },
     {
