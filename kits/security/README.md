@@ -2,16 +2,35 @@
 
 ## What it is
 
-The security kit gives your agents a cited model of what you ship and how it is
-published, joined to public vulnerability evidence and to the weaknesses found in
-your own code, and carries them through an incident: patch, audit, rotate. It holds your releases and their components, your repositories' CI
-workflows and jobs, and the registries you publish to with the files they serve;
-beside them, what CISA KEV, FIRST EPSS, OSV.dev and CVE records say about
-vulnerabilities, and what your scanners and agent reviewers report about your
-code, with the verdict your reviewers reached. Every fact points to the
+The security kit makes Cruxible your organization's security record: a model of
+what you run and what you ship, joined to what the world says about
+vulnerabilities, that your agents keep current and answer from. It models:
+
+- **What you run.** Your hosts and workloads and what each one actually runs,
+  from your inventory and runtime scans; the business services they serve, with
+  each service's owning team, criticality and log sources; and the credentials
+  those services use, by their non-secret key ids.
+- **What you build and ship.** Your repositories and their CI workflows and jobs
+  (triggers, permissions, secrets, actions, publish targets), the registries you
+  publish to and the files they serve, and your releases with their components
+  from your SBOMs.
+- **What others say.** CISA KEV, FIRST EPSS, OSV.dev and CVE records about
+  vulnerabilities, and what your scanners and agent reviewers report about your
+  own code.
+
+On that model it answers the questions a security team asks: which hosts run
+something attackers are exploiting, what can publish without a release tag,
+which weaknesses in your code are still open. In an incident it carries the
+response through: find what is exposed, patch it, audit the logs for
+exploitation, rotate the keys.
+
+Cruxible is what makes those answers trustworthy. Every fact points to the
 retained copy of the source it was read from. Judgments, such as whether a
-release is affected or what explains a mismatch, are proposed by agents and
-settled by your review, or automatically by automation that has earned it.
+release is affected or whether a service was exploited, are proposed by agents
+and settled by your review, or automatically once automation has a measured
+record. Every answer is **found**, **none** or **unknown**, and never "none" for
+something nobody read. Lines keep the model current on a schedule, or whenever
+new evidence lands.
 
 ## What it answers
 
