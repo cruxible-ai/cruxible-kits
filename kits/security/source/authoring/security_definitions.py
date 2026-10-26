@@ -924,6 +924,7 @@ def claim_types(release: str) -> list[ClaimType]:
                 description=meaning)
         record: dict[str, Any] = {
             "predicate": predicate, "cardinality": cardinality, "description": description,
+            "default_role": default_role,
         }
         if tuple(kinds) != (predicate.rpartition(".")[0],):
             record["allowed_subject_kinds"] = tuple(sorted(kinds))
@@ -936,10 +937,8 @@ def claim_types(release: str) -> list[ClaimType]:
                 record["canonical_form"] = tuple(form)
         else:
             record["object_kind"] = obj
-        if roles != ("normative",):
+        if roles != (default_role,):
             record["permitted_roles"] = roles
-        if default_role != "normative":
-            record["default_role"] = default_role
         if rules:
             record["evidence_admission_policy"] = ClaimEvidenceAdmissionPolicy(rules=rules).model_dump(mode="json")
         default_requirement = "captured" if roles == ("observation",) else "self"
