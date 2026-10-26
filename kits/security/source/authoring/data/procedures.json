@@ -2187,12 +2187,12 @@
       "fetch": "web.fetch@3"
     },
     "budget": {
-      "wall_clock": "PT60S",
+      "wall_clock": "PT120S",
       "provider_calls": 1,
       "capture_bytes": 16777216
     },
     "caps": {
-      "wall_clock": "PT120S",
+      "wall_clock": "PT300S",
       "provider_calls": 1,
       "capture_bytes": 16777216,
       "items": 1

@@ -352,6 +352,13 @@ def test_direct_fetch_contract_limits_sources_without_restricting_governed_lines
     assert SPECS["security.fetch-observed"].input["logical_source"] == "string"
 
 
+def test_direct_fetch_retains_release_and_history_time_budgets():
+    assert SPECS["security.fetch"].budget.wall_clock == "PT120S"
+    assert SPECS["security.fetch"].caps.wall_clock == "PT300S"
+    assert SPECS["security.fetch-observed"].budget.wall_clock == "PT60S"
+    assert SPECS["security.fetch-observed"].caps.wall_clock == "PT120S"
+
+
 def test_folded_inventory_and_slot_interfaces_are_explicit():
     assert len(SPECS) == 28
     assert not list((KIT / "artifacts/blueprints").rglob("*.json"))
