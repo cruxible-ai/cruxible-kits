@@ -1,8 +1,11 @@
 """The kit docs' consumer recipe as payloads, for the release gate and the self-dogfood run.
 
-Every function returns the exact authoring JSON the kit's pages show (README.md,
-in-depth.md); nothing here talks to a daemon. Capture-landing Triggers resolve
-CaptureContracts by name at prepare time.
+Every function returns authoring JSON for a change the kit's pages make: ``automation()``
+loads ``examples/automation.json``, and ``graduate()`` and ``watch()`` are the JSON forms
+of the SDK snippets in README.md (Measure and graduate) and in-depth.md (watching).
+``test_doc_snippets.py`` runs the pages' Python snippets against a gate world and checks
+that they write what these payloads describe. Nothing here talks to a daemon.
+Capture-landing Triggers resolve CaptureContracts by name at prepare time.
 """
 
 from __future__ import annotations
