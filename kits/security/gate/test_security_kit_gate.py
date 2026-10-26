@@ -1223,6 +1223,10 @@ def test_18_upgrade(gate: Gate) -> None:
     moved = gate.json("provider", "move", "security-analysis-provider", "--to", "newest",
                       "--only", "Line:security.osv-applicability", "--commit", "--at", move["coordinate"]["git_oid"])
     assert moved["status"] == "accepted", moved
+    new_build = move["to"]["resolved"]
+    assert new_build != old_build and move["to"]["version"] == UPGRADE_VERSION
+    assert moved["to"]["resolved"] == new_build
+    assert gate.proof("Line:security.osv-applicability")["envelope"]["bindings"]["decide"]["target"]["name"] == new_build
     for name, digest in procedures.items():
         assert gate.proof("Procedure:" + name)["artifact_digest"] == digest
     for name, digest in mandates.items():
