@@ -38,15 +38,22 @@ queries traverse.
 ### Walkthrough
 
 1. **Ask.** State each target's gate (and, outside PyPI, its source repository;
-   a PyPI target's comes from its provenance):
+   a PyPI target's comes from its provenance). From the Python SDK, the target is
+   created by its key and its gate stated in one change set:
 
-   ```json
-   {"kind": "change_set", "rationale": "Ask about our release targets.", "members": [
-    {"kind": "subject", "subject_kind": "security.target", "key": {"registry": "pypi", "name": "cruxible"}, "rationale": "We publish it."},
-    {"kind": "claim", "subject": {"subject_kind": "security.target", "key": {"registry": "pypi", "name": "cruxible"}},
-     "predicate": "security.target.publish_gate", "object": {"kind": "literal", "value": "push:tags:v*"},
-     "role": "normative", "rationale": "Only a v* tag push may publish.",
-     "source": {"kind": "self_source", "body": "gate: push:tags:v*\n"}}]}
+   ```python
+   from cruxible_client import Cruxible
+
+   cx = Cruxible.connect()
+   draft = cx.changes(rationale="Ask about our release targets.")
+   target = draft.subject(cx.new_subject(
+       "security.target", key={"registry": "pypi", "name": "cruxible"},
+       rationale="We publish it."))
+   draft.claim(subject=target, predicate="security.target.publish_gate", value="push:tags:v*",
+               role="normative", rationale="Only a v* tag push may publish.",
+               self_source="gate: push:tags:v*\n")
+   intent = draft.submit()
+   intent.outcome.status   # 'landed'
    ```
 
 2. **Harden**: enable the system model's Lines (in the example
@@ -380,38 +387,82 @@ What each import proposes:
 
 An incident (`security.incident`, keyed by `name`) groups the CVEs of one
 response, so each service gets one audit however many CVEs. Declaring it is an
-approved act: one ChangeSet with the incident's Claims, its respond Line and log
-import Line, and their Triggers (Lines are authored disabled: enable both after
-approval). Rename `php2shell` and the window for yours:
+approved act in two parts: one write with the incident's Claims, and one
+ChangeSet with its respond Line and log import Line and their Triggers (Lines are
+authored disabled: enable both after approval). Rename `php2shell` and the
+window for yours. The Claims, which also create the incident by its key:
+
+```python
+incident = cx.changes(because="One response to PHP2Shell (CVE-2026-109618, CVE-2026-109619).",
+                      subject="security.incident/PHP2Shell")
+incident.set("window_start", "2026-09-01T00:00:00Z")
+incident.set("rotation_policy", "on_found_or_unknown")
+incident.set("status", "open")
+for cve in ("CVE-2026-109618", "CVE-2026-109619"):
+    incident.add("vulnerability", f"security.vulnerability/{cve}")
+outcome = incident.write()
+outcome.status   # 'accepted' ('awaiting_approval' when your policy wants a reviewer)
+```
+
+For an MCP-only client, the same write is `cruxible_write` with these arguments
+(on the CLI, `cruxible write FILE` takes them as a file):
 
 ```json
-{"kind": "change_set", "rationale": "Declare PHP2Shell.", "members": [
-  {"kind": "subject", "subject_kind": "security.incident", "key": {"name": "PHP2Shell"},
-   "rationale": "One response to CVE-2026-109618 and CVE-2026-109619."},
-  {"kind": "claim", "subject": {"subject_kind": "security.incident", "key": {"name": "PHP2Shell"}},
-   "predicate": "security.incident.window_start", "object": {"kind": "literal", "value": "2026-09-01T00:00:00Z"},
-   "role": "normative", "rationale": "The earliest known exploitation minus a margin.",
-   "source": {"kind": "self_source", "body": "window starts 2026-09-01\n"}},
-  "... incident.vulnerability for each CVE, rotation_policy on_found_or_unknown, status open ...",
-  {"kind": "line", "name": "security.respond.php2shell", "procedure_name": "security.respond",
-   "max_authority": "observe",
-   "parameters": {"incident": "PHP2Shell", "inventory_pull": "security.inventory-acquire",
-                  "log_pull": "security.log-acquire", "credential_pull": "security.credential-acquire",
-                  "record_pull": "security.fetch"}},
-  {"kind": "line", "name": "security.log-import.php2shell", "procedure_name": "security.log-import",
-   "max_authority": "propose",
-   "trigger_input": "log", "parameters": {"incident": "PHP2Shell"}},
-  {"kind": "trigger", "name": "security.log-landed.php2shell", "line_name": "security.log-import.php2shell",
-   "schedule": {"kind": "capture_landing", "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.log-read"]}},
-  {"kind": "trigger", "name": "security.respond-daily.php2shell", "line_name": "security.respond.php2shell",
-   "schedule": {"kind": "cron", "expression": "50 7 * * *"}},
-  {"kind": "trigger", "name": "security.respond-after-rotation.php2shell", "line_name": "security.respond.php2shell",
-   "schedule": {"kind": "window_close", "window": {"kind": "capture_event",
-     "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.credential-state"], "duration_seconds": 86400}}},
-  {"kind": "trigger", "name": "security.respond-after-scan.php2shell", "line_name": "security.respond.php2shell",
-   "schedule": {"kind": "window_close", "window": {"kind": "capture_event",
-     "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.inventory"], "duration_seconds": 86400}}}
-]}
+{
+  "because": "One response to PHP2Shell (CVE-2026-109618, CVE-2026-109619).",
+  "subject": "security.incident/PHP2Shell",
+  "changes": [
+    {"op": "set", "field": "window_start", "value": "2026-09-01T00:00:00Z"},
+    {"op": "set", "field": "rotation_policy", "value": "on_found_or_unknown"},
+    {"op": "set", "field": "status", "value": "open"},
+    {
+      "op": "add",
+      "field": "vulnerability",
+      "value": "security.vulnerability/CVE-2026-109618"
+    },
+    {
+      "op": "add",
+      "field": "vulnerability",
+      "value": "security.vulnerability/CVE-2026-109619"
+    }
+  ]
+}
+```
+
+The Lines and Triggers:
+
+```python
+from cruxible_client.contracts.authoring.models import (
+    CaptureEventByNameWindow,
+    CaptureLandingByNameSchedule,
+    WindowCloseAuthoringSchedule,
+)
+from cruxible_client.contracts.triggers import CronSchedule
+
+respond, log_import = "security.respond.php2shell", "security.log-import.php2shell"
+draft = cx.changes(rationale="PHP2Shell's respond and log import Lines.")
+draft.line(name=respond, procedure="security.respond", max_authority="observe",
+           parameters={"incident": "PHP2Shell", "inventory_pull": "security.inventory-acquire",
+                       "log_pull": "security.log-acquire",
+                       "credential_pull": "security.credential-acquire",
+                       "record_pull": "security.fetch"})
+draft.line(name=log_import, procedure="security.log-import", max_authority="propose",
+           trigger_input="log", parameters={"incident": "PHP2Shell"})
+draft.trigger(name="security.log-landed.php2shell", line=log_import,
+              schedule=CaptureLandingByNameSchedule(
+                  capture_contract="security.file-erasable-v1",
+                  logical_sources=("security.log-read",)))
+draft.trigger(name="security.respond-daily.php2shell", line=respond,
+              schedule=CronSchedule(expression="50 7 * * *"))
+# Re-ask a day after a key-state read or an inventory scan lands.
+for after, source in (("rotation", "security.credential-state"), ("scan", "security.inventory")):
+    draft.trigger(
+        name=f"security.respond-after-{after}.php2shell", line=respond,
+        schedule=WindowCloseAuthoringSchedule(window=CaptureEventByNameWindow(
+            capture_contract="security.file-erasable-v1", logical_sources=(source,),
+            duration_seconds=86400)))
+intent = draft.submit()
+intent.outcome.status   # 'landed'
 ```
 
 The window-close Triggers re-ask a day after a landing: an unverified patch or
