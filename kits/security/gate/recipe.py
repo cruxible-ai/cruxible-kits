@@ -169,7 +169,7 @@ def graduate() -> dict[str, Any]:
                  "binding_parameter": "vulnerability_id", "required_fields": ["cve_id"],
                  "fallback": "propose"}
     return {"kind": "change_set",
-            "rationale": "Graduate KEV and EPSS triage to settle under mandates.",
+            "rationale": "Graduate KEV and EPSS triage to settle.",
             "members": [
                 mandate("security.kev-triage", "settle", scope=scope(KEV_FIELDS),
                         condition=condition),
