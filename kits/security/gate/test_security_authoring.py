@@ -305,6 +305,12 @@ def test_unannotated_inventory_context_is_not_invented_by_a_landing_line():
 def test_folded_inventory_and_slot_interfaces_are_explicit():
     assert len(SPECS) == 28
     assert not list((KIT / "artifacts/blueprints").rglob("*.json"))
+    variant = KIT / "source/variants/1.3.1-gate/artifacts/procedures"
+    assert {
+        path.stem
+        for path in (KIT / "artifacts/procedures").glob("*.json")
+        if path.read_bytes() != (variant / path.name).read_bytes()
+    } == {"security.fetch-observed", "security.kev-triage"}
     assert set(SPECS) - {name.removesuffix(".json") for name in ORACLE} == {
         "security.fetch",
         "security.fetch-observed",
