@@ -2,7 +2,8 @@
 
 Procedure oracle: kitcore 63947cbff tests/fixtures/procedures/security-p1.json.
 Query oracle: the same core's test_query/fixtures/security_authored_queries.json tree hashes.
-No decompiler supplies authoring input to these checks.
+The semantic oracles are independent of decompilation. Decompile/lower checks
+cover readback consistency alongside the hand-authored input checks.
 """
 
 from __future__ import annotations
