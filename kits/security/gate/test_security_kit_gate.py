@@ -553,6 +553,9 @@ def test_04_slots(gate: Gate) -> None:
                          "--bind", "unknown=security-gate-sources", check=False,
                          bind_sources=False)
     assert "slot_undeclared" in undeclared.stdout + undeclared.stderr
+    gate.submit("direct-fetch-policy", {"kind": "change_set", "members": [
+        member for member in recipe.example()["members"]
+        if member["kind"] == "acquisition_policy"]})
     catalog = gate.payload("forbidden-direct-catalog", {
         "url": "https://cveawg.mitre.org/api/cve/" + LOG4SHELL,
         "logical_source": "cisa.kev.catalog", "max_bytes": 1048576})
