@@ -61,13 +61,25 @@ Procedure revisions carry Mandates to propose-only; review and re-grant settle.
 The gate loads this file and supplies fixture bindings and validity timestamps.
 
 For an observation window anchored on a landing, author a window-close Trigger
-by contract name too (choose the Line/action and duration for your workflow):
+by contract name too (choose the Line/action and duration for your workflow). From
+the Python SDK (`cruxible-client`, which `cruxible` installs):
 
-```json
-{"kind": "trigger", "name": "consumer.kev-window-close",
- "line_name": "security.kev-triage",
- "schedule": {"kind": "window_close", "window": {"kind": "capture_event",
-   "capture_contract": "security.fetched-v1", "logical_sources": ["cisa.kev.catalog"], "duration_seconds": 86400}}}
+```python
+from cruxible_client import Cruxible
+from cruxible_client.contracts.authoring.models import (
+    CaptureEventByNameWindow,
+    WindowCloseAuthoringSchedule,
+)
+
+cx = Cruxible.connect()
+draft = cx.changes(rationale="Re-ask KEV triage a day after each KEV catalog lands.")
+draft.trigger(
+    name="consumer.kev-window-close", line="security.kev-triage",
+    schedule=WindowCloseAuthoringSchedule(window=CaptureEventByNameWindow(
+        capture_contract="security.fetched-v1", logical_sources=("cisa.kev.catalog",),
+        duration_seconds=86400)))
+intent = draft.submit()
+intent.outcome.status   # 'landed'
 ```
 
 Prepare resolves the current CaptureContract; retained Triggers and windows

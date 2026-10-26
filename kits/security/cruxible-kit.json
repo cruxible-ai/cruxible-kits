@@ -1070,7 +1070,7 @@
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:9936b87e0ad09317699e4c279580994d81ba3bcf07fdcfb5a54cc7fddc735cea"
+      "sha256": "sha256:ac475d28325be7029a4882ae598ab550b529e0770469304d60a0ae49ee3a3d96"
     },
     {
       "path": "examples/automation.json",
