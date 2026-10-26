@@ -349,7 +349,8 @@ def test_direct_fetch_contract_limits_sources_without_restricting_governed_lines
                         "max_bytes": 1048576,
                     },
                 )
-    assert SPECS["security.fetch-observed"].input["logical_source"] == "string"
+    observed_source = SPECS["security.fetch-observed"].input["logical_source"]
+    assert observed_source.type == "string" and observed_source.enum is None
 
 
 def test_direct_fetch_retains_release_and_history_time_budgets():
