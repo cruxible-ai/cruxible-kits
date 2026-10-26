@@ -8,7 +8,7 @@ running (``daemon.sh`` starts, stops and checks it). Steps, from ``run.py``
 without teardown or scale:
 
 1. start the daemon; ``init``; ``kit add`` the kit directory (this repository's
-   current build); instantiate the Blueprints on the real providers
+   current build); bind Procedure slots by fit
    (``cruxible-provider-web``, ``security-sources-provider``); the README's
    automation change set (Lines, cron and landing Triggers, propose mandates);
 2. graduate KEV and EPSS triage to settle under their mandates at once (their
@@ -75,8 +75,6 @@ def main() -> None:
     preview = step("kit add preview", lambda: cx.json("kit", "add", args.kit, "--dry-run"))
     step("kit add commit (installs 3 providers)", lambda: cx.json(
         "kit", "add", args.kit, "--commit", "--at", preview["coordinate"]["git_oid"]))
-    step("instantiate Blueprints", lambda: cx.submit(
-        "instances", recipe.instantiate("cruxible-provider-web", "security-sources-provider")))
     step("automation change set", lambda: cx.submit("automation", recipe.automation()))
     step("graduate KEV and EPSS triage to settle", lambda: cx.submit(
         "graduate", recipe.graduate()))

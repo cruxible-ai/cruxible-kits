@@ -7,7 +7,7 @@ beside it, or ``CRUXIBLE_BIN``). ``SCRATCH_DIR`` gets a fresh HOME, state root
 and workspace; ``SBOM_DIR`` holds the CycloneDX SBOMs ``sbom_from_uv_lock.py``
 wrote (one per product release). The loop, every step timed:
 
-1. ``init``; ``kit add`` the kit directory; instantiate the Blueprints on the
+1. ``init``; ``kit add`` the kit directory; bind Procedure slots by fit on the
    real providers (``cruxible-provider-web``, ``security-sources-provider``);
    the README's automation change set; enable every Line.
 2. SBOM import: ``procedure run security.sbom-acquire`` per SBOM; each landing
@@ -185,8 +185,6 @@ def main() -> None:
                                                             "--dry-run"))
         s.timed("kit add commit (installs 3 providers)", lambda: s.json(
             "kit", "add", str(args.kit), "--commit", "--at", preview["coordinate"]["git_oid"]))
-        s.timed("instantiate Blueprints", lambda: s.submit(
-            "instances", recipe.instantiate("cruxible-provider-web", "security-sources-provider")))
         s.timed("automation change set", lambda: s.submit("automation",
                                                          recipe.automation()))
         s.timed("enable Lines", lambda: [s.cx("line", "enable", n) for n in recipe.LINES])
@@ -256,8 +254,8 @@ def main() -> None:
         def cve_record() -> dict[str, Any]:
             before = {r["run"] for r in s.runs("security.cve-applicability")}
             path = s.scratch / "payloads" / "cve.json"
-            path.write_text(json.dumps({"url": f"https://cveawg.mitre.org/api/cve/{args.cve}"}))
-            s.cx("procedure", "run", "security.cve-record-acquire", str(path))
+            path.write_text(json.dumps({"url": f"https://cveawg.mitre.org/api/cve/{args.cve}", "logical_source": "cve.record", "max_bytes": 1048576}))
+            s.cx("procedure", "run", "security.fetch", str(path))
             run = s.wait_run("security.cve-applicability", before)
             return {"cve": args.cve, "status": run["status"], "paths": s.accept(run)}
 

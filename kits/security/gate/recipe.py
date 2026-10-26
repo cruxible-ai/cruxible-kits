@@ -14,7 +14,7 @@ from typing import Any
 POLICY = "default"
 #: Line -> (Procedure, max_authority, trigger_input)
 LINES: dict[str, tuple[str, str, str | None]] = {
-    "security.kev-daily": ("security.kev-acquire", "observe", None),
+    "security.kev-daily": ("security.fetch-observed", "observe", None),
     "security.kev-triage": ("security.kev-triage", "propose", "catalog"),
     "security.kev-attention": ("security.kev-attention", "observe", "catalog"),
     "security.epss-daily": ("security.epss-acquire", "observe", None),
@@ -38,8 +38,19 @@ LINES: dict[str, tuple[str, str, str | None]] = {
 #: not race a tick.
 HELD_LINES = {"security.kev-daily", "security.repo-pull.cruxible-ci",
               "security.registry-pull.cruxible", "security.registry-pull.cruxible-client"}
-#: Blueprint slots bound to a web.fetch implementation; every other slot is a kit Source.
-FETCH_SLOTS = {"catalog", "history", "record", "release"}
+#: Network slots are bound to recorded fixture Sources only in the release gate.
+FIXTURE_INTERFACES = {"web.fetch", "security.epss-daily", "security.osv-query",
+                      "security.osv-ecosystems", "security.repo-snapshot",
+                      "security.pypi-release", "security.release-asset"}
+
+
+def fixture_bindings(procedure: str) -> dict[str, str]:
+    path = Path(__file__).parents[1] / "source/authoring/data/procedures.json"
+    spec = next(s for s in json.loads(path.read_text()) if s["procedure"] == procedure)
+    return {slot: "security-gate-sources" for slot, interface in spec["slots"].items()
+            if interface.partition("@")[0] in FIXTURE_INTERFACES}
+
+
 APPLICABILITY_NAMESPACE = [
     "claims", "subjects/security.assessment", "subjects/security.vulnerability"]
 #: Procedure -> (namespace, wall clock s, provider calls, capture bytes, items)
@@ -79,20 +90,6 @@ def _now() -> datetime:
 
 def _stamp(value: datetime) -> str:
     return value.isoformat().replace("+00:00", "Z")
-
-
-def instantiate(fetch: str, sources: str) -> dict[str, Any]:
-    """Step 1: the acquisition Blueprints, bound to installed Providers."""
-
-    members = [member for member in example()["members"]
-               if member["kind"] in {"blueprint_instance", "acquisition_policy"}]
-    for member in members:
-        if member["kind"] != "blueprint_instance":
-            continue
-        member["bindings"] = {slot: fetch if slot in FETCH_SLOTS else sources
-                              for slot in member["bindings"]}
-    return {"kind": "change_set", "rationale": "Instantiate the security Blueprints.",
-            "members": members}
 
 
 def example() -> dict[str, Any]:
@@ -135,17 +132,25 @@ def line(name: str, *, authority: str | None = None) -> dict[str, Any]:
         "kind": "line", "name": name, "procedure_name": procedure,
         "max_authority": authority or cap,
     }
+    documented = next((m for m in example()["members"]
+                       if m.get("kind") == "line" and m.get("name") == name), {})
+    if "parameters" in documented:
+        payload["parameters"] = documented["parameters"]
     if trigger_input is not None:
         payload["trigger_input"] = trigger_input
     return payload
 
 
-def automation() -> dict[str, Any]:
+def automation(*, fixtures: bool = False) -> dict[str, Any]:
     """Step 2: every Line, its Triggers, and the propose mandates, in one change set."""
 
     value = example()
-    value["members"] = [member for member in value["members"]
-                        if member["kind"] != "blueprint_instance"]
+    if fixtures:
+        for member in value["members"]:
+            if member["kind"] == "line":
+                bindings = fixture_bindings(member["procedure_name"])
+                if bindings:
+                    member["bindings"] = bindings
     return value
 
 

@@ -13,83 +13,15 @@
       }
     },
     {
-      "kind": "blueprint_instance",
-      "name": "security.kev-acquire",
-      "blueprint": "security.kev-acquire",
-      "bindings": {
-        "catalog": "cruxible-provider-web"
-      }
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.cve-record-acquire",
-      "blueprint": "security.cve-record-acquire",
-      "bindings": {
-        "record": "cruxible-provider-web"
-      }
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.epss-acquire",
-      "blueprint": "security.epss-acquire",
-      "bindings": {
-        "epss": "security-sources-provider"
-      }
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.osv-applicability",
-      "blueprint": "security.osv-applicability",
-      "bindings": {
-        "ecosystems": "security-sources-provider",
-        "osv": "security-sources-provider"
-      }
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.repo-acquire",
-      "blueprint": "security.repo-acquire",
-      "bindings": {
-        "snapshot": "security-sources-provider"
-      }
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.registry-acquire",
-      "blueprint": "security.registry-acquire",
-      "bindings": {
-        "registry": "security-sources-provider"
-      }
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.release-acquire",
-      "blueprint": "security.release-acquire",
-      "bindings": {
-        "release": "cruxible-provider-web"
-      }
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.asset-fetch",
-      "blueprint": "security.asset-fetch",
-      "bindings": {
-        "asset": "security-sources-provider"
-      }
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.history-acquire",
-      "blueprint": "security.history-acquire",
-      "bindings": {
-        "history": "cruxible-provider-web"
-      }
-    },
-    {
       "kind": "line",
       "name": "security.kev-daily",
-      "procedure_name": "security.kev-acquire",
-      "max_authority": "observe"
+      "procedure_name": "security.fetch-observed",
+      "max_authority": "observe",
+      "parameters": {
+        "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+        "logical_source": "cisa.kev.catalog",
+        "max_bytes": 4194304
+      }
     },
     {
       "kind": "line",
@@ -220,7 +152,7 @@
         "default_ref": "main",
         "repo_pull": "security.repo-acquire",
         "registry_pull": "security.registry-acquire",
-        "release_pull": "security.release-acquire",
+        "release_pull": "security.fetch",
         "versions": 3
       }
     },
@@ -268,6 +200,12 @@
       "schedule": {
         "kind": "cron",
         "expression": "17 14 * * *"
+      },
+      "procedure_name": "security.fetch-observed",
+      "parameters": {
+        "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+        "logical_source": "cisa.kev.catalog",
+        "max_bytes": 4194304
       }
     },
     {
