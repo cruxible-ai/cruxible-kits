@@ -933,8 +933,8 @@ def claim_types(release: str) -> list[ClaimType]:
             record["object_kind"] = obj
         if roles != (default_role,):
             record["permitted_roles"] = roles
-        if rules:
-            record["evidence_admission_policy"] = ClaimEvidenceAdmissionPolicy(rules=rules).model_dump(mode="json")
+        # An empty policy is also a decision: these none-required fields admitted no captures.
+        record["evidence_admission_policy"] = ClaimEvidenceAdmissionPolicy(rules=rules).model_dump(mode="json")
         default_requirement = "captured" if roles == ("observation",) else "self"
         if requirement != default_requirement:
             record["evidence_requirement"] = requirement

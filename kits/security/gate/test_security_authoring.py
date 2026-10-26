@@ -127,19 +127,13 @@ def _semantic(value):
 def test_procedure_semantics_match_independent_core_oracle(filename):
     actual = json.loads((KIT / "artifacts/procedures" / filename).read_text())
     expected = ORACLE[filename]
-    # G6/G7 intentionally extend two import contracts, summaries and parse requests.
+    # G7 intentionally extends two import summaries and parse requests.
     if filename in {"security.inventory-import.json", "security.sbom-import.json"}:
 
         def strip_extensions(item):
             if isinstance(item, dict):
                 for key in ("osv_unindexed", "osv_not_indexed", "osv_ecosystems"):
                     item.pop(key, None)
-                if "asset" in item and (
-                    item["asset"] == "$input.asset"
-                    or item["asset"]
-                    == {"default": "", "optional": True, "type": "string"}
-                ):
-                    item.pop("asset")
                 for child in item.values():
                     strip_extensions(child)
             elif isinstance(item, list):
@@ -248,8 +242,35 @@ def test_claim_type_defaults_preserve_all_137_structural_and_admission_decisions
         stored = parse_claim_type((KIT / "artifacts" / path).read_bytes(), path=path)
         assert stored == claim_type
         body = claim_type.model_dump(mode="json")
+        assert (
+            hashlib.sha256(
+                canonical_bytes(body["evidence_admission_policy"])
+            ).hexdigest()
+            == oracle["evidence_hashes"][claim_type.predicate]
+        ), claim_type.predicate
         data = {field: body.get(field) for field in oracle["fields"]}
+        # Nonliteral inputs omit canonical_form; None and [] both mean no transforms.
+        if body["object_kind"] == "subject" and data["canonical_form"] is None:
+            data["canonical_form"] = []
         assert (
             hashlib.sha256(canonical_bytes(data)).hexdigest()
             == oracle["hashes"][claim_type.predicate]
         ), claim_type.predicate
+
+
+def test_shared_contracts_refuse_a_different_providers_source():
+    for old, (contract, source) in defs.CONTRACT_USES.items():
+        if source is None:
+            continue
+        rule = defs._rule("source", "observation", (old,))
+        identity = "CaptureContract:" + contract
+        assert rule.admits_source(identity=identity, logical_source=source)
+        assert not rule.admits_source(
+            identity=identity, logical_source="other.provider.source"
+        )
+        assert not rule.admits_source(identity=identity, logical_source=None)
+
+
+def test_unannotated_inventory_context_is_not_invented_by_a_landing_line():
+    assert "asset" not in SPECS["security.inventory-import"].input
+    assert set(SPECS["security.inventory-acquire"].input) == {"relative_path"}
