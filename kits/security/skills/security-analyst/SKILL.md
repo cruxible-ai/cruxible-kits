@@ -10,7 +10,8 @@ the security kit. The state says what is waiting: `cruxible next`, the inbox (wh
 judgment) and open proposals. This skill says what the answers mean and what a sound judgment rests on. The
 kit's docs are the source for every name, query and exact write (its README and `walkthroughs.md`; an
 analyst's judgment writes in `in-depth.md`), `reference.md` for every kind and field; the [security intake
-skill](../security-intake/SKILL.md) says what each unknown is asking for.
+skill](../security-intake/SKILL.md) says what each unknown is asking for. Write with the Python SDK, as the
+docs do (`cx.changes(...)`); the CLI's `cruxible write` and MCP's `cruxible_write` take the same changes.
 
 ## Ground rules
 

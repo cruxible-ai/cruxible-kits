@@ -1100,12 +1100,12 @@
     {
       "path": "skills/security-analyst/SKILL.md",
       "role": "skill",
-      "sha256": "sha256:6d20bc655d4a25e80262bfa2576b6613691b100d45edd4cb868168ef0fecd1e1"
+      "sha256": "sha256:9f9c465b70e615470a11b82584036f8cff70ede85751edc9b62e12ad11f44c04"
     },
     {
       "path": "skills/security-intake/SKILL.md",
       "role": "skill",
-      "sha256": "sha256:e2ddf5f1e7c1e5ee90cec223645bd3794100261fd93290957dd57ed174501421"
+      "sha256": "sha256:65cd5f6232ffd311cf04d11877ee103ffd3dbe272c82027571b07925364115d0"
     },
     {
       "path": "walkthroughs.md",
