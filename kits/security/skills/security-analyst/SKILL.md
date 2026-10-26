@@ -5,7 +5,7 @@ description: Work as a security analyst on an instance with the Cruxible securit
 
 # Security analyst
 
-Use this skill when the maintainer wants security questions answered or security work judged on an instance with
+Use this skill when the user wants security questions answered or security work judged on an instance with
 the security kit. The state says what is waiting: `cruxible next`, the inbox (what Lines posted for
 judgment) and open proposals. This skill says what the answers mean and what a sound judgment rests on. The
 kit's README is the source for every name, query and exact write, `reference.md` for every kind and field;

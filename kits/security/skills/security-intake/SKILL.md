@@ -5,14 +5,14 @@ description: Bring an organization's state into the Cruxible security kit - what
 
 # Security intake
 
-Use this skill when the security kit is installed but the instance doesn't yet hold what the maintainer ships and
+Use this skill when the security kit is installed but the instance doesn't yet hold what the user ships and
 runs, and whenever an answer comes back **unknown**. The state says what to do next: `cruxible next`, the
 inbox and each Line's runs name what is waiting, failing or missing, with the fetch or repair for each. This
-skill says what those things mean and what only the maintainer can tell you. The kit's README is the source for
+skill says what those things mean and what only the user can tell you. The kit's README is the source for
 every name, body format and recipe (*Intake recipes*, *The evidence each action lands*); the [security
 analyst skill](../security-analyst/SKILL.md) works the answers.
 
-## What only the maintainer can tell you
+## What only the user can tell you
 
 Ask; never infer these from what you happen to find:
 
@@ -22,7 +22,7 @@ Ask; never infer these from what you happen to find:
 - the services, how critical each is, which hosts serve them and which face the internet;
 - each credential: its issuer and name, where it is used, what it reaches;
 - where each service's logs live, how long they are kept, and who can read them;
-- which Lines run. Enabling a Line is the maintainer's consent to its definition and Triggers: name the ones that
+- which Lines run. Enabling a Line is the user's consent to its definition and Triggers: name the ones that
   are off and ask.
 
 ## Invariants
@@ -38,7 +38,7 @@ Ask; never infer these from what you happen to find:
   hand-write the observation it should have made. What you state yourself (services, host roles, where a
   credential is used, log sources) is yours: say where you learned it.
 - **An approval means it matches.** Approve an import's proposal only when it says what the file says and
-  the maintainer has agreed to it landing.
+  the user has agreed to it landing.
 - **Only a read answers a read.** An ageing or stale scan coverage is answered by a new scan. A repair that
   hand-sets or retires the coverage revision makes the answer look current without anyone looking.
 
@@ -86,7 +86,7 @@ Gaps arrive as inbox items with a `pull` and an `input`; that pull with that inp
 | Gap | What it is asking for |
 |---|---|
 | `security.inventory-acquire` (`covering`, `looking_for`) | a current full scan of the scope that holds the host, looking for the named products; a new scope if none holds it |
-| `security.cve-record-acquire` (`url`) | the CVE's record, read once with exactly that input |
+| `security.fetch` (`url`) | the CVE's record, read once with exactly that input |
 | `security.osv-applicability` | OSV's answer for this release's current components, or for a CVE it hasn't decided |
 | `statement`: `security.assessment.status` | a judgment, because no source can decide: OSV doesn't index these releases' components. A purl OSV indexes (a re-scan), a product alias the record names, or an analyst's judgment answers it |
 | `statement`: `security.release.unidentified_components` | two Claims disagree about the count; resolve it before a none rests on it |
