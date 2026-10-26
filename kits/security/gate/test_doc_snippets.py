@@ -13,7 +13,9 @@ import would have created). After the snippets:
 - every kept write body (a JSON block with ``because`` and ``changes``, the MCP and
   CLI form) dry-runs as ``would_accept`` against the state the snippets wrote;
 - README's graduation lands exactly the mandates and Lines ``recipe.graduate()``
-  describes, and in-depth's watch the watches ``recipe.watch()`` describes.
+  describes, intake's per-source recipe the Lines and Triggers
+  ``recipe.example_sources()`` describes, and in-depth's watch the watches
+  ``recipe.watch()`` describes.
 """
 
 from __future__ import annotations
@@ -228,6 +230,31 @@ def _check_graduation(gate: Gate) -> None:
                 member.get("trigger_input"), member.get("parameters", {})), member["name"]
 
 
+def _check_sources(gate: Gate) -> None:
+    """intake.md's per-source snippets land the Lines and Triggers
+    ``recipe.example_sources()`` describes."""
+
+    members = recipe.example_sources()
+    lines = [member for member in members if member["kind"] == "line"]
+    triggers = [member for member in members if member["kind"] == "trigger"]
+    assert lines and triggers, members
+    for member in lines:
+        held = gate.proof(f"Line:{member['name']}")["envelope"]
+        assert (held["procedure"]["target"]["name"], held["max_authority"],
+                held.get("trigger_input"), held["parameters"]) == (
+            member["procedure_name"], member["max_authority"],
+            member.get("trigger_input"), member["parameters"]), member["name"]
+        rows = gate.json("query", "Trigger", "--where", f"target=Line:{member['name']}")["rows"]
+        assert sorted(row["name"] for row in rows) == sorted(
+            t["name"] for t in triggers if t["line_name"] == member["name"]), (member, rows)
+    for member in triggers:
+        held = json.dumps(gate.proof(f"Trigger:{member['name']}")["envelope"]["schedule"])
+        schedule = member["schedule"]
+        wanted = ([schedule["expression"]] if schedule["kind"] == "cron"
+                  else [schedule["capture_contract"], *schedule["logical_sources"]])
+        assert all(json.dumps(value) in held for value in wanted), (member, held)
+
+
 def _check_watches(gate: Gate) -> None:
     """in-depth's watch snippet holds the watches ``recipe.watch()`` describes."""
 
@@ -255,5 +282,7 @@ def test_page_snippets_run(page: str) -> None:
             assert dry["status"] == "would_accept", (page, number, dry)
         if page == "README.md":
             _check_graduation(gate)
+        if page == "intake.md":
+            _check_sources(gate)
         if page == "in-depth.md":
             _check_watches(gate)

@@ -291,6 +291,123 @@ outcome = logs.write()
 When a source moves or a new one appears, change the list the same way
 (`retire` an old value, `add` a new one).
 
+## Add a repository
+
+The kit names none of your repositories: the hardening questions read a
+repository only through Lines you author for it. Each source is a pull Line
+(`security.repo-acquire`, on a cron) and a parse Line (`security.repo-parse`,
+started by the snapshot's landing) with the same source in their parameters.
+Ask the user which repositories to model and the branch to read, then author
+the pairs for the list:
+
+~~~python
+from cruxible_client.contracts.authoring.models import CaptureLandingByNameSchedule
+from cruxible_client.contracts.triggers import CronSchedule
+
+# Line suffix -> (repository on github.com, the branch to read)
+repositories = {"example-app": ("example-org/example-app", "main")}
+snapshot = CaptureLandingByNameSchedule(capture_contract="security.fetched-v1",
+                                        logical_sources=("github.repo.snapshot",))
+
+repos = cx.changes(rationale="Model our repositories' CI workflows.")
+for index, (slug, (full_name, ref)) in enumerate(repositories.items()):
+    read = {"forge_host": "github.com", "full_name": full_name, "ref": ref,
+            "scope": "ci.workflows", "path": ".github/workflows/"}
+    repo_source = f"github.com/{full_name}@{ref}"
+    pull, parse = f"security.repo-pull.{slug}", f"security.repo-parse.{slug}"
+    repos.line(name=pull, procedure="security.repo-acquire", max_authority="observe",
+               parameters=read)
+    repos.line(name=parse, procedure="security.repo-parse", max_authority="propose",
+               trigger_input="snapshot",
+               parameters={"source": f"{repo_source}:.github/workflows/",
+                           "repo_source": repo_source, **read})
+    # Every 6 hours, each repository 5 minutes after the one before.
+    repos.trigger(name=pull, line=pull,
+                  schedule=CronSchedule(expression=f"{(5 + 5 * index) % 60} */6 * * *"))
+    repos.trigger(name=f"security.repo-landed.{slug}", line=parse, schedule=snapshot)
+intent = repos.submit()
+intent.outcome.status   # 'landed'
+~~~
+
+A parse Line reads only its own source's landings; every other landing halts
+`other_source`. The example automation's `security.repo-parse-propose` Mandate
+covers every parse Line, and its `security.harden` takes the default branch and
+the pull Procedures it names in gap items. A source you pull only once (a tag, a
+commit an HQ5 gap names) needs only its parse Line and landing Trigger: the pull
+Procedures run directly (`cruxible procedure run security.repo-acquire`). A
+repository pull costs two GitHub API calls plus one raw read per file, of the 60
+unauthenticated calls GitHub allows an hour. Ask the user to enable the Lines
+(`cruxible line enable security.repo-pull.example-app`, then the parse Line),
+and state each target's publish gate to ask the hardening questions
+([walkthroughs](walkthroughs.md#your-systems-the-hardening-questions)).
+
+### Its scans
+
+To import what scanners and agent reviewers report about a repository's code,
+add a pair of findings Lines per repository you scan, `security.sarif-import`
+and `security.sarif-attention` (parameter `repo_ref`, `github.com/owner/repo`),
+each started by a SARIF log's `security.file-v1` landing:
+
+~~~python
+# Line suffix -> the repository its scans name
+scanned = {"example-app": "github.com/example-org/example-app"}
+sarif = CaptureLandingByNameSchedule(capture_contract="security.file-v1",
+                                     logical_sources=("sarif.log",))
+
+scans = cx.changes(rationale="Import our repositories' scans.")
+for slug, repo_ref in scanned.items():
+    imports, attention = f"security.sarif-import.{slug}", f"security.sarif-attention.{slug}"
+    scans.line(name=imports, procedure="security.sarif-import", max_authority="propose",
+               trigger_input="sarif", parameters={"repo_ref": repo_ref})
+    scans.line(name=attention, procedure="security.sarif-attention", max_authority="observe",
+               trigger_input="sarif", parameters={"repo_ref": repo_ref})
+    scans.trigger(name=f"security.sarif-landed.{slug}", line=imports, schedule=sarif)
+    scans.trigger(name=f"security.sarif-landed-attention.{slug}", line=attention,
+                  schedule=sarif)
+intent = scans.submit()
+intent.outcome.status   # 'landed'
+~~~
+
+Every other repository's log halts `wrong_repo`. The example's
+`security.sarif-import-propose` Mandate covers every import Line; no Mandate
+covers a verdict. Let the principal that runs your scans enable the import Line:
+its runs act as that principal, so under `independent_approval_required` its
+proposals need another reviewer ([Your code's
+findings](walkthroughs.md#your-codes-findings)).
+
+## Add a PyPI project
+
+What PyPI serves for a project is read the same way: a pull Line
+(`security.registry-acquire`, daily, the newest 3 versions) and a parse Line
+(`security.registry-parse`, started by the release read's landing) per project.
+Ask the user which projects they publish:
+
+~~~python
+projects = ("example-app",)
+release = CaptureLandingByNameSchedule(capture_contract="security.fetched-v1",
+                                       logical_sources=("pypi.release",))
+
+pypi = cx.changes(rationale="Model what PyPI serves for our projects.")
+for index, project in enumerate(projects):
+    pull, parse = f"security.registry-pull.{project}", f"security.registry-parse.{project}"
+    pypi.line(name=pull, procedure="security.registry-acquire", max_authority="observe",
+              parameters={"project": project, "versions": 3})
+    pypi.line(name=parse, procedure="security.registry-parse", max_authority="propose",
+              trigger_input="registry",
+              parameters={"source": f"pypi/{project}", "project": project, "versions": 3})
+    # Daily from 06:20 UTC, each project 5 minutes after the one before.
+    pypi.trigger(name=pull, line=pull,
+                 schedule=CronSchedule(expression=f"{(20 + 5 * index) % 60} 6 * * *"))
+    pypi.trigger(name=f"security.registry-landed.{project}", line=parse, schedule=release)
+intent = pypi.submit()
+intent.outcome.status   # 'landed'
+~~~
+
+The example's `security.registry-parse-propose` Mandate covers every parse Line.
+A PyPI target's source repository comes from its provenance, so state only its
+publish gate. Ask the user to enable the Lines
+(`cruxible line enable security.registry-pull.example-app`, then the parse Line).
+
 ## Generic HTTP reads
 
 `security.fetch` takes `url`, `logical_source` and `max_bytes`. Its direct-read

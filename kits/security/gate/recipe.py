@@ -131,6 +131,19 @@ def scanned_repositories(scanned: dict[str, str]) -> list[dict[str, Any]]:
     return members
 
 
+#: intake.md's placeholders: what its snippets author, as ``test_doc_snippets.py`` checks.
+EXAMPLE_REPOSITORIES = {"example-app": ("example-org/example-app", "main")}
+EXAMPLE_PYPI_PROJECTS = ("example-app",)
+EXAMPLE_SCANNED_REPOSITORIES = {"example-app": "github.com/example-org/example-app"}
+
+
+def example_sources() -> list[dict[str, Any]]:
+    """The Lines and Triggers intake.md's per-source snippets author for its placeholders."""
+
+    return (repositories(EXAMPLE_REPOSITORIES) + pypi_projects(EXAMPLE_PYPI_PROJECTS)
+            + scanned_repositories(EXAMPLE_SCANNED_REPOSITORIES))
+
+
 def own_sources() -> list[dict[str, Any]]:
     """The per-source Lines and Triggers for this repository's own sources."""
 
