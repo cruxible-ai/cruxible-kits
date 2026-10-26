@@ -13,7 +13,8 @@ GENERATED: glance -->``, and the hand-written text outside it is kept. ``check``
 also reads the README's hand-written concept map (the Mermaid block after
 ``CONCEPT_MAP``) and refuses one that names a kind or a field the kit does not
 define, and the generator's small hand maps (a label per logical source, the logical
-source an interface's Provider names, the Procedures each incident's Lines run) where they
+source an interface's Provider names, the Procedures the Lines you author per incident or
+per source run) where they
 disagree with the definitions. Output is byte-stable: everything is sorted and nothing depends on the
 clock or the machine.
 
@@ -50,11 +51,35 @@ SELF_SOURCE = "playbill.coordinator-self-source-v1"
 # stated once above the table instead of in every row.
 QUERY_SCOPE = "Scoped to supported, current Claims; missing evidence is not a negative finding."
 _MICROS_PER_HOUR = 3_600_000_000
-# Procedures a Line declared with each incident runs (walkthroughs.md), not an example
-# Line: the source node that Line feeds from its landing (None: it has none). ``check``
-# refuses an entry that is not a Procedure, names no source node, or an example Line runs.
-PER_INCIDENT = {"security.log-import": "log", "security.respond": None}
-PER_INCIDENT_TEXT = "a Line per incident ([walkthroughs](walkthroughs.md))"
+# Procedures a Line you author per incident (declared with it, walkthroughs.md) or per
+# source (intake.md's recipe) runs, not an example Line: the source node that Line feeds
+# from its landing (None: it has none), what each such Line is for, and the page that
+# authors it. ``check`` refuses an entry that is not a Procedure, names no source node, or
+# an example Line runs.
+PER_LINE: dict[str, tuple[str | None, str, str]] = {
+    "security.log-import": ("log", "incident", "walkthroughs.md"),
+    "security.respond": (None, "incident", "walkthroughs.md"),
+    "security.repo-acquire": (None, "repository", "intake.md#add-a-repository"),
+    "security.repo-parse": ("snapshot", "repository", "intake.md#add-a-repository"),
+    "security.sarif-import": ("sarif", "scanned repository", "intake.md#its-scans"),
+    "security.sarif-attention": ("sarif", "scanned repository", "intake.md#its-scans"),
+    "security.registry-acquire": (None, "PyPI project", "intake.md#add-a-pypi-project"),
+    "security.registry-parse": ("registry", "PyPI project", "intake.md#add-a-pypi-project"),
+}
+
+
+def _per_line_text(definition: str) -> str:
+    """Where a per-incident or per-source Line comes from, as a table cell."""
+
+    _alias, owner, page = PER_LINE[definition]
+    return f"a Line per {owner} ([{page.partition('.')[0]}]({page}))"
+
+
+def _per_line_who(definition: str) -> str:
+    """Who runs a per-incident or per-source Procedure, in a sentence."""
+
+    owner = PER_LINE[definition][1]
+    return f"each {owner}'s `{definition}` Line"
 # What a reader calls each logical source (the name a Capture is retained under, which a
 # landing Trigger selects). ``check`` refuses a logical source the definitions or the example
 # name that is missing here, and an entry nothing names.
@@ -453,12 +478,12 @@ def _definition_of(docs: KitDocs, procedure: str) -> str:
 
 def _reads_landing(docs: KitDocs, node: SourceNode) -> bool:
     """A source node a Line feeds from the Capture that started it: an example Line's, or
-    the Line each incident declares."""
+    the Line each incident or source declares."""
 
     if node.alias is None:
         return False
-    if node.definition in PER_INCIDENT:
-        return PER_INCIDENT[node.definition] == node.alias
+    if node.definition in PER_LINE:
+        return PER_LINE[node.definition][0] == node.alias
     return any(
         _definition_of(docs, line.procedure) == node.definition and line.trigger_input == node.alias
         for line in docs.lines.values()
@@ -521,7 +546,7 @@ class Retention:
     contract: str
     source: str | None  # None: the logical source a direct run is given (or a run's output)
     definition: str
-    line: str | None  # the example Line that runs it; None for a direct or per-incident run
+    line: str | None  # the example Line that runs it; None for a direct or per-incident/source run
     interface: str | None
     emitted: bool
     given: bool  # the request takes its logical source from the run's input
@@ -587,8 +612,8 @@ def _who(retentions: Iterable[Retention]) -> str:
         {(item.definition, item.interface) for item in retentions if item.line is None}
     )
     for definition, interface in direct:
-        if definition in PER_INCIDENT:
-            parts.append(f"each incident's `{definition}` Line")
+        if definition in PER_LINE:
+            parts.append(_per_line_who(definition))
         elif interface == "workspace.file":
             parts.append(f"a direct `{definition}` run on an agent's workspace file")
         else:
@@ -859,7 +884,8 @@ def _automation_diagram(docs: KitDocs) -> list[str]:
         "### What starts what",
         "",
         "From the example ChangeSet. On the left, the Lines a schedule starts and the "
-        "Procedures you run directly; each retains Captures under a logical source (middle: "
+        "Procedures you run directly or from a Line you author per source ([intake](intake.md)); "
+        "each retains Captures under a logical source (middle: "
         "what was read, over the Capture contract it is kept under, without the "
         f"{_code(docs.owns)} prefix). A landing Trigger selects a logical source and starts "
         "the Lines on the right; the arrow label is the Trigger's name. Each Line shows its "
@@ -878,10 +904,12 @@ def _automation_diagram(docs: KitDocs) -> list[str]:
         out.append(f'    {_node_id("l", name)}["{_line_label(docs, docs.lines[name])}"]')
     out.append("  end")
     if direct:
-        out.append('  subgraph direct["Run directly"]')
+        title = "Run directly, or a Line per source" if set(direct) & set(PER_LINE) else "Run directly"
+        out.append(f'  subgraph direct["{title}"]')
         out.append("    direction TB")
         for name in direct:
-            out.append(f'    {_node_id("d", name)}["{_short(docs, name)}<br/>procedure run"]')
+            how = f"a Line per {PER_LINE[name][1]}" if name in PER_LINE else "procedure run"
+            out.append(f'    {_node_id("d", name)}["{_short(docs, name)}<br/>{how}"]')
         out.append("  end")
     out.append('  subgraph sources["Logical sources"]')
     out.append("    direction TB")
@@ -1030,8 +1058,8 @@ def _where_run(definition: str, lines: Mapping[str, list[str]]) -> str:
     named = sorted(lines.get(definition, []))
     if named:
         return ("Line " if len(named) == 1 else "Lines ") + _code(named)
-    if definition in PER_INCIDENT:
-        return PER_INCIDENT_TEXT
+    if definition in PER_LINE:
+        return _per_line_text(definition)
     return "run directly"
 
 
@@ -1064,7 +1092,7 @@ def _contracts(docs: KitDocs) -> list[str]:
         "",
         "One row per Capture contract. **Produced by**: the Procedures that "
         "retain it, where they run (an example Line, a direct `cruxible procedure run`, or a "
-        "Line each incident declares) and what serves each read. **Landings start**: the example Lines a landing Trigger on it starts. "
+        "Line you author per incident or per source) and what serves each read. **Landings start**: the example Lines a landing Trigger on it starts. "
         "**Supports**: the ClaimTypes that may cite it.",
         "",
     ]
@@ -1125,7 +1153,7 @@ def _logical_sources(docs: KitDocs) -> list[str]:
         "A Capture is retained under a contract and a logical source: what was read. A "
         "landing Trigger selects logical sources, and a ClaimType's evidence rule names the "
         "ones it admits. **Retained by**: the runs that retain it (an example Line, a direct "
-        "`cruxible procedure run`, or a Line each incident declares). **Starts**: the Lines "
+        "`cruxible procedure run`, or a Line you author per incident or per source). **Starts**: the Lines "
         "its landing starts. **Cited by**: how many ClaimTypes admit it.",
         "",
     ]
@@ -1134,13 +1162,14 @@ def _logical_sources(docs: KitDocs) -> list[str]:
         starts = sorted(
             {t.line for t in docs.triggers.values() if source in t.logical_sources}
         )
-        incident = sorted(
+        per_line = sorted(
             {
                 node.definition
                 for node in docs.source_nodes
-                if PER_INCIDENT.get(node.definition) == node.alias
+                if node.definition in PER_LINE
+                and PER_LINE[node.definition][0] == node.alias
                 and node.alias is not None
-                and node.logical_source == source
+                and _node_source(node, None) == source
             }
         )
         cited = sum(
@@ -1158,7 +1187,7 @@ def _logical_sources(docs: KitDocs) -> list[str]:
                 ),
                 ", ".join(
                     [_code(starts)] * bool(starts)
-                    + [f"each incident's `{name}` Line" for name in incident]
+                    + [_per_line_who(name) for name in per_line]
                 ),
                 f"{cited} ClaimType{'s' if cited != 1 else ''}" if cited else "",
             )
@@ -1279,7 +1308,7 @@ def _runs(docs: KitDocs) -> list[str]:
                 ", ".join(_effects(docs, item)),
                 item.summary,
                 _code(sorted(by_definition[item.name]))
-                or (PER_INCIDENT_TEXT if item.name in PER_INCIDENT else "direct"),
+                or (_per_line_text(item.name) if item.name in PER_LINE else "direct"),
             )
             for item in sorted(docs.definitions.values(), key=lambda item: item.name)
         ),
@@ -1448,15 +1477,15 @@ def derivation_problems(docs: KitDocs) -> list[str]:
 
     problems = []
     run_by_example = {line.procedure for line in docs.lines.values()}
-    for name, alias in sorted(PER_INCIDENT.items()):
+    for name, (alias, _owner, _page) in sorted(PER_LINE.items()):
         if name not in docs.definitions:
-            problems.append(f"PER_INCIDENT names {name}, which is not a Procedure of the kit")
+            problems.append(f"PER_LINE names {name}, which is not a Procedure of the kit")
         elif name in run_by_example:
-            problems.append(f"PER_INCIDENT names {name}, which an example Line runs")
+            problems.append(f"PER_LINE names {name}, which an example Line runs")
         elif alias is not None and not any(
             node.definition == name and node.alias == alias for node in docs.source_nodes
         ):
-            problems.append(f"PER_INCIDENT names source {alias!r} of {name}, which it lacks")
+            problems.append(f"PER_LINE names source {alias!r} of {name}, which it lacks")
     named = _named_sources(docs)
     for source in sorted(set(named) - set(SOURCE_LABELS)):
         problems.append(f"logical source {source} has no label in SOURCE_LABELS")

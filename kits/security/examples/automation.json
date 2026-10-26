@@ -1,6 +1,6 @@
 {
   "kind": "change_set",
-  "rationale": "Example consumer automation for the security kit (vulnerability loop, system model, code findings and incident response); adapt before submitting.",
+  "rationale": "Example consumer automation for the security kit (vulnerability loop, hardening questions, code-finding and incident imports); add your repositories and PyPI projects from intake.md; adapt before submitting.",
   "members": [
     {
       "kind": "acquisition_policy",
@@ -72,79 +72,6 @@
     },
     {
       "kind": "line",
-      "name": "security.repo-pull.cruxible-ci",
-      "procedure_name": "security.repo-acquire",
-      "max_authority": "observe",
-      "parameters": {
-        "forge_host": "github.com",
-        "full_name": "cruxible-ai/cruxible",
-        "ref": "main",
-        "scope": "ci.workflows",
-        "path": ".github/workflows/"
-      }
-    },
-    {
-      "kind": "line",
-      "name": "security.repo-parse.cruxible-ci",
-      "procedure_name": "security.repo-parse",
-      "max_authority": "propose",
-      "trigger_input": "snapshot",
-      "parameters": {
-        "source": "github.com/cruxible-ai/cruxible@main:.github/workflows/",
-        "repo_source": "github.com/cruxible-ai/cruxible@main",
-        "forge_host": "github.com",
-        "full_name": "cruxible-ai/cruxible",
-        "ref": "main",
-        "scope": "ci.workflows",
-        "path": ".github/workflows/"
-      }
-    },
-    {
-      "kind": "line",
-      "name": "security.registry-pull.cruxible",
-      "procedure_name": "security.registry-acquire",
-      "max_authority": "observe",
-      "parameters": {
-        "project": "cruxible",
-        "versions": 3
-      }
-    },
-    {
-      "kind": "line",
-      "name": "security.registry-parse.cruxible",
-      "procedure_name": "security.registry-parse",
-      "max_authority": "propose",
-      "trigger_input": "registry",
-      "parameters": {
-        "source": "pypi/cruxible",
-        "project": "cruxible",
-        "versions": 3
-      }
-    },
-    {
-      "kind": "line",
-      "name": "security.registry-pull.cruxible-client",
-      "procedure_name": "security.registry-acquire",
-      "max_authority": "observe",
-      "parameters": {
-        "project": "cruxible-client",
-        "versions": 3
-      }
-    },
-    {
-      "kind": "line",
-      "name": "security.registry-parse.cruxible-client",
-      "procedure_name": "security.registry-parse",
-      "max_authority": "propose",
-      "trigger_input": "registry",
-      "parameters": {
-        "source": "pypi/cruxible-client",
-        "project": "cruxible-client",
-        "versions": 3
-      }
-    },
-    {
-      "kind": "line",
       "name": "security.harden",
       "procedure_name": "security.harden",
       "max_authority": "observe",
@@ -154,26 +81,6 @@
         "registry_pull": "security.registry-acquire",
         "release_pull": "security.fetch",
         "versions": 3
-      }
-    },
-    {
-      "kind": "line",
-      "name": "security.sarif-import.cruxible",
-      "procedure_name": "security.sarif-import",
-      "max_authority": "propose",
-      "trigger_input": "sarif",
-      "parameters": {
-        "repo_ref": "github.com/cruxible-ai/cruxible"
-      }
-    },
-    {
-      "kind": "line",
-      "name": "security.sarif-attention.cruxible",
-      "procedure_name": "security.sarif-attention",
-      "max_authority": "observe",
-      "trigger_input": "sarif",
-      "parameters": {
-        "repo_ref": "github.com/cruxible-ai/cruxible"
       }
     },
     {
@@ -282,69 +189,6 @@
     },
     {
       "kind": "trigger",
-      "name": "security.repo-pull.cruxible-ci",
-      "line_name": "security.repo-pull.cruxible-ci",
-      "schedule": {
-        "kind": "cron",
-        "expression": "5 */6 * * *"
-      }
-    },
-    {
-      "kind": "trigger",
-      "name": "security.repo-landed.cruxible-ci",
-      "line_name": "security.repo-parse.cruxible-ci",
-      "schedule": {
-        "kind": "capture_landing",
-        "capture_contract": "security.fetched-v1",
-        "logical_sources": [
-          "github.repo.snapshot"
-        ]
-      }
-    },
-    {
-      "kind": "trigger",
-      "name": "security.registry-pull.cruxible",
-      "line_name": "security.registry-pull.cruxible",
-      "schedule": {
-        "kind": "cron",
-        "expression": "20 6 * * *"
-      }
-    },
-    {
-      "kind": "trigger",
-      "name": "security.registry-landed.cruxible",
-      "line_name": "security.registry-parse.cruxible",
-      "schedule": {
-        "kind": "capture_landing",
-        "capture_contract": "security.fetched-v1",
-        "logical_sources": [
-          "pypi.release"
-        ]
-      }
-    },
-    {
-      "kind": "trigger",
-      "name": "security.registry-pull.cruxible-client",
-      "line_name": "security.registry-pull.cruxible-client",
-      "schedule": {
-        "kind": "cron",
-        "expression": "25 6 * * *"
-      }
-    },
-    {
-      "kind": "trigger",
-      "name": "security.registry-landed.cruxible-client",
-      "line_name": "security.registry-parse.cruxible-client",
-      "schedule": {
-        "kind": "capture_landing",
-        "capture_contract": "security.fetched-v1",
-        "logical_sources": [
-          "pypi.release"
-        ]
-      }
-    },
-    {
-      "kind": "trigger",
       "name": "security.harden-daily",
       "line_name": "security.harden",
       "schedule": {
@@ -373,30 +217,6 @@
         "capture_contract": "security.fetched-v1",
         "logical_sources": [
           "pypi.release"
-        ]
-      }
-    },
-    {
-      "kind": "trigger",
-      "name": "security.sarif-landed.cruxible",
-      "line_name": "security.sarif-import.cruxible",
-      "schedule": {
-        "kind": "capture_landing",
-        "capture_contract": "security.file-v1",
-        "logical_sources": [
-          "sarif.log"
-        ]
-      }
-    },
-    {
-      "kind": "trigger",
-      "name": "security.sarif-landed-attention.cruxible",
-      "line_name": "security.sarif-attention.cruxible",
-      "schedule": {
-        "kind": "capture_landing",
-        "capture_contract": "security.file-v1",
-        "logical_sources": [
-          "sarif.log"
         ]
       }
     },

@@ -211,10 +211,26 @@ def test_capture_contracts_are_shared_shapes_with_use_site_sources():
                     assert use.logical_sources
 
 
-def test_all_21_triggers_name_contracts_and_sources():
-    members = json.loads((KIT / "examples/automation.json").read_text())["members"]
+def _recipe():
+    spec = importlib.util.spec_from_file_location("recipe", KIT / "gate/recipe.py")
+    recipe = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(recipe)
+    return recipe
+
+
+@pytest.mark.parametrize(
+    ("sources", "count"),
+    [(False, 13), (True, 21)],
+    ids=["example", "example-and-intake-recipe"],
+)
+def test_every_trigger_names_contracts_and_sources(sources, count):
+    """The shipped example's 13 Triggers, and the 21 with intake.md's per-source recipe
+    applied to the gate's fixture repository."""
+
+    members = _recipe().automation(sources=sources)["members"]
     triggers = [member for member in members if member["kind"] == "trigger"]
-    assert len(triggers) == 21
+    assert len(triggers) == count
     assert all(
         "acquisition_policy_name" not in member and "acquisition_policy" not in member
         for member in members
@@ -390,7 +406,14 @@ def test_folded_inventory_and_slot_interfaces_are_explicit():
     members = json.loads((KIT / "examples/automation.json").read_text())["members"]
     assert not [m for m in members if m["kind"] == "blueprint_instance"]
     lines = [m for m in members if m["kind"] == "line"]
+    assert len(lines) == 11
+    assert all("bindings" not in line for line in lines)
+    assert sum(m["kind"] == "trigger" for m in members) == 13
+    assert sum(m["kind"] == "procedure_mandate" for m in members) == 11
+    # intake.md's per-source recipe, applied to the gate's fixture repository.
+    sourced = _recipe().automation(sources=True)["members"]
+    lines = [m for m in sourced if m["kind"] == "line"]
     assert len(lines) == 19
     assert all("bindings" not in line for line in lines)
-    assert sum(m["kind"] == "trigger" for m in members) == 21
-    assert sum(m["kind"] == "procedure_mandate" for m in members) == 11
+    assert sum(m["kind"] == "trigger" for m in sourced) == 21
+    assert sum(m["kind"] == "procedure_mandate" for m in sourced) == 11

@@ -19,7 +19,7 @@ vulnerabilities, that your agents keep current and answer from. It models:
   own code.
 
 On that model it answers the questions a security team asks: which hosts run
-something attackers are exploiting, what can publish without a release tag,
+something attackers are exploiting, what can publish around its release gate,
 which weaknesses in your code are still open. In an incident it carries the
 response through: find what is exposed, patch it, audit the logs for
 exploitation, rotate the keys.
@@ -39,7 +39,7 @@ new evidence lands.
 | Which of my releases are exposed to a vulnerability attackers exploit, and which first? | `security.urgent_exposures`: releases assessed affected (by OSV per SBOM component, or by a CVE record's version ranges), KEV-listed first, then by EPSS score; `component` names the dependency OSV found it in; `asset` is a host that declares installing it (`asset_observed` when a scan also sees it running there) and `observed` a host only a scan sees |
 | Is release X affected by this KEV entry? | `security.triage` for the CVE: each release's assessment, with the CVE's KEV and EPSS facts |
 | Which internet-facing hosts run an affected, KEV-listed release? | `security.kev_exposure`: your inventory of hosts and what they install, joined to the assessments |
-| What can publish to PyPI without a `v*` tag? | `security.publish_paths` (HQ1): jobs in your repository's workflows that can publish to the target, whose triggers the target's publish gate does not allow |
+| What can publish outside the target's publish gate (for example without a `v*` tag)? | `security.publish_paths` (HQ1): jobs in your repository's workflows that can publish to the target, whose triggers the target's publish gate does not allow |
 | Which credentialed jobs run mutable third-party code? | `security.mutable_actions` (HQ3): actions not pinned to a commit SHA in jobs that hold a write permission or a secret |
 | Does what PyPI serves match what we built? | `security.served_vs_declared` (HQ5): PyPI's digests and provenance against the workflow and commit that declare them |
 | Which exploited vulnerabilities has nobody triaged yet? | `security.kev_triage_backlog`: assessments of KEV-listed CVEs with no status, or inconclusive |
@@ -65,8 +65,10 @@ answers](#install-and-first-answers), declared an incident and added its respond
 Line. To carry the response through (patches, log audits, key rotations, and
 the log import Line and re-ask Triggers the quickstart left out), continue at
 [Respond to an incident](walkthroughs.md#respond-to-an-incident). For your CI and registries,
-see [Your systems](walkthroughs.md#your-systems-the-hardening-questions); for scanner and
-reviewer findings in your own code, [Your code's findings](walkthroughs.md#your-codes-findings).
+add their Lines ([Add a repository](intake.md#add-a-repository), [Add a PyPI
+project](intake.md#add-a-pypi-project)) and see [Your
+systems](walkthroughs.md#your-systems-the-hardening-questions); for scanner and reviewer
+findings in your own code, [Your code's findings](walkthroughs.md#your-codes-findings).
 
 ## How it models your world
 
@@ -205,7 +207,7 @@ key you may need to rotate, by its non-secret id.
 | [Capture contracts (plus core's self-source)](reference.md#where-evidence-comes-from) | 5 + 1 |
 | [Procedures](reference.md#what-runs-on-its-own) | 28 |
 | [Queries](reference.md#what-you-can-ask) | 50 |
-| [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 19 / 21 / 11 |
+| [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 11 / 13 / 11 |
 
 <!-- END GENERATED: glance -->
 
@@ -220,7 +222,9 @@ The kit carries definitions only; the
 explained in [examples/README.md](examples/README.md). Installing the kit
 starts nothing: you adapt the example, submit it and approve it like any other
 change ([Install and first answers](#install-and-first-answers), steps 2 to 4).
-It authors three kinds of member:
+It names none of your repositories or PyPI projects: their Lines come from
+[intake.md](intake.md#add-a-repository)'s recipe, for the list you give. It
+authors three kinds of member:
 
 - **Lines**, authored disabled. Each runs one Procedure with its inputs, and its
   max authority caps what a run may do: `observe` (retain a Capture, or post
@@ -240,10 +244,10 @@ It authors three kinds of member:
 | Applicability | `security.sbom-import` | when a CycloneDX SBOM lands, retained by a direct `security.sbom-acquire` run on an agent's workspace file | propose |
 | | `security.osv-applicability` | daily at 15:30 UTC | propose |
 | | `security.cve-applicability` | when a CVE record lands, retained by a direct `security.fetch` run | propose |
-| Your systems | `security.repo-pull.cruxible-ci`, `security.registry-pull.*` | every 6 hours at :05 UTC (the repository); daily at 06:20 and 06:25 UTC (PyPI) | observe |
-| | `security.repo-parse.cruxible-ci`, `security.registry-parse.*` | when a GitHub repository snapshot or a PyPI release read lands, retained by a pull Line | propose |
+| Your systems | `security.repo-pull.<repo>`, `security.registry-pull.<project>` (per repository and PyPI project, from [intake](intake.md#add-a-repository)) | every 6 hours from :05 UTC (repositories); daily from 06:20 UTC (PyPI), each source 5 minutes after the one before | observe |
+| | `security.repo-parse.<repo>`, `security.registry-parse.<project>` (the same) | when a GitHub repository snapshot or a PyPI release read lands, retained by a pull Line | propose |
 | | `security.harden` | daily at 07:40 UTC, and when either of those lands | observe: posts inbox items |
-| Your code's findings | `security.sarif-import.cruxible`, `security.sarif-attention.cruxible` (a pair per repository) | when a SARIF scan log lands, retained by a direct `security.sarif-acquire` run on an agent's workspace file | propose; observe |
+| Your code's findings | `security.sarif-import.<repo>`, `security.sarif-attention.<repo>` (a pair per repository you scan, from [intake](intake.md#its-scans)) | when a SARIF scan log lands, retained by a direct `security.sarif-acquire` run on an agent's workspace file | propose; observe |
 | Incidents | `security.inventory-import.prod` (one per scope), `security.credential-import` | when a runtime-inventory scan or a credential key-state read lands, retained by a direct `security.inventory-acquire` or `security.credential-acquire` run on an agent's workspace file | propose |
 | | `security.respond.<incident>`, `security.log-import.<incident>` (declared with each incident) | daily, and a day after a scan or key-state read lands (window close); when a log read lands, retained by a direct `security.log-acquire` run | observe; propose |
 
@@ -256,16 +260,17 @@ the exported `security.` definitions. Lines inherit it without policy references
 
 ### One finding, end to end
 
-A mutable action in a job that can publish, found and fixed, with the names the
-example automation uses for `cruxible-ai/cruxible`:
+A mutable action in a job that can publish, found and fixed, with the names
+[intake.md's recipe](intake.md#add-a-repository) gives the repository
+`example-org/example-app`:
 
-1. **Pull (automatic).** Every 6 hours the Line `security.repo-pull.cruxible-ci`
+1. **Pull (automatic).** Every 6 hours the Line `security.repo-pull.example-app`
    runs the Procedure `security.repo-acquire`, which reads `.github/workflows/`
    at `main` and retains it as one Capture under `security.fetched-v1`.
    The Line's max authority is `observe`: it records the read and nothing else.
-2. **Parse (a proposal).** The landing starts `security.repo-parse.cruxible-ci`.
+2. **Parse (a proposal).** The landing starts `security.repo-parse.example-app`.
    It proposes observation Claims citing that Capture, among them, for the job
-   `publish.yml#publish-client`, `security.job.permission` `id-token:write` and
+   `publish.yml#publish`, `security.job.permission` `id-token:write` and
    `security.job.uses` `pkg:githubactions/actions/checkout@v4`, plus the source's
    `security.coverage.revision` (the commit read). A person or agent reviews and
    activates the proposal (`cruxible proposal review ID`, `cruxible proposal
@@ -391,16 +396,15 @@ and what unknown answers mean.
    verified against the recorded hashes.
 2. **Adapt the automation**, the [example ChangeSet](examples/automation.json)
    ([How it runs on its own](#how-it-runs-on-its-own)). Choose Line names;
-   your sources (repository, PyPI projects); Provider slots bind by fit with one
-   installed build per interface, so the example needs no explicit bindings;
-   cron times; and Mandate expiry. Nine Lines in it are examples named for the
-   kit's own repository (`security.repo-pull.cruxible-ci`, `...registry-*.cruxible*`,
-   `...sarif-*.cruxible`, `security.harden`): rename them for your sources or
-   leave them out (a submitted Line you never enable is a `line_not_enabled` row in
-   every `cruxible next`).
+   Provider slots bind by fit with one installed build per interface, so the
+   example needs no explicit bindings; cron times; and Mandate expiry. Leave out
+   the Lines you won't enable (a submitted Line you never enable is a
+   `line_not_enabled` row in every `cruxible next`). Your repositories and PyPI
+   projects are not in it: add their Lines from [intake.md](intake.md#add-a-repository)
+   when you want the hardening questions.
 3. **Submit it**: `cruxible authoring submit automation.json`, then review and
-   activate it under your approval policy. It authors nineteen disabled Lines, twenty-one Triggers and eleven propose-only
-   Mandates.
+   activate it under your approval policy. It authors eleven disabled Lines,
+   thirteen Triggers and eleven propose-only Mandates.
 4. **Enable the vulnerability Lines**: `for l in kev-daily kev-triage
    kev-attention epss-daily epss-triage sbom-import osv-applicability
    cve-applicability; do cruxible line enable security.$l; done`. Changing a
@@ -512,7 +516,8 @@ changing the acquisition age bound inherited by these Procedures.
 - [walkthroughs.md](walkthroughs.md): the hardening questions, your code's
   findings and an incident response (PHP2Shell), each end to end.
 - [intake.md](intake.md): recipes for bringing your state in: SBOMs, services,
-  credentials, runtime inventory, log sources, generic HTTP reads.
+  credentials, runtime inventory, log sources, your repositories and PyPI
+  projects, generic HTTP reads.
 - [in-depth.md](in-depth.md): how the vulnerability half names Subjects, decides
   applicability, records analyst judgments and keeps KEV and EPSS current, and
   predictions.
