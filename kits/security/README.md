@@ -284,29 +284,54 @@ satisfied rate drops below 0.8 over 5 readings).
 `cruxible procedure readings security.kev-triage --subject-grain procedure_unit`.
 
 When the readings justify it, settle the verbatim KEV and EPSS fields under
-settle mandates and raise the triage Lines to `settle` (`gate/recipe.py`'s
-`graduate()`):
+settle mandates and raise the triage Lines to `settle`, in one change set from
+the Python SDK (`cruxible-client`, which `cruxible` installs; `gate/recipe.py`'s
+`graduate()` is the same change set as JSON, for `cruxible authoring submit`):
 
-```json
-{"kind": "change_set", "rationale": "Graduate KEV and EPSS triage to settle.", "members": [
- {"kind": "procedure_mandate", "name": "security.kev-triage-settle", "procedure_name": "security.kev-triage", "grants": "settle",
-  "namespace": ["claims"], "valid_from": "NOW", "expires_at": "NOW+90d",
-  "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2, "max_capture_bytes": 16777216, "max_items": 5000, "max_repeat_attempts": 1},
-  "scope": [{"claim_type": "security.vulnerability.kev_date_added", "change_kinds": ["create", "revise"]},
-            {"claim_type": "security.vulnerability.kev_due_date", "change_kinds": ["create", "revise"]},
-            {"claim_type": "security.vulnerability.kev_listed", "change_kinds": ["create", "revise"]},
-            {"claim_type": "security.vulnerability.kev_ransomware_use", "change_kinds": ["create", "revise"]}],
-  "condition": {"query_name": "security.settle_condition", "binding_parameter": "vulnerability_id",
-    "required_fields": ["cve_id"], "fallback": "propose"}},
- {"kind": "procedure_mandate", "name": "security.epss-triage-settle", "procedure_name": "security.epss-triage", "grants": "settle",
-  "namespace": ["claims"], "valid_from": "NOW", "expires_at": "NOW+90d",
-  "resource_ceiling": {"max_wall_clock": {"microseconds": 300000000}, "max_provider_calls": 2, "max_capture_bytes": 33554432, "max_items": 5000, "max_repeat_attempts": 1},
-  "scope": [{"claim_type": "security.vulnerability.epss_percentile", "change_kinds": ["create", "revise"]},
-            {"claim_type": "security.vulnerability.epss_score", "change_kinds": ["create", "revise"]}],
-  "condition": {"query_name": "security.settle_condition", "binding_parameter": "vulnerability_id",
-    "required_fields": ["cve_id"], "fallback": "propose"}},
- {"kind": "line", "name": "security.kev-triage", "procedure_name": "security.kev-triage", "max_authority": "settle", "trigger_input": "catalog"},
- {"kind": "line", "name": "security.epss-triage", "procedure_name": "security.epss-triage", "max_authority": "settle", "trigger_input": "epss"}]}
+```python
+from datetime import UTC, datetime, timedelta
+
+from cruxible_client import Cruxible
+from cruxible_client.contracts.authoring.inputs import ProcedureMandateInput
+from cruxible_client.contracts.authoring.models import (
+    MandateConditionAuthoring,
+    MandateScopeAuthoring,
+)
+from cruxible_client.contracts.procedures.models import ProcedureHardCaps
+
+cx = Cruxible.connect()
+now = datetime.now(UTC).replace(microsecond=0)
+condition = MandateConditionAuthoring(
+    query_name="security.settle_condition", binding_parameter="vulnerability_id",
+    required_fields=("cve_id",), fallback="propose",
+)
+# Procedure -> (the verbatim fields it settles, its capture-byte ceiling, its trigger input)
+triage = {
+    "security.kev-triage": (
+        ("kev_date_added", "kev_due_date", "kev_listed", "kev_ransomware_use"),
+        16_777_216, "catalog"),
+    "security.epss-triage": (("epss_percentile", "epss_score"), 33_554_432, "epss"),
+}
+
+draft = cx.changes(rationale="Graduate KEV and EPSS triage to settle.")
+for procedure, (fields, capture_bytes, trigger_input) in triage.items():
+    draft.procedure_mandate(ProcedureMandateInput(
+        kind="procedure_mandate", name=f"{procedure}-settle", procedure_name=procedure,
+        grants="settle", namespace=("claims",),
+        valid_from=now, expires_at=now + timedelta(days=90),
+        resource_ceiling=ProcedureHardCaps(
+            max_wall_clock={"microseconds": 300_000_000}, max_provider_calls=2,
+            max_capture_bytes=capture_bytes, max_items=5000, max_repeat_attempts=1),
+        scope=tuple(
+            MandateScopeAuthoring(claim_type=f"security.vulnerability.{field}",
+                                  change_kinds=("create", "revise"))
+            for field in fields),
+        condition=condition,
+    ))
+    draft.line(name=procedure, procedure=procedure, max_authority="settle",
+               trigger_input=trigger_input)
+intent = draft.submit()
+intent.outcome.status   # 'landed'
 ```
 
 Re-enable both Lines. The KEV and EPSS fields are verbatim copies of CISA's and
