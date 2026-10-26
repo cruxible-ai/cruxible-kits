@@ -15,7 +15,7 @@ Kit `security` version **1.3.0**, defining every name under `security.`.
 | Queries | 50 | [What you can ask](#what-you-can-ask) |
 | Provider interfaces | 21 | - |
 | Acquisition policies | 0 | none in the kit; the example ChangeSet sets `default` (`max_age` P1D) |
-| Example Lines | 19 | with 21 Triggers and 11 Mandates in `examples/automation.json`: [What runs on its own](#what-runs-on-its-own) |
+| Example Lines | 11 | with 13 Triggers and 11 Mandates in `examples/automation.json`: [What runs on its own](#what-runs-on-its-own) |
 
 Providers `kit add` installs:
 
@@ -107,16 +107,16 @@ flowchart LR
     l_security_epss_daily["epss-daily<br/>observe; daily at 13:45 UTC"]
     l_security_kev_daily["kev-daily<br/>observe; daily at 14:17 UTC"]
     l_security_osv_applicability["osv-applicability<br/>propose; daily at 15:30 UTC"]
-    l_security_registry_pull_cruxible["registry-pull.cruxible<br/>observe; daily at 06:20 UTC"]
-    l_security_registry_pull_cruxible_client["registry-pull.cruxible-client<br/>observe; daily at 06:25 UTC"]
-    l_security_repo_pull_cruxible_ci["repo-pull.cruxible-ci<br/>observe; every 6 hours at :05 UTC"]
   end
   subgraph direct["Run directly"]
     direction TB
     d_security_credential_acquire["credential-acquire<br/>procedure run"]
     d_security_fetch["fetch<br/>procedure run"]
     d_security_inventory_acquire["inventory-acquire<br/>procedure run"]
-    d_security_sarif_acquire["sarif-acquire<br/>procedure run"]
+    d_security_registry_acquire["registry-acquire<br/>procedure run"]
+    d_security_registry_parse["registry-parse<br/>procedure run"]
+    d_security_repo_acquire["repo-acquire<br/>procedure run"]
+    d_security_repo_parse["repo-parse<br/>procedure run"]
     d_security_sbom_acquire["sbom-acquire<br/>procedure run"]
   end
   subgraph sources["Logical sources"]
@@ -131,7 +131,6 @@ flowchart LR
     s_security_file_erasable_v1_security_credential_state[("credential key-state read<br/>file-erasable-v1")]
     s_security_file_erasable_v1_security_inventory[("runtime-inventory scan<br/>file-erasable-v1")]
     s_security_file_v1_cyclonedx_sbom[("CycloneDX SBOM<br/>file-v1")]
-    s_security_file_v1_sarif_log[("SARIF scan log<br/>file-v1")]
   end
   subgraph reacts["Lines a landing starts"]
     direction TB
@@ -142,25 +141,20 @@ flowchart LR
     l_security_inventory_import_prod["inventory-import.prod<br/>propose"]
     l_security_kev_attention["kev-attention<br/>observe"]
     l_security_kev_triage["kev-triage<br/>propose"]
-    l_security_registry_parse_cruxible["registry-parse.cruxible<br/>propose"]
-    l_security_registry_parse_cruxible_client["registry-parse.cruxible-client<br/>propose"]
-    l_security_repo_parse_cruxible_ci["repo-parse.cruxible-ci<br/>propose"]
-    l_security_sarif_attention_cruxible["sarif-attention.cruxible<br/>observe"]
-    l_security_sarif_import_cruxible["sarif-import.cruxible<br/>propose"]
     l_security_sbom_import["sbom-import<br/>propose"]
   end
   l_security_kev_daily --> s_security_fetched_v1_cisa_kev_catalog
   d_security_fetch --> s_security_fetched_v1_cve_record
   l_security_epss_daily --> s_security_fetched_v1_first_epss_daily
-  l_security_repo_pull_cruxible_ci --> s_security_fetched_v1_github_repo_snapshot
+  d_security_repo_acquire --> s_security_fetched_v1_github_repo_snapshot
+  d_security_repo_parse --> s_security_fetched_v1_github_repo_snapshot
   l_security_osv_applicability --> s_security_fetched_v1_osv_dev_ecosystems
   l_security_osv_applicability --> s_security_fetched_v1_osv_dev_query
-  l_security_registry_pull_cruxible --> s_security_fetched_v1_pypi_release
-  l_security_registry_pull_cruxible_client --> s_security_fetched_v1_pypi_release
+  d_security_registry_acquire --> s_security_fetched_v1_pypi_release
+  d_security_registry_parse --> s_security_fetched_v1_pypi_release
   d_security_credential_acquire --> s_security_file_erasable_v1_security_credential_state
   d_security_inventory_acquire --> s_security_file_erasable_v1_security_inventory
   d_security_sbom_acquire --> s_security_file_v1_cyclonedx_sbom
-  d_security_sarif_acquire --> s_security_file_v1_sarif_log
   s_security_file_erasable_v1_security_credential_state -- "credential-landed" --> l_security_credential_import
   s_security_fetched_v1_cve_record -- "cve-landed" --> l_security_cve_applicability
   s_security_fetched_v1_first_epss_daily -- "epss-landed" --> l_security_epss_triage
@@ -169,11 +163,6 @@ flowchart LR
   s_security_file_erasable_v1_security_inventory -- "inventory-landed.prod" --> l_security_inventory_import_prod
   s_security_fetched_v1_cisa_kev_catalog -- "kev-landed" --> l_security_kev_triage
   s_security_fetched_v1_cisa_kev_catalog -- "kev-landed-attention" --> l_security_kev_attention
-  s_security_fetched_v1_pypi_release -- "registry-landed.cruxible" --> l_security_registry_parse_cruxible
-  s_security_fetched_v1_pypi_release -- "registry-landed.cruxible-client" --> l_security_registry_parse_cruxible_client
-  s_security_fetched_v1_github_repo_snapshot -- "repo-landed.cruxible-ci" --> l_security_repo_parse_cruxible_ci
-  s_security_file_v1_sarif_log -- "sarif-landed-attention.cruxible" --> l_security_sarif_attention_cruxible
-  s_security_file_v1_sarif_log -- "sarif-landed.cruxible" --> l_security_sarif_import_cruxible
   s_security_file_v1_cyclonedx_sbom -- "sbom-landed" --> l_security_sbom_import
 ```
 
@@ -579,9 +568,9 @@ One row per Capture contract. **Produced by**: the Procedures that retain it, wh
 |---|---|---|---|---|---|
 | `playbill.coordinator-self-source-v1` | coordinator_self_source, exact | observed | core: the statement itself, which a Claim supplies as its own source | - | 20 ClaimTypes; 0 require a Capture |
 | `security.fetched-large-v1` | http_response, attested | observed | `security.asset-fetch` (run directly; `security-sources-provider` serving `security.release-asset`) | - | 3 ClaimTypes; 1 requires a Capture |
-| `security.fetched-v1` | http_response, attested | observed | `security.epss-acquire` (Line `security.epss-daily`; `security-sources-provider` serving `security.epss-daily`); `security.fetch` (run directly; `cruxible-provider-web` serving `web.fetch`); `security.fetch-observed` (Line `security.kev-daily`; `cruxible-provider-web` serving `web.fetch`); `security.osv-applicability` (Line `security.osv-applicability`; `security-sources-provider` serving `security.osv-ecosystems`, `security.osv-query`); `security.registry-acquire` (Lines `security.registry-pull.cruxible`, `security.registry-pull.cruxible-client`; `security-sources-provider` serving `security.pypi-release`); `security.repo-acquire` (Line `security.repo-pull.cruxible-ci`; `security-sources-provider` serving `security.repo-snapshot`) | `security.cve-applicability`, `security.epss-triage`, `security.harden`, `security.kev-attention`, `security.kev-triage`, `security.registry-parse.cruxible`, `security.registry-parse.cruxible-client`, `security.repo-parse.cruxible-ci` | 42 ClaimTypes; 30 require a Capture |
+| `security.fetched-v1` | http_response, attested | observed | `security.epss-acquire` (Line `security.epss-daily`; `security-sources-provider` serving `security.epss-daily`); `security.fetch` (run directly; `cruxible-provider-web` serving `web.fetch`); `security.fetch-observed` (Line `security.kev-daily`; `cruxible-provider-web` serving `web.fetch`); `security.osv-applicability` (Line `security.osv-applicability`; `security-sources-provider` serving `security.osv-ecosystems`, `security.osv-query`); `security.registry-acquire` (run directly; `security-sources-provider` serving `security.pypi-release`); `security.registry-parse` (run directly; `security-sources-provider` serving `security.pypi-release`); `security.repo-acquire` (run directly; `security-sources-provider` serving `security.repo-snapshot`); `security.repo-parse` (run directly; `security-sources-provider` serving `security.repo-snapshot`) | `security.cve-applicability`, `security.epss-triage`, `security.harden`, `security.kev-attention`, `security.kev-triage` | 42 ClaimTypes; 30 require a Capture |
 | `security.file-erasable-v1` | http_response, exact | observed | `security.credential-acquire` (run directly; core's built-in `workspace.file`); `security.inventory-acquire` (run directly; core's built-in `workspace.file`); `security.log-acquire` (run directly; core's built-in `workspace.file`) | `security.credential-import`, `security.inventory-import.prod` | 14 ClaimTypes; 12 require a Capture |
-| `security.file-v1` | http_response, exact | observed | `security.evidence-acquire` (run directly; core's built-in `workspace.file`); `security.reproduction-acquire` (run directly; core's built-in `workspace.file`); `security.sarif-acquire` (run directly; core's built-in `workspace.file`); `security.sbom-acquire` (run directly; core's built-in `workspace.file`) | `security.sarif-attention.cruxible`, `security.sarif-import.cruxible`, `security.sbom-import` | 18 ClaimTypes; 8 require a Capture |
+| `security.file-v1` | http_response, exact | observed | `security.evidence-acquire` (run directly; core's built-in `workspace.file`); `security.reproduction-acquire` (run directly; core's built-in `workspace.file`); `security.sarif-acquire` (run directly; core's built-in `workspace.file`); `security.sarif-attention` (run directly; core's built-in `workspace.file`); `security.sarif-import` (run directly; core's built-in `workspace.file`); `security.sbom-acquire` (run directly; core's built-in `workspace.file`) | `security.sbom-import` | 18 ClaimTypes; 8 require a Capture |
 | `security.observation-output-v1` | procedure_output, exact | observed | `security.epss-acquire` (Line `security.epss-daily`; its run's own output); `security.fetch-observed` (Line `security.kev-daily`; its run's own output) | - | 8 ClaimTypes; 5 require a Capture |
 
 ### Logical sources
@@ -597,11 +586,11 @@ A Capture is retained under a contract and a logical source: what was read. A la
 | `github.api` | GitHub API response | `security.fetched-v1` | a direct `security.fetch` run | - | 5 ClaimTypes |
 | `github.release` | GitHub release record | `security.fetched-v1` | a direct `security.fetch` run | - | 9 ClaimTypes |
 | `github.release.asset` | GitHub release asset | `security.fetched-large-v1` | a direct `security.asset-fetch` run | - | 3 ClaimTypes |
-| `github.repo.snapshot` | GitHub repository snapshot | `security.fetched-v1` | Line `security.repo-pull.cruxible-ci` | `security.harden`, `security.repo-parse.cruxible-ci` | 17 ClaimTypes |
+| `github.repo.snapshot` | GitHub repository snapshot | `security.fetched-v1` | a direct `security.repo-acquire` run or a direct `security.repo-parse` run | `security.harden` | 17 ClaimTypes |
 | `osv.dev.ecosystems` | OSV ecosystem list | `security.fetched-v1` | Line `security.osv-applicability` | - | - |
 | `osv.dev.query` | OSV query answer | `security.fetched-v1` | Line `security.osv-applicability` | - | 8 ClaimTypes |
-| `pypi.release` | PyPI release read | `security.fetched-v1` | Lines `security.registry-pull.cruxible` or `security.registry-pull.cruxible-client` | `security.harden`, `security.registry-parse.cruxible`, `security.registry-parse.cruxible-client` | 11 ClaimTypes |
-| `sarif.log` | SARIF scan log | `security.file-v1` | a direct `security.sarif-acquire` run on an agent's workspace file | `security.sarif-attention.cruxible`, `security.sarif-import.cruxible` | 6 ClaimTypes |
+| `pypi.release` | PyPI release read | `security.fetched-v1` | a direct `security.registry-acquire` run or a direct `security.registry-parse` run | `security.harden` | 11 ClaimTypes |
+| `sarif.log` | SARIF scan log | `security.file-v1` | a direct `security.sarif-acquire` run on an agent's workspace file or a direct `security.sarif-attention` run on an agent's workspace file or a direct `security.sarif-import` run on an agent's workspace file | - | 6 ClaimTypes |
 | `security.analysis.evidence` | workspace evidence file | `security.file-v1` | a direct `security.evidence-acquire` run on an agent's workspace file | - | 9 ClaimTypes |
 | `security.credential-state` | credential key-state read | `security.file-erasable-v1` | a direct `security.credential-acquire` run on an agent's workspace file | `security.credential-import` | 5 ClaimTypes |
 | `security.inventory` | runtime-inventory scan | `security.file-erasable-v1` | a direct `security.inventory-acquire` run on an agent's workspace file | `security.inventory-import.prod` | 6 ClaimTypes |
@@ -618,20 +607,12 @@ The example ChangeSet (`examples/automation.json`) authors these Lines disabled;
 | `security.cve-applicability` | When a CVE record lands, retained by a direct `security.fetch` run (`security.cve-landed`: `security.fetched-v1` `cve.record`) | `security.cve-applicability` | propose | Proposes Claim changes and new assessments and vulnerabilities for review |
 | `security.epss-daily` | Daily at 13:45 UTC (`security.epss-daily`: cron `45 13 * * *`) | `security.epss-acquire` | observe | Retains a FIRST EPSS daily scores file and its run's output; changes nothing the instance holds |
 | `security.epss-triage` | When a FIRST EPSS daily scores file lands, retained by Line `security.epss-daily` (`security.epss-landed`: `security.fetched-v1` `first.epss.daily`) | `security.epss-triage` | propose | Proposes Claim changes for review; it can settle them itself once you grant it a settle Mandate and raise its max authority to `settle` |
-| `security.harden` | Daily at 07:40 UTC (`security.harden-daily`: cron `40 7 * * *`); or when a PyPI release read lands, retained by Lines `security.registry-pull.cruxible` or `security.registry-pull.cruxible-client` (`security.harden-on-registry`: `security.fetched-v1` `pypi.release`); or when a GitHub repository snapshot lands, retained by Line `security.repo-pull.cruxible-ci` (`security.harden-on-snapshot`: `security.fetched-v1` `github.repo.snapshot`) | `security.harden` | observe | Posts inbox items; changes nothing the instance holds |
+| `security.harden` | Daily at 07:40 UTC (`security.harden-daily`: cron `40 7 * * *`); or when a PyPI release read lands, retained by a direct `security.registry-acquire` run or a direct `security.registry-parse` run (`security.harden-on-registry`: `security.fetched-v1` `pypi.release`); or when a GitHub repository snapshot lands, retained by a direct `security.repo-acquire` run or a direct `security.repo-parse` run (`security.harden-on-snapshot`: `security.fetched-v1` `github.repo.snapshot`) | `security.harden` | observe | Posts inbox items; changes nothing the instance holds |
 | `security.inventory-import.prod` | When a runtime-inventory scan lands, retained by a direct `security.inventory-acquire` run on an agent's workspace file (`security.inventory-landed.prod`: `security.file-erasable-v1` `security.inventory`) | `security.inventory-import` | propose | Proposes Claim changes and new assets, coverage records and releases for review |
 | `security.kev-attention` | When a CISA KEV catalog lands, retained by Line `security.kev-daily` (`security.kev-landed-attention`: `security.fetched-v1` `cisa.kev.catalog`) | `security.kev-attention` | observe | Posts inbox items; changes nothing the instance holds |
 | `security.kev-daily` | Daily at 14:17 UTC (`security.kev-daily`: cron `17 14 * * *`) | `security.fetch-observed` | observe | Retains a CISA KEV catalog and its run's output; changes nothing the instance holds |
 | `security.kev-triage` | When a CISA KEV catalog lands, retained by Line `security.kev-daily` (`security.kev-landed`: `security.fetched-v1` `cisa.kev.catalog`) | `security.kev-triage` | propose | Proposes Claim changes for review; it can settle them itself once you grant it a settle Mandate and raise its max authority to `settle` |
 | `security.osv-applicability` | Daily at 15:30 UTC (`security.osv-daily`: cron `30 15 * * *`) | `security.osv-applicability` | propose | Retains an OSV ecosystem list and an OSV query answer; proposes Claim changes and new assessments and vulnerabilities for review |
-| `security.registry-parse.cruxible` | When a PyPI release read lands, retained by Lines `security.registry-pull.cruxible` or `security.registry-pull.cruxible-client` (`security.registry-landed.cruxible`: `security.fetched-v1` `pypi.release`) | `security.registry-parse` | propose | Proposes Claim changes and new artifacts, changes (commits), coverage records, releases, repos, targets and workflows for review |
-| `security.registry-parse.cruxible-client` | When a PyPI release read lands, retained by Lines `security.registry-pull.cruxible` or `security.registry-pull.cruxible-client` (`security.registry-landed.cruxible-client`: `security.fetched-v1` `pypi.release`) | `security.registry-parse` | propose | Proposes Claim changes and new artifacts, changes (commits), coverage records, releases, repos, targets and workflows for review |
-| `security.registry-pull.cruxible` | Daily at 06:20 UTC (`security.registry-pull.cruxible`: cron `20 6 * * *`) | `security.registry-acquire` | observe | Retains a PyPI release read; changes nothing the instance holds |
-| `security.registry-pull.cruxible-client` | Daily at 06:25 UTC (`security.registry-pull.cruxible-client`: cron `25 6 * * *`) | `security.registry-acquire` | observe | Retains a PyPI release read; changes nothing the instance holds |
-| `security.repo-parse.cruxible-ci` | When a GitHub repository snapshot lands, retained by Line `security.repo-pull.cruxible-ci` (`security.repo-landed.cruxible-ci`: `security.fetched-v1` `github.repo.snapshot`) | `security.repo-parse` | propose | Proposes Claim changes and new artifacts, coverage records, jobs, repos, targets and workflows for review |
-| `security.repo-pull.cruxible-ci` | Every 6 hours at :05 UTC (`security.repo-pull.cruxible-ci`: cron `5 */6 * * *`) | `security.repo-acquire` | observe | Retains a GitHub repository snapshot; changes nothing the instance holds |
-| `security.sarif-attention.cruxible` | When a SARIF scan log lands, retained by a direct `security.sarif-acquire` run on an agent's workspace file (`security.sarif-landed-attention.cruxible`: `security.file-v1` `sarif.log`) | `security.sarif-attention` | observe | Posts inbox items; changes nothing the instance holds |
-| `security.sarif-import.cruxible` | When a SARIF scan log lands, retained by a direct `security.sarif-acquire` run on an agent's workspace file (`security.sarif-landed.cruxible`: `security.file-v1` `sarif.log`) | `security.sarif-import` | propose | Proposes Claim changes and new findings and repos for review |
 | `security.sbom-import` | When a CycloneDX SBOM lands, retained by a direct `security.sbom-acquire` run on an agent's workspace file (`security.sbom-landed`: `security.file-v1` `cyclonedx.sbom`) | `security.sbom-import` | propose | Proposes Claim changes and new products, releases and suppliers for review |
 
 Every Procedure, what its terminal does, and the example Lines that run it (`direct`: `cruxible procedure run`):
@@ -655,15 +636,15 @@ Every Procedure, what its terminal does, and the example Lines that run it (`dir
 | `security.log-acquire` | Procedure | retains a log read | Read one log read from the attached workspace (input.relative_path, at most 1 MiB): {audit: {incident, service}, source, query, from, to, complete, records_scanned, matches: [{at, summary}]}, written by the agent from its own log tool's answer, match summaries redacted. | direct |
 | `security.log-import` | Procedure | proposes a ChangeSet, posts inbox items | Read the log-read Capture that triggered the Line (security.file-erasable-v1) for the Line's incident (parameter incident, its name) and propose the audit by key (incident, service) with its twins and one security.audit.read (SOURCE FROM/TO) for a complete read. | a Line per incident ([walkthroughs](walkthroughs.md)) |
 | `security.osv-applicability` | Procedure | retains an OSV ecosystem list and an OSV query answer, proposes a ChangeSet | Read OSV's published ecosystem list and query indexed components and watched CVEs; retain both provider answers under security.fetched-v1, sources osv.dev.ecosystems and osv.dev.query. | `security.osv-applicability` |
-| `security.registry-acquire` | Procedure | retains a PyPI release read | Read the newest requested PyPI versions and their provenance; retain under security.fetched-v1, logical source pypi.release. | `security.registry-pull.cruxible`, `security.registry-pull.cruxible-client` |
-| `security.registry-parse` | Procedure | proposes a ChangeSet | Read the PyPI release Capture that triggered the Line (security.fetched-v1) for the Line's project (parameters: source pypi/PROJECT, project, versions) and propose what changed: each served file as an artifact with its digest, release, and (from provenance) the workflow at the commit that published it, its environment and the commit; the target's source repository; the coverage restated. | `security.registry-parse.cruxible`, `security.registry-parse.cruxible-client` |
-| `security.repo-acquire` | Procedure | retains a GitHub repository snapshot | Read one GitHub repository at a ref for a declared scope and path; retain its files under security.fetched-v1, logical source github.repo.snapshot. | `security.repo-pull.cruxible-ci` |
-| `security.repo-parse` | Procedure | proposes a ChangeSet | Read the repository snapshot that triggered the Line (security.fetched-v1) for the Line's source (parameters: source, repo_source, forge_host, full_name, ref, scope, path) and propose what changed: workflows, jobs and their triggers, permissions, secrets, environment, actions and publish targets, or a manifest's declared digests, plus the source's coverage restated (an unchanged snapshot re-observes it; a new revision revises it). | `security.repo-parse.cruxible-ci` |
+| `security.registry-acquire` | Procedure | retains a PyPI release read | Read the newest requested PyPI versions and their provenance; retain under security.fetched-v1, logical source pypi.release. | direct |
+| `security.registry-parse` | Procedure | retains a PyPI release read, proposes a ChangeSet | Read the PyPI release Capture that triggered the Line (security.fetched-v1) for the Line's project (parameters: source pypi/PROJECT, project, versions) and propose what changed: each served file as an artifact with its digest, release, and (from provenance) the workflow at the commit that published it, its environment and the commit; the target's source repository; the coverage restated. | direct |
+| `security.repo-acquire` | Procedure | retains a GitHub repository snapshot | Read one GitHub repository at a ref for a declared scope and path; retain its files under security.fetched-v1, logical source github.repo.snapshot. | direct |
+| `security.repo-parse` | Procedure | retains a GitHub repository snapshot, proposes a ChangeSet | Read the repository snapshot that triggered the Line (security.fetched-v1) for the Line's source (parameters: source, repo_source, forge_host, full_name, ref, scope, path) and propose what changed: workflows, jobs and their triggers, permissions, secrets, environment, actions and publish targets, or a manifest's declared digests, plus the source's coverage restated (an unchanged snapshot re-observes it; a new revision revises it). | direct |
 | `security.reproduction-acquire` | Procedure | retains a proof-of-concept run report | Read one proof-of-concept run's report from the attached workspace (input.relative_path: a JUnit XML or a test log) and retain it under security.file-v1; cite the Capture for security.finding.verdict (confirmed: the PoC fails while vulnerable) or verification (fixed: it passes). | direct |
 | `security.respond` | Procedure | posts inbox items | Ask one incident's five questions (parameter incident, its name) and answer each in three states: found (posted), none (run summary only) or unknown (posted as a gap naming the pull or statement that would answer it). | a Line per incident ([walkthroughs](walkthroughs.md)) |
 | `security.sarif-acquire` | Procedure | retains a SARIF scan log | Read one SARIF 2.1.0 scan log from the attached workspace (input.relative_path) and retain it under security.file-v1; the repository's security.sarif-import Line reads it when it lands. | direct |
-| `security.sarif-attention` | Procedure | posts inbox items | Read the SARIF log Capture that triggered the Line for the Line's repository (parameter repo_ref) and post one inbox item per location gap (a result with no repository-relative path or no stable locus: one per tool, rule and path) and per regression (a fixed finding a full scan reports again). | `security.sarif-attention.cruxible` |
-| `security.sarif-import` | Procedure | proposes a ChangeSet | Read the SARIF log Capture that triggered the Line (security.file-v1) for the Line's repository (parameter repo_ref, host/owner/repo) and propose what changed: each new finding by key (repository, weakness, locus) with the rules and finders that reported it and its severity; rules and finders a held finding lacks; verification fixed for a held finding a full scan of its rules no longer reports, present for a fixed one it reports again. | `security.sarif-import.cruxible` |
+| `security.sarif-attention` | Procedure | retains a SARIF scan log, posts inbox items | Read the SARIF log Capture that triggered the Line for the Line's repository (parameter repo_ref) and post one inbox item per location gap (a result with no repository-relative path or no stable locus: one per tool, rule and path) and per regression (a fixed finding a full scan reports again). | direct |
+| `security.sarif-import` | Procedure | retains a SARIF scan log, proposes a ChangeSet | Read the SARIF log Capture that triggered the Line (security.file-v1) for the Line's repository (parameter repo_ref, host/owner/repo) and propose what changed: each new finding by key (repository, weakness, locus) with the rules and finders that reported it and its severity; rules and finders a held finding lacks; verification fixed for a held finding a full scan of its rules no longer reports, present for a fixed one it reports again. | direct |
 | `security.sbom-acquire` | Procedure | retains a CycloneDX SBOM | Read one CycloneDX JSON SBOM from the attached workspace (input.relative_path) and retain it under security.file-v1; security.sbom-import reads it when it lands. | direct |
 | `security.sbom-import` | Procedure | proposes a ChangeSet | Read the CycloneDX SBOM Capture that triggered the Line (security.file-v1) and propose its product and release (created by key, or the held ones), the release's product link, supplier, and one security.release.component observation per component purl the release does not hold yet. | `security.sbom-import` |
 

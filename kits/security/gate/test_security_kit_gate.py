@@ -577,7 +577,7 @@ def test_04_slots(gate: Gate) -> None:
 
 
 def test_05_automation(gate: Gate) -> None:
-    gate.submit("automation", recipe.automation(fixtures=True))
+    gate.submit("automation", recipe.automation(fixtures=True, sources=True))
     line = gate.card("Line:security.kev-triage")
     assert line["triggers_inactive"] == "not enabled", line["triggers_inactive"]
     rows = gate.json("query", "Trigger", "--where", "target=Line:security.kev-triage")["rows"]
@@ -1325,8 +1325,8 @@ def test_19_sbom_reimport(gate: Gate) -> None:
            "1.1.0 (Log4Shell not_affected at log4j-core 2.17.1); 1.0.0 kept")
 
 
-#: The system model's pull Lines the example automation names for this repository; the
-#: gate enables them in steps 21-22.
+#: The system model's pull Lines for the gate's fixture repository (intake.md's recipe,
+#: ``recipe.own_sources()``); the gate enables them in steps 21-22.
 SYSTEM_PULL_LINES = ("security.registry-pull.cruxible", "security.registry-pull.cruxible-client",
                      "security.repo-pull.cruxible-ci")
 
@@ -1343,8 +1343,8 @@ def test_20_exit(gate: Gate) -> None:
         return any(row["reason"] == "line_settled_prior_refusals" for row in findings)
 
     gate.wait(restoration_warning, 120, "EPSS restoration warning not observed")
-    # Do not hide unrelated repair work. The system model's pull Lines (named for this
-    # repository in the example automation) stay off until steps 21-22 enable them:
+    # Do not hide unrelated repair work. The system model's pull Lines (authored for the
+    # fixture repository by intake.md's recipe) stay off until steps 21-22 enable them:
     # their line_not_enabled rows are expected here (run 2's noise, finding 8), and only
     # those are set aside.
     later = {f"Line:{name}" for name in SYSTEM_PULL_LINES}

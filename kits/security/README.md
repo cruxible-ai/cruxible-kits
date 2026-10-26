@@ -205,7 +205,7 @@ key you may need to rotate, by its non-secret id.
 | [Capture contracts (plus core's self-source)](reference.md#where-evidence-comes-from) | 5 + 1 |
 | [Procedures](reference.md#what-runs-on-its-own) | 28 |
 | [Queries](reference.md#what-you-can-ask) | 50 |
-| [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 19 / 21 / 11 |
+| [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 11 / 13 / 11 |
 
 <!-- END GENERATED: glance -->
 

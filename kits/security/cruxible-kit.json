@@ -1065,7 +1065,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:426f25efe0aac9d8e335d856d644f12f094f55921163c6fa2486a07a6c5adde5"
+      "sha256": "sha256:d46340bba797e45d674fe9e33261155d2829140db0f3f85619990dc4f1baf785"
     },
     {
       "path": "examples/README.md",
@@ -1075,7 +1075,7 @@
     {
       "path": "examples/automation.json",
       "role": "example",
-      "sha256": "sha256:b4d8843673772126bcd8241e06cafae1703f27061ca095ee94db5d43ffc8c532"
+      "sha256": "sha256:53a7e88858b2fc970e3616fae966bad4a54c3b07902be37f2bdc96d0d1b792ea"
     },
     {
       "path": "examples/incident-status.md",
@@ -1095,7 +1095,7 @@
     {
       "path": "reference.md",
       "role": "reference",
-      "sha256": "sha256:efbf3b6070082361ccbd13a187d0e995cfc8d4921be3ba2657f7a8452ac38a43"
+      "sha256": "sha256:b6bf1c6dcb366cbadb1af78e44a119954d77f9424f1000586c9e122de51f1cc0"
     },
     {
       "path": "skills/security-analyst/SKILL.md",

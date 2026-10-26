@@ -70,7 +70,7 @@ def _world():
         assert installed["status"] == "accepted", installed
         wheel = next((FIXTURE / "dist").glob("security_gate_sources-*.whl"))
         gate.json("provider", "install", str(wheel), "--lock", str(FIXTURE / "uv.lock"))
-        gate.submit("automation", recipe.automation(fixtures=True))
+        gate.submit("automation", recipe.automation(fixtures=True, sources=True))
         gate.submit("watch-base", recipe.watch(LOG4SHELL, SETTLES))
         gate.submit("graduate", recipe.graduate())
         for name in ("security.kev-triage", "security.epss-triage"):

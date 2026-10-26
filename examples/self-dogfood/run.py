@@ -9,7 +9,8 @@ wrote (one per product release). The loop, every step timed:
 
 1. ``init``; ``kit add`` the kit directory; bind Procedure slots by fit on the
    real providers (``cruxible-provider-web``, ``security-sources-provider``);
-   the kit's example automation change set; enable every Line.
+   the kit's example automation change set, with this repository's own repository and
+   PyPI Lines from intake.md's recipe; enable every Line.
 2. SBOM import: ``procedure run security.sbom-acquire`` per SBOM; each landing
    runs ``security.sbom-import``; accept each proposal.
 3. OSV applicability (live api.osv.dev): ``line run``; accept the proposal.
@@ -186,7 +187,7 @@ def main() -> None:
         s.timed("kit add commit (installs 3 providers)", lambda: s.json(
             "kit", "add", str(args.kit), "--commit", "--at", preview["coordinate"]["git_oid"]))
         s.timed("automation change set", lambda: s.submit("automation",
-                                                         recipe.automation()))
+                                                         recipe.automation(sources=True)))
         s.timed("enable Lines", lambda: [s.cx("line", "enable", n) for n in recipe.LINES])
 
         # 2. SBOM import.

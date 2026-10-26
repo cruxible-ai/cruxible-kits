@@ -10,7 +10,8 @@ without teardown or scale:
 1. start the daemon; ``init``; ``kit add`` the kit directory (this repository's
    current build); bind Procedure slots by fit
    (``cruxible-provider-web``, ``security-sources-provider``); the kit's example
-   automation change set (Lines, cron and landing Triggers, propose mandates);
+   automation change set (Lines, cron and landing Triggers, propose mandates), with
+   this repository's own repository and PyPI Lines from intake.md's recipe;
 2. graduate KEV and EPSS triage to settle under their mandates at once (their
    Claims are verbatim copies of CISA's and FIRST's data); OSV and CVE-record
    applicability stay propose-only: their proposals are the review queue;
@@ -75,7 +76,7 @@ def main() -> None:
     preview = step("kit add preview", lambda: cx.json("kit", "add", args.kit, "--dry-run"))
     step("kit add commit (installs 3 providers)", lambda: cx.json(
         "kit", "add", args.kit, "--commit", "--at", preview["coordinate"]["git_oid"]))
-    step("automation change set", lambda: cx.submit("automation", recipe.automation()))
+    step("automation change set", lambda: cx.submit("automation", recipe.automation(sources=True)))
     step("graduate KEV and EPSS triage to settle", lambda: cx.submit(
         "graduate", recipe.graduate()))
     step("enable every Line", lambda: [cx.cx("line", "enable", name) for name in recipe.LINES])
