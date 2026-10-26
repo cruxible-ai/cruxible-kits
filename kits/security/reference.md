@@ -10,12 +10,11 @@ Kit `security` version **1.3.0**, defining every name under `security.`.
 |---|---|---|
 | Subject kinds | 23 | [What it models](#what-it-models) |
 | ClaimTypes | 137 | 10 shared by several kinds |
-| Capture contracts | 6 | [Where evidence comes from](#where-evidence-comes-from) |
-| Procedures | 28 | - |
-| Slotted Procedures | 28 | bind by fit, or choose a Provider on the Line/run |
+| Capture contracts | 5 | the kit's own, plus core's `playbill.coordinator-self-source-v1` for a statement on its author's own word: [Where evidence comes from](#where-evidence-comes-from) |
+| Procedures | 28 | each binds its Providers by fit (the installed Provider serving each interface), so none needs a binding |
 | Queries | 50 | [What you can ask](#what-you-can-ask) |
 | Provider interfaces | 21 | - |
-| Acquisition policies | 0 | - |
+| Acquisition policies | 0 | none in the kit; the example ChangeSet sets `default` (`max_age` P1D) |
 | Example Lines | 19 | with 21 Triggers and 11 Mandates in `examples/automation.json`: [What runs on its own](#what-runs-on-its-own) |
 
 Providers `kit add` installs:

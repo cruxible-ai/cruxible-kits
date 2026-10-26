@@ -1065,7 +1065,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:befea4fa2b2b2c1d5f3f03599e3e1093c8013ac66d282c70f4836853ba708b72"
+      "sha256": "sha256:7fb5015b02c1a36f5ee9048d90f8f80a6f5cde87c816fbadb43b8bba83d868a7"
     },
     {
       "path": "examples/README.md",
@@ -1095,7 +1095,7 @@
     {
       "path": "reference.md",
       "role": "reference",
-      "sha256": "sha256:8a7f75da3570efaa8d8eaaaf567e0fbe08133c080dec814c5c11c423e2a7401a"
+      "sha256": "sha256:7480a222811f7dfed10258ca99af2e4a48638febc06c1160f4d6c52676d8ca43"
     },
     {
       "path": "skills/security-analyst/SKILL.md",

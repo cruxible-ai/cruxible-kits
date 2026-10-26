@@ -98,6 +98,7 @@ class DefinitionDoc:
     kind: str  # "Procedure"
     summary: str
     node_kinds: frozenset[str]
+    pinned: bool  # a node names its Provider instead of binding one by fit
 
 
 @dataclass(frozen=True)
@@ -165,6 +166,7 @@ class KitDocs:
     lines: dict[str, LineDoc] = field(default_factory=dict)
     triggers: dict[str, TriggerDoc] = field(default_factory=dict)
     mandates: dict[str, MandateDoc] = field(default_factory=dict)
+    example_policies: dict[str, str] = field(default_factory=dict)
 
 
 def _hours(duration: Mapping[str, Any]) -> str:
@@ -271,7 +273,11 @@ def _definition(raw: Json, kind: str) -> tuple[DefinitionDoc, list[SourceNode]]:
             )
         )
     summary = _first_sentence(definition["description"])
-    return DefinitionDoc(name=name, kind=kind, summary=summary, node_kinds=node_kinds), nodes
+    pinned = any((node.get("provider") or {}).get("target") for node in definition["nodes"])
+    doc = DefinitionDoc(
+        name=name, kind=kind, summary=summary, node_kinds=node_kinds, pinned=pinned
+    )
+    return doc, nodes
 
 
 def _query(raw: Json) -> QueryDoc:
@@ -375,6 +381,9 @@ def _load_example(docs: KitDocs, change_set: Json) -> None:
                     schedule["capture_contract"] if schedule["kind"] == "capture_landing" else None
                 ),
             )
+        elif kind == "acquisition_policy":
+            policy = member["acquisition_policy"]
+            docs.example_policies[policy["identity"]["name"]] = policy["max_age"]
         elif kind == "procedure_mandate":
             docs.mandates[member["name"]] = MandateDoc(
                 name=member["name"],
@@ -439,6 +448,14 @@ def _evidenced(docs: KitDocs) -> dict[str, list[ClaimTypeDoc]]:
     return by_contract
 
 
+def _owned_contracts(docs: KitDocs) -> list[str]:
+    """The kit's own Capture contracts (core's self-source is not one)."""
+
+    return sorted(
+        name for name in docs.contracts if any(name.startswith(prefix) for prefix in docs.owns)
+    )
+
+
 def _short(docs: KitDocs, name: str) -> str:
     for prefix in docs.owns:
         if name.startswith(prefix):
@@ -470,6 +487,27 @@ def _code(names: Iterable[str]) -> str:
 
 def _glance(docs: KitDocs) -> list[str]:
     shared = sum(1 for item in docs.claim_types.values() if len(item.kinds) > 1)
+    owned = _owned_contracts(docs)
+    core = sorted(name for name in docs.contracts if name not in owned)
+    procedures = [d for d in docs.definitions.values() if d.kind == "Procedure"]
+    pinned = sum(1 for d in procedures if d.pinned)
+    if pinned:
+        binding = f"{pinned} name their Provider; the rest bind theirs by fit"
+    else:
+        binding = (
+            "each binds its Providers by fit (the installed Provider serving each "
+            "interface), so none needs a binding"
+        )
+    policies = (
+        _code(sorted(docs.policies))
+        if docs.policies
+        else "none in the kit; the example ChangeSet sets "
+        + ", ".join(
+            f"`{name}` (`max_age` {age})" for name, age in sorted(docs.example_policies.items())
+        )
+        if docs.example_policies
+        else ""
+    )
     counts = [
         ("Subject kinds", len(docs.kinds), "[What it models](#what-it-models)"),
         (
@@ -479,22 +517,15 @@ def _glance(docs: KitDocs) -> list[str]:
         ),
         (
             "Capture contracts",
-            len(docs.contracts),
-            "[Where evidence comes from](#where-evidence-comes-from)",
+            len(owned),
+            "the kit's own"
+            + (f", plus core's {_code(core)} for a statement on its author's own word" if core else "")
+            + ": [Where evidence comes from](#where-evidence-comes-from)",
         ),
-        (
-            "Procedures",
-            sum(1 for d in docs.definitions.values() if d.kind == "Procedure"),
-            "",
-        ),
-        (
-            "Slotted Procedures",
-            len(docs.definitions),
-            "bind by fit, or choose a Provider on the Line/run",
-        ),
+        ("Procedures", len(procedures), binding),
         ("Queries", len(docs.queries), "[What you can ask](#what-you-can-ask)"),
         ("Provider interfaces", len(docs.interfaces), ""),
-        ("Acquisition policies", len(docs.policies), _code(sorted(docs.policies))),
+        ("Acquisition policies", len(docs.policies), policies),
         (
             "Example Lines",
             len(docs.lines),
@@ -936,8 +967,8 @@ def _short_glance(docs: KitDocs) -> list[str]:
         ("Kinds of thing it models", str(len(docs.kinds)), "what-it-models"),
         ("Fields (ClaimTypes) across them", str(len(docs.claim_types)), "what-it-models"),
         (
-            "Capture shapes (plus core self-source)",
-            f"{len(docs.contracts) - int(SELF_SOURCE in docs.contracts)} + {int(SELF_SOURCE in docs.contracts)}",
+            "Capture contracts (plus core's self-source)",
+            f"{len(_owned_contracts(docs))} + {len(docs.contracts) - len(_owned_contracts(docs))}",
             "where-evidence-comes-from",
         ),
         ("Procedures", str(procedures), "what-runs-on-its-own"),

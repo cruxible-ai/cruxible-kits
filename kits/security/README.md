@@ -183,7 +183,7 @@ key you may need to rotate, by its non-secret id.
 |---|---|
 | [Kinds of thing it models](reference.md#what-it-models) | 23 |
 | [Fields (ClaimTypes) across them](reference.md#what-it-models) | 137 |
-| [Capture shapes (plus core self-source)](reference.md#where-evidence-comes-from) | 5 + 1 |
+| [Capture contracts (plus core's self-source)](reference.md#where-evidence-comes-from) | 5 + 1 |
 | [Procedures](reference.md#what-runs-on-its-own) | 28 |
 | [Queries](reference.md#what-you-can-ask) | 50 |
 | [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 19 / 21 / 11 |
