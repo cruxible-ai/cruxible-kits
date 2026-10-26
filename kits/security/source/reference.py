@@ -12,7 +12,9 @@ counts table between ``<!-- BEGIN GENERATED: glance -->`` and ``<!-- END
 GENERATED: glance -->``, and the hand-written text outside it is kept. ``check``
 also reads the README's hand-written concept map (the Mermaid block after
 ``CONCEPT_MAP``) and refuses one that names a kind or a field the kit does not
-define. Output is byte-stable: everything is sorted and nothing depends on the
+define, and the generator's small hand maps (a label per logical source, the logical
+source an interface's Provider names, the Procedures each incident's Lines run) where they
+disagree with the definitions. Output is byte-stable: everything is sorted and nothing depends on the
 clock or the machine.
 
 ``build_release.py`` runs this after copying a release; ``scripts/kits.py check``
@@ -53,6 +55,40 @@ _MICROS_PER_HOUR = 3_600_000_000
 # refuses an entry that is not a Procedure, names no source node, or an example Line runs.
 PER_INCIDENT = {"security.log-import": "log", "security.respond": None}
 PER_INCIDENT_TEXT = "a Line per incident ([walkthroughs](walkthroughs.md))"
+# What a reader calls each logical source (the name a Capture is retained under, which a
+# landing Trigger selects). ``check`` refuses a logical source the definitions or the example
+# name that is missing here, and an entry nothing names.
+SOURCE_LABELS = {
+    "cisa.kev.catalog": "CISA KEV catalog",
+    "cve.record": "CVE record",
+    "cyclonedx.sbom": "CycloneDX SBOM",
+    "first.epss.daily": "FIRST EPSS daily scores file",
+    "github.api": "GitHub API response",
+    "github.release": "GitHub release record",
+    "github.release.asset": "GitHub release asset",
+    "github.repo.snapshot": "GitHub repository snapshot",
+    "osv.dev.ecosystems": "OSV ecosystem list",
+    "osv.dev.query": "OSV query answer",
+    "pypi.release": "PyPI release read",
+    "sarif.log": "SARIF scan log",
+    "security.analysis.evidence": "workspace evidence file",
+    "security.credential-state": "credential key-state read",
+    "security.inventory": "runtime-inventory scan",
+    "security.log-read": "log read",
+    "security.reproduction": "proof-of-concept run report",
+}
+# Provider interfaces whose Provider names the logical source itself (the source node's
+# request carries none). ``check`` refuses a source node it cannot place, and an entry no
+# such node uses.
+INTERFACE_SOURCES = {
+    "security.epss-daily": "first.epss.daily",
+    "security.osv-ecosystems": "osv.dev.ecosystems",
+    "security.osv-query": "osv.dev.query",
+    "security.pypi-release": "pypi.release",
+    "security.release-asset": "github.release.asset",
+    "security.repo-snapshot": "github.repo.snapshot",
+}
+_CRON = re.compile(r"([0-9]{1,2}) ([0-9]{1,2}|\*/[0-9]{1,2}) \* \* \*")
 
 Json = dict[str, Any]
 
@@ -137,6 +173,7 @@ class TriggerDoc:
     line: str
     cron: str | None
     landing: str | None
+    logical_sources: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -391,6 +428,7 @@ def _load_example(docs: KitDocs, change_set: Json) -> None:
                 landing=(
                     schedule["capture_contract"] if schedule["kind"] == "capture_landing" else None
                 ),
+                logical_sources=tuple(schedule.get("logical_sources") or ()),
             )
         elif kind == "acquisition_policy":
             policy = member["acquisition_policy"]
@@ -461,6 +499,132 @@ def _landings(docs: KitDocs) -> dict[str, list[TriggerDoc]]:
         if trigger.landing:
             landed[trigger.landing].append(trigger)
     return landed
+
+
+@dataclass(frozen=True)
+class Retention:
+    """One Capture a run retains: its contract and logical source, and who runs it."""
+
+    contract: str
+    source: str | None  # None: the logical source a direct run is given (or a run's output)
+    definition: str
+    line: str | None  # the example Line that runs it; None for a direct or per-incident run
+    interface: str | None
+    emitted: bool
+    given: bool  # the request takes its logical source from the run's input
+
+
+def _node_source(node: SourceNode, line: LineDoc | None) -> str | None:
+    raw = node.logical_source
+    if raw and raw.startswith("$input."):
+        value = (line.parameters if line else {}).get(raw.removeprefix("$input."))
+        return value if isinstance(value, str) else None
+    if raw or node.emitted:
+        return raw
+    return INTERFACE_SOURCES.get(node.interface or "")
+
+
+def _retentions(docs: KitDocs) -> list[Retention]:
+    """Every Capture a run retains (a source node no Line feeds from its landing, or an emit)."""
+
+    out = []
+    for node in docs.source_nodes:
+        lines = sorted(
+            (line for line in docs.lines.values() if line.procedure == node.definition),
+            key=lambda item: item.name,
+        )
+        runs: list[LineDoc | None] = list(lines) or [None]
+        for line in runs:
+            if line is None and _reads_landing(docs, node):
+                continue
+            if line is not None and line.trigger_input is not None and line.trigger_input == node.alias:
+                continue
+            out.append(
+                Retention(
+                    contract=node.contract,
+                    source=_node_source(node, line),
+                    definition=node.definition,
+                    line=line.name if line else None,
+                    interface=node.interface,
+                    emitted=node.emitted,
+                    given=(node.logical_source or "").startswith("$input."),
+                )
+            )
+    return out
+
+
+def _retained_by(
+    retentions: Iterable[Retention], contract: str, source: str | None
+) -> list[Retention]:
+    """Who retains a logical source under a contract: the runs that name it, else the direct
+    runs that are given their logical source."""
+
+    candidates = [item for item in retentions if item.contract == contract and not item.emitted]
+    named = [item for item in candidates if source is None or item.source == source]
+    return named or [item for item in candidates if item.source is None]
+
+
+def _who(retentions: Iterable[Retention]) -> str:
+    retentions = list(retentions)
+    lines = sorted({item.line for item in retentions if item.line})
+    parts = []
+    if lines:
+        parts.append(("Line " if len(lines) == 1 else "Lines ") + " or ".join(f"`{n}`" for n in lines))
+    direct = sorted(
+        {(item.definition, item.interface) for item in retentions if item.line is None}
+    )
+    for definition, interface in direct:
+        if definition in PER_INCIDENT:
+            parts.append(f"each incident's `{definition}` Line")
+        elif interface == "workspace.file":
+            parts.append(f"a direct `{definition}` run on an agent's workspace file")
+        else:
+            parts.append(f"a direct `{definition}` run")
+    return " or ".join(parts) or "nothing the kit runs"
+
+
+def _label(source: str) -> str:
+    return SOURCE_LABELS.get(source, f"`{source}`")
+
+
+def _a(text: str) -> str:
+    return ("an " if text[:1].lower() in "aeio" else "a ") + text
+
+
+def _cron_words(expression: str) -> str | None:
+    """A cron the reference can say in words (daily, or every N hours), else None."""
+
+    match = _CRON.fullmatch(expression)
+    if match is None:
+        return None
+    minute, hour = int(match[1]), match[2]
+    if hour.startswith("*/"):
+        return f"every {int(hour[2:])} hours at :{minute:02d} UTC"
+    return f"daily at {int(hour):02d}:{minute:02d} UTC"
+
+
+def _trigger_words(docs: KitDocs, trigger: TriggerDoc) -> str:
+    """What starts a Line, in words: when, or which logical source landing and who retains it."""
+
+    if trigger.cron:
+        return _cron_words(trigger.cron) or f"on the cron `{trigger.cron}`"
+    if trigger.landing is None:
+        return "on its schedule"
+    retentions = _retentions(docs)
+    sources: tuple[str | None, ...] = trigger.logical_sources or (None,)
+    what = " or ".join(
+        _a(_label(source)) if source else f"a Capture under `{trigger.landing}`" for source in sources
+    )
+    who = _who(item for source in sources for item in _retained_by(retentions, trigger.landing, source))
+    return f"when {what} lands, retained by {who}"
+
+
+def _trigger_raw(trigger: TriggerDoc) -> str:
+    if trigger.cron:
+        return f"`{trigger.name}`: cron `{trigger.cron}`"
+    return f"`{trigger.name}`: " + " ".join(
+        f"`{item}`" for item in (trigger.landing or "", *trigger.logical_sources) if item
+    )
 
 
 def _evidenced(docs: KitDocs) -> dict[str, list[ClaimTypeDoc]]:
@@ -900,6 +1064,75 @@ def _contracts(docs: KitDocs) -> list[str]:
         ("Contract", "Captures", "Grade", "Produced by", "Landings start", "Supports"),
         rows,
     )
+    return out + ["", *_logical_sources(docs)]
+
+
+def _named_sources(docs: KitDocs) -> dict[str, set[str]]:
+    """Every logical source the definitions and the example name, with its contracts."""
+
+    named: dict[str, set[str]] = defaultdict(set)
+    for item in _retentions(docs):
+        if item.source:
+            named[item.source].add(item.contract)
+    for trigger in docs.triggers.values():
+        for source in trigger.logical_sources:
+            named[source].add(trigger.landing or "")
+    for claim_type in docs.claim_types.values():
+        for contract, sources in claim_type.source_uses:
+            for source in sources:
+                named[source].add(contract)
+    return named
+
+
+def _logical_sources(docs: KitDocs) -> list[str]:
+    retentions = _retentions(docs)
+    out = [
+        "### Logical sources",
+        "",
+        "A Capture is retained under a contract and a logical source: what was read. A "
+        "landing Trigger selects logical sources, and a ClaimType's evidence rule names the "
+        "ones it admits. **Retained by**: the runs that retain it (an example Line, a direct "
+        "`cruxible procedure run`, or a Line each incident declares). **Starts**: the Lines "
+        "its landing starts. **Cited by**: how many ClaimTypes admit it.",
+        "",
+    ]
+    rows = []
+    for source, contracts in sorted(_named_sources(docs).items()):
+        starts = sorted(
+            {t.line for t in docs.triggers.values() if source in t.logical_sources}
+        )
+        incident = sorted(
+            {
+                node.definition
+                for node in docs.source_nodes
+                if PER_INCIDENT.get(node.definition) == node.alias
+                and node.alias is not None
+                and node.logical_source == source
+            }
+        )
+        cited = sum(
+            1
+            for item in docs.claim_types.values()
+            if any(source in sources for _, sources in item.source_uses)
+        )
+        rows.append(
+            (
+                f"`{source}`",
+                _label(source) if source in SOURCE_LABELS else "",
+                _code(sorted(contracts)),
+                "; ".join(
+                    _who(_retained_by(retentions, contract, source)) for contract in sorted(contracts)
+                ),
+                ", ".join(
+                    [_code(starts)] * bool(starts)
+                    + [f"each incident's `{name}` Line" for name in incident]
+                ),
+                f"{cited} ClaimType{'s' if cited != 1 else ''}" if cited else "",
+            )
+        )
+    out += _table(
+        ("Logical source", "What it is", "Contract", "Retained by", "Starts", "Cited by"), rows
+    )
     return out
 
 
@@ -926,16 +1159,14 @@ def _may_settle(docs: KitDocs, line: LineDoc) -> str:
     return "nothing: " + ", ".join(done) if done else "nothing"
 
 
-def _triggers_of(docs: KitDocs, line: str) -> str:
-    parts = []
-    for trigger in sorted(docs.triggers.values(), key=lambda item: item.name):
-        if trigger.line != line:
-            continue
-        if trigger.cron:
-            parts.append(f"`{trigger.name}`: cron `{trigger.cron}`")
-        elif trigger.landing:
-            parts.append(f"`{trigger.name}`: lands `{trigger.landing}`")
-    return "; ".join(parts) or "line run"
+def _started_by(docs: KitDocs, line: str) -> str:
+    parts = [
+        f"{_trigger_words(docs, trigger)} ({_trigger_raw(trigger)})"
+        for trigger in sorted(docs.triggers.values(), key=lambda item: item.name)
+        if trigger.line == line
+    ]
+    text = "; or ".join(parts) or "only when run (`cruxible line run`)"
+    return text[:1].upper() + text[1:]
 
 
 def _runs(docs: KitDocs) -> list[str]:
@@ -943,17 +1174,18 @@ def _runs(docs: KitDocs) -> list[str]:
         "## What runs on its own",
         "",
         f"The example ChangeSet (`{EXAMPLE.as_posix()}`) authors these Lines disabled; you adapt, "
-        "approve and enable them. **Max authority** caps what a run may do (`observe`, "
-        "`propose`, `settle`).",
+        "approve and enable them. **Started by**: each Trigger in words (a schedule, or which "
+        "logical source landing and who retains it), its name and raw form after it. **Max "
+        "authority** caps what a run may do (`observe`, `propose`, `settle`).",
         "",
     ]
     out += _table(
-        ("Line", "Procedure", "Triggers", "Max authority", "What it may settle"),
+        ("Line", "Started by", "Procedure", "Max authority", "What it may settle"),
         (
             (
                 f"`{line.name}`",
+                _started_by(docs, line.name),
                 f"`{line.procedure}`",
-                _triggers_of(docs, line.name),
                 line.max_authority,
                 _may_settle(docs, line),
             )
@@ -1156,6 +1388,22 @@ def derivation_problems(docs: KitDocs) -> list[str]:
             node.definition == name and node.alias == alias for node in docs.source_nodes
         ):
             problems.append(f"PER_INCIDENT names source {alias!r} of {name}, which it lacks")
+    named = _named_sources(docs)
+    for source in sorted(set(named) - set(SOURCE_LABELS)):
+        problems.append(f"logical source {source} has no label in SOURCE_LABELS")
+    for source in sorted(set(SOURCE_LABELS) - set(named)):
+        problems.append(f"SOURCE_LABELS labels {source}, which nothing names")
+    placed = {node.interface for node in docs.source_nodes if not node.logical_source}
+    for interface in sorted(set(INTERFACE_SOURCES) - placed):
+        problems.append(f"INTERFACE_SOURCES maps {interface}, which no source node reads")
+    for item in _retentions(docs):
+        if item.source is None and not item.emitted and (item.line or not item.given):
+            problems.append(
+                f"{item.line or item.definition} retains a Capture whose logical source is unknown"
+            )
+    for trigger in sorted(docs.triggers.values(), key=lambda item: item.name):
+        if trigger.cron and _cron_words(trigger.cron) is None:
+            problems.append(f"Trigger {trigger.name}: cron {trigger.cron} has no words")
     return problems
 
 
