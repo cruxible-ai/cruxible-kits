@@ -6,7 +6,7 @@
       "max_capture_bytes": 16777216,
       "max_provider_calls": 1,
       "wall_clock": {
-        "microseconds": 60000000
+        "microseconds": 120000000
       }
     },
     "contract_in": {
@@ -28,7 +28,7 @@
       "max_provider_calls": 1,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
-        "microseconds": 120000000
+        "microseconds": 300000000
       }
     },
     "name": "security.fetch",
@@ -90,7 +90,7 @@
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:5641bd682ae9adbf87994507e92ec23e5b494f18ca13b6ade6049e06c64c4f0e",
+  "definition_digest": "sha256:bca222331cecd2e620183e42f09ce80c40e63006641046b0d5a699e141209cd4",
   "identity": {
     "kind": "Procedure",
     "name": "security.fetch"
@@ -123,6 +123,11 @@
       "schema": {
         "fields": {
           "logical_source": {
+            "enum": [
+              "cve.record",
+              "github.api",
+              "github.release"
+            ],
             "type": "string"
           },
           "max_bytes": {
