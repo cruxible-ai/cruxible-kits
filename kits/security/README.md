@@ -1265,7 +1265,8 @@ Lines and direct calls to the names and parameters in the example.
 Compatible named Procedure revisions retain Line bytes and enablements. An exact
 Procedure revision carries its Mandates to propose-only; review and re-author the
 KEV/EPSS settle grants to restore settlement. Triggers retain their exact bytes.
-A Line or Trigger you edit still needs explicit enablement.
+A Line or Trigger you edit still needs explicit enablement. A provider move that
+changes a Line's bindings is a Line revision and needs that enablement too.
 
 Provider builds remain installed alongside older builds. A direct or invoked run
 requires one fitting build per slot; use `--bind slot=provider` for a direct run or

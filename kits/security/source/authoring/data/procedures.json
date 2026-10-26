@@ -2174,20 +2174,6 @@
           "extract": false,
           "render": false
         }
-      },
-      {
-        "project": "summary",
-        "fields": {
-          "url": "$fetch.retrieved.final_url",
-          "status": "$fetch.retrieved.status_code",
-          "body_digest": "$fetch.retrieved.body_sha256"
-        },
-        "output": {
-          "url": "string",
-          "status": "int",
-          "body_digest": "string"
-        },
-        "contract": "security-http-evidence"
       }
     ],
     "slots": {
@@ -2204,7 +2190,14 @@
       "capture_bytes": 16777216,
       "items": 1
     },
-    "returns": "summary"
+    "returns": {
+      "fields": {
+        "url": "$fetch.retrieved.final_url",
+        "status": "$fetch.retrieved.status_code",
+        "body_digest": "$fetch.retrieved.body_sha256"
+      }
+    },
+    "output_contract": "security-http-evidence"
   },
   {
     "procedure": "security.fetch-observed",
@@ -2235,20 +2228,6 @@
         }
       },
       {
-        "project": "summary",
-        "fields": {
-          "url": "$fetch.retrieved.final_url",
-          "status": "$fetch.retrieved.status_code",
-          "body_digest": "$fetch.retrieved.body_sha256"
-        },
-        "output": {
-          "url": "string",
-          "status": "int",
-          "body_digest": "string"
-        },
-        "contract": "security-http-evidence"
-      },
-      {
         "emit": "security.observation-output-v1",
         "input": "$summary",
         "result": "$summary"
@@ -2267,7 +2246,15 @@
       "provider_calls": 1,
       "capture_bytes": 16777216,
       "items": 1
-    }
+    },
+    "returns": {
+      "fields": {
+        "url": "$fetch.retrieved.final_url",
+        "status": "$fetch.retrieved.status_code",
+        "body_digest": "$fetch.retrieved.body_sha256"
+      }
+    },
+    "output_contract": "security-http-evidence"
   },
   {
     "procedure": "security.epss-acquire",
@@ -2285,20 +2272,6 @@
         "interface": "security.epss-daily",
         "provider": "epss",
         "request": {}
-      },
-      {
-        "project": "summary",
-        "fields": {
-          "url": "$epss.retrieved.final_url",
-          "status": "$epss.retrieved.status_code",
-          "body_digest": "$epss.retrieved.body_sha256"
-        },
-        "output": {
-          "url": "string",
-          "status": "int",
-          "body_digest": "string"
-        },
-        "contract": "security-http-evidence"
       },
       {
         "emit": "security.observation-output-v1",
@@ -2319,7 +2292,15 @@
       "provider_calls": 1,
       "capture_bytes": 33554432,
       "items": 1
-    }
+    },
+    "returns": {
+      "fields": {
+        "url": "$epss.retrieved.final_url",
+        "status": "$epss.retrieved.status_code",
+        "body_digest": "$epss.retrieved.body_sha256"
+      }
+    },
+    "output_contract": "security-http-evidence"
   },
   {
     "procedure": "security.asset-fetch",
@@ -2341,20 +2322,6 @@
         "request": {
           "url": "$input.url"
         }
-      },
-      {
-        "project": "summary",
-        "fields": {
-          "url": "$asset.retrieved.final_url",
-          "status": "$asset.retrieved.status_code",
-          "body_digest": "$asset.retrieved.body_sha256"
-        },
-        "output": {
-          "url": "string",
-          "status": "int",
-          "body_digest": "string"
-        },
-        "contract": "security-http-evidence"
       }
     ],
     "slots": {
@@ -2371,7 +2338,14 @@
       "capture_bytes": 67108864,
       "items": 1
     },
-    "returns": "summary"
+    "returns": {
+      "fields": {
+        "url": "$asset.retrieved.final_url",
+        "status": "$asset.retrieved.status_code",
+        "body_digest": "$asset.retrieved.body_sha256"
+      }
+    },
+    "output_contract": "security-http-evidence"
   },
   {
     "procedure": "security.repo-acquire",
@@ -2400,17 +2374,6 @@
           "scope": "$input.scope",
           "path": "$input.path"
         }
-      },
-      {
-        "project": "summary",
-        "fields": {
-          "locator": "$snapshot.locator",
-          "revision": "$snapshot.revision"
-        },
-        "output": {
-          "locator": "string",
-          "revision": "string"
-        }
       }
     ],
     "slots": {
@@ -2427,7 +2390,12 @@
       "capture_bytes": 16777216,
       "items": 1
     },
-    "returns": "summary"
+    "returns": {
+      "fields": {
+        "locator": "$snapshot.locator",
+        "revision": "$snapshot.revision"
+      }
+    }
   },
   {
     "procedure": "security.registry-acquire",
@@ -2450,17 +2418,6 @@
           "project": "$input.project",
           "versions": "$input.versions"
         }
-      },
-      {
-        "project": "summary",
-        "fields": {
-          "project": "$registry.project",
-          "versions": "$registry.versions"
-        },
-        "output": {
-          "project": "string",
-          "versions": "json"
-        }
       }
     ],
     "slots": {
@@ -2477,7 +2434,12 @@
       "capture_bytes": 16777216,
       "items": 1
     },
-    "returns": "summary"
+    "returns": {
+      "fields": {
+        "project": "$registry.project",
+        "versions": "$registry.versions"
+      }
+    }
   },
   {
     "procedure": "security.osv-applicability",
@@ -2574,31 +2536,6 @@
         }
       },
       {
-        "project": "summary",
-        "fields": {
-          "changed": "$decide.changed",
-          "affected": "$decide.affected",
-          "not_affected": "$decide.not_affected",
-          "inconclusive": "$decide.inconclusive",
-          "unchanged": "$decide.unchanged",
-          "judged": "$decide.judged",
-          "coverage": "$decide.coverage",
-          "packages": "$decide.packages",
-          "unkeyed": "$decide.unkeyed"
-        },
-        "output": {
-          "changed": "integer",
-          "affected": "integer",
-          "not_affected": "integer",
-          "inconclusive": "integer",
-          "unchanged": "integer",
-          "judged": "integer",
-          "coverage": "integer",
-          "packages": "integer",
-          "unkeyed": "json"
-        }
-      },
-      {
         "id": "changed",
         "guard": "decide.changed > 0",
         "then": "propose",
@@ -2629,7 +2566,19 @@
       "capture_bytes": 67108864,
       "items": 5000
     },
-    "returns": "summary",
+    "returns": {
+      "fields": {
+        "changed": "$decide.changed",
+        "affected": "$decide.affected",
+        "not_affected": "$decide.not_affected",
+        "inconclusive": "$decide.inconclusive",
+        "unchanged": "$decide.unchanged",
+        "judged": "$decide.judged",
+        "coverage": "$decide.coverage",
+        "packages": "$decide.packages",
+        "unkeyed": "$decide.unkeyed"
+      }
+    },
     "activation": "drain"
   }
 ]
