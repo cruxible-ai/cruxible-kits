@@ -818,39 +818,47 @@ def _evidence_diagram(docs: KitDocs) -> list[str]:
 
 def _line_label(docs: KitDocs, line: LineDoc) -> str:
     crons = sorted(t.cron for t in docs.triggers.values() if t.line == line.name and t.cron)
-    parts = [line.max_authority] + [f"cron {cron}" for cron in crons]
-    return f"{_short(docs, line.name)}<br/>{', '.join(parts)}"
+    parts = [line.max_authority] + [_cron_words(cron) or f"cron {cron}" for cron in crons]
+    return f"{_short(docs, line.name)}<br/>{'; '.join(parts)}"
 
 
 def _automation_diagram(docs: KitDocs) -> list[str]:
-    landings = _landings(docs)
-    producers = _producers(docs)
-    landing_lines = {t.line for items in landings.values() for t in items}
+    retentions = _retentions(docs)
+    landing = sorted((t for t in docs.triggers.values() if t.landing), key=lambda item: item.name)
+    # The logical sources drawn: each one a landing Trigger selects, and each one an example
+    # Line retains (keyed with its contract; None: any Capture under the contract).
+    keys: set[tuple[str, str | None]] = {
+        (trigger.landing or "", source)
+        for trigger in landing
+        for source in (trigger.logical_sources or (None,))
+    }
+    keys |= {
+        (item.contract, item.source)
+        for item in retentions
+        if item.line and item.source and not item.emitted
+    }
+    feeds = {key: _retained_by(retentions, *key) for key in sorted(keys, key=str)}
+    reacting = {trigger.line for trigger in landing}
+    pulls = sorted(name for name in docs.lines if name not in reacting)
+    direct = sorted({item.definition for items in feeds.values() for item in items if not item.line})
     out = [
         "### What starts what",
         "",
-        "From the example ChangeSet: pull Lines (on a cron) and Procedures you run directly "
-        "retain Captures; a landing Trigger on a contract starts the Lines that read it. Each "
-        "Line shows its max authority and any cron. The arrow label is the Trigger.",
+        "From the example ChangeSet. On the left, the Lines a schedule starts and the "
+        "Procedures you run directly; each retains Captures under a logical source (middle: "
+        "what was read, over the Capture contract it is kept under, without the "
+        f"{_code(docs.owns)} prefix). A landing Trigger selects a logical source and starts "
+        "the Lines on the right; the arrow label is the Trigger's name. Each Line shows its "
+        "max authority and any schedule.",
         "",
         "```mermaid",
         "flowchart LR",
     ]
-    contracts = sorted(landings)
-    pulls = sorted(name for name in docs.lines if name not in landing_lines)
-    reacts = sorted(landing_lines)
-    by_definition: dict[str, list[str]] = defaultdict(list)
-    for line in docs.lines.values():
-        by_definition[_definition_of(docs, line.procedure)].append(line.name)
-    direct = sorted(
-        {
-            node.definition
-            for contract in contracts
-            for node in producers.get(contract, [])
-            if node.definition not in by_definition
-        }
-    )
-    out.append('  subgraph pulls["Pull Lines"]')
+
+    def source_id(key: tuple[str, str | None]) -> str:
+        return _node_id("s", f"{key[0]}_{key[1] or 'any'}")
+
+    out.append('  subgraph pulls["Lines on a schedule"]')
     out.append("    direction TB")
     for name in pulls:
         out.append(f'    {_node_id("l", name)}["{_line_label(docs, docs.lines[name])}"]')
@@ -859,31 +867,30 @@ def _automation_diagram(docs: KitDocs) -> list[str]:
         out.append('  subgraph direct["Run directly"]')
         out.append("    direction TB")
         for name in direct:
-            kind = docs.definitions[name].kind if name in docs.definitions else "Procedure"
-            out.append(f'    {_node_id("d", name)}["{_short(docs, name)}<br/>{kind.lower()} run"]')
+            out.append(f'    {_node_id("d", name)}["{_short(docs, name)}<br/>procedure run"]')
         out.append("  end")
-    out.append('  subgraph captures["Capture contracts"]')
+    out.append('  subgraph sources["Logical sources"]')
     out.append("    direction TB")
-    for contract in contracts:
-        out.append(f'    {_node_id("c", contract)}[("{_short(docs, contract)}")]')
+    for key in feeds:
+        contract, source = key
+        what = SOURCE_LABELS.get(source, source) if source else "any Capture"
+        out.append(f'    {source_id(key)}[("{what}<br/>{_short(docs, contract)}")]')
     out.append("  end")
     out.append('  subgraph reacts["Lines a landing starts"]')
     out.append("    direction TB")
-    for name in reacts:
+    for name in sorted(reacting):
         out.append(f'    {_node_id("l", name)}["{_line_label(docs, docs.lines[name])}"]')
     out.append("  end")
-    for contract in contracts:
-        for definition in sorted({node.definition for node in producers.get(contract, [])}):
-            for line_name in sorted(by_definition.get(definition, [])):
-                out.append(f"  {_node_id('l', line_name)} --> {_node_id('c', contract)}")
-            if definition not in by_definition:
-                out.append(f"  {_node_id('d', definition)} --> {_node_id('c', contract)}")
-    for contract in contracts:
-        for trigger in landings[contract]:
+    for key, items in feeds.items():
+        starts = sorted(
+            {_node_id("l", item.line) if item.line else _node_id("d", item.definition) for item in items}
+        )
+        out += [f"  {start} --> {source_id(key)}" for start in starts]
+    for trigger in landing:
+        for source in trigger.logical_sources or (None,):
+            key = (trigger.landing or "", source)
             label = _short(docs, trigger.name)
-            out.append(
-                f'  {_node_id("c", contract)} -- "{label}" --> {_node_id("l", trigger.line)}'
-            )
+            out.append(f'  {source_id(key)} -- "{label}" --> {_node_id("l", trigger.line)}')
     out.append("```")
     return out
 

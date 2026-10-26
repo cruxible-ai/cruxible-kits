@@ -110,42 +110,47 @@ flowchart LR
 
 ### What starts what
 
-From the example ChangeSet: pull Lines (on a cron) and Procedures you run directly retain Captures; a landing Trigger on a contract starts the Lines that read it. Each Line shows its max authority and any cron. The arrow label is the Trigger.
+From the example ChangeSet. On the left, the Lines a schedule starts and the Procedures you run directly; each retains Captures under a logical source (middle: what was read, over the Capture contract it is kept under, without the `security.` prefix). A landing Trigger selects a logical source and starts the Lines on the right; the arrow label is the Trigger's name. Each Line shows its max authority and any schedule.
 
 ```mermaid
 flowchart LR
-  subgraph pulls["Pull Lines"]
+  subgraph pulls["Lines on a schedule"]
     direction TB
-    l_security_epss_daily["epss-daily<br/>observe, cron 45 13 * * *"]
-    l_security_kev_daily["kev-daily<br/>observe, cron 17 14 * * *"]
-    l_security_osv_applicability["osv-applicability<br/>propose, cron 30 15 * * *"]
-    l_security_registry_pull_cruxible["registry-pull.cruxible<br/>observe, cron 20 6 * * *"]
-    l_security_registry_pull_cruxible_client["registry-pull.cruxible-client<br/>observe, cron 25 6 * * *"]
-    l_security_repo_pull_cruxible_ci["repo-pull.cruxible-ci<br/>observe, cron 5 */6 * * *"]
+    l_security_epss_daily["epss-daily<br/>observe; daily at 13:45 UTC"]
+    l_security_kev_daily["kev-daily<br/>observe; daily at 14:17 UTC"]
+    l_security_osv_applicability["osv-applicability<br/>propose; daily at 15:30 UTC"]
+    l_security_registry_pull_cruxible["registry-pull.cruxible<br/>observe; daily at 06:20 UTC"]
+    l_security_registry_pull_cruxible_client["registry-pull.cruxible-client<br/>observe; daily at 06:25 UTC"]
+    l_security_repo_pull_cruxible_ci["repo-pull.cruxible-ci<br/>observe; every 6 hours at :05 UTC"]
   end
   subgraph direct["Run directly"]
     direction TB
     d_security_credential_acquire["credential-acquire<br/>procedure run"]
-    d_security_evidence_acquire["evidence-acquire<br/>procedure run"]
     d_security_fetch["fetch<br/>procedure run"]
     d_security_inventory_acquire["inventory-acquire<br/>procedure run"]
-    d_security_log_acquire["log-acquire<br/>procedure run"]
-    d_security_reproduction_acquire["reproduction-acquire<br/>procedure run"]
     d_security_sarif_acquire["sarif-acquire<br/>procedure run"]
     d_security_sbom_acquire["sbom-acquire<br/>procedure run"]
   end
-  subgraph captures["Capture contracts"]
+  subgraph sources["Logical sources"]
     direction TB
-    c_security_fetched_v1[("fetched-v1")]
-    c_security_file_erasable_v1[("file-erasable-v1")]
-    c_security_file_v1[("file-v1")]
+    s_security_fetched_v1_cisa_kev_catalog[("CISA KEV catalog<br/>fetched-v1")]
+    s_security_fetched_v1_cve_record[("CVE record<br/>fetched-v1")]
+    s_security_fetched_v1_first_epss_daily[("FIRST EPSS daily scores file<br/>fetched-v1")]
+    s_security_fetched_v1_github_repo_snapshot[("GitHub repository snapshot<br/>fetched-v1")]
+    s_security_fetched_v1_osv_dev_ecosystems[("OSV ecosystem list<br/>fetched-v1")]
+    s_security_fetched_v1_osv_dev_query[("OSV query answer<br/>fetched-v1")]
+    s_security_fetched_v1_pypi_release[("PyPI release read<br/>fetched-v1")]
+    s_security_file_erasable_v1_security_credential_state[("credential key-state read<br/>file-erasable-v1")]
+    s_security_file_erasable_v1_security_inventory[("runtime-inventory scan<br/>file-erasable-v1")]
+    s_security_file_v1_cyclonedx_sbom[("CycloneDX SBOM<br/>file-v1")]
+    s_security_file_v1_sarif_log[("SARIF scan log<br/>file-v1")]
   end
   subgraph reacts["Lines a landing starts"]
     direction TB
     l_security_credential_import["credential-import<br/>propose"]
     l_security_cve_applicability["cve-applicability<br/>propose"]
     l_security_epss_triage["epss-triage<br/>propose"]
-    l_security_harden["harden<br/>observe, cron 40 7 * * *"]
+    l_security_harden["harden<br/>observe; daily at 07:40 UTC"]
     l_security_inventory_import_prod["inventory-import.prod<br/>propose"]
     l_security_kev_attention["kev-attention<br/>observe"]
     l_security_kev_triage["kev-triage<br/>propose"]
@@ -156,34 +161,32 @@ flowchart LR
     l_security_sarif_import_cruxible["sarif-import.cruxible<br/>propose"]
     l_security_sbom_import["sbom-import<br/>propose"]
   end
-  l_security_epss_daily --> c_security_fetched_v1
-  d_security_fetch --> c_security_fetched_v1
-  l_security_kev_daily --> c_security_fetched_v1
-  l_security_osv_applicability --> c_security_fetched_v1
-  l_security_registry_pull_cruxible --> c_security_fetched_v1
-  l_security_registry_pull_cruxible_client --> c_security_fetched_v1
-  l_security_repo_pull_cruxible_ci --> c_security_fetched_v1
-  d_security_credential_acquire --> c_security_file_erasable_v1
-  d_security_inventory_acquire --> c_security_file_erasable_v1
-  d_security_log_acquire --> c_security_file_erasable_v1
-  d_security_evidence_acquire --> c_security_file_v1
-  d_security_reproduction_acquire --> c_security_file_v1
-  d_security_sarif_acquire --> c_security_file_v1
-  d_security_sbom_acquire --> c_security_file_v1
-  c_security_fetched_v1 -- "cve-landed" --> l_security_cve_applicability
-  c_security_fetched_v1 -- "epss-landed" --> l_security_epss_triage
-  c_security_fetched_v1 -- "harden-on-registry" --> l_security_harden
-  c_security_fetched_v1 -- "harden-on-snapshot" --> l_security_harden
-  c_security_fetched_v1 -- "kev-landed" --> l_security_kev_triage
-  c_security_fetched_v1 -- "kev-landed-attention" --> l_security_kev_attention
-  c_security_fetched_v1 -- "registry-landed.cruxible" --> l_security_registry_parse_cruxible
-  c_security_fetched_v1 -- "registry-landed.cruxible-client" --> l_security_registry_parse_cruxible_client
-  c_security_fetched_v1 -- "repo-landed.cruxible-ci" --> l_security_repo_parse_cruxible_ci
-  c_security_file_erasable_v1 -- "credential-landed" --> l_security_credential_import
-  c_security_file_erasable_v1 -- "inventory-landed.prod" --> l_security_inventory_import_prod
-  c_security_file_v1 -- "sarif-landed-attention.cruxible" --> l_security_sarif_attention_cruxible
-  c_security_file_v1 -- "sarif-landed.cruxible" --> l_security_sarif_import_cruxible
-  c_security_file_v1 -- "sbom-landed" --> l_security_sbom_import
+  l_security_kev_daily --> s_security_fetched_v1_cisa_kev_catalog
+  d_security_fetch --> s_security_fetched_v1_cve_record
+  l_security_epss_daily --> s_security_fetched_v1_first_epss_daily
+  l_security_repo_pull_cruxible_ci --> s_security_fetched_v1_github_repo_snapshot
+  l_security_osv_applicability --> s_security_fetched_v1_osv_dev_ecosystems
+  l_security_osv_applicability --> s_security_fetched_v1_osv_dev_query
+  l_security_registry_pull_cruxible --> s_security_fetched_v1_pypi_release
+  l_security_registry_pull_cruxible_client --> s_security_fetched_v1_pypi_release
+  d_security_credential_acquire --> s_security_file_erasable_v1_security_credential_state
+  d_security_inventory_acquire --> s_security_file_erasable_v1_security_inventory
+  d_security_sbom_acquire --> s_security_file_v1_cyclonedx_sbom
+  d_security_sarif_acquire --> s_security_file_v1_sarif_log
+  s_security_file_erasable_v1_security_credential_state -- "credential-landed" --> l_security_credential_import
+  s_security_fetched_v1_cve_record -- "cve-landed" --> l_security_cve_applicability
+  s_security_fetched_v1_first_epss_daily -- "epss-landed" --> l_security_epss_triage
+  s_security_fetched_v1_pypi_release -- "harden-on-registry" --> l_security_harden
+  s_security_fetched_v1_github_repo_snapshot -- "harden-on-snapshot" --> l_security_harden
+  s_security_file_erasable_v1_security_inventory -- "inventory-landed.prod" --> l_security_inventory_import_prod
+  s_security_fetched_v1_cisa_kev_catalog -- "kev-landed" --> l_security_kev_triage
+  s_security_fetched_v1_cisa_kev_catalog -- "kev-landed-attention" --> l_security_kev_attention
+  s_security_fetched_v1_pypi_release -- "registry-landed.cruxible" --> l_security_registry_parse_cruxible
+  s_security_fetched_v1_pypi_release -- "registry-landed.cruxible-client" --> l_security_registry_parse_cruxible_client
+  s_security_fetched_v1_github_repo_snapshot -- "repo-landed.cruxible-ci" --> l_security_repo_parse_cruxible_ci
+  s_security_file_v1_sarif_log -- "sarif-landed-attention.cruxible" --> l_security_sarif_attention_cruxible
+  s_security_file_v1_sarif_log -- "sarif-landed.cruxible" --> l_security_sarif_import_cruxible
+  s_security_file_v1_cyclonedx_sbom -- "sbom-landed" --> l_security_sbom_import
 ```
 
 ## What it models
