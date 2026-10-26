@@ -1,0 +1,77 @@
+{
+  "artifact_format": "cruxible-provider-interface-v4",
+  "identity": {
+    "kind": "ProviderInterface",
+    "name": "security.repo-snapshot/v1"
+  },
+  "interface": {
+    "contracts": {
+      "input": {
+        "allow_extra": false,
+        "fields": {
+          "forge_host": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
+      },
+      "material": {
+        "allow_extra": false,
+        "fields": {
+          "files": {
+            "type": "json"
+          },
+          "forge_host": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "input_bucket": {
+            "type": "string"
+          },
+          "locator": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      },
+      "output": "playbill-provider-result-to-external-capture-v1"
+    },
+    "effect_class": "external_read",
+    "interface_id": "security.repo-snapshot",
+    "refusals": [
+      "provider_declined"
+    ],
+    "version": 1
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

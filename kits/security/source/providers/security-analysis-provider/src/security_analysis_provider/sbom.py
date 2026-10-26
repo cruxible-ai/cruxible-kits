@@ -1,6 +1,6 @@
 """CycloneDX JSON SBOM: the release it describes and that release's components.
 
-The input is the retained SBOM text (the ``security.cyclonedx-sbom-v1`` Capture's
+The input is the retained SBOM text (the ``security.file-v1`` Capture's
 ``content.text``) and the releases already in inventory (rows of
 ``security.release_inventory``). The SBOM's ``metadata.component`` names the
 product and version; its ``components`` with a package URL are the release's
@@ -39,6 +39,7 @@ from .common import (
     parse_rows,
     purl_version,
     sorted_items,
+    unindexed_counts,
     subject_item,
 )
 
@@ -135,6 +136,7 @@ class CycloneDxComponents:
             rows = parse_rows(context.input.get("releases"))
         except InputError as error:
             return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, str(error))
+        unindexed = unindexed_counts(purls, context.input.get("osv_ecosystems") or {})
         product = key_ref(PRODUCT, name=name)
         release = key_ref(RELEASE, product_name=name, version=version)
         # What inventory already holds, matched by key values: the release (its
@@ -223,6 +225,10 @@ class CycloneDxComponents:
             item for item in items if item["tag"] != "playbill-procedure-subject-proposal-item-v1"
         ]
         subjects = [item for item in items if item not in claims]
+        if unindexed:
+            note = "; OSV will not answer " + ", ".join(f"{kind} {count}" for kind, count in unindexed.items())
+            for item in claims:
+                item["rationale"] += note
         changed = len(claims)
         return ProviderResult.ok(
             {
@@ -233,6 +239,7 @@ class CycloneDxComponents:
                 "components": len(purls),
                 "added": len(added),
                 "skipped": skipped,
+                "osv_not_indexed": unindexed, "osv_unindexed": sum(unindexed.values()),
             },
             metrics={"components": float(len(purls)), "added": float(len(added))},
         )

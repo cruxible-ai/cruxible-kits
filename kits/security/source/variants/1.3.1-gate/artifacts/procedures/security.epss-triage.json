@@ -1,149 +1,87 @@
 {
   "activation_policy": "drain",
-  "artifact_format": "playbill-procedure-v2",
+  "artifact_format": "cruxible-procedure-v3",
   "definition": {
-    "annotations": {},
     "budget": {
       "max_capture_bytes": 33554432,
       "max_provider_calls": 2,
-      "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
-        "microseconds": 120000000,
-        "tag": "playbill-duration-v1"
+        "microseconds": 120000000
       }
     },
     "contract_in": {
-      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
-      "role": "contract-in",
       "target": {
         "kind": "Contract",
         "name": "security-empty-input"
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:e3cb55ae88a0780aea6a68bf718a337fd2e9f42bc18f7690a4a68e53c0455217",
-      "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-epss-summary"
       }
     },
-    "description": "Read the EPSS daily file Capture that triggered the Line (security.epss-daily-v1) and the watched vulnerabilities, and settle epss_score and epss_percentile for each watched CVE whose scores changed, exactly as the file states them (or propose them under a propose cap). Halts no_change when nothing changed. Runs as a Line with trigger_input epss.",
-    "graph_format": 6,
+    "description": "Read the EPSS daily file Capture that triggered the Line (security.fetched-v1) and the watched vulnerabilities, and settle epss_score and epss_percentile for each watched CVE whose scores changed, exactly as the file states them (or propose them under a propose cap). Halts no_change when nothing changed. Runs as a Line with trigger_input epss.",
     "hard_caps": {
       "max_capture_bytes": 33554432,
       "max_items": 5000,
       "max_provider_calls": 2,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
-        "microseconds": 300000000,
-        "tag": "playbill-duration-v1"
-      },
-      "tag": "playbill-procedure-hard-caps-v1"
+        "microseconds": 300000000
+      }
     },
-    "measurements": [],
     "name": "security.epss-triage",
     "nodes": [
       {
-        "as": "epss",
         "capture_contract": {
-          "artifact_digest": "sha256:1cf4b39dae1713d2675fd138b5589f36219e9085d1c9354c564fa24934cca7bb",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
-            "name": "security.epss-daily-v1"
+            "name": "security.fetched-v1"
           }
         },
-        "implementation_digest": "sha256:46fbd91cdfb63f4343135eacd820b9fc7fdf785a4137219d00c7b055c9d1eba9",
+        "id": "epss",
         "interface": {
-          "artifact_digest": "sha256:6d6b4034fd0f0c87936b7786e4df5152f3dc35efb1fe21f82716637dd5ba67b2",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-daily/5f7b04d392fc9a1264721b96a0f609f8e5a7c8846f9c9673b1dca8766377a9b8"
+            "name": "security.epss-daily/v1"
           }
         },
-        "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
         "kind": "source",
-        "next": "watched",
-        "node_id": "epss",
         "provider": {
-          "artifact_digest": "sha256:21c3f660f86d896c9b88d9b15db4289c68de1aefec95e8977cb700af711eec81",
-          "role": "provider",
-          "target": {
-            "kind": "Provider",
-            "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
-          }
+          "slot_name": "epss"
         },
         "request": {}
       },
       {
-        "as": "watched",
-        "budgets": null,
+        "id": "watched",
         "kind": "state_tap",
-        "next": "parse",
-        "node_id": "watched",
-        "parameters": {},
         "query": {
-          "artifact_digest": "sha256:2605a643a42879f783ea3a7f85bafce31fee4a5c9e0238b8b429cff1505c915b",
-          "role": "query",
           "target": {
             "kind": "QueryDefinition",
             "name": "security.watched_vulnerabilities"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "parse",
-        "contract_in": {
-          "artifact_digest": "sha256:ea4f7625cd8e813d86ad49d14666a28680349727857f8580857d8f66c0079d07",
-          "role": "contract-in",
-          "target": {
-            "kind": "Contract",
-            "name": "security-epss-request"
-          }
-        },
-        "contract_out": {
-          "artifact_digest": "sha256:d54675de90bd23c76a09818c9c457bb826d0942bab51d0a3fa0551ad11bf338d",
-          "role": "contract-out",
-          "target": {
-            "kind": "Contract",
-            "name": "security-epss-result"
-          }
-        },
-        "effect_policy": null,
-        "implementation_digest": "sha256:c12dc2d6f78879c56702df13f0c9ccfdbfc0db183ffdbbcd9231466e19295adb",
+        "id": "parse",
         "input": {
           "daily_base64": "$steps.epss.retrieved.body_base64",
           "watched": "$steps.watched.result.rows"
         },
         "interface": {
-          "artifact_digest": "sha256:59dd7f2cffc0c0bcf2e13541885dbe2914844ba7427fa3961d8269f41bd0cfd7",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-scores/449662d06f51954b811871dd37b9bb4494d017388f75bfd257edc672088b660b"
+            "name": "security.epss-scores/v1"
           }
         },
-        "interface_digest": "sha256:5d2bb4e2e84aebdfa01f3d1a6800ef8e2c8e8e468f047cc94eeff9cdb69f5b64",
         "kind": "call",
-        "next": "summary",
-        "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:13b93204d53aed8333afa590567db414555b71fa195ab3f03ca3512a11a8cb72",
-          "role": "provider",
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/c7a853603d64e7598215f39f59d035c6f9d6a8e872c352f35f662f229ae7c5a1"
-          }
+          "slot_name": "parse"
         }
       },
       {
-        "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:e3cb55ae88a0780aea6a68bf718a337fd2e9f42bc18f7690a4a68e53c0455217",
-          "role": "contract-out",
           "target": {
             "kind": "Contract",
             "name": "security-epss-summary"
@@ -156,42 +94,24 @@
           "scored": "$steps.parse.scored",
           "watched": "$steps.parse.watched"
         },
-        "kind": "project",
-        "next": "changed",
-        "node_id": "summary"
+        "id": "summary",
+        "kind": "project"
       },
       {
+        "id": "changed",
         "kind": "guard",
         "message": "The EPSS file changes no watched Claim.",
-        "node_id": "changed",
         "on_false": "nochange",
-        "on_true": "settle",
         "predicate": {
-          "all_of": null,
-          "any_of": null,
           "left": {
             "alias": "parse",
-            "input_name": null,
             "kind": "step",
-            "parameter_name": null,
             "path": [
               "changed"
-            ],
-            "tag": "playbill-predicate-operand-v1",
-            "value": null
+            ]
           },
-          "not_of": null,
           "operator": "gt",
-          "right": {
-            "alias": null,
-            "input_name": null,
-            "kind": "literal",
-            "parameter_name": null,
-            "path": [],
-            "tag": "playbill-predicate-operand-v1",
-            "value": 0
-          },
-          "tag": "playbill-guard-predicate-v1"
+          "right": 0
         },
         "refusal_code": "no_change"
       },
@@ -199,31 +119,43 @@
         "candidate_templates": {
           "items": "$steps.parse.items"
         },
-        "claim_types": [],
+        "id": "settle",
         "kind": "settle_change_set",
-        "node_id": "settle",
         "result": "$steps.summary"
       },
       {
+        "id": "nochange",
         "kind": "halt",
-        "node_id": "nochange",
         "reason": "no_change"
       }
     ],
-    "parameter_contract": null,
-    "pin_slots": [],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.epss-daily/v1"
+          }
+        },
+        "slot_name": "epss"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.epss-scores/v1"
+          }
+        },
+        "slot_name": "parse"
+      }
+    ],
     "returns": "summary",
-    "source": null,
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:96340c44ecc3a6a1594b804e949da8460153251f978dafde2dd313b05145e549",
+  "definition_digest": "sha256:f76de64a94e928cda18ffa72352d3d13175a21c851060f8df65cbc5eed6da078",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
-  },
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
   },
   "owned_contracts": [
     {
@@ -232,125 +164,8 @@
         "name": "security-empty-input"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {}
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-epss-request"
-      },
-      "schema": {
-        "allow_extra": false,
-        "description": null,
-        "fields": {
-          "daily_base64": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "watched": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          }
-        }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-epss-result"
-      },
-      "schema": {
-        "allow_extra": false,
-        "description": null,
-        "fields": {
-          "changed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "items": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "model_version": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "score_date": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "scored": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "watched": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          }
-        }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
+      }
     },
     {
       "identity": {
@@ -358,156 +173,23 @@
         "name": "security-epss-summary"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "changed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "model_version": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "score_date": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "scored": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "watched": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:1b55927e8f8549bd91de9b6562869038a6f4b400e42f2d615bb343c7064d3780",
-      "role": "acquisition-policy",
-      "target": {
-        "kind": "SourceAcquisitionPolicy",
-        "name": "security.acquisition"
-      }
-    },
-    {
-      "artifact_digest": "sha256:1cf4b39dae1713d2675fd138b5589f36219e9085d1c9354c564fa24934cca7bb",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.epss-daily-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:a4af462677245e193b86c2f96dbdb38fc0bc120024019be9afebb54df20e90cb",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-empty-input"
-      }
-    },
-    {
-      "artifact_digest": "sha256:ea4f7625cd8e813d86ad49d14666a28680349727857f8580857d8f66c0079d07",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-epss-request"
-      }
-    },
-    {
-      "artifact_digest": "sha256:d54675de90bd23c76a09818c9c457bb826d0942bab51d0a3fa0551ad11bf338d",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-epss-result"
-      }
-    },
-    {
-      "artifact_digest": "sha256:e3cb55ae88a0780aea6a68bf718a337fd2e9f42bc18f7690a4a68e53c0455217",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-epss-summary"
-      }
-    },
-    {
-      "artifact_digest": "sha256:13b93204d53aed8333afa590567db414555b71fa195ab3f03ca3512a11a8cb72",
-      "role": "provider",
-      "target": {
-        "kind": "Provider",
-        "name": "security-analysis-provider/c7a853603d64e7598215f39f59d035c6f9d6a8e872c352f35f662f229ae7c5a1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:21c3f660f86d896c9b88d9b15db4289c68de1aefec95e8977cb700af711eec81",
-      "role": "provider",
-      "target": {
-        "kind": "Provider",
-        "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
-      }
-    },
-    {
-      "artifact_digest": "sha256:6d6b4034fd0f0c87936b7786e4df5152f3dc35efb1fe21f82716637dd5ba67b2",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "security.epss-daily/5f7b04d392fc9a1264721b96a0f609f8e5a7c8846f9c9673b1dca8766377a9b8"
-      }
-    },
-    {
-      "artifact_digest": "sha256:59dd7f2cffc0c0bcf2e13541885dbe2914844ba7427fa3961d8269f41bd0cfd7",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "security.epss-scores/449662d06f51954b811871dd37b9bb4494d017388f75bfd257edc672088b660b"
-      }
-    },
-    {
-      "artifact_digest": "sha256:2605a643a42879f783ea3a7f85bafce31fee4a5c9e0238b8b429cff1505c915b",
-      "role": "query",
-      "target": {
-        "kind": "QueryDefinition",
-        "name": "security.watched_vulnerabilities"
       }
     }
   ]

@@ -16,7 +16,7 @@
   "description": "The environment the asset runs in: production, staging, development, a workstation (a developer's or maintainer's machine) or ci (a CI runner).",
   "evidence_admission_policy": {
     "rules": [],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "none",

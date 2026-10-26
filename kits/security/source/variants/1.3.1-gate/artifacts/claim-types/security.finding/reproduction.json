@@ -23,6 +23,7 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
@@ -33,37 +34,34 @@
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "self_asserted"
-        ],
         "rule_id": "own-words",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       },
       {
         "admission": "direct",
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [
+              "security.reproduction"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.reproduction-v1"
+              "name": "security.file-v1"
             }
           }
         ],
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "test_report"
-        ],
         "rule_id": "stated-by-source",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "self",

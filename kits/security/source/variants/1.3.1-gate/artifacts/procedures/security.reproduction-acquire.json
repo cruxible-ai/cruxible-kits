@@ -1,79 +1,55 @@
 {
   "activation_policy": "snapshot",
-  "artifact_format": "playbill-procedure-v2",
+  "artifact_format": "cruxible-procedure-v3",
   "definition": {
-    "annotations": {},
     "budget": {
       "max_capture_bytes": 1048576,
       "max_provider_calls": 1,
-      "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
-        "microseconds": 60000000,
-        "tag": "playbill-duration-v1"
+        "microseconds": 60000000
       }
     },
     "contract_in": {
-      "artifact_digest": "sha256:cab7dec5ca71b93074efc8e2e16e14595ecb629b142c72472ee3fa0210788b13",
-      "role": "contract-in",
       "target": {
         "kind": "Contract",
         "name": "security-path-input"
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:1752420ab9752c2310e77810ede7472a7976302840cc4023d0f92bb4edb38178",
-      "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-file-evidence"
       }
     },
-    "description": "Read one proof-of-concept run's report from the attached workspace (input.relative_path: a JUnit XML or a test log) and retain it under security.reproduction-v1; cite the Capture for security.finding.verdict (confirmed: the PoC fails while vulnerable) or verification (fixed: it passes).",
-    "graph_format": 6,
+    "description": "Read one proof-of-concept run's report from the attached workspace (input.relative_path: a JUnit XML or a test log) and retain it under security.file-v1; cite the Capture for security.finding.verdict (confirmed: the PoC fails while vulnerable) or verification (fixed: it passes).",
     "hard_caps": {
       "max_capture_bytes": 1048576,
       "max_items": 1,
       "max_provider_calls": 1,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
-        "microseconds": 120000000,
-        "tag": "playbill-duration-v1"
-      },
-      "tag": "playbill-procedure-hard-caps-v1"
+        "microseconds": 120000000
+      }
     },
-    "measurements": [],
     "name": "security.reproduction-acquire",
     "nodes": [
       {
-        "as": "reproduction",
         "capture_contract": {
-          "artifact_digest": "sha256:f16eb1621d28fc0fdf20485054b3b0b244833f68b4e5d91aa7a90008dd30cf32",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
-            "name": "security.reproduction-v1"
+            "name": "security.file-v1"
           }
         },
-        "implementation_digest": "sha256:67c337ac0a87cfe8ee42da30a21c4cce658a0ad6bb3944b39a81e921aaba843c",
+        "id": "reproduction",
         "interface": {
-          "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
             "name": "workspace.file"
           }
         },
-        "interface_digest": "sha256:faa92552bd6032d3280753881ce991501013b2eaa2005e0f974820f01248d866",
         "kind": "source",
-        "next": "summary",
-        "node_id": "reproduction",
         "provider": {
-          "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
-          "role": "provider",
-          "target": {
-            "kind": "Provider",
-            "name": "cruxible-builtin"
-          }
+          "slot_name": "reproduction"
         },
         "request": {
           "coordinate": {
@@ -91,10 +67,7 @@
         }
       },
       {
-        "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:1752420ab9752c2310e77810ede7472a7976302840cc4023d0f92bb4edb38178",
-          "role": "contract-out",
           "target": {
             "kind": "Contract",
             "name": "security-file-evidence"
@@ -104,25 +77,28 @@
           "byte_length": "$steps.reproduction.source.byte_length",
           "bytes_digest": "$steps.reproduction.source.bytes_digest"
         },
-        "kind": "project",
-        "next": null,
-        "node_id": "summary"
+        "id": "summary",
+        "kind": "project"
       }
     ],
-    "parameter_contract": null,
-    "pin_slots": [],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "workspace.file"
+          }
+        },
+        "slot_name": "reproduction"
+      }
+    ],
     "returns": "summary",
-    "source": null,
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:a4e2a0e1150f697dbfd1ad823903fe34a5a68eec31778820c3667b2878e4539b",
+  "definition_digest": "sha256:7da05b5e99d75dd80f05a8e3eb1850a3ab1e947706c247b615be4eaf6ce121b4",
   "identity": {
     "kind": "Procedure",
     "name": "security.reproduction-acquire"
-  },
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
   },
   "owned_contracts": [
     {
@@ -131,34 +107,15 @@
         "name": "security-file-evidence"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "byte_length": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "bytes_digest": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
+      }
     },
     {
       "identity": {
@@ -166,72 +123,11 @@
         "name": "security-path-input"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "relative_path": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:1b55927e8f8549bd91de9b6562869038a6f4b400e42f2d615bb343c7064d3780",
-      "role": "acquisition-policy",
-      "target": {
-        "kind": "SourceAcquisitionPolicy",
-        "name": "security.acquisition"
-      }
-    },
-    {
-      "artifact_digest": "sha256:f16eb1621d28fc0fdf20485054b3b0b244833f68b4e5d91aa7a90008dd30cf32",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.reproduction-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:cab7dec5ca71b93074efc8e2e16e14595ecb629b142c72472ee3fa0210788b13",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-path-input"
-      }
-    },
-    {
-      "artifact_digest": "sha256:1752420ab9752c2310e77810ede7472a7976302840cc4023d0f92bb4edb38178",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-file-evidence"
-      }
-    },
-    {
-      "artifact_digest": "sha256:fdc53fb334f8a9c45ebb575762fb187b1fe4b12173118058cfa55c557d29cd70",
-      "role": "provider",
-      "target": {
-        "kind": "Provider",
-        "name": "cruxible-builtin"
-      }
-    },
-    {
-      "artifact_digest": "sha256:f8e4a73e987e92313393d5008c5091af5b6b351249ae69012edfcc8269ddf639",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "workspace.file"
       }
     }
   ]

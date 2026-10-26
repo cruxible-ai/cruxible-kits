@@ -1,28 +1,21 @@
 {
-  "artifact_format": "playbill-query-definition-v1",
+  "artifact_format": "cruxible-query-definition-v3",
   "dedupe": "path",
   "default_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 100,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
   "description": "Every workflow read from one source (host/owner/repo@ref) and its jobs, with each many-valued fact's Claims: the repo parse's tap. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "workflow",
-    "subject_id": null,
     "subject_kinds": [
       "security.workflow"
-    ],
-    "tag": "playbill-query-entry-v1"
+    ]
   },
   "evaluation_policy": {
     "conflict_behavior": "surface_conflicts",
-    "requires_accepted_coordinate": true,
-    "requires_explicit_evaluation_time": true,
-    "result_expiry": null,
-    "tag": "playbill-query-evaluation-policy-v1",
     "visible_currency": [
       "current"
     ],
@@ -42,10 +35,7 @@
       "many": true,
       "max_items": 500,
       "name": "needs",
-      "orderings": [],
-      "predicate": "security.job.needs",
-      "tag": "playbill-query-include-v1",
-      "where": null
+      "predicate": "security.job.needs"
     },
     {
       "binding": "included_permission",
@@ -54,10 +44,7 @@
       "many": true,
       "max_items": 500,
       "name": "permission",
-      "orderings": [],
-      "predicate": "security.job.permission",
-      "tag": "playbill-query-include-v1",
-      "where": null
+      "predicate": "security.job.permission"
     },
     {
       "binding": "included_publishes_to",
@@ -66,10 +53,7 @@
       "many": true,
       "max_items": 500,
       "name": "publishes_to",
-      "orderings": [],
-      "predicate": "security.job.publishes_to",
-      "tag": "playbill-query-include-v1",
-      "where": null
+      "predicate": "security.job.publishes_to"
     },
     {
       "binding": "included_secret",
@@ -78,10 +62,7 @@
       "many": true,
       "max_items": 500,
       "name": "secret",
-      "orderings": [],
-      "predicate": "security.job.secret",
-      "tag": "playbill-query-include-v1",
-      "where": null
+      "predicate": "security.job.secret"
     },
     {
       "binding": "included_trigger",
@@ -90,10 +71,7 @@
       "many": true,
       "max_items": 500,
       "name": "trigger",
-      "orderings": [],
-      "predicate": "security.workflow.trigger",
-      "tag": "playbill-query-include-v1",
-      "where": null
+      "predicate": "security.workflow.trigger"
     },
     {
       "binding": "included_uses",
@@ -102,216 +80,81 @@
       "many": true,
       "max_items": 500,
       "name": "uses",
-      "orderings": [],
-      "predicate": "security.job.uses",
-      "tag": "playbill-query-include-v1",
-      "where": null
+      "predicate": "security.job.uses"
     }
   ],
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
-  },
   "maximum_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 1000,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
-  "orderings": [],
   "parameters": [
     {
-      "default": null,
       "name": "source",
-      "required": true,
-      "tag": "playbill-query-parameter-v1",
       "value_type": "string"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:f1bbdbfa2df81778d8e71d4eabc167b216c7fa32b89d47508c5a64ae150b8100",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.job.environment"
-      }
-    },
-    {
-      "artifact_digest": "sha256:081118527535ab25a8f79f48bcfccb8ebc7b6c7b1c3c76657e74776621fbca18",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.job.job_key"
-      }
-    },
-    {
-      "artifact_digest": "sha256:dbc7a07285969928748e182fd1730f354fd0e443e6814a9bec904794930cd332",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.job.needs"
-      }
-    },
-    {
-      "artifact_digest": "sha256:eaf3554965a0a46f147605f599cf901bc4240f4f32f4614d1042fb06564e414c",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.job.permission"
-      }
-    },
-    {
-      "artifact_digest": "sha256:fc1fc7efff273c5867937aa137612da6b8b8b0f95e4c39cc8c3865ea8124cc85",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.job.publishes_to"
-      }
-    },
-    {
-      "artifact_digest": "sha256:936c2c537d53a1273d469508ca22a85c2c626a57894265ace917837a3c6be23a",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.job.secret"
-      }
-    },
-    {
-      "artifact_digest": "sha256:96de63dafda0341b0e984560fb40ea9c224dccd535aa5785067ec8667c0a899c",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.job.uses"
-      }
-    },
-    {
-      "artifact_digest": "sha256:79e29a86c903a369abf7019e67e6664bd7810b0ec7e8d8b6a1f36aa8ce221d67",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.job.workflow"
-      }
-    },
-    {
-      "artifact_digest": "sha256:4bc4b2ee7de83953a0f99792d97118c56ce0d73f5395f172620dcbf46ed2dcf9",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.workflow.coverage"
-      }
-    },
-    {
-      "artifact_digest": "sha256:ca957a2cca04ef30b9fb70c0bf91c9d2133b3c84dca0cb8237c1c5617f459890",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.workflow.path"
-      }
-    },
-    {
-      "artifact_digest": "sha256:fcafe8ec8337d6166edc760c9169ae40ba20c08a44476f8fff8ce10aa0a49f5b",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.workflow.repo"
-      }
-    },
-    {
-      "artifact_digest": "sha256:5912a400500c1c5b77edfbabb5649f486b6b7437dc21a33ba76ef0175a5ee352",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.workflow.source"
-      }
-    },
-    {
-      "artifact_digest": "sha256:83fdbafc2053880a4df5acf636eaaf85a2cf0b4e2cfd1072fe3f465600697ddd",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.workflow.trigger"
-      }
     }
   ],
   "projection": {
     "fields": [
       {
         "name": "coverage",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "workflow",
           "kind": "claim_value",
-          "predicate": "security.workflow.coverage",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.workflow.coverage"
         }
       },
       {
         "name": "environment",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "job",
           "kind": "claim_value",
-          "predicate": "security.job.environment",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.job.environment"
         }
       },
       {
         "name": "job",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "job",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "job_key",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "job",
           "kind": "claim_value",
-          "predicate": "security.job.job_key",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.job.job_key"
         }
       },
       {
         "name": "path",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "workflow",
           "kind": "claim_value",
-          "predicate": "security.workflow.path",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.workflow.path"
         }
       },
       {
         "name": "repo",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "workflow",
           "kind": "claim_value",
-          "predicate": "security.workflow.repo",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.workflow.repo"
         }
       },
       {
         "name": "workflow",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "workflow",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       }
-    ],
-    "tag": "playbill-query-projection-v1"
+    ]
   },
-  "result_binding": "workflow",
-  "result_cardinality": "many",
   "result_shape": "path",
   "traversal": [
     {
@@ -320,11 +163,9 @@
       "from_binding": "workflow",
       "predicate": "security.job.workflow",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.job"
-      ],
-      "where": null
+      ]
     }
   ],
   "where": {
@@ -332,16 +173,13 @@
     "left": {
       "binding": "workflow",
       "kind": "claim_value",
-      "predicate": "security.workflow.source",
-      "tag": "playbill-query-claim-value-ref-v1"
+      "predicate": "security.workflow.source"
     },
     "operator": "eq",
     "right": {
       "kind": "parameter",
-      "parameter": "source",
-      "tag": "playbill-query-parameter-ref-v1"
+      "parameter": "source"
     },
-    "tag": "playbill-query-comparison-filter-v1",
     "value_type": "string"
   }
 }

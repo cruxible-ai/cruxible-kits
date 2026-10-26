@@ -1,317 +1,98 @@
 ---
 name: security-analyst
-description: Work as a security analyst on an instance with the Cruxible security kit - answer exposure questions, work the KEV triage backlog, review applicability proposals, record analyst judgments with their evidence, act on hardening answers (found, none, unknown), triage code findings without a finder confirming its own report, and carry an incident through patch, audit and rotate on evidence, never on self-report.
+description: Work as a security analyst on an instance with the Cruxible security kit - read exposure answers for what they say and don't, judge applicability, hardening answers and code findings on cited evidence, and carry an incident through patch, audit and rotate on reads nobody self-reported.
 ---
 
-# Security Analyst
+# Security analyst
 
-Use this skill when the security kit is installed and the user wants security
-questions answered or security work done: what is exposed, what is untriaged,
-whether a finding is real, what to fix first, and how to respond when a
-vulnerability is exploited in the wild.
-
-The kit's README (`cruxible kit docs security --out DIR` writes it) is the
-source for every name below, and its `reference.md` lists every kind, field and query. The
-core guides are at https://docs.cruxible.ai. If the kit isn't installed yet,
-use the `adopt-kit` skill and the README's **Install and first answers**. If
-the instance doesn't yet hold what you ship and run, or an answer is unknown,
-use the [security intake skill](../security-intake/SKILL.md) first: it pulls
-in SBOMs, inventory, services, credentials and log sources, and fetches what
-each unknown names.
+Use this skill when the user wants security questions answered or security work judged on an instance with
+the security kit. The state says what is waiting: `cruxible next`, the inbox (what Lines posted for
+judgment) and open proposals. This skill says what the answers mean and what a sound judgment rests on. The
+kit's README is the source for every name, query and exact write, `reference.md` for every kind and field;
+the [security intake skill](../security-intake/SKILL.md) says what each unknown is asking for.
 
 ## Ground rules
 
-- **Found, none, or unknown.** An answer is **none** only when a current
-  coverage says the source was read and nothing matched. When nobody has read
-  it, the answer is **unknown**, and the job is to run the pull that answers
-  it. Never report "none" for something nobody read.
-- **Observations versus judgments.** Procedures record what a source said
-  (role `observation`, citing the Capture they read). Your decisions are
-  normative (role `normative`), with your reasoning as the write's `because`.
-  Reads show each Claim's role; the worklists carry a `status_role` column.
-- **Nobody confirms their own finding.** Under
-  `independent_approval_required`, a change waits for someone other than its
-  author, so a finder's confirmation waits for a reviewer. Under
-  `self_approval_allowed` it lands alone, and no query shows who wrote it; say
-  so when it matters ([Review and
-  governance](https://docs.cruxible.ai/review-and-governance/#the-approval-policy)).
-- **Judgments never go in a mandate.** Automation may settle verbatim facts
-  (KEV and EPSS fields, parsed workflow facts) once it has earned it. Verdicts,
-  justifications, verification, `affects`, `explained_by` and publish gates
-  stay with people and agents.
+- **Found, none, or unknown.** None only when a current coverage says the source was read and nothing
+  matched. Never report none, or "not affected", for anything nobody read or the respond Line reads unknown.
+- **Observations are the source's word; judgments are yours.** A Procedure's Claim (role `observation`)
+  says what a source said, citing its Capture. Your decision (role `normative`) is your belief on evidence
+  you cite, with your reasoning as `because`. Read the role with every value.
+- **Review what automation proposes.** Applicability never settles: check the cited Capture before you
+  approve an `affected`, `not_affected` or `inconclusive`. An unreviewed observation is part of the answer;
+  say it as one.
+- **Nobody confirms their own finding**, and whoever acted doesn't acquire the read that verifies the
+  action. The kit can't check either: read the acquiring run's actor. Under `self_approval_allowed` a change
+  lands alone and no query shows who wrote it; say so when it matters.
+- **Judgments never go in a mandate.** Automation may settle verbatim source fields once it has earned it;
+  verdicts, justifications, verification, `affects`, `explained_by` and publish gates stay with people and
+  agents.
+- **Never retain a secret** (a secret scanner's SARIF, a PoC report with tokens, a config as deployed). If
+  one lands, rotate what it exposed, erase the Capture, and re-bind what it backed onto a clean read.
 
-## 1. Orient
+## Reading the answers
 
-```bash
-cruxible orient
-cruxible next                                            # what is wrong or waiting
-cruxible inbox list --status unread                      # what the Lines posted for judgment
-cruxible proposal list --status open
-```
+- **Flags are part of the answer**: `stale`, `contested`, a status nobody reviewed.
+- **No assessment is not safe**: nothing decided it. The release's OSV coverage says whether OSV could
+  have: under `complete`, a CVE OSV knows that touches none of its components is none; under `partial` it is
+  unknown. A coverage answers only for the component set its digest names.
+- **Declared and observed hosts.** In exposure answers `asset` is a host that declares installing the
+  release and `observed` one only a scan sees; rows pair them, so count hosts per column, not rows.
+- **Advisories without a CVE alias** (a GHSA or PYSEC id alone) can't be tied to a CVE and aren't proposed;
+  the component they hit still counts as answered.
+- **An attention item is a possible exposure nobody has looked at.** Assessing the release or stating a
+  `watch_reason` closes it; acknowledging it doesn't.
+- **Hardening answers** (HQ1-HQ6, asked only of a target whose publish gate someone stated): found is an
+  item to decide, a remediation or an exception; unknown is one gap per source; none appears only in the run
+  summary, naming the revision it read.
 
-These Lines post for judgment: `security.harden` (hardening answers),
-`security.kev-attention` (possible exposures), the SARIF attention Line of
-each repository (`security.sarif-attention.<repo>` in the example automation;
-regressions and location gaps), and during an incident its respond Line
-(`security.respond.<incident>`) and log import (`security.log-import.<incident>`:
-incomplete reads). Use `--line NAME` to read one.
+## What a judgment rests on
 
-Open proposals from the kit's Lines are its proposed observations; review them
-before anything else rests on them.
+| Judgment | Rests on |
+|---|---|
+| an assessment's status and justification | your words or a retained workspace file; a source's own Capture is refused for a normative Claim |
+| a finding's `false_positive` or `not_exploitable` | the code read, retained, with a justification |
+| a finding's `confirmed` | a failing reproduction, retained |
+| an audit's result | the decisive log read, or a workspace file; never a note section |
+| a patch verified | a full inventory scan the patcher didn't acquire |
+| a rotation verified | a state read of the credential: the old key revoked or deleted, or absent from a complete listing; an issuer's receipt never verifies |
 
-## 2. Answer exposure questions
+Write the reasoning once, as a section of the incident's or finding's note, cited in the same write.
+Disagree by contending; resolve by retiring the wrong value `was-wrong`. Retiring your normative status
+hands an assessment back to the Procedures, which never revise one. A `not_affected` you still want watched
+needs a `watch_reason`. When a record names your release another way (GitHub's `cli/cli` for Homebrew's
+`gh`), state a product alias citing a file that shows it; a partial name match is never a match.
 
-Each question in the README's *What it answers*
-table is a saved query:
+## Code findings
 
-```bash
-cruxible query --name security.urgent_exposures      # exposed releases, KEV-listed first, then EPSS
-cruxible query --name security.triage --param vulnerability=security.vulnerability/CVE-…
-cruxible query --name security.kev_exposure          # internet-facing hosts running an affected release
-```
+A finding is keyed by weakness and locus, never a line number; a dependency advisory belongs to the SBOM
+path. Its `location` is a file citation of the sink line, so a code change shows as drift. Only a full
+re-scan verifies a fix; a later report of the same finding is a regression.
 
-Read the flags and `status_role` with each row: a value flagged `stale` or
-`contested`, or a status that is an observation nobody has reviewed, is part
-of the answer. In `urgent_exposures`, `asset` is a host that declares
-installing the release (declared and observed when `asset_observed` is set)
-and `observed` a host only a scan sees running it; a release with both kinds
-pairs each declaring host with each scan-only one, so count hosts per column,
-not rows. `triage` lists declaring hosts only. An SBOM release with no assessment for a CVE
-means nothing decided it, not that someone judged it safe: read its
-`osv_coverage` (`security.release_inventory`). Under `complete` coverage OSV
-answered every component, so a CVE OSV knows (`security.vulnerability.package`)
-that none of them is a package of is none; under `partial` coverage (a
-`pkg:brew` or `pkg:generic` component OSV never indexes, an unanswered query, an
-SBOM component without a purl) it is unknown. A coverage is about the component
-set its `set` digest names: once the release's components change it answers
-nothing until OSV runs again.
+## Incidents
 
-## 3. Work the triage backlog
+You govern the response; your own tools perform it. Cruxible runs nothing against any service.
 
-```bash
-cruxible query --name security.kev_triage_backlog    # KEV-listed, no status or inconclusive
-cruxible query --name security.assessment_index      # every assessment, with its status role
-cruxible query --name security.coverage_gaps --param vulnerability=security.vulnerability/CVE-…
-```
+- **RQ1 pairs every incident CVE with every deployment**: each asset and what it declares, and each release
+  a scan observed. A host is none only when it holds a current none of every product the incident affects
+  (what the record names, the releases assessed affected, OSV's packages).
+- **Act only on an accepted remediation**: approval is the authorization to act. `progress` `completed`
+  closes nothing; only the verifying read does.
+- **Accept a risk only with an expiry.** An exception holds an exposure off the patch list until
+  `expires_at`; it never closes the incident.
+- **An audit has three states.** None needs `not_exploited`, a window end, and complete reads of every
+  source over the whole window; an incomplete read is a finding about the logs, not about the attacker.
+  RQ4 reads each credential through its service's audit: no audit, no rotation answer yet.
+- **Rotate, usually after the patch**: rotating first lets an attacker still on the host read the new key.
+  Rotate at once when a key is known leaked or the patch can't land soon; the order is your call.
+- **Close on the answer**, once the respond Line says ready to close, naming the residue: audits that stay
+  unknown, and that their credentials were rotated.
 
-- **Review applicability proposals.** `security.osv-applicability` and
-  `security.cve-applicability` never settle; every `affected`,
-  `not_affected` and `inconclusive` they propose is reviewed
-  (`cruxible proposal review ID`). Check the cited Capture before approving.
-  OSV's run result lists `unkeyed`: advisories with no CVE alias (a GHSA or
-  PYSEC id alone), which can't be tied to a CVE and are not proposed; a
-  component they hit is still answered (its coverage counts it).
-- **Record a judgment** where the source can't decide or is wrong for your
-  deployment: retain what you read (`security.evidence-acquire` on the file),
-  then set `status` and `justification` (and, for `affected`, the `component`
-  that brings it in) with role `normative`, citing that Capture, in one write
-  with your reasoning as `because`. A judgment cites your own words or a
-  workspace file under **`security.workspace-evidence-v1`**: a source's Capture
-  (the OSV query, a CVE record) is refused for a normative Claim
-  (`existing_capture_not_admitted`), so retain the record or note you read as a
-  workspace file instead. The README's
-  *Analyst judgments* shows the exact write.
-- **Name a product the records name differently.** When a CVE record's affected
-  entry names your release another way (GitHub's CNA writes `cli/cli` for
-  Homebrew's `gh`), state `security.release.product_alias` on the release
-  (`cli/cli`, a purl without version, a repository URL or a CPE prefix), citing
-  a retained workspace file that shows it (the formula's JSON), then re-acquire
-  the record: the matcher reads aliases like the release's own name. A partial
-  name match is never a match.
-  A retained file is kept for good (that contract can't be erased): never
-  retain one holding a secret, such as a config as deployed; cut the
-  credentials out first.
-- **Hand an assessment back** to the Procedures by retiring your normative
-  status and justification; they never revise a normative one.
-- **Keep a CVE watched** after a `not_affected` judgment by stating a
-  `watch_reason`.
-
-A `security.kev-attention` item is a possible exposure nobody has looked at.
-Close it by assessing the release or stating a `watch_reason`; acknowledging
-the item doesn't close the gap.
-
-## 4. Act on hardening answers
-
-`security.harden` answers HQ1–HQ6 per gated target
-(*the hardening questions*):
-
-- **found** is an inbox item. Decide it: a `security.remediation` naming the
-  job (`security.work.job`) with its rationale, or a `security.exception` if
-  the risk is accepted, then `inbox link` the item to it.
-- **unknown** is one gap item per source, `{source, pull, input}`. Run that
-  pull with that input, review the parse proposal, and run harden again.
-- **none** appears only in the run summary, naming the revision it read.
-
-A question is asked only of a target whose `publish_gate` someone has stated.
-To investigate a signal (an HQ5 mismatch), follow the README's hop table: one
-pull per hop, each cited, competing explanations recorded with `--contend`
-and resolved by retiring the wrong one `was-wrong`.
-
-## 5. Triage code findings
-
-The README's *Your code's findings* and
-*A code finding, end to end* are the
-source.
-
-```bash
-cruxible query --name security.open_findings --param repo_ref=github.com/OWNER/REPO
-cruxible query --name security.finder_record --param repo_ref=github.com/OWNER/REPO   # each finder's record
-```
-
-1. **Review the report.** A SARIF import proposes the finding by key
-   (weakness and locus, never a line number) with `rule`, `reported_by` and
-   `severity`. A dependency advisory is routed to the SBOM path, not a finding.
-   SARIF and reproduction reports are kept for good: never acquire a secret
-   scanner's SARIF (its snippets are the secrets) or a PoC report with tokens
-   or an environment dump in it.
-2. **Locate it.** Add `location` as a file citation of the sink line, so
-   `next` reports `citation_drifted` when that code changes.
-3. **Decide.** A `verdict` needs a retained Capture: the code read
-   (`security.evidence-acquire`) for `false_positive` or `not_exploitable`,
-   with a `justification`, or a reproduction (`security.reproduction-acquire`
-   of a failing PoC) for `confirmed`. Your own words are refused. Write the
-   reasoning as a section in `findings/<id>.md` in the same write.
-4. **Disagree by contending.** When a verdict you think is wrong stands, write
-   yours with `contend: true`. The verdict reads `conflict` and `next` shows
-   `claim_conflicted` until the wrong call is retired `was-wrong`
-   ([Keeping knowledge
-   current](https://docs.cruxible.ai/keeping-knowledge-current/#disagreement-competing-values-and-contradictions)).
-5. **Don't confirm your own report.** If you (or the scanner principal you run
-   as) reported the finding, leave the confirmation to an independent
-   reviewer.
-6. **Track the fix.** A remediation with `work.finding` while it's in
-   progress; after the fix, a full re-scan proposes `verification` `fixed`
-   (a partial scan never verifies), and `fixed_by` names the fixing change.
-   A later report of the same finding is a regression.
-
-## 6. Respond to an incident
-
-The README's *Respond to an incident* is
-the source. You govern the response; your own tools perform it. Cruxible runs no
-command against any service.
-
-```bash
-cruxible inbox list --line security.respond.INCIDENT --status unread
-cruxible query --name security.incident_affected --param incident=INCIDENT    # RQ1 (affected first)
-cruxible query --name security.incident_exposure --param incident=INCIDENT    # RQ1 (every assessment)
-cruxible query --name security.scanned_runs                                    # RQ1 (every scanned release)
-cruxible query --name security.deployments                                     # RQ1 (every asset, its nones, what it declares)
-cruxible query --name security.open_patches --param incident=INCIDENT         # RQ2, internet-facing first
-cruxible query --name security.audit_status --param incident=INCIDENT         # RQ3
-cruxible query --name security.incident_credentials --param incident=INCIDENT # RQ4
-```
-
-- **Declare.** An incident groups the CVEs of one response: its window
-  (`window_start`), rotation policy and status, plus its respond and log
-  import Lines, in one approved ChangeSet. Enable both Lines after approval.
-  Naming a CVE in an incident watches it.
-- **Answer every pair.** RQ1 pairs each incident CVE with every deployment: every
-  asset and each release it declares, and every release a scan observed. Absence
-  is a **none**: a full scan states "this host runs no php" (an `asset.runs`
-  inverse, listed under `nones` in `cruxible query security.asset --select
-  hostname,runs`) only for a product it looked for, so a host is none only when
-  it holds a current none of every product the incident affects (what the
-  record names, the releases assessed affected, OSV's packages); a host with no
-  current scan, or no none of such a product, is unknown with an inventory gap
-  naming the products to put in the scan's `looked_for`. A pair nobody
-  assessed is unknown until evidence answers it, and its gap names the next
-  step: the CVE's record (`security.cve-record-acquire`, `input.url`) when none
-  was read; a not_affected answer whose components moved (the OSV Line); "OSV
-  doesn't index N components of this release" (a judgment, a product alias, or a
-  re-scan naming the binary by a purl type OSV indexes, such as `go version -m`
-  for a Go binary); the OSV Line when OSV hasn't answered the release; an
-  analyst's judgment last. Never report "not affected" for a pair the respond
-  Line reads unknown. More than 200 items refuse the run (`overflow`): answer gaps
-  in bulk, then run it again.
-- **Judge many releases at once.** A judgment gap is one item per CVE whose
-  `input.releases` lists every release it answers (100 Homebrew formulas on a
-  laptop is one item). Write the reasoning once as a section of the incident's
-  note, then one write per at most 100 releases (5 changes each: create the
-  assessment by key, set `release`, `vulnerability`, `status`, `justification`,
-  each normative citing the section; a write takes at most 500 changes). The
-  README's *Many releases at once* has the exact write.
-- **Ask OSV again** (`cruxible line run security.osv-applicability`) after a scan
-  or SBOM adds releases and after the incident names a CVE: OSV answers only what
-  it held when it ran, and an acquire returns before its import proposes.
-- **Act only on an accepted remediation.** A patch names `work.asset`,
-  `work.assessment` and `target_release`; a rotation names `work.credential`,
-  `work.audit` and `revokes_key` (the `key_id` held when you raise it). Approval
-  is the authorization to act. Set `progress` `completed` when done: it never
-  closes anything. Name an `owner` team that already exists: create it first in
-  its own write, never inline in two pending proposals (approving one makes the
-  other stale, `value_subject_not_found` or `proposal readmit`).
-- **Accept a risk only with an expiry.** When an exposure can't be patched
-  yet, raise a `security.exception` (`work.asset`, `work.assessment` for each
-  of the incident's CVEs on that release, `expires_at`, `approval` `approved`
-  citing a section of the incident's note that says why). While it holds, RQ2
-  reads *excepted* instead of `patch_missing`; at `expires_at` the exposure is
-  posted again. RQ1 still finds it, so it never closes the incident.
-- **Prove with a read you did not make.** A full inventory scan verifies a
-  patch, a state read of the credential verifies a rotation: the old key listed
-  revoked or deleted, or absent from a listing that says `complete`. Whoever
-  acted does not acquire the Capture that verifies the action: that's your
-  convention, which the kit can't check (a Procedure never sees who acquired a
-  Capture), so read each acquiring run's `actor` (`cruxible get
-  ProcedureRun:RUN-...`) before you accept a verification. A receipt from the
-  issuer records the new key id; it never verifies.
-- **Audit in three states.** State the audit's log sources first (stating them
-  asks the question), starting from the service's `log_source` list: the
-  respond Line's gap names it (`input.sources`), and a listed source the audit
-  leaves out keeps the answer unknown. Once the audit exists, one gap per
-  service lists every missing piece (`input.missing`: a source to state, the
-  window end, the result, each uncovered interval to read). A source the service doesn't list yet:
-  add it to the service too, with its doc section. `none` needs
-  `not_exploited`, a `window_end`, and complete reads of every source covering
-  the whole window. An incomplete read is a finding about
-  the logs, not about the attacker: report it as such, with what was missing
-  (`missing: [{from, to, reason: expired|unavailable|not_searched, status}]` in
-  the read: the item says "records A to B expired (HTTP 410)"). The result's
-  **evidence** is the decisive read (its `security.log-read-v1` Capture, as the
-  change's `"evidence": {"kind": "capture", "capture": "sha256:..."}`) or a
-  workspace file (`security.workspace-evidence-v1`),
-  never a section of a note: own words are refused (`evidence_required`). Put your
-  reasoning in a section of the incident's note and in `because`, and cite the
-  read. Disagree by contending.
-- **State the audit before RQ4.** RQ4 reads each credential through the
-  incident's audits: a service with no audit has no `rotate` yet, however its RQ3
-  reads, so state each exposed service's audit first (its RQ3 gap asks for it).
-- **Clear answered gaps yourself.** A gap that closed is simply not posted
-  again; the inbox doesn't resolve items on its own (dispositions are yours).
-  After a respond run, acknowledge each respond item whose latest sighting
-  predates that run.
-- **Rotate, usually after the patch.** Rotating after the patch is verified is
-  the recommended order (rotating first lets an attacker still on the host read
-  the new key), but it is your call: rotate at once when a key is known leaked or
-  the patch cannot land soon. The respond Line posts `rotate` with the service's
-  audit and patch state and never gates the rotation on the patch.
-- **Never put a secret in a file.** Record only the allow-listed fields: key ids
-  or `fp:` fingerprints, states, times, who. If a secret slips into a file you
-  acquired, stop, rotate what it exposed and erase the Capture's body
-  (`cruxible capture erase CAP-...`: the inventory, log-read and credential-state
-  contracts authorize it), with a `--because` that never repeats the secret.
-  The preview names the Claims it backed; `next` then lists each as
-  `claim_evidence_erased`. Acquire a clean read and re-bind each onto it
-  (`cruxible rebind CLM-... --capture CAP-... --because "..."`) before you
-  report RQ1-RQ4 again: until then the respond Line doesn't answer for what
-  that scan covered.
-- **Close on the answer.** Close (`status` `closed`, with a Closure section)
-  only after the respond Line posts `ready_to_close`, and name its residue
-  (audits that stay unknown, and that their credentials were rotated).
-
-Report per question RQ1-RQ5 in the README's flow table shape, with the exact
-pull or statement for every unknown.
-
-## 7. Report
-
-Report in priority order, one row per item:
+## Report, in priority order
 
 | Severity | Question or finding | Answer | Evidence | Next |
 |---|---|---|---|---|
 
-- **Answer** is found, none or unknown, or the verdict and its role.
-- **Evidence** names exact references (`CLM-…`, `security.release/…`, a
-  proposal ID, an inbox item) so anyone can `get` them.
-- **Next** is the exact command, the pull that answers an unknown, or who
-  must review.
-
-Say which judgments are yours and wait for review, and what you didn't read.
+**Answer** is found, none or unknown, or the verdict and its role. **Evidence** names exact references
+(`CLM-…`, a Subject, a proposal, an inbox item). **Next** is the fetch that answers an unknown, or who must
+review. Say which judgments are yours and await review, and what you didn't read.

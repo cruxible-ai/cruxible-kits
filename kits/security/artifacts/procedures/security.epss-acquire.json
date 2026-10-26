@@ -1,0 +1,133 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v3",
+  "definition": {
+    "budget": {
+      "max_capture_bytes": 33554432,
+      "max_provider_calls": 1,
+      "wall_clock": {
+        "microseconds": 120000000
+      }
+    },
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.epss-acquire-input"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      }
+    },
+    "description": "Fetch FIRST's current EPSS daily scores and emit their retained summary; security.epss-triage reads the first.epss.daily landing.",
+    "hard_caps": {
+      "max_capture_bytes": 33554432,
+      "max_items": 1,
+      "max_provider_calls": 1,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000
+      }
+    },
+    "name": "security.epss-acquire",
+    "nodes": [
+      {
+        "capture_contract": {
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.fetched-v1"
+          }
+        },
+        "id": "epss",
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.epss-daily/v1"
+          }
+        },
+        "kind": "source",
+        "provider": {
+          "slot_name": "epss"
+        },
+        "request": {}
+      },
+      {
+        "contract_out": {
+          "target": {
+            "kind": "Contract",
+            "name": "security-http-evidence"
+          }
+        },
+        "fields": {
+          "body_digest": "$steps.epss.retrieved.body_sha256",
+          "status": "$steps.epss.retrieved.status_code",
+          "url": "$steps.epss.retrieved.final_url"
+        },
+        "id": "summary",
+        "kind": "project"
+      },
+      {
+        "capture_contract": {
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.observation-output-v1"
+          }
+        },
+        "id": "step_2",
+        "input": "$steps.summary",
+        "kind": "emit_capture",
+        "result": "$steps.summary"
+      }
+    ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.epss-daily/v1"
+          }
+        },
+        "slot_name": "epss"
+      }
+    ],
+    "returns": "summary",
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:cdf5a5007ddbb0068e49a3d908a5cfb0671bc52d6c14c688a95c1f7c97307427",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.epss-acquire"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      },
+      "schema": {
+        "fields": {
+          "body_digest": {
+            "type": "string"
+          },
+          "status": {
+            "type": "int"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security.epss-acquire-input"
+      },
+      "schema": {
+        "fields": {}
+      }
+    }
+  ]
+}

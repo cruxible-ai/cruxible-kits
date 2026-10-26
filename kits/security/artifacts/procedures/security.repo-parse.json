@@ -1,79 +1,55 @@
 {
   "activation_policy": "drain",
-  "artifact_format": "playbill-procedure-v2",
+  "artifact_format": "cruxible-procedure-v3",
   "definition": {
-    "annotations": {},
     "budget": {
       "max_capture_bytes": 16777216,
       "max_provider_calls": 2,
-      "tag": "playbill-procedure-budget-v1",
       "wall_clock": {
-        "microseconds": 120000000,
-        "tag": "playbill-duration-v1"
+        "microseconds": 120000000
       }
     },
     "contract_in": {
-      "artifact_digest": "sha256:9e237699c27b43e6216888a211c99fd83c3c602a47611ee3ce42d1bf1b08943a",
-      "role": "contract-in",
       "target": {
         "kind": "Contract",
         "name": "security-repo-parse-input"
       }
     },
     "contract_out": {
-      "artifact_digest": "sha256:6e21c1dab4c1be270cc8e0c32642a8361167b43e2099d2d1af55a20d4b319ea9",
-      "role": "contract-out",
       "target": {
         "kind": "Contract",
         "name": "security-repo-parse-summary"
       }
     },
-    "description": "Read the repository snapshot that triggered the Line (security.repo-snapshot-v1) for the Line's source (parameters: source, repo_source, forge_host, full_name, ref, scope, path) and propose what changed: workflows, jobs and their triggers, permissions, secrets, environment, actions and publish targets, or a manifest's declared digests, plus the source's coverage restated (an unchanged snapshot re-observes it; a new revision revises it). Halts other_source for another source's snapshot. Runs as a Line with trigger_input snapshot.",
-    "graph_format": 6,
+    "description": "Read the repository snapshot that triggered the Line (security.fetched-v1) for the Line's source (parameters: source, repo_source, forge_host, full_name, ref, scope, path) and propose what changed: workflows, jobs and their triggers, permissions, secrets, environment, actions and publish targets, or a manifest's declared digests, plus the source's coverage restated (an unchanged snapshot re-observes it; a new revision revises it). Halts other_source for another source's snapshot. Runs as a Line with trigger_input snapshot.",
     "hard_caps": {
       "max_capture_bytes": 16777216,
       "max_items": 5000,
       "max_provider_calls": 2,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
-        "microseconds": 300000000,
-        "tag": "playbill-duration-v1"
-      },
-      "tag": "playbill-procedure-hard-caps-v1"
+        "microseconds": 300000000
+      }
     },
-    "measurements": [],
     "name": "security.repo-parse",
     "nodes": [
       {
-        "as": "snapshot",
         "capture_contract": {
-          "artifact_digest": "sha256:f0d545a2ef769690442ff7b48c936e04fdf6630437deac995349e11b533faf02",
-          "role": "capture-contract",
           "target": {
             "kind": "CaptureContract",
-            "name": "security.repo-snapshot-v1"
+            "name": "security.fetched-v1"
           }
         },
-        "implementation_digest": "sha256:cad67652385fbe4b114652076ff6ab155e29ccdc322ff49e8db2d922d590ac5c",
+        "id": "snapshot",
         "interface": {
-          "artifact_digest": "sha256:d36742e86ee6c452416b8f7b51f168df199e578f4adb565a02d9091c89dac8a4",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.repo-snapshot/dbcd6c261d8edb31cd3850fc457a02cf88f1d48607eace54a2b63e441b8dcaf0"
+            "name": "security.repo-snapshot/v1"
           }
         },
-        "interface_digest": "sha256:0f00171442e6ffd5239a321b026f95998a7a9e17772d0ed04af60c4fb34bc59b",
         "kind": "source",
-        "next": "mine",
-        "node_id": "snapshot",
         "provider": {
-          "artifact_digest": "sha256:21c3f660f86d896c9b88d9b15db4289c68de1aefec95e8977cb700af711eec81",
-          "role": "provider",
-          "target": {
-            "kind": "Provider",
-            "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
-          }
+          "slot_name": "snapshot"
         },
         "request": {
           "forge_host": "$input.forge_host",
@@ -84,139 +60,83 @@
         }
       },
       {
+        "id": "mine",
         "kind": "guard",
         "message": "The landed snapshot is another source's.",
-        "node_id": "mine",
         "on_false": "other",
-        "on_true": "coverage",
         "predicate": {
-          "all_of": null,
-          "any_of": null,
           "left": {
             "alias": "snapshot",
-            "input_name": null,
             "kind": "step",
-            "parameter_name": null,
             "path": [
               "locator"
-            ],
-            "tag": "playbill-predicate-operand-v1",
-            "value": null
+            ]
           },
-          "not_of": null,
           "operator": "eq",
           "right": {
-            "alias": null,
             "input_name": "source",
-            "kind": "input",
-            "parameter_name": null,
-            "path": [],
-            "tag": "playbill-predicate-operand-v1",
-            "value": null
-          },
-          "tag": "playbill-guard-predicate-v1"
+            "kind": "input"
+          }
         },
         "refusal_code": "other_source"
       },
       {
-        "as": "coverage",
-        "budgets": null,
+        "id": "coverage",
         "kind": "state_tap",
-        "next": "held",
-        "node_id": "coverage",
         "parameters": {
           "scope": "$input.scope",
           "source": "$input.source"
         },
         "query": {
-          "artifact_digest": "sha256:97bc958ebd500796f4824faf1d384b26e9283e10825d7bb4eb82d7e6737ae62c",
-          "role": "query",
           "target": {
             "kind": "QueryDefinition",
             "name": "security.coverage_index"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "held",
-        "budgets": null,
+        "id": "held",
         "kind": "state_tap",
-        "next": "targets",
-        "node_id": "held",
         "parameters": {
           "source": "$input.repo_source"
         },
         "query": {
-          "artifact_digest": "sha256:07ec35c7a7d55b904e8be59f984bf428ab8e29569cca87a5a1eedef055f60329",
-          "role": "query",
           "target": {
             "kind": "QueryDefinition",
             "name": "security.source_facts"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "targets",
-        "budgets": null,
+        "id": "targets",
         "kind": "state_tap",
-        "next": "releases",
-        "node_id": "targets",
         "parameters": {
           "forge_host": "$input.forge_host",
           "full_name": "$input.full_name"
         },
         "query": {
-          "artifact_digest": "sha256:0a9e61179d62a22e71eb472aeedae6289244383bc6bdb42332b3ea80a3cb9343",
-          "role": "query",
           "target": {
             "kind": "QueryDefinition",
             "name": "security.repo_targets"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "releases",
-        "budgets": null,
+        "id": "releases",
         "kind": "state_tap",
-        "next": "parse",
-        "node_id": "releases",
         "parameters": {
           "name": "$input.full_name",
           "registry": "github_release"
         },
         "query": {
-          "artifact_digest": "sha256:9bceccc97ff29217a2efafb4b76f30f822e01a762cf232b6831cfc404590004f",
-          "role": "query",
           "target": {
             "kind": "QueryDefinition",
             "name": "security.registry_facts"
           }
-        },
-        "view": "typed_query"
+        }
       },
       {
-        "as": "parse",
-        "contract_in": {
-          "artifact_digest": "sha256:722ed3f337aedba327ff32ec4723514bb3c11e063d459d741298ac3765b2d449",
-          "role": "contract-in",
-          "target": {
-            "kind": "Contract",
-            "name": "security-workflow-facts-request"
-          }
-        },
-        "contract_out": {
-          "artifact_digest": "sha256:5ec7210037d7137049e66df851fce598d8c9fde033980e293f55dfd75c7022ea",
-          "role": "contract-out",
-          "target": {
-            "kind": "Contract",
-            "name": "security-workflow-facts-result"
-          }
-        },
-        "effect_policy": null,
-        "implementation_digest": "sha256:b4ec56a9c6e7f3a9798e8f57864f488337d598728e16c99aab0bb1ed84ca1755",
+        "id": "parse",
         "input": {
           "coverage": "$steps.coverage.result.rows",
           "held": "$steps.held.result.rows",
@@ -225,31 +145,18 @@
           "targets": "$steps.targets.result.rows"
         },
         "interface": {
-          "artifact_digest": "sha256:3840a013711fafa9cffa1b6f63b476fd8fdcbf3d2bfef0af36e32305f16f1760",
-          "role": "provider-interface",
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.workflow-facts/e3200100ece5ebb6c4278201a00b17df146ac15504be8745cbc472bc526f558f"
+            "name": "security.workflow-facts/v1"
           }
         },
-        "interface_digest": "sha256:c6cd5245a64fecaadebd5cc26cf145aabb8ece53e962e88b8d8b56ec1b95a372",
         "kind": "call",
-        "next": "summary",
-        "node_id": "parse",
         "provider": {
-          "artifact_digest": "sha256:9f34b9840e57520f974c90c56a2158e1b6b894a5e334fa8fdf314933963cd7f7",
-          "role": "provider",
-          "target": {
-            "kind": "Provider",
-            "name": "security-analysis-provider/ae3c5b61e9f4be86c8de916bc5a118430a5ccc5ef8f410e0330ddeb0f14fee97"
-          }
+          "slot_name": "parse"
         }
       },
       {
-        "as": "summary",
         "contract_out": {
-          "artifact_digest": "sha256:6e21c1dab4c1be270cc8e0c32642a8361167b43e2099d2d1af55a20d4b319ea9",
-          "role": "contract-out",
           "target": {
             "kind": "Contract",
             "name": "security-repo-parse-summary"
@@ -268,39 +175,50 @@
           "unparsed": "$steps.parse.unparsed",
           "workflows": "$steps.parse.workflows"
         },
-        "kind": "project",
-        "next": "propose",
-        "node_id": "summary"
+        "id": "summary",
+        "kind": "project"
       },
       {
         "candidate_templates": {
           "items": "$steps.parse.items"
         },
-        "claim_types": [],
+        "id": "propose",
         "kind": "propose_change_set",
-        "node_id": "propose",
         "result": "$steps.summary"
       },
       {
+        "id": "other",
         "kind": "halt",
-        "node_id": "other",
         "reason": "other_source"
       }
     ],
-    "parameter_contract": null,
-    "pin_slots": [],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.workflow-facts/v1"
+          }
+        },
+        "slot_name": "parse"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.repo-snapshot/v1"
+          }
+        },
+        "slot_name": "snapshot"
+      }
+    ],
     "returns": "summary",
-    "source": null,
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:12b60b1720ace7989e94c8e524fbf364f9d350b9f77309ff89484ef072a99b90",
+  "definition_digest": "sha256:6469db45d45a91a5d336ecf7b6c87ccd085482cc2b18add3d27e7a541068539d",
   "identity": {
     "kind": "Procedure",
     "name": "security.repo-parse"
-  },
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
   },
   "owned_contracts": [
     {
@@ -309,89 +227,30 @@
         "name": "security-repo-parse-input"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "forge_host": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "full_name": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "path": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "ref": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "repo_source": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "scope": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "source": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
+      }
     },
     {
       "identity": {
@@ -399,459 +258,41 @@
         "name": "security-repo-parse-summary"
       },
       "schema": {
-        "allow_extra": false,
-        "description": null,
         "fields": {
           "added": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "changed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "jobs": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "locator": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "restated": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "retired": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "revised": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           },
           "revision": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "scope": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "string"
           },
           "unparsed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "json"
           },
           "workflows": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
             "type": "integer"
           }
         }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-workflow-facts-request"
-      },
-      "schema": {
-        "allow_extra": false,
-        "description": null,
-        "fields": {
-          "coverage": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "held": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "releases": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "snapshot": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "targets": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          }
-        }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-workflow-facts-result"
-      },
-      "schema": {
-        "allow_extra": false,
-        "description": null,
-        "fields": {
-          "added": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "changed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "items": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "jobs": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "locator": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "restated": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "retired": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "revised": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          },
-          "revision": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "scope": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "string"
-          },
-          "unparsed": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "json"
-          },
-          "workflows": {
-            "default": null,
-            "description": null,
-            "enum": null,
-            "enum_ref": null,
-            "indexed": false,
-            "json_schema": null,
-            "optional": false,
-            "primary_key": false,
-            "type": "integer"
-          }
-        }
-      },
-      "tag": "playbill-procedure-owned-contract-v1"
-    }
-  ],
-  "pins": [
-    {
-      "artifact_digest": "sha256:1b55927e8f8549bd91de9b6562869038a6f4b400e42f2d615bb343c7064d3780",
-      "role": "acquisition-policy",
-      "target": {
-        "kind": "SourceAcquisitionPolicy",
-        "name": "security.acquisition"
-      }
-    },
-    {
-      "artifact_digest": "sha256:f0d545a2ef769690442ff7b48c936e04fdf6630437deac995349e11b533faf02",
-      "role": "capture-contract",
-      "target": {
-        "kind": "CaptureContract",
-        "name": "security.repo-snapshot-v1"
-      }
-    },
-    {
-      "artifact_digest": "sha256:9e237699c27b43e6216888a211c99fd83c3c602a47611ee3ce42d1bf1b08943a",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-repo-parse-input"
-      }
-    },
-    {
-      "artifact_digest": "sha256:722ed3f337aedba327ff32ec4723514bb3c11e063d459d741298ac3765b2d449",
-      "role": "contract-in",
-      "target": {
-        "kind": "Contract",
-        "name": "security-workflow-facts-request"
-      }
-    },
-    {
-      "artifact_digest": "sha256:6e21c1dab4c1be270cc8e0c32642a8361167b43e2099d2d1af55a20d4b319ea9",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-repo-parse-summary"
-      }
-    },
-    {
-      "artifact_digest": "sha256:5ec7210037d7137049e66df851fce598d8c9fde033980e293f55dfd75c7022ea",
-      "role": "contract-out",
-      "target": {
-        "kind": "Contract",
-        "name": "security-workflow-facts-result"
-      }
-    },
-    {
-      "artifact_digest": "sha256:9f34b9840e57520f974c90c56a2158e1b6b894a5e334fa8fdf314933963cd7f7",
-      "role": "provider",
-      "target": {
-        "kind": "Provider",
-        "name": "security-analysis-provider/ae3c5b61e9f4be86c8de916bc5a118430a5ccc5ef8f410e0330ddeb0f14fee97"
-      }
-    },
-    {
-      "artifact_digest": "sha256:21c3f660f86d896c9b88d9b15db4289c68de1aefec95e8977cb700af711eec81",
-      "role": "provider",
-      "target": {
-        "kind": "Provider",
-        "name": "security-sources-provider/56caaa4d2c2b4e95421ca1927fdce2c4a6132ca237d2db12c1e9ca046d0c75e3"
-      }
-    },
-    {
-      "artifact_digest": "sha256:d36742e86ee6c452416b8f7b51f168df199e578f4adb565a02d9091c89dac8a4",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "security.repo-snapshot/dbcd6c261d8edb31cd3850fc457a02cf88f1d48607eace54a2b63e441b8dcaf0"
-      }
-    },
-    {
-      "artifact_digest": "sha256:3840a013711fafa9cffa1b6f63b476fd8fdcbf3d2bfef0af36e32305f16f1760",
-      "role": "provider-interface",
-      "target": {
-        "kind": "ProviderInterface",
-        "name": "security.workflow-facts/e3200100ece5ebb6c4278201a00b17df146ac15504be8745cbc472bc526f558f"
-      }
-    },
-    {
-      "artifact_digest": "sha256:97bc958ebd500796f4824faf1d384b26e9283e10825d7bb4eb82d7e6737ae62c",
-      "role": "query",
-      "target": {
-        "kind": "QueryDefinition",
-        "name": "security.coverage_index"
-      }
-    },
-    {
-      "artifact_digest": "sha256:9bceccc97ff29217a2efafb4b76f30f822e01a762cf232b6831cfc404590004f",
-      "role": "query",
-      "target": {
-        "kind": "QueryDefinition",
-        "name": "security.registry_facts"
-      }
-    },
-    {
-      "artifact_digest": "sha256:0a9e61179d62a22e71eb472aeedae6289244383bc6bdb42332b3ea80a3cb9343",
-      "role": "query",
-      "target": {
-        "kind": "QueryDefinition",
-        "name": "security.repo_targets"
-      }
-    },
-    {
-      "artifact_digest": "sha256:07ec35c7a7d55b904e8be59f984bf428ab8e29569cca87a5a1eedef055f60329",
-      "role": "query",
-      "target": {
-        "kind": "QueryDefinition",
-        "name": "security.source_facts"
       }
     }
   ]

@@ -16,7 +16,7 @@
   "description": "Where artifacts land (pypi, ghcr, github_release, github_pages); with name, the target's key.",
   "evidence_admission_policy": {
     "rules": [],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "none",

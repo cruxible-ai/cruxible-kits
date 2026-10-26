@@ -13,7 +13,7 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The auditor's judgment: exploited, not_exploited or inconclusive, citing the decisive log read (security.log-read-v1) or a workspace file (security.workspace-evidence-v1); own words are refused. Reasoning goes in a section of the incident's note. A disagreeing auditor contends (set --contend): while the slot reads conflict the answer is unknown. Never settled by a Mandate.",
+  "description": "The auditor's judgment: exploited, not_exploited or inconclusive, citing the decisive log read (security.file-erasable-v1) or a workspace file (security.file-v1); own words are refused. Reasoning goes in a section of the incident's note. A disagreeing auditor contends (set --contend): while the slot reads conflict the answer is unknown. Never settled by a Mandate.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -21,33 +21,35 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [
+              "security.log-read"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.log-read-v1"
+              "name": "security.file-erasable-v1"
             }
           },
           {
+            "logical_sources": [
+              "security.analysis.evidence"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.workspace-evidence-v1"
+              "name": "security.file-v1"
             }
           }
         ],
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "log_query",
-          "workspace_file"
-        ],
         "rule_id": "retained-security-evidence",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "captured",

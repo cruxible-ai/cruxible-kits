@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import Any
 
 from cruxible_client.kits import read_kit_directory
+from cruxible_client.contracts.procedures.artifacts import parse_procedure
+from cruxible_client.contracts.query.definitions import parse_query_definition
 
 KIT = Path(__file__).resolve().parents[1]
 README = "README.md"
@@ -63,6 +65,7 @@ class ClaimTypeDoc:
     roles: tuple[str, ...]
     default_role: str
     contracts: tuple[str, ...]
+    source_uses: tuple[tuple[str, tuple[str, ...]], ...]
     requirement: str
     freshness: str
     contention: str
@@ -78,10 +81,10 @@ class KindDoc:
 
 @dataclass(frozen=True)
 class SourceNode:
-    """A source or emit node of a Procedure or Blueprint: where a Capture is made."""
+    """A source or emit node of a Procedure: where a Capture is made."""
 
     definition: str
-    definition_kind: str  # "Procedure" or "Blueprint"
+    definition_kind: str  # "Procedure"
     alias: str | None
     contract: str
     interface: str | None
@@ -92,7 +95,7 @@ class SourceNode:
 @dataclass(frozen=True)
 class DefinitionDoc:
     name: str
-    kind: str  # "Procedure" or "Blueprint"
+    kind: str  # "Procedure"
     summary: str
     node_kinds: frozenset[str]
 
@@ -101,7 +104,8 @@ class DefinitionDoc:
 class ContractDoc:
     name: str
     sources: tuple[str, ...]
-    evidence_kinds: tuple[str, ...]
+    shape: str
+    replay: str
     grade: str
 
 
@@ -161,7 +165,6 @@ class KitDocs:
     lines: dict[str, LineDoc] = field(default_factory=dict)
     triggers: dict[str, TriggerDoc] = field(default_factory=dict)
     mandates: dict[str, MandateDoc] = field(default_factory=dict)
-    blueprint_instances: dict[str, str] = field(default_factory=dict)
 
 
 def _hours(duration: Mapping[str, Any]) -> str:
@@ -213,6 +216,9 @@ def _claim_type(raw: Json) -> ClaimTypeDoc:
         roles=tuple(sorted(raw["permitted_roles"])),
         default_role=raw["default_role"],
         contracts=tuple(contracts),
+        source_uses=tuple(sorted({(use["target"]["name"], tuple(use.get("logical_sources", ())))
+                                 for rule in raw["evidence_admission_policy"]["rules"]
+                                 for use in rule["capture_contracts"]})),
         requirement=raw["evidence_requirement"],
         freshness=f"stale after {_hours(freshness['stale_after'])}" if freshness else "",
         contention=_contention(raw),
@@ -311,6 +317,10 @@ def load(kit_dir: Path) -> KitDocs:
     for artifact in bundle.artifacts:
         raw = json.loads(artifact.content)
         top = artifact.path.split("/")[0]
+        if top in {"procedures", "query-definitions"}:
+            parse = {"procedures": parse_procedure,
+                     "query-definitions": parse_query_definition}[top]
+            raw = parse(artifact.content, path=artifact.path).model_dump(mode="json", by_alias=True)
         if top == "subject-kinds":
             kind = _kind(raw)
             docs.kinds[kind.name] = kind
@@ -320,13 +330,14 @@ def load(kit_dir: Path) -> KitDocs:
         elif top == "capture-contracts":
             docs.contracts[raw["identity"]["name"]] = ContractDoc(
                 name=raw["identity"]["name"],
-                sources=tuple(sorted(raw["logical_source_identities"])),
-                evidence_kinds=tuple(sorted(raw["evidence_kinds"])),
+                sources=(),
+                shape=raw.get("shape", "http_response"),
+                replay=raw.get("replay", "attested"),
                 grade=raw["epistemic_grade"],
             )
-        elif top in {"procedures", "blueprints"}:
+        elif top == "procedures":
             definition, nodes = _definition(
-                raw, "Procedure" if top == "procedures" else "Blueprint"
+                raw, "Procedure"
             )
             docs.definitions[definition.name] = definition
             docs.source_nodes.extend(nodes)
@@ -334,7 +345,7 @@ def load(kit_dir: Path) -> KitDocs:
             query = _query(raw)
             docs.queries[query.name] = query
         elif top == "provider-interfaces":
-            docs.interfaces.add(raw["interface_id"])
+            docs.interfaces.add(raw.get("interface", raw)["interface_id"])
         elif top == "source-acquisition-policies":
             docs.policies.add(raw["identity"]["name"])
     example = kit_dir / EXAMPLE
@@ -371,17 +382,15 @@ def _load_example(docs: KitDocs, change_set: Json) -> None:
                 grants=member["grants"],
                 namespace=tuple(member["namespace"]),
             )
-        elif kind == "blueprint_instance":
-            docs.blueprint_instances[member["name"]] = member["blueprint"]
 
 
 # --- derived relations ---------------------------------------------------------------------
 
 
 def _definition_of(docs: KitDocs, procedure: str) -> str:
-    """The Procedure or Blueprint a Line's Procedure name runs."""
+    """The Procedure a Line's Procedure name runs."""
 
-    return docs.blueprint_instances.get(procedure, procedure)
+    return procedure
 
 
 def _reads_landing(docs: KitDocs, node: SourceNode) -> bool:
@@ -479,9 +488,9 @@ def _glance(docs: KitDocs) -> list[str]:
             "",
         ),
         (
-            "Blueprints",
-            sum(1 for d in docs.definitions.values() if d.kind == "Blueprint"),
-            "you bind each one's Provider slots",
+            "Slotted Procedures",
+            len(docs.definitions),
+            "bind by fit, or choose a Provider on the Line/run",
         ),
         ("Queries", len(docs.queries), "[What you can ask](#what-you-can-ask)"),
         ("Provider interfaces", len(docs.interfaces), ""),
@@ -518,7 +527,9 @@ def _glance(docs: KitDocs) -> list[str]:
 
 
 _EVIDENCE_GROUPS = {
-    "http_response": "Fetched from a source (HTTP)",
+    "http_response": "HTTP and file captures",
+    "procedure_output": "Procedure outputs",
+    "coordinator_self_source": "Core self-source dependency",
     "sbom_document": "SBOM documents",
     "workspace_file": "Workspace files an analyst cites",
     "sarif_log": "Scan results (SARIF)",
@@ -535,7 +546,7 @@ def _evidence_diagram(docs: KitDocs) -> list[str]:
         "### How evidence reaches each kind",
         "",
         "Each box on the left is one source and the Capture contract it is retained under, "
-        "grouped by the kind of evidence it is; an arrow points to a Subject kind whose "
+        "grouped by shape; ClaimType rules below name the permitted logical sources. An arrow points to a Subject kind whose "
         "ClaimTypes may cite it. A thick arrow carries at least one ClaimType that requires a "
         "Capture (`captured`); a dotted arrow only ClaimTypes that may cite one. The number is "
         "how many of that kind's ClaimTypes the contract backs. Names drop the "
@@ -552,14 +563,13 @@ def _evidence_diagram(docs: KitDocs) -> list[str]:
     groups: dict[str, list[str]] = defaultdict(list)
     for contract in contracts:
         doc = docs.contracts[contract]
-        for kind in doc.evidence_kinds[:1]:
+        for kind in (doc.shape,):
             groups[_EVIDENCE_GROUPS.get(kind, kind)].append(contract)
     for index, title in enumerate(sorted(groups)):
         out.append(f'  subgraph g{index}["{title}"]')
         out.append("    direction TB")
         for contract in groups[title]:
-            source = ", ".join(docs.contracts[contract].sources)
-            label = f"{source}<br/>as {_short(docs, contract)}"
+            label = f"{_short(docs, contract)}<br/>{docs.contracts[contract].replay}"
             out.append(f'    {_node_id("c", contract)}["{label}"]')
         out.append("  end")
     kinds = sorted({kind for name in contracts for item in evidenced[name] for kind in item.kinds})
@@ -673,7 +683,9 @@ def _roles(claim_type: ClaimTypeDoc) -> str:
 
 def _evidence(claim_type: ClaimTypeDoc) -> str:
     return ", ".join(
-        "own word" if name == SELF_SOURCE else f"`{name}`" for name in claim_type.contracts
+        "own word" if name == SELF_SOURCE else (
+            f"`{name}`" + (f" from {', '.join(sources)}" if sources else ""))
+        for name, sources in claim_type.source_uses
     )
 
 
@@ -767,7 +779,7 @@ def _producer_text(docs: KitDocs, node: SourceNode, lines: Mapping[str, list[str
         via = f"core's built-in `{node.interface}`"
     if node.emitted:
         via = "its run's output"
-    elif node.definition_kind == "Blueprint":
+    elif node.provider is None:
         via = f"slot `{node.interface}`" if node.interface else "a slot you bind"
     named = lines.get(node.definition)
     where = f"Line {_code(sorted(named))}" if named else "direct run"
@@ -784,8 +796,8 @@ def _contracts(docs: KitDocs) -> list[str]:
     out = [
         "## Where evidence comes from",
         "",
-        "One row per Capture contract. **Produced by**: the Procedures and Blueprints that "
-        "retain it, with the Provider (or the Blueprint slot you bind) and the example Lines "
+        "One row per Capture contract. **Produced by**: the Procedures that "
+        "retain it, with the Provider (or the Procedure slot you bind) and the example Lines "
         "that run them. **Landings start**: the example Lines a landing Trigger on it starts. "
         "**Supports**: the ClaimTypes that may cite it.",
         "",
@@ -798,7 +810,7 @@ def _contracts(docs: KitDocs) -> list[str]:
         rows.append(
             (
                 f"`{contract.name}`",
-                ", ".join(contract.sources) + f" ({', '.join(contract.evidence_kinds)})",
+                ", ".join(contract.sources) + f"{contract.shape}, {contract.replay}",
                 contract.grade,
                 "; ".join(
                     _producer_text(docs, n, by_definition) for n in producers.get(contract.name, [])
@@ -878,7 +890,7 @@ def _runs(docs: KitDocs) -> list[str]:
         by_definition[_definition_of(docs, line.procedure)].append(line.name)
     out += [
         "",
-        "Every Procedure and Blueprint, what its terminal does, and the example Lines that run it "
+        "Every Procedure, what its terminal does, and the example Lines that run it "
         "(`direct`: `cruxible procedure run`):",
         "",
     ]
@@ -920,16 +932,15 @@ def _short_glance(docs: KitDocs) -> list[str]:
     """The README's counts: what the kit defines, each row linking into reference.md."""
 
     procedures = sum(1 for d in docs.definitions.values() if d.kind == "Procedure")
-    blueprints = len(docs.definitions) - procedures
     rows = [
         ("Kinds of thing it models", str(len(docs.kinds)), "what-it-models"),
         ("Fields (ClaimTypes) across them", str(len(docs.claim_types)), "what-it-models"),
         (
-            "Evidence sources (Capture contracts)",
-            str(len(docs.contracts)),
+            "Capture shapes (plus core self-source)",
+            f"{len(docs.contracts) - int(SELF_SOURCE in docs.contracts)} + {int(SELF_SOURCE in docs.contracts)}",
             "where-evidence-comes-from",
         ),
-        ("Procedures / Blueprints", f"{procedures} / {blueprints}", "what-runs-on-its-own"),
+        ("Procedures", str(procedures), "what-runs-on-its-own"),
         ("Queries", str(len(docs.queries)), "what-you-can-ask"),
         (
             "Example Lines / Triggers / Mandates",

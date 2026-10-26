@@ -11,9 +11,8 @@
   "allowed_subject_kinds": [
     "security.coverage"
   ],
-  "artifact_format": "playbill-claim-type-v8",
+  "artifact_format": "playbill-claim-type-v7",
   "attestation_consequence_policy": null,
-  "canonical_form": [],
   "cardinality": "one",
   "default_role": "observation",
   "description": "What the source belongs to: a repository, or a registry target.",
@@ -24,32 +23,26 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [
+              "github.repo.snapshot",
+              "pypi.release"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.pypi-release-v1"
-            }
-          },
-          {
-            "role": "capture-contract",
-            "target": {
-              "kind": "CaptureContract",
-              "name": "security.repo-snapshot-v1"
+              "name": "security.fetched-v1"
             }
           }
         ],
         "claim_roles": [
           "observation"
         ],
-        "evidence_kinds": [
-          "http_response"
-        ],
         "rule_id": "retained-security-evidence",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "captured",

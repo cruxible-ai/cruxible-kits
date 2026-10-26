@@ -1,0 +1,150 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v3",
+  "definition": {
+    "budget": {
+      "max_capture_bytes": 16777216,
+      "max_provider_calls": 1,
+      "wall_clock": {
+        "microseconds": 90000000
+      }
+    },
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.fetch-observed-input"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      }
+    },
+    "description": "Fetch one HTTP JSON response with the supplied URL, logical source and byte limit; retain it under security.fetched-v1. Emit the summary as run evidence; runs as a Line. Gate variant: a 90 second budget.",
+    "hard_caps": {
+      "max_capture_bytes": 16777216,
+      "max_items": 1,
+      "max_provider_calls": 1,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 120000000
+      }
+    },
+    "name": "security.fetch-observed",
+    "nodes": [
+      {
+        "capture_contract": {
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.fetched-v1"
+          }
+        },
+        "id": "fetch",
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch/v3"
+          }
+        },
+        "kind": "source",
+        "provider": {
+          "slot_name": "fetch"
+        },
+        "request": {
+          "expected_format": "json",
+          "extract": false,
+          "logical_source": "$input.logical_source",
+          "max_bytes": "$input.max_bytes",
+          "render": false,
+          "url": "$input.url"
+        }
+      },
+      {
+        "contract_out": {
+          "target": {
+            "kind": "Contract",
+            "name": "security-http-evidence"
+          }
+        },
+        "fields": {
+          "body_digest": "$steps.fetch.retrieved.body_sha256",
+          "status": "$steps.fetch.retrieved.status_code",
+          "url": "$steps.fetch.retrieved.final_url"
+        },
+        "id": "summary",
+        "kind": "project"
+      },
+      {
+        "capture_contract": {
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.observation-output-v1"
+          }
+        },
+        "id": "step_2",
+        "input": "$steps.summary",
+        "kind": "emit_capture",
+        "result": "$steps.summary"
+      }
+    ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "web.fetch/v3"
+          }
+        },
+        "slot_name": "fetch"
+      }
+    ],
+    "returns": "summary",
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:de6acd91bfa39512af9465943aeb696a883b3bfad4b7e380ce4eacbbd561eb1e",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.fetch-observed"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      },
+      "schema": {
+        "fields": {
+          "body_digest": {
+            "type": "string"
+          },
+          "status": {
+            "type": "int"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security.fetch-observed-input"
+      },
+      "schema": {
+        "fields": {
+          "logical_source": {
+            "type": "string"
+          },
+          "max_bytes": {
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

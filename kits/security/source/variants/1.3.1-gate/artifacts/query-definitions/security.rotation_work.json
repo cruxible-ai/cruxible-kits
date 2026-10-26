@@ -1,28 +1,15 @@
 {
-  "artifact_format": "playbill-query-definition-v1",
+  "artifact_format": "cruxible-query-definition-v3",
   "dedupe": "path",
-  "default_budgets": {
-    "max_paths": 20000,
-    "max_paths_per_result": 1000,
-    "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
-  },
   "description": "Every credential with its current key state and every rotation of it, with the window its incident opened: the credential import's tap. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "credential",
-    "subject_id": null,
     "subject_kinds": [
       "security.credential"
-    ],
-    "tag": "playbill-query-entry-v1"
+    ]
   },
   "evaluation_policy": {
     "conflict_behavior": "surface_conflicts",
-    "requires_accepted_coordinate": true,
-    "requires_explicit_evaluation_time": true,
-    "result_expiry": null,
-    "tag": "playbill-query-evaluation-policy-v1",
     "visible_currency": [
       "current"
     ],
@@ -34,253 +21,112 @@
     "kind": "QueryDefinition",
     "name": "security.rotation_work"
   },
-  "includes": [],
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
-  },
   "maximum_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 1000,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
-  "orderings": [],
-  "parameters": [],
-  "pins": [
-    {
-      "artifact_digest": "sha256:f081c27e51058bf1d7f4a034dbe4d3df0896a616875b24239237e5db10e1a984",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.audit.incident"
-      }
-    },
-    {
-      "artifact_digest": "sha256:cb70ae25b0bd883ac77f87545d86bc94b7fba4d272291a798fef972d2f4f139d",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.credential.issued_at"
-      }
-    },
-    {
-      "artifact_digest": "sha256:d342b4f4685347dbe81118ea4a9246847b247d297578fa2a873206bf5e9c2e43",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.credential.issued_by"
-      }
-    },
-    {
-      "artifact_digest": "sha256:ed9fb7495cbb4ca6eeeced6027c9ec9a699afc57a80d6eef98b09cc325f28efb",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.credential.issuer"
-      }
-    },
-    {
-      "artifact_digest": "sha256:c8058f5d31f82bf5389e094f2c04bb9e646dc8643893dfe249bcf338ffb229c0",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.credential.key_id"
-      }
-    },
-    {
-      "artifact_digest": "sha256:906945e1c9cdc3b994f9dd9fc82d5ae5d1d24c9f4549dbf9dc39069e80b1f576",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.credential.name"
-      }
-    },
-    {
-      "artifact_digest": "sha256:43952bb3ccf8746dc16dcae42dc625f96ef0b42e66f4761d86f467fdee22b7a1",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.credential.revoked_key"
-      }
-    },
-    {
-      "artifact_digest": "sha256:86719c39d254a79e10c422aba9d29d255f280807b7db076f21e773bf9eb5d39b",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.incident.window_start"
-      }
-    },
-    {
-      "artifact_digest": "sha256:cb22ba0b3584b93bd221f7d07ed776c57422f37c67279eb3e2b8296396a738d5",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.remediation.progress"
-      }
-    },
-    {
-      "artifact_digest": "sha256:6664f4ffd27144e1b196880a439624ab8209c82ef77536543f582b966e22b2f0",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.remediation.revokes_key"
-      }
-    },
-    {
-      "artifact_digest": "sha256:71b845deb88eee7d3bc1988de03035c5ae198143970f05b74d1cfd2239f47719",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.work.audit"
-      }
-    },
-    {
-      "artifact_digest": "sha256:92713ee437df8b361fa3fc9c6471184f85a3bdb4c5b08f9817803ed5a094f27c",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.work.credential"
-      }
-    },
-    {
-      "artifact_digest": "sha256:9001d107fc3893f0c25f3d3b4ab1a9c71733ebf9017e3e90ef4cb8dd0cc085b0",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.work.verification"
-      }
-    }
-  ],
   "projection": {
     "fields": [
       {
         "name": "credential",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "credential",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "issued_at",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "credential",
           "kind": "claim_value",
-          "predicate": "security.credential.issued_at",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.credential.issued_at"
         }
       },
       {
         "name": "issued_by",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "credential",
           "kind": "claim_value",
-          "predicate": "security.credential.issued_by",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.credential.issued_by"
         }
       },
       {
         "name": "issuer",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "credential",
           "kind": "claim_value",
-          "predicate": "security.credential.issuer",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.credential.issuer"
         }
       },
       {
         "name": "key_id",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "credential",
           "kind": "claim_value",
-          "predicate": "security.credential.key_id",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.credential.key_id"
         }
       },
       {
         "name": "name",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "credential",
           "kind": "claim_value",
-          "predicate": "security.credential.name",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.credential.name"
         }
       },
       {
         "name": "progress",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "rotation",
           "kind": "claim_value",
-          "predicate": "security.remediation.progress",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.remediation.progress"
         }
       },
       {
         "name": "revoked_key",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "credential",
           "kind": "claim_value",
-          "predicate": "security.credential.revoked_key",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.credential.revoked_key"
         }
       },
       {
         "name": "revokes_key",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "rotation",
           "kind": "claim_value",
-          "predicate": "security.remediation.revokes_key",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.remediation.revokes_key"
         }
       },
       {
         "name": "rotation",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "rotation",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "verification",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "rotation",
           "kind": "claim_value",
-          "predicate": "security.work.verification",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.work.verification"
         }
       },
       {
         "name": "window_start",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "rotation_incident",
           "kind": "claim_value",
-          "predicate": "security.incident.window_start",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.incident.window_start"
         }
       }
-    ],
-    "tag": "playbill-query-projection-v1"
+    ]
   },
-  "result_binding": "credential",
-  "result_cardinality": "many",
   "result_shape": "path",
   "traversal": [
     {
@@ -289,11 +135,9 @@
       "from_binding": "credential",
       "predicate": "security.work.credential",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.remediation"
-      ],
-      "where": null
+      ]
     },
     {
       "binding": "rotation_audit",
@@ -301,11 +145,9 @@
       "from_binding": "rotation",
       "predicate": "security.work.audit",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.audit"
-      ],
-      "where": null
+      ]
     },
     {
       "binding": "rotation_incident",
@@ -313,12 +155,9 @@
       "from_binding": "rotation_audit",
       "predicate": "security.audit.incident",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.incident"
-      ],
-      "where": null
+      ]
     }
-  ],
-  "where": null
+  ]
 }

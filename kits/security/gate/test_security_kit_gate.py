@@ -8,7 +8,7 @@ release gate asserted on what the CLI shows. The KEV catalog, CVE record, OSV
 answers, EPSS file and the system model's GitHub and PyPI answers come from
 ``fixture-sources`` (``security-gate-sources``: cruxible-provider-web's own
 ``WebFetch`` and the kit's own Source adapters, serving vendored responses), bound
-to the kit's Blueprint slots; nothing contacts cisa.gov, cveawg.mitre.org,
+to the kit's Procedure slots; nothing contacts cisa.gov, cveawg.mitre.org,
 api.osv.dev, the EPSS site, GitHub or PyPI. Provider installs still
 resolve ``cruxible-provider-web`` 0.2.2 and Python dependencies from PyPI.
 
@@ -74,7 +74,7 @@ STEPS = {
     "01": "init: empty instance, seeded Triggers",
     "02": "kit add from the registry: preview by kind, commit, status, providers",
     "03": "fixture Sources: web.fetch, osv-query, osv-ecosystems, epss-daily implementations",
-    "04": "instantiate Blueprints; unbound and mismatched refused",
+    "04": "slotted Procedures: ambiguous and mismatched refused, explicit fixture choices",
     "05": "author Lines, Triggers, propose mandates; enable",
     "06": "SBOM import first: workspace Source v2 -> landing -> proposal; re-import no_change",
     "07": "inventory by key; watched is derived (watch_reason), a bare Subject is not watched",
@@ -89,7 +89,7 @@ STEPS = {
     "15": "restart: gap rows, lapsed ticks listed, dispatched, none at restart",
     "16": "measure pending; readings pending/open/expired",
     "17": "graduate KEV and EPSS triage to settle by max_authority",
-    "18": "changed analysis build: one kit add, D8 carry, enable/re-grant, settles resume; keep/re-add/downgrade",
+    "18": "slotted upgrade: exact authority re-granted; build-only move preserves Procedures and mandates; keep/re-add/downgrade",
     "19": "SBOM re-import: a changed SBOM and a new release land; OSV assesses the new one",
     "20": "exit: resolve EPSS prior-refusal warning, next empty, run history",
     "21": "system model: gates asked; every answer unknown; one gap item per source",
@@ -278,9 +278,15 @@ class Gate:
                 self.env[key.strip().removeprefix("export ").strip()] = value.strip().strip("'\"")
 
     def cx(self, *args: str, check: bool = True, timeout: float = 900,
-           who: str | None = None) -> subprocess.CompletedProcess[str]:
+           who: str | None = None, bind_sources: bool = True) -> subprocess.CompletedProcess[str]:
         """Run the CLI as the owner, or as the principal ``who`` (its settings file)."""
 
+        if bind_sources and args[:2] == ("procedure", "run"):
+            bindings = recipe.fixture_bindings(args[2])
+            explicit = {args[i + 1].partition("=")[0] for i, arg in enumerate(args[:-1])
+                        if arg == "--bind"}
+            args += tuple(part for slot, provider in bindings.items() if slot not in explicit
+                          for part in ("--bind", f"{slot}={provider}"))
         started = time.monotonic()
         result = subprocess.run(
             [self.bin, *args], env=self.principals[who] if who else self.env, cwd=self.ws,
@@ -314,6 +320,12 @@ class Gate:
         return str(path)
 
     def submit(self, name: str, value: object) -> dict[str, Any]:
+        value = json.loads(json.dumps(value))
+        for member in value.get("members", []):
+            if member.get("kind") == "line":
+                bindings = recipe.fixture_bindings(member["procedure_name"])
+                if bindings:
+                    member.setdefault("bindings", {}).update(bindings)
         out = self.out("authoring", "submit", self.payload(name, value))
         result = json.loads(out)
         assert result["outcome"]["status"] == "landed", out[-600:]
@@ -333,8 +345,9 @@ class Gate:
     def card(self, ref: str) -> dict[str, Any]:
         return dict(self.json("get", ref)["card"])
 
-    def proof(self, ref: str) -> dict[str, Any]:
-        return dict(self.json("get", ref, "--detail", "proof")["proof"])
+    def proof(self, ref: str, *, at: str | None = None) -> dict[str, Any]:
+        args = ("--at", at) if at is not None else ()
+        return dict(self.json("get", ref, "--detail", "proof", *args)["proof"])
 
     def runs(self, line: str) -> list[dict[str, Any]]:
         return list(self.card(f"Line:{line}").get("recent_runs") or [])
@@ -420,7 +433,7 @@ def _inbox(gate: Gate, *args: str) -> list[dict[str, Any]]:
 @pytest.fixture(scope="module")
 def gate() -> Iterator[Gate]:
     explicit = os.environ.get("SECURITY_KIT_GATE_ROOT")
-    root = Path(explicit) if explicit else Path(tempfile.mkdtemp(prefix="security-kit-gate-"))
+    root = Path(tempfile.mkdtemp(prefix="security-kit-gate-", dir=Path(explicit).parent if explicit else None))
     root.mkdir(parents=True, exist_ok=True)
     instance = Gate(root)
     started = time.monotonic()
@@ -459,8 +472,8 @@ def test_01_init(gate: Gate) -> None:
     record("01", f"generation 0; seeded Triggers {sorted(triggers)}")
 
 
-KIT_COUNTS = {"Blueprint": 9, "CaptureContract": 18, "ClaimType": 137, "Procedure": 21,
-              "ProviderInterface": 21, "QueryDefinition": 50, "SourceAcquisitionPolicy": 1,
+KIT_COUNTS = {"CaptureContract": 6, "ClaimType": 137, "Procedure": 28,
+              "ProviderInterface": 21, "QueryDefinition": 50,
               "SubjectKind": 23}
 
 
@@ -473,6 +486,11 @@ def test_02_kit_add(gate: Gate) -> None:
         kind = item["identity"].split(":", 1)[0]
         counts[kind] = counts.get(kind, 0) + 1
     assert counts == KIT_COUNTS, counts
+    from cruxible_client.contracts.captures import builtin_contract_for_write, render_capture_contract
+    # Five kit contracts, plus the exact compiler-owned self-source dependency.
+    from cruxible_client.contracts.captures import COORDINATOR_SELF_SOURCE_CAPTURE_CONTRACT
+    expected_self = builtin_contract_for_write(COORDINATOR_SELF_SOURCE_CAPTURE_CONTRACT, None)
+    assert (KIT / "artifacts/capture-contracts/playbill.coordinator-self-source-v1.json").read_bytes() == render_capture_contract(expected_self)
     actions = {p["package"]: p["action"] for p in preview["providers"]}
     assert set(actions) == {"cruxible-provider-web", "security-analysis-provider",
                             "security-sources-provider"}, actions
@@ -513,35 +531,53 @@ def test_03_fixture_sources(gate: Gate) -> None:
     record("03", f"implementations {found}")
 
 
-def test_04_instantiate(gate: Gate) -> None:
-    blueprint = gate.out("get", "Blueprint:security.osv-applicability")
-    assert "osv" in blueprint and "security-gate-sources" in blueprint, blueprint
-    unbound = gate.cx("authoring", "submit", gate.payload("unbound", {
-        "kind": "blueprint_instance", "name": "security.kev-acquire",
-        "blueprint": "security.kev-acquire", "bindings": {}}), "--dry-run", check=False)
-    assert "bindings" in unbound.stdout + unbound.stderr
-    wrong = gate.out("authoring", "submit", gate.payload("wrong", {
-        "kind": "blueprint_instance", "name": "security.epss-acquire",
-        "blueprint": "security.epss-acquire", "bindings": {"epss": "cruxible-provider-web"},
-        "acquisition_policy": "security.acquisition"}), "--dry-run")
-    assert "blueprint_provider_interface_mismatch" in wrong
-    gate.submit("instances", recipe.instantiate("security-gate-sources", "security-gate-sources"))
+def test_04_slots(gate: Gate) -> None:
+    proof = gate.proof("Procedure:security.osv-applicability")
+    from cruxible_client.contracts.procedures.authored import ProcedureSpec
+    for path in (KIT / "artifacts/procedures").glob("*.json"):
+        authored = ProcedureSpec.model_validate(gate.card("Procedure:" + path.stem)["authored"])
+        assert authored.slots
+    assert len(proof["artifact"]["definition"]["pin_slots"]) == 3
+    assert proof["artifact"]["activation_policy"] == "drain"
+    request = gate.payload("ambiguous-fetch", {
+        "url": "https://cveawg.mitre.org/api/cve/" + LOG4SHELL,
+        "logical_source": "cve.record", "max_bytes": 1048576})
+    ambiguous = gate.cx("procedure", "run", "security.fetch", request,
+                        check=False, bind_sources=False)
+    assert "slot_binding_ambiguous" in ambiguous.stdout + ambiguous.stderr
+    assert "security-gate-sources" in ambiguous.stdout + ambiguous.stderr
+    wrong = gate.cx("procedure", "run", "security.fetch", request,
+                    "--bind", "fetch=cruxible-builtin", check=False, bind_sources=False)
+    assert "slot_binding_missing" in wrong.stdout + wrong.stderr
+    undeclared = gate.cx("procedure", "run", "security.fetch", request,
+                         "--bind", "unknown=security-gate-sources", check=False,
+                         bind_sources=False)
+    assert "slot_undeclared" in undeclared.stdout + undeclared.stderr
+    gate.submit("direct-fetch-policy", {"kind": "change_set", "members": [
+        member for member in recipe.example()["members"]
+        if member["kind"] == "acquisition_policy"]})
+    catalog = gate.payload("forbidden-direct-catalog", {
+        "url": "https://cveawg.mitre.org/api/cve/" + LOG4SHELL,
+        "logical_source": "cisa.kev.catalog", "max_bytes": 1048576})
+    refused = gate.cx("procedure", "run", "security.fetch", catalog,
+                      "--bind", "fetch=security-gate-sources", check=False,
+                      bind_sources=False)
+    assert refused.returncode != 0, refused.stdout
+    diagnostic = refused.stdout + refused.stderr
+    assert "logical_source" in diagnostic and "outside the declared enum" in diagnostic, diagnostic
+    assert "slot_binding_ambiguous" not in diagnostic
     runnable = {name: gate.card(f"Procedure:{name}")["runnable"] for name in (
-        "security.kev-acquire", "security.cve-record-acquire", "security.epss-acquire",
+        "security.fetch-observed", "security.fetch", "security.epss-acquire",
         "security.osv-applicability", "security.sbom-acquire")}
-    assert runnable == {"security.kev-acquire": "line", "security.cve-record-acquire": "direct",
+    assert runnable == {"security.fetch-observed": "line", "security.fetch": "direct",
                         "security.epss-acquire": "line", "security.osv-applicability": "line",
                         "security.sbom-acquire": "direct"}, runnable
-    origin = json.dumps(gate.proof("Procedure:security.kev-acquire"))
-    gate.values["kev_acquire_blueprint"] = gate.proof(
-        "Blueprint:security.kev-acquire")["artifact_digest"]
-    assert gate.values["kev_acquire_blueprint"] in origin
-    record("04", f"unbound refused; mismatch refused; runnable {runnable}; Blueprint origin "
-           "recorded")
+    # Actual explicit choice is exercised by subsequent acquisition runs; no source is live.
+    record("04", f"three OSV slots; drain; ambiguity, unfit and undeclared refused; {runnable}")
 
 
 def test_05_automation(gate: Gate) -> None:
-    gate.submit("automation", recipe.automation())
+    gate.submit("automation", recipe.automation(fixtures=True))
     line = gate.card("Line:security.kev-triage")
     assert line["triggers_inactive"] == "not enabled", line["triggers_inactive"]
     rows = gate.json("query", "Trigger", "--where", "target=Line:security.kev-triage")["rows"]
@@ -716,7 +752,7 @@ def test_08_osv_applicability(gate: Gate) -> None:
     assessment = gate.values["assessment_ids"][(app, LOG4SHELL)]
     statuses = gate.claims("security.assessment", "security.assessment.status")
     evidence = gate.out("get", statuses[assessment][1], "--detail", "evidence")
-    assert "CaptureContract:security.osv-query-v1" in evidence, evidence
+    assert "CaptureContract:security.fetched-v1" in evidence and "source=osv.dev.query" in evidence, evidence
     # Which dependency brings it in: the assessment names the component OSV listed.
     urgent = {_field(r, "cve_id"): r for r in gate.rows("security.urgent_exposures")}
     assert "pkg:pypi/jinja2@3.1.3" in json.dumps(_field(urgent[JINJA], "component")), urgent
@@ -778,7 +814,7 @@ def test_09_analyst_judgment(gate: Gate) -> None:
     assert cells["justification"][0]["role"] == "normative", cells
     assert _field(_index_row(gate, assessment), "status_role") == "normative"
     evidence = gate.out("get", cells["status"][0]["claim"], "--detail", "evidence")
-    assert "security.workspace-evidence-v1" in evidence, evidence
+    assert "CaptureContract:security.file-v1" in evidence and "source=security.analysis.evidence" in evidence, evidence
     assert "the vulnerable path is unreachable" in evidence, evidence  # the write's because
     # An observation in someone's own words has no admitted evidence: its verdict is
     # uncovered, so no worklist (supported Claims only) would ever show it.
@@ -853,9 +889,9 @@ def test_10_applicability_bets(gate: Gate) -> None:
 
 def test_11_cve_applicability(gate: Gate) -> None:
     before = {r["run"] for r in gate.runs("security.cve-applicability")}
-    cve = gate.payload("cve-input", {"url": f"https://cveawg.mitre.org/api/cve/{LOG4SHELL}"})
-    run = gate.out("procedure", "run", "security.cve-record-acquire", cve)
-    assert ": succeeded" in run and "Capture record:" in run, run
+    cve = gate.payload("cve-input", {"logical_source": "cve.record", "max_bytes": 1048576, "url": f"https://cveawg.mitre.org/api/cve/{LOG4SHELL}"})
+    run = gate.out("procedure", "run", "security.fetch", cve)
+    assert ": succeeded" in run and "Capture fetch:" in run, run
     landed = _wait_for_run(gate, "security.cve-applicability", before, 120)
     assert landed["status"] == "succeeded", landed
     egress = gate.egress(landed["run"])
@@ -925,7 +961,7 @@ def test_13_accept_and_dedupe(gate: Gate) -> None:
     added = gate.claims("security.vulnerability", "security.vulnerability.kev_date_added")
     assert added["cve-2021-44228"][0] == "2021-12-10", added
     evidence = gate.out("get", listed["cve-2021-44832"][1], "--detail", "evidence")
-    assert "CaptureContract:security.kev-http-v1" in evidence, evidence
+    assert "CaptureContract:security.fetched-v1" in evidence and "source=cisa.kev.catalog" in evidence, evidence
     head = gate.json("orient")["coordinate"]["git_oid"]
 
     def floor_current() -> bool:
@@ -946,7 +982,7 @@ def test_13_accept_and_dedupe(gate: Gate) -> None:
     assert len(items) == 1 and items[0]["occurrences"] >= 2, items
     item = items[0]
     gate.out("inbox", "ack", gate.values["inbox_item"])
-    record("13", "accepted; kev_listed true/false cite the kev-http-v1 Capture; floor at head; "
+    record("13", "accepted; kev_listed true/false cite the fetched-v1/cisa.kev.catalog Capture; floor at head; "
            f"next tick: triage no_change; attention re-posted the same item "
            f"({item['occurrences']} sightings, 1 item); acknowledged")
 
@@ -1079,94 +1115,131 @@ def test_18_upgrade(gate: Gate) -> None:
     gate.py(HERE / "edit_kev_exposure.py", "250")
     assert "edited locally: query-definitions/security.kev_exposure.json" in gate.out("kit", "status")
     old_lines = {name: gate.proof(f"Line:{name}") for name in recipe.LINES}
+    old_fetch = gate.proof("Procedure:security.fetch-observed")
+    old_enablements = {name: gate.card(f"Line:{name}").get("triggers_inactive")
+                       for name in recipe.LINES}
     old_mandates = {f"{name}-{grant}": gate.proof(f"ProcedureMandate:{name}-{grant}")
-                    for name in recipe.MANDATES for grant in
-                    (("propose", "settle") if name in
-                     {"security.kev-triage", "security.epss-triage"} else ("propose",))}
+                   for name in recipe.MANDATES for grant in
+                   (("propose", "settle") if name in
+                    {"security.kev-triage", "security.epss-triage"} else ("propose",))}
     triggers = {row["name"]: gate.proof(f"Trigger:{row['name']}")
                 for row in gate.json("query", "Trigger")["rows"]}
-    old_provider_pins = {pin["target"]["name"]: pin for pin in gate.proof(
-        "Procedure:security.kev-triage")["artifact"]["pins"] if pin["role"] == "provider"}
-    old_analysis = next(p for p in json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())[
-        "providers"] if p["package"] == "security-analysis-provider")
-    new_analysis = next(p for p in json.loads((RELEASE_1_1 / "cruxible-kit.json").read_text())[
-        "providers"] if p["package"] == "security-analysis-provider")
+    old_build = next(p["provider"] for p in gate.card("ProviderInterface:security.kev-catalog")["providers"]
+                     if p["provider"].startswith("security-analysis-provider/"))
+    old_provider = gate.proof("Provider:" + old_build)
+    old_analysis = next(p for p in json.loads((RELEASE_1_0 / "cruxible-kit.json").read_text())["providers"]
+                        if p["package"] == "security-analysis-provider")
+    new_analysis = next(p for p in json.loads((RELEASE_1_1 / "cruxible-kit.json").read_text())["providers"]
+                        if p["package"] == "security-analysis-provider")
     assert old_analysis["wheel"]["sha256"] != new_analysis["wheel"]["sha256"]
-    source_path = "security_analysis_provider/kev.py"
     with zipfile.ZipFile(RELEASE_1_0 / "providers" / old_analysis["wheel"]["filename"]) as old:
         with zipfile.ZipFile(RELEASE_1_1 / "providers" / new_analysis["wheel"]["filename"]) as new:
-            assert old.read(source_path) != new.read(source_path), "a real code change is required"
-            assert b'Field: {predicate}' in new.read(source_path)
+            assert old.read("security_analysis_provider/kev.py") != new.read("security_analysis_provider/kev.py")
+            assert b'Field: {predicate}' in new.read("security_analysis_provider/kev.py")
     subprocess.run([sys.executable, str(HERE / "publish_kit.py"), str(RELEASE_1_1),
-                    f"{gate.registry}:{UPGRADE_VERSION}"], env=gate.env, check=True,
-                   capture_output=True)
+                    f"{gate.registry}:{UPGRADE_VERSION}"], env=gate.env, check=True, capture_output=True)
     assert f"latest {UPGRADE_VERSION} available" in gate.out("kit", "status")
     preview = gate.json("kit", "add", f"{gate.registry}:{UPGRADE_VERSION}", "--dry-run")
     (gate.root / "upgrade-preview.json").write_text(json.dumps(preview, indent=2) + "\n")
     assert (preview["status"], preview["transition"]) == ("would_propose", "upgrade"), preview
-    changes = {i["identity"]: (i["action"], i["consequence"]) for i in preview["plan"]
-               if i["action"] != "unchanged"}
-    assert changes["Blueprint:security.kev-acquire"] == ("replace", None)
+    changes = {i["identity"]: (i["action"], i["consequence"]) for i in preview["plan"] if i["action"] != "unchanged"}
+    assert changes["Procedure:security.fetch-observed"] == ("replace", None)
     assert changes["ClaimType:security.vulnerability.kev_cwes"] == ("add", None)
     assert changes["QueryDefinition:security.kev_exposure"] == ("replace", "overwrites_your_edit")
-    carries = preview["automation_carries"]
-    lines = {item["identity"]: item for item in carries if item["kind"] == "line"}
-    mandates = {item["identity"]: item for item in carries if item["kind"] == "mandate"}
-    assert {"Line:security.kev-triage", "Line:security.epss-triage"} <= lines.keys(), carries
-    assert all(item["enablement"] == "disabled" for item in lines.values())
-    assert all(item["new_grant"] == "propose" for item in mandates.values())
-    for name in ("security.kev-triage", "security.epss-triage"):
-        assert mandates[f"ProcedureMandate:{name}-settle"]["loses_settle"]
-    assert not preview["stops"], preview["stops"]
+    assert not [i for i in preview["automation_carries"] if i["kind"] == "line"]
+    carries = {c["identity"]: c for c in preview["automation_carries"]}
+    assert set(carries) == {"ProcedureMandate:security.kev-triage-propose",
+                           "ProcedureMandate:security.kev-triage-settle"}, carries
+    assert all(c["new_grant"] == "propose" for c in carries.values())
+    assert carries["ProcedureMandate:security.kev-triage-settle"]["loses_settle"]
+    assert not preview["stops"], preview
     committed = gate.json("kit", "add", f"{gate.registry}:{UPGRADE_VERSION}", "--keep",
-                          "QueryDefinition:security.kev_exposure", "--commit", "--at",
-                          preview["coordinate"]["git_oid"])
+                          "QueryDefinition:security.kev_exposure", "--commit", "--at", preview["coordinate"]["git_oid"])
     (gate.root / "upgrade-commit.json").write_text(json.dumps(committed, indent=2) + "\n")
     assert committed["status"] == "accepted", committed
-    new_provider_pins = {pin["artifact_digest"] for pin in gate.proof(
-        "Procedure:security.kev-triage")["artifact"]["pins"] if pin["role"] == "provider"}
-    assert new_provider_pins != {pin["artifact_digest"] for pin in old_provider_pins.values()}
-    for name, pin in old_provider_pins.items():
-        assert gate.proof(f"Provider:{name}")["artifact_digest"] == pin["artifact_digest"]
-    for identity, item in lines.items():
-        name = identity.removeprefix("Line:")
-        proof = gate.proof(identity)
-        assert proof["artifact_digest"] != old_lines[name]["artifact_digest"]
-        envelope = proof["envelope"]
-        assert envelope["identity"] == old_lines[name]["envelope"]["identity"]
-        assert envelope["lifecycle"]["predecessor_digest"] == old_lines[name]["artifact_digest"]
-        assert envelope["procedure"]["artifact_digest"] != old_lines[name]["envelope"][
-            "procedure"]["artifact_digest"]
-        assert gate.card(identity)["triggers_inactive"] == "not enabled"
-        assert item["old_artifact_digest"] == old_lines[name]["artifact_digest"]
-    for identity in mandates:
-        name = identity.removeprefix("ProcedureMandate:")
-        envelope = gate.proof(identity)["envelope"]
-        assert envelope["identity"] == old_mandates[name]["envelope"]["identity"]
-        assert envelope["grants"] == "propose"
-        assert not envelope.get("scope") and envelope.get("condition") is None
-        assert not envelope.get("subject_creation") and envelope.get("subject_scope") is None
-        assert envelope["namespace"] == old_mandates[name]["envelope"]["namespace"]
-        assert envelope["resource_ceiling"] == old_mandates[name]["envelope"]["resource_ceiling"]
+    assert gate.proof("Provider:" + old_build)["artifact_digest"] == old_provider["artifact_digest"]
+    current_fetch = gate.proof("Procedure:security.fetch-observed")
+    assert current_fetch["artifact_digest"] != old_fetch["artifact_digest"]
+    assert old_fetch["artifact"]["definition"]["budget"]["wall_clock"]["microseconds"] == 60000000
+    assert current_fetch["artifact"]["definition"]["budget"]["wall_clock"]["microseconds"] == 90000000
+    assert gate.proof("ProcedureMandate:security.kev-triage-settle")["envelope"]["grants"] == "propose"
+    rebound_lines = []
+    for name, old in old_lines.items():
+        current = gate.proof(f"Line:{name}")
+        before, after = old["envelope"], current["envelope"]
+        assert after["procedure"]["target"] == before["procedure"]["target"]
+        assert {k: v for k, v in after.items() if k not in {"bindings", "lifecycle"}} == {
+            k: v for k, v in before.items() if k not in {"bindings", "lifecycle"}}
+        if current["artifact_digest"] == old["artifact_digest"]:
+            assert after == before
+            continue
+        rebound_lines.append(name)
+        assert after["lifecycle"]["predecessor_digest"] == old["artifact_digest"]
+        previous_bindings, bindings = before.get("bindings", {}), after["bindings"]
+        assert all(bindings[k] == v for k, v in previous_bindings.items())
+        added = set(bindings) - set(previous_bindings)
+        assert added, (name, before, after)
+        assert all(bindings[k]["target"]["name"].startswith("security-analysis-provider/")
+                   and bindings[k]["target"]["name"] != old_build for k in added)
+    for name, inactive in old_enablements.items():
+        current_inactive = gate.card(f"Line:{name}").get("triggers_inactive")
+        if name in rebound_lines:
+            assert current_inactive == "not enabled"
+            if inactive is None:
+                # A new build binding is a Line edit; consent to that exact choice.
+                gate.out("line", "enable", name)
+                assert gate.card(f"Line:{name}").get("triggers_inactive") is None
+        else:
+            assert current_inactive == inactive
+    for name, old in old_mandates.items():
+        current = gate.proof(f"ProcedureMandate:{name}")
+        if name.startswith("security.kev-triage-"):
+            assert current["envelope"]["grants"] == "propose"
+            assert current["artifact_digest"] != old["artifact_digest"]
+            for field in ("namespace", "resource_ceiling"):
+                assert current["envelope"][field] == old["envelope"][field]
+            assert not current["envelope"].get("scope")
+            assert current["envelope"].get("condition") is None
+            assert not current["envelope"].get("subject_creation")
+            assert current["envelope"].get("subject_scope") is None
+        else:
+            assert current["artifact_digest"] == old["artifact_digest"]
     for name, old in triggers.items():
-        current = gate.proof(f"Trigger:{name}")
-        assert current["artifact_digest"] == old["artifact_digest"]
-        assert json.dumps(current["envelope"], sort_keys=True) == json.dumps(
-            old["envelope"], sort_keys=True), name
-    findings = [row for row in gate.json("next")["items"]
-                if row["reason"] == "line_disabled_by_upgrade"]
-    assert len(findings) == len(lines), findings
-    assert {row["subject_identity"] for row in findings} == lines.keys()
-    for row in findings:
-        assert row["repair"]["operation"] == "cruxible.line.enable"
-        assert row["repair"]["target"] == row["subject_identity"]
-        assert "disabled by upgrade to" in row["detail"]["detail"]
-        gate.out("line", "enable", row["repair"]["arguments"]["line"])
-    assert not [row for row in gate.json("next")["items"]
-                if row["reason"] == "line_disabled_by_upgrade"]
-
-    # Enabling alone restores proposing; only an approved re-grant may restore settle.
-    probe = "CVE-2023-4966"  # fresh watched CVE in KEV, not among the OSV assessments
+        assert gate.proof(f"Trigger:{name}")["envelope"] == old["envelope"]
+    assert not [r for r in gate.json("next")["items"] if r["reason"] == "line_disabled_by_upgrade"]
+    # BUILD-only OSV selection: the provider move may bind the Line, never revise a Procedure or mandate.
+    procedures = {p.stem: gate.proof("Procedure:" + p.stem)["artifact_digest"]
+                  for p in (KIT / "artifacts/procedures").glob("*.json")}
+    mandates = {r["name"]: gate.proof("ProcedureMandate:" + r["name"])["artifact_digest"]
+                for r in gate.json("query", "ProcedureMandate")["rows"]}
+    # The kit already moved this Line to its shipped build. Rehearse a build-only
+    # rollback and forward selection while both fitting builds remain live.
+    rollback = gate.json("provider", "move", "security-analysis-provider", "--to", old_build,
+                         "--only", "Line:security.osv-applicability", "--dry-run")
+    rolled = gate.json("provider", "move", "security-analysis-provider", "--to", old_build,
+                       "--only", "Line:security.osv-applicability", "--commit", "--at", rollback["coordinate"]["git_oid"])
+    assert rolled["status"] == "accepted", rolled
+    assert gate.proof("Line:security.osv-applicability")["envelope"]["bindings"]["decide"]["target"]["name"] == old_build
+    move = gate.json("provider", "move", "security-analysis-provider", "--to", "newest",
+                     "--only", "Line:security.osv-applicability", "--dry-run")
+    (gate.root / "osv-build-move-preview.json").write_text(json.dumps(move, indent=2) + "\n")
+    moved = gate.json("provider", "move", "security-analysis-provider", "--to", "newest",
+                      "--only", "Line:security.osv-applicability", "--commit", "--at", move["coordinate"]["git_oid"])
+    assert moved["status"] == "accepted", moved
+    new_build = move["to"]["resolved"]
+    assert new_build != old_build and move["to"]["version"] == UPGRADE_VERSION
+    assert moved["to"]["resolved"] == new_build
+    assert gate.proof("Line:security.osv-applicability")["envelope"]["bindings"]["decide"]["target"]["name"] == new_build
+    for name, digest in procedures.items():
+        assert gate.proof("Procedure:" + name)["artifact_digest"] == digest
+    for name, digest in mandates.items():
+        assert gate.proof("ProcedureMandate:" + name)["artifact_digest"] == digest
+    gate.out("line", "enable", "security.osv-applicability")
+    retirement = gate.json("provider", "retire", old_build, "--dry-run")
+    retired = gate.json("provider", "retire", old_build, "--commit", "--at", retirement["coordinate"]["git_oid"])
+    assert retired["status"] == "retired", retired
+    # Remaining unbound analysis slots now fit only the new build.
+    probe = "CVE-2023-4966"
     gate.submit("watch-after-upgrade", recipe.watch(probe))
     seen = {r["run"] for r in gate.runs("security.kev-triage")}
     gate.out("line", "run", "security.kev-daily")
@@ -1175,11 +1248,9 @@ def test_18_upgrade(gate: Gate) -> None:
     assert egress["settle_outcome"] == "proposed", egress
     assert egress["fallback_reason"] == "cruxible.settle.authority_capped_by_mandate_grant"
     gate.out("proposal", "withdraw", egress["proposal_id"], "--reason",
-             "Gate: replace this proposed-only probe with an explicitly re-granted settle run.")
-    gate.submit("regrant-after-upgrade", recipe.graduate())
-    for name in ("security.kev-triage", "security.epss-triage"):
-        assert gate.proof(f"ProcedureMandate:{name}-settle")["envelope"]["grants"] == "settle"
-        gate.out("line", "enable", name)
+             "Gate: explicit exact-Procedure settle re-grant follows.")
+    gate.submit("regrant-kev", {"kind": "change_set", "members": [recipe.graduate()["members"][0]]})
+    assert gate.proof("ProcedureMandate:security.kev-triage-settle")["envelope"]["grants"] == "settle"
     seen = {r["run"] for r in gate.runs("security.kev-triage")}
     gate.out("line", "run", "security.kev-daily")
     kev = _wait_for_run(gate, "security.kev-triage", seen, 180, status="succeeded")
@@ -1209,15 +1280,11 @@ def test_18_upgrade(gate: Gate) -> None:
     assert again["status"] == "unchanged", again
     down = gate.json("kit", "add", f"{gate.registry}:{VERSION}", "--dry-run")
     assert (down["status"], down["transition"]) == ("would_block", "downgrade"), down
-    assert gate.proof("QueryDefinition:security.kev_exposure")["envelope"][
-        "default_budgets"]["max_results"] == 250
-    assert gate.values["kev_acquire_blueprint"] in json.dumps(gate.proof(
-        "Procedure:security.kev-acquire"))
-    record("18", f"ONE kit add {VERSION} -> {UPGRADE_VERSION}: changed analysis code/build; "
-           f"{len(lines)} same-identity Lines disabled; {len(mandates)} Mandates propose-only; "
-           "Triggers byte-identical; old exact Provider retained; next/line enable repairs; "
-           "enable alone proposed; approved KEV/EPSS re-grants resumed settling; new rationale "
-           "executed; local edit kept; re-add unchanged; downgrade blocked")
+    assert gate.proof("QueryDefinition:security.kev_exposure")["envelope"]["limit"] == 250
+    record("18", "ONE kit upgrade: fetch-observed 60 -> 90 s; KEV triage 120 -> 150 s, exact mandate downgraded/re-granted; "
+           f"19 named Line inputs retained; {len(rebound_lines)} shipped-build binding successors reviewed/re-enabled where previously active; EPSS mandate unchanged; OSV build-only "
+           "move preserved all 28 Procedure bytes and all mandates; real new rationale executed; "
+           "local query kept, re-add unchanged, downgrade blocked")
 
 
 def _import(gate: Gate, source: Path, relative: str) -> dict[str, Any]:
@@ -1475,12 +1542,12 @@ def _parse_line(name: str, *, ref: str, scope: str = "ci.workflows",
     source = f"github.com/cruxible-ai/cruxible@{ref}"
     return {"kind": "change_set", "rationale": f"Model {source}:{path} too.", "members": [
         {"kind": "line", "name": name, "procedure_name": "security.repo-parse",
-         "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+         "max_authority": "propose",
          "trigger_input": "snapshot",
          "parameters": {"source": f"{source}:{path}", "repo_source": source, **REPO_KEY,
                         "ref": ref, "scope": scope, "path": path}},
         {"kind": "trigger", "name": name.replace("repo-parse", "repo-landed"), "line_name": name,
-         "schedule": {"kind": "capture_landing", "capture_contract": "security.repo-snapshot-v1"}},
+         "schedule": {"kind": "capture_landing", "capture_contract": "security.fetched-v1", "logical_sources": ["github.repo.snapshot"]}},
     ]}
 
 
@@ -1724,8 +1791,8 @@ def test_27_investigation(gate: Gate) -> None:
     _, summary = _harden(gate)
     disagreement = next(f["payload"] for f in _posted(gate, "finding")
                         if f["payload"].get("disagreement") == "digest")
-    for side, contract in (("declared", "security.repo-snapshot-v1"),
-                           ("served", "security.release-asset-v1")):
+    for side, contract in (("declared", "security.fetched-v1"),
+                           ("served", "security.fetched-large-v1")):
         assert disagreement[side]["value"] == (declared if side == "declared" else served)
         assert contract in gate.out("get", disagreement[side]["claim"], "--detail", "evidence")
     # Hop 0: the signal, its observation and the note, in one write.
@@ -1747,10 +1814,10 @@ def test_27_investigation(gate: Gate) -> None:
             f"{served} (Capture {asset_capture}).\n")}]})
     signal_id = next(c["subject"] for c in signal["changes"] if c["op"] == "create")
     # Hops 3 and 5: who uploaded it, and whether the path ran again.
-    release_out = gate.out("procedure", "run", "security.release-acquire", gate.payload(
-        "release", {"url": f"{GITHUB_API}/releases/tags/v0.3.2"}))
-    runs_out = gate.out("procedure", "run", "security.history-acquire", gate.payload(
-        "runs", {"url": f"{GITHUB_API}/actions/workflows/publish.yml/runs?branch=v0.3.2"
+    release_out = gate.out("procedure", "run", "security.fetch", gate.payload(
+        "release", {"logical_source": "github.release", "max_bytes": 4194304, "url": f"{GITHUB_API}/releases/tags/v0.3.2"}))
+    runs_out = gate.out("procedure", "run", "security.fetch", gate.payload(
+        "runs", {"logical_source": "github.api", "max_bytes": 4194304, "url": f"{GITHUB_API}/actions/workflows/publish.yml/runs?branch=v0.3.2"
                         "&per_page=5"}))
     pulls += 2
     _write(gate, "uploaded", {
@@ -1759,7 +1826,7 @@ def test_27_investigation(gate: Gate) -> None:
         "changes": [{"op": "set", "field": "security.artifact.uploaded_by",
                      "value": "github-actions[bot]",
                      "evidence": {"kind": "capture",
-                                  "capture": _capture(release_out, "release")}}]})
+                                  "capture": _capture(release_out, "fetch")}}]})
     # Hop 6: two hypotheses contend for one slot.
     jobs = gate.rows("security.source_facts", source="github.com/cruxible-ai/cruxible@main")
     (bundles,) = {_field(r, "job") for r in jobs if _field(r, "job_key") == "publish-kit-bundles"}
@@ -1767,7 +1834,7 @@ def test_27_investigation(gate: Gate) -> None:
     for label, value, contend, text in (
         ("h1", f"security.job/{bundles}", False,
          "# H1\n\nA re-run of publish-kit-bundles rebuilt the asset and replaced it with "
-         f"--clobber (runs: Capture {_capture(runs_out, 'history')}).\n"),
+         f"--clobber (runs: Capture {_capture(runs_out, 'fetch')}).\n"),
         ("h2", f"security.target/{target}", True,
          "# H2\n\nA repository writer uploaded the asset by hand.\n"),
     ):
@@ -1781,8 +1848,8 @@ def test_27_investigation(gate: Gate) -> None:
             "docs": [{"op": "append", "file": note, "text": text}]})
     assert "claim_conflicted" in {row["reason"] for row in gate.json("next")["items"]}
     # Hop 7: the code responsible; the right hypothesis is revised, the other retired.
-    commits = gate.out("procedure", "run", "security.history-acquire", gate.payload(
-        "commits", {"url": f"{GITHUB_API}/commits?path=scripts/build_kit_bundles.py"
+    commits = gate.out("procedure", "run", "security.fetch", gate.payload(
+        "commits", {"logical_source": "github.api", "max_bytes": 4194304, "url": f"{GITHUB_API}/commits?path=scripts/build_kit_bundles.py"
                            "&sha=v0.3.2&per_page=5"}))
     pulls += 1
     hypotheses = gate.json("query", "security.signal", "--select", "explained_by",
@@ -1801,7 +1868,7 @@ def test_27_investigation(gate: Gate) -> None:
         "changes": [change, {"op": "set", "field": "security.signal.explained_by",
                              "value": {"created": "change"},
                              "evidence": {"kind": "capture",
-                                          "capture": _capture(commits, "history")}}]})
+                                          "capture": _capture(commits, "fetch")}}]})
     resolved = gate.json("query", "security.signal", "--select", "explained_by",
                          "--claims")["rows"][0]["claims"]["explained_by"]
     assert len(resolved) == 1 and "security.change" in json.dumps(resolved[0]["value"]), resolved
@@ -1827,7 +1894,7 @@ def _commit(gate: Gate, out: str) -> str:
 
     import base64
 
-    read = json.loads(gate.out("capture", "read", _capture(out, "history")))
+    read = json.loads(gate.out("capture", "read", _capture(out, "fetch")))
     material = json.loads(base64.b64decode(read["material"]["body_access"]["body_base64"]))
     commits = json.loads(base64.b64decode(material["retrieved"]["body_base64"]))
     return str(commits[0]["sha"])
@@ -1999,7 +2066,7 @@ def test_28_findings_setup(gate: Gate) -> None:
     gate.submit("findings-lines", {"kind": "change_set", "rationale": "Import gate-app's scans.",
                                    "members": [
         {"kind": "line", "name": FINDING_LINES["import"], "procedure_name": "security.sarif-import",
-         "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+         "max_authority": "propose",
          "trigger_input": "sarif", "parameters": {"repo_ref": GATE_APP}},
         {"kind": "line", "name": FINDING_LINES["attention"],
          "procedure_name": "security.sarif-attention", "acquisition_policy_name": recipe.POLICY,
@@ -2007,10 +2074,10 @@ def test_28_findings_setup(gate: Gate) -> None:
          "parameters": {"repo_ref": GATE_APP}},
         {"kind": "trigger", "name": "security.sarif-landed.gate-app",
          "line_name": FINDING_LINES["import"],
-         "schedule": {"kind": "capture_landing", "capture_contract": "security.sarif-v1"}},
+         "schedule": {"kind": "capture_landing", "capture_contract": "security.file-v1", "logical_sources": ["sarif.log"]}},
         {"kind": "trigger", "name": "security.sarif-landed-attention.gate-app",
          "line_name": FINDING_LINES["attention"],
-         "schedule": {"kind": "capture_landing", "capture_contract": "security.sarif-v1"}}]})
+         "schedule": {"kind": "capture_landing", "capture_contract": "security.file-v1", "logical_sources": ["sarif.log"]}}]})
     # The scanner arms its Lines: their runs act as it, so it creates their proposals.
     for name in FINDING_LINES.values():
         gate.out("line", "enable", name, who="scanner")
@@ -2228,11 +2295,11 @@ def test_33_remediate(gate: Gate) -> None:
     assert any(r["subject_id"] == sqli and _field(r, "progress") == "in_progress"
                for r in open_rows), open_rows
     # What gate-app's release serves: one cited pull, then the target and its file.
-    out = gate.out("procedure", "run", "security.release-acquire", gate.payload(
+    out = gate.out("procedure", "run", "security.fetch", gate.payload(
         "gate-app-release",
-        {"url": "https://api.github.com/repos/cruxible-ai/gate-app/releases/tags/v1.0.0"}),
+        {"logical_source": "github.release", "max_bytes": 4194304, "url": "https://api.github.com/repos/cruxible-ai/gate-app/releases/tags/v1.0.0"}),
         who="maintainer")
-    release = {"kind": "capture", "capture": _capture(out, "release")}
+    release = {"kind": "capture", "capture": _capture(out, "fetch")}
     target_key = [{"predicate": "security.target.registry", "value": "github_release"},
                   {"predicate": "security.target.name", "value": "cruxible-ai/gate-app"}]
     _write_as(gate, "maintainer", "gate-app-target", {
@@ -2661,8 +2728,8 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
     _incident_ready(gate)
     for cve in PHP2SHELL:
         before = {r["run"] for r in gate.runs("security.cve-applicability")}
-        out = gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
-            f"record-{cve}", {"url": f"https://cveawg.mitre.org/api/cve/{cve}"}), who=RESPONDER)
+        out = gate.out("procedure", "run", "security.fetch", gate.payload(
+            f"record-{cve}", {"logical_source": "cve.record", "max_bytes": 1048576, "url": f"https://cveawg.mitre.org/api/cve/{cve}"}), who=RESPONDER)
         assert ": succeeded" in out, out[-1200:]
         run = _wait_for_run(gate, "security.cve-applicability", before, 180)
         proposal = _proposal(gate, run)
@@ -2683,7 +2750,7 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
     statuses = gate.claims("security.assessment", "security.assessment.status")
     evidence = gate.out("get", statuses[gate.values["assessment_ids"][(debian, PHP2SHELL[0])]][1],
                         "--detail", "evidence")
-    assert "security.osv-query-v1" in evidence, evidence
+    assert "CaptureContract:security.fetched-v1" in evidence and "source=osv.dev.query" in evidence, evidence
     gate.values.update(php_release=php, debian_release=debian)
     # Exposure joins what scans observe too: storefront-a/-b and app-1 are known only from
     # scans (observed), wiki-1 only declares php 8.3.10 (asset, not seen running).
@@ -2731,16 +2798,16 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
                             "inventory_pull": "security.inventory-acquire",
                             "log_pull": "security.log-acquire",
                             "credential_pull": "security.credential-acquire",
-                            "record_pull": "security.cve-record-acquire"}},
+                            "record_pull": "security.fetch"}},
             {"kind": "line", "name": LOG_IMPORT, "procedure_name": "security.log-import",
-             "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+             "max_authority": "propose",
              "trigger_input": "log", "parameters": {"incident": INCIDENT_NAME}},
             {"kind": "trigger", "name": "security.log-landed.php2shell", "line_name": LOG_IMPORT,
-             "schedule": {"kind": "capture_landing", "capture_contract": "security.log-read-v1"}},
+             "schedule": {"kind": "capture_landing", "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.log-read"]}},
             # The gate's re-ask window is 30 s (a deployment's, a day).
             {"kind": "trigger", "name": "security.respond-after-rotation.php2shell",
              "line_name": RESPOND, "schedule": {"kind": "window_close", "window": {
-                 "kind": "capture_event", "capture_contract": "security.credential-state-v1",
+                 "kind": "capture_event", "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.credential-state"],
                  "duration_seconds": 30}}}]}, approver=LEAD)
     for line in (RESPOND, LOG_IMPORT):
         gate.out("line", "enable", line, who=RESPONDER)
@@ -2924,11 +2991,11 @@ def test_37_patch_closes_only_on_a_scan(gate: Gate) -> None:
     _submit_as(gate, RESPONDER, "ops-scope", {
         "kind": "change_set", "rationale": "Import the ops scope's inventory too.", "members": [
             {"kind": "line", "name": OPS_SCOPE, "procedure_name": "security.inventory-import",
-             "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+             "max_authority": "propose",
              "trigger_input": "inventory", "parameters": {"scope": "ops"}},
             {"kind": "trigger", "name": "security.inventory-landed.ops", "line_name": OPS_SCOPE,
              "schedule": {"kind": "capture_landing",
-                          "capture_contract": "security.runtime-inventory-v1"}}]}, approver=LEAD)
+                          "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.inventory"]}}]}, approver=LEAD)
     gate.out("line", "enable", OPS_SCOPE, who=SCANNER)
     _, _, runs = _land(gate, "security.inventory-acquire", "inventory", "ops-before.json",
                        "inventory/ops.json", SCANNER, (PROD, OPS_SCOPE))
@@ -3055,8 +3122,8 @@ def test_38_fixed_builds_and_freshness(gate: Gate) -> None:
     # The gap's next step: re-read the records now that the fixed build exists.
     for cve in PHP2SHELL:
         before = {r["run"] for r in gate.runs("security.cve-applicability")}
-        gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
-            f"record-again-{cve}", {"url": f"https://cveawg.mitre.org/api/cve/{cve}"}),
+        gate.out("procedure", "run", "security.fetch", gate.payload(
+            f"record-again-{cve}", {"logical_source": "cve.record", "max_bytes": 1048576, "url": f"https://cveawg.mitre.org/api/cve/{cve}"}),
             who=RESPONDER)
         run = _wait_for_run(gate, "security.cve-applicability", before, 180)
         proposal = _proposal(gate, run)
@@ -3322,10 +3389,9 @@ def test_41_rotate(gate: Gate) -> None:
     assert any("secret_shape" in b for b in bodies) and not any(
         "wJalrXUtnFEMI" in b for b in bodies), bodies
     # The contracts a secret may slip into authorize erasure (`cruxible capture erase`).
-    for contract in ("security.credential-state-v1", "security.log-read-v1",
-                     "security.runtime-inventory-v1"):
+    for contract in ("security.file-erasable-v1",):
         policy = gate.proof(f"CaptureContract:{contract}")["envelope"]["retention_erasure_policy"]
-        assert policy["erasure"] == "authorized_by_rule" and policy["erasure_rule_digest"], policy
+        assert policy["erasure"] == "authorized_by_rule" and policy["erasure_rule"]["target"]["name"] == "playbill.capture-erasure-authority-v1", policy
     # G12: 30 s after that landing the respond Line re-asks on its own (window_close): the
     # acknowledged gap is sighted again and counts the recurrence, keeping its decision.
     def resighted() -> bool:
@@ -3458,11 +3524,11 @@ def test_43_workstation_and_record_match(gate: Gate) -> None:
         "kind": "change_set", "rationale": "Import the workstation scope's inventory.",
         "members": [
             {"kind": "line", "name": WORKSTATION, "procedure_name": "security.inventory-import",
-             "acquisition_policy_name": recipe.POLICY, "max_authority": "propose",
+             "max_authority": "propose",
              "trigger_input": "inventory", "parameters": {"scope": "workstation"}},
             {"kind": "trigger", "name": "security.inventory-landed.workstation",
              "line_name": WORKSTATION, "schedule": {
-                 "kind": "capture_landing", "capture_contract": "security.runtime-inventory-v1"}}]},
+                 "kind": "capture_landing", "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.inventory"]}}]},
         approver=LEAD)
     gate.out("line", "enable", WORKSTATION, who=SCANNER)
     # Homebrew purls for the laptop (from brew list), the Go module `go version -m` names
@@ -3507,7 +3573,7 @@ def test_43_workstation_and_record_match(gate: Gate) -> None:
                             "inventory_pull": "security.inventory-acquire",
                             "log_pull": "security.log-acquire",
                             "credential_pull": "security.credential-acquire",
-                            "record_pull": "security.cve-record-acquire"}}]}, approver=LEAD)
+                            "record_pull": "security.fetch"}}]}, approver=LEAD)
     gate.out("line", "enable", GH_RESPOND, who=RESPONDER)
     # No assessment anywhere and no record read: every scanned release is unknown, and the
     # one gap names the record pull. Never nothing_to_post.
@@ -3519,13 +3585,13 @@ def test_43_workstation_and_record_match(gate: Gate) -> None:
     assert "none" not in {state for subject, state in rq1.items() if MAC in subject}, rq1
     gaps = [g["payload"] for g in _respond_posts(gate, "gap", line=GH_RESPOND,
                                                  incident=GH_INCIDENT)]
-    record_gaps = [g for g in gaps if g["pull"] == "security.cve-record-acquire"]
+    record_gaps = [g for g in gaps if g["pull"] == "security.fetch"]
     assert [(g["subject"], g["input"]) for g in record_gaps] == [
-        (GH_CVE, {"url": f"https://cveawg.mitre.org/api/cve/{GH_CVE}"})], gaps
+        (GH_CVE, {"logical_source": "cve.record", "max_bytes": 1048576, "url": f"https://cveawg.mitre.org/api/cve/{GH_CVE}"})], gaps
     # The gap's pull: the record, matched to the runner's Go module by its collectionURL
     # (pkg.go.dev) and packageName, decided by the module's version.
     before = {r["run"] for r in gate.runs("security.cve-applicability")}
-    gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
+    gate.out("procedure", "run", "security.fetch", gate.payload(
         "record-gh", record_gaps[0]["input"]), who=RESPONDER)
     run = _wait_for_run(gate, "security.cve-applicability", before, 180)
     proposal = _proposal(gate, run)
@@ -3583,8 +3649,8 @@ def test_44_product_alias(gate: Gate) -> None:
     _write_as(gate, RESPONDER, "alias-gh", alias, approver=LEAD)
     # Re-acquire the record: the matcher reads the alias like the release's own name.
     before = {r["run"] for r in gate.runs("security.cve-applicability")}
-    gate.out("procedure", "run", "security.cve-record-acquire", gate.payload(
-        "record-gh-again", {"url": f"https://cveawg.mitre.org/api/cve/{GH_CVE}"}),
+    gate.out("procedure", "run", "security.fetch", gate.payload(
+        "record-gh-again", {"logical_source": "cve.record", "max_bytes": 1048576, "url": f"https://cveawg.mitre.org/api/cve/{GH_CVE}"}),
         who=RESPONDER)
     run = _wait_for_run(gate, "security.cve-applicability", before, 180)
     proposal = _proposal(gate, run)

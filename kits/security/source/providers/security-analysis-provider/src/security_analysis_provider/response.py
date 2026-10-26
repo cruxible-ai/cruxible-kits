@@ -186,6 +186,7 @@ from .common import (
     name_form,
     parse_coverage,
     parse_rows,
+    unindexed_counts,
     replacing,
     retirement_item,
     secret_in_text,
@@ -199,7 +200,6 @@ COVERAGE = "security.coverage"
 AUDIT = "security.audit"
 CREDENTIAL = "security.credential"
 INVENTORY_SCOPE = "inventory.runtime"
-INVENTORY_CONTRACT = "security.runtime-inventory-v1"
 MAX_ASSETS = 2000
 MAX_RUNS = 20_000
 MAX_POSTS = 200
@@ -574,10 +574,14 @@ def held_patches(rows: list[Row]) -> dict[str, HeldPatch]:
 
 
 def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
-              line_scope: str, run_rows: list[Row] | None = None) -> dict[str, Any]:
+              line_scope: str, run_rows: list[Row] | None = None, *,
+              ecosystems: Mapping[str, Any] | None = None) -> dict[str, Any]:
     scan = read_inventory(text)
+    skipped = unindexed_counts((run.purl for _, runs, _ in scan.assets.values()
+                                for run in runs.values()), ecosystems or {})
     summary: dict[str, Any] = {
-        "scope": line_scope, "format": scan.format,
+        "scope": line_scope, "format": scan.format, "osv_not_indexed": skipped,
+        "osv_unindexed": sum(skipped.values()),
         "coverage": "full" if scan.full_scope else (
             "asset" if scan.format == "cyclonedx" else "partial"),
         "revision": revision(scan) if scan.full_scope else "", "regressions": [],
@@ -591,7 +595,10 @@ def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
     held = held_scope(held_rows + (run_rows or []))
     items = _Items()
     said = (f"Runtime inventory of {line_scope} ({scan.format}, {summary['coverage']}, "
-            f"looked for {', '.join(sorted(scan.looked_for))})")
+            f"looked for {', '.join(sorted(scan.looked_for))}); "
+            + ("OSV will not answer " + ", ".join(f"{kind} {count}" for kind, count in skipped.items())
+               if skipped else "all run purl types are named by the kit OSV map")
+            + ". New releases need OSV coverage after acceptance.")
     cover: Any = held.coverage or key_ref(COVERAGE, source=line_scope, scope=INVENTORY_SCOPE)
     if held.coverage is None:
         items.subject(COVERAGE, {"source": line_scope, "scope": INVENTORY_SCOPE},
@@ -744,7 +751,8 @@ class RuntimeInventory:
                                parse_rows(context.input.get("held")),
                                parse_rows(context.input.get("patches")),
                                str(context.input.get("scope") or ""),
-                               parse_rows(context.input.get("runs") or []))
+                               parse_rows(context.input.get("runs") or []),
+                               ecosystems=context.input.get("osv_ecosystems") or {})
         except InputError as error:
             return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, str(error))
         return ProviderResult.ok(result, metrics={"items": float(len(result["items"]))})
@@ -1152,7 +1160,7 @@ class Params:
     inventory_pull: str = "security.inventory-acquire"
     log_pull: str = "security.log-acquire"
     credential_pull: str = "security.credential-acquire"
-    record_pull: str = "security.cve-record-acquire"
+    record_pull: str = "security.fetch"
     osv_line: str = "security.osv-applicability"
 
 
@@ -1529,7 +1537,7 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
         if step == "record":
             why.append(f"{named}: no record of it read yet")
             gaps += [{"subject": cve, "pull": params.record_pull,
-                      "payload": {"url": CVE_RECORD_URL + cve}} for cve in waiting]
+                      "payload": {"url": CVE_RECORD_URL + cve, "logical_source": "cve.record", "max_bytes": 1048576}} for cve in waiting]
         elif step == "count":
             why.append(f"{named}: the release's unidentified-component count is contended "
                        "(no negative rests on an unresolved count)")
@@ -1539,7 +1547,7 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
             why.append(f"{named}: assessed not_affected on components the release no longer "
                        "has as they were (OSV, or the record, answers its components now)")
             gaps.append({"subject": label, "pull": params.osv_line,
-                         "payload": {"release": label}})
+                         "payload": {}})
         elif step == "not_indexed":
             assert coverage is not None
             said = []
@@ -1561,7 +1569,7 @@ def _release_verdict(item: Scanned, held: Release | None, cves: Mapping[str, Cve
             why.append(f"{named}: OSV has not answered this release's current components "
                        "for it")
             gaps.append({"subject": label, "pull": params.osv_line,
-                         "payload": {"release": label}})
+                         "payload": {}})
         else:
             why.append(f"{named}: no source decides it (an analyst's judgment answers it)")
             gaps.append({"subject": label, "pull": "statement", "payload": {
@@ -1874,7 +1882,7 @@ def respond(payload: Mapping[str, Any]) -> dict[str, Any]:
             if untitled:
                 # What the incident affects is the record's to say: read it first.
                 for cve in untitled:
-                    out.gap(cve, params.record_pull, {"url": CVE_RECORD_URL + cve})
+                    out.gap(cve, params.record_pull, {"url": CVE_RECORD_URL + cve, "logical_source": "cve.record", "max_bytes": 1048576})
                 out.answers.append({
                     "question": "RQ1", "subject": entry.hostname, "state": "unknown",
                     "why": f"no record of {', '.join(untitled)} read yet: what the incident "

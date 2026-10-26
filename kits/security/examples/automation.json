@@ -3,99 +3,30 @@
   "rationale": "Example consumer automation for the security kit (vulnerability loop, system model, code findings and incident response); adapt before submitting.",
   "members": [
     {
-      "kind": "blueprint_instance",
-      "name": "security.kev-acquire",
-      "blueprint": "security.kev-acquire",
-      "bindings": {
-        "catalog": "cruxible-provider-web"
-      },
-      "acquisition_policy": "security.acquisition"
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.cve-record-acquire",
-      "blueprint": "security.cve-record-acquire",
-      "bindings": {
-        "record": "cruxible-provider-web"
-      },
-      "acquisition_policy": "security.acquisition"
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.epss-acquire",
-      "blueprint": "security.epss-acquire",
-      "bindings": {
-        "epss": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.osv-applicability",
-      "blueprint": "security.osv-applicability",
-      "bindings": {
-        "ecosystems": "security-sources-provider",
-        "osv": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.repo-acquire",
-      "blueprint": "security.repo-acquire",
-      "bindings": {
-        "snapshot": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.registry-acquire",
-      "blueprint": "security.registry-acquire",
-      "bindings": {
-        "registry": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.release-acquire",
-      "blueprint": "security.release-acquire",
-      "bindings": {
-        "release": "cruxible-provider-web"
-      },
-      "acquisition_policy": "security.acquisition"
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.asset-fetch",
-      "blueprint": "security.asset-fetch",
-      "bindings": {
-        "asset": "security-sources-provider"
-      },
-      "acquisition_policy": "security.acquisition"
-    },
-    {
-      "kind": "blueprint_instance",
-      "name": "security.history-acquire",
-      "blueprint": "security.history-acquire",
-      "bindings": {
-        "history": "cruxible-provider-web"
-      },
-      "acquisition_policy": "security.acquisition"
+      "kind": "acquisition_policy",
+      "acquisition_policy": {
+        "identity": {
+          "kind": "SourceAcquisitionPolicy",
+          "name": "default"
+        },
+        "max_age": "P1D"
+      }
     },
     {
       "kind": "line",
       "name": "security.kev-daily",
-      "procedure_name": "security.kev-acquire",
-      "acquisition_policy_name": "security.acquisition",
-      "max_authority": "observe"
+      "procedure_name": "security.fetch-observed",
+      "max_authority": "observe",
+      "parameters": {
+        "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+        "logical_source": "cisa.kev.catalog",
+        "max_bytes": 4194304
+      }
     },
     {
       "kind": "line",
       "name": "security.kev-triage",
       "procedure_name": "security.kev-triage",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "catalog"
     },
@@ -103,7 +34,6 @@
       "kind": "line",
       "name": "security.kev-attention",
       "procedure_name": "security.kev-attention",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "trigger_input": "catalog"
     },
@@ -111,14 +41,12 @@
       "kind": "line",
       "name": "security.epss-daily",
       "procedure_name": "security.epss-acquire",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe"
     },
     {
       "kind": "line",
       "name": "security.epss-triage",
       "procedure_name": "security.epss-triage",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "epss"
     },
@@ -126,7 +54,6 @@
       "kind": "line",
       "name": "security.sbom-import",
       "procedure_name": "security.sbom-import",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "sbom"
     },
@@ -134,14 +61,12 @@
       "kind": "line",
       "name": "security.osv-applicability",
       "procedure_name": "security.osv-applicability",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose"
     },
     {
       "kind": "line",
       "name": "security.cve-applicability",
       "procedure_name": "security.cve-applicability",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "record"
     },
@@ -149,7 +74,6 @@
       "kind": "line",
       "name": "security.repo-pull.cruxible-ci",
       "procedure_name": "security.repo-acquire",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "parameters": {
         "forge_host": "github.com",
@@ -163,7 +87,6 @@
       "kind": "line",
       "name": "security.repo-parse.cruxible-ci",
       "procedure_name": "security.repo-parse",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "snapshot",
       "parameters": {
@@ -180,7 +103,6 @@
       "kind": "line",
       "name": "security.registry-pull.cruxible",
       "procedure_name": "security.registry-acquire",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "parameters": {
         "project": "cruxible",
@@ -191,7 +113,6 @@
       "kind": "line",
       "name": "security.registry-parse.cruxible",
       "procedure_name": "security.registry-parse",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "registry",
       "parameters": {
@@ -204,7 +125,6 @@
       "kind": "line",
       "name": "security.registry-pull.cruxible-client",
       "procedure_name": "security.registry-acquire",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "parameters": {
         "project": "cruxible-client",
@@ -215,7 +135,6 @@
       "kind": "line",
       "name": "security.registry-parse.cruxible-client",
       "procedure_name": "security.registry-parse",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "registry",
       "parameters": {
@@ -233,7 +152,7 @@
         "default_ref": "main",
         "repo_pull": "security.repo-acquire",
         "registry_pull": "security.registry-acquire",
-        "release_pull": "security.release-acquire",
+        "release_pull": "security.fetch",
         "versions": 3
       }
     },
@@ -241,7 +160,6 @@
       "kind": "line",
       "name": "security.sarif-import.cruxible",
       "procedure_name": "security.sarif-import",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "sarif",
       "parameters": {
@@ -252,7 +170,6 @@
       "kind": "line",
       "name": "security.sarif-attention.cruxible",
       "procedure_name": "security.sarif-attention",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "observe",
       "trigger_input": "sarif",
       "parameters": {
@@ -263,7 +180,6 @@
       "kind": "line",
       "name": "security.inventory-import.prod",
       "procedure_name": "security.inventory-import",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "inventory",
       "parameters": {
@@ -274,7 +190,6 @@
       "kind": "line",
       "name": "security.credential-import",
       "procedure_name": "security.credential-import",
-      "acquisition_policy_name": "security.acquisition",
       "max_authority": "propose",
       "trigger_input": "credential"
     },
@@ -311,7 +226,10 @@
       "line_name": "security.kev-triage",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.kev-http-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "cisa.kev.catalog"
+        ]
       }
     },
     {
@@ -320,7 +238,10 @@
       "line_name": "security.kev-attention",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.kev-http-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "cisa.kev.catalog"
+        ]
       }
     },
     {
@@ -329,7 +250,10 @@
       "line_name": "security.epss-triage",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.epss-daily-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "first.epss.daily"
+        ]
       }
     },
     {
@@ -338,7 +262,10 @@
       "line_name": "security.sbom-import",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.cyclonedx-sbom-v1"
+        "capture_contract": "security.file-v1",
+        "logical_sources": [
+          "cyclonedx.sbom"
+        ]
       }
     },
     {
@@ -347,7 +274,10 @@
       "line_name": "security.cve-applicability",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.cve-record-http-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "cve.record"
+        ]
       }
     },
     {
@@ -365,7 +295,10 @@
       "line_name": "security.repo-parse.cruxible-ci",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.repo-snapshot-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "github.repo.snapshot"
+        ]
       }
     },
     {
@@ -383,7 +316,10 @@
       "line_name": "security.registry-parse.cruxible",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.pypi-release-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "pypi.release"
+        ]
       }
     },
     {
@@ -401,7 +337,10 @@
       "line_name": "security.registry-parse.cruxible-client",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.pypi-release-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "pypi.release"
+        ]
       }
     },
     {
@@ -419,7 +358,10 @@
       "line_name": "security.harden",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.repo-snapshot-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "github.repo.snapshot"
+        ]
       }
     },
     {
@@ -428,7 +370,10 @@
       "line_name": "security.harden",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.pypi-release-v1"
+        "capture_contract": "security.fetched-v1",
+        "logical_sources": [
+          "pypi.release"
+        ]
       }
     },
     {
@@ -437,7 +382,10 @@
       "line_name": "security.sarif-import.cruxible",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.sarif-v1"
+        "capture_contract": "security.file-v1",
+        "logical_sources": [
+          "sarif.log"
+        ]
       }
     },
     {
@@ -446,7 +394,10 @@
       "line_name": "security.sarif-attention.cruxible",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.sarif-v1"
+        "capture_contract": "security.file-v1",
+        "logical_sources": [
+          "sarif.log"
+        ]
       }
     },
     {
@@ -455,7 +406,10 @@
       "line_name": "security.inventory-import.prod",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.runtime-inventory-v1"
+        "capture_contract": "security.file-erasable-v1",
+        "logical_sources": [
+          "security.inventory"
+        ]
       }
     },
     {
@@ -464,7 +418,10 @@
       "line_name": "security.credential-import",
       "schedule": {
         "kind": "capture_landing",
-        "capture_contract": "security.credential-state-v1"
+        "capture_contract": "security.file-erasable-v1",
+        "logical_sources": [
+          "security.credential-state"
+        ]
       }
     },
     {

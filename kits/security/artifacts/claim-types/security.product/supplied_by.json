@@ -10,9 +10,8 @@
   "allowed_subject_kinds": [
     "security.product"
   ],
-  "artifact_format": "playbill-claim-type-v8",
+  "artifact_format": "playbill-claim-type-v7",
   "attestation_consequence_policy": null,
-  "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
   "description": "The supplier of the product.",
@@ -23,6 +22,7 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
@@ -33,37 +33,34 @@
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "self_asserted"
-        ],
         "rule_id": "own-words",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       },
       {
         "admission": "direct",
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [
+              "cyclonedx.sbom"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.cyclonedx-sbom-v1"
+              "name": "security.file-v1"
             }
           }
         ],
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "sbom_document"
-        ],
         "rule_id": "stated-by-source",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "self",

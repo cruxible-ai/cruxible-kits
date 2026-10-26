@@ -1,28 +1,21 @@
 {
-  "artifact_format": "playbill-query-definition-v1",
+  "artifact_format": "cruxible-query-definition-v3",
   "dedupe": "path",
   "default_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 100,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
   "description": "Every assessment with its key, status, the status's role (normative: an analyst's judgment) and justification. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "assessment",
-    "subject_id": null,
     "subject_kinds": [
       "security.assessment"
-    ],
-    "tag": "playbill-query-entry-v1"
+    ]
   },
   "evaluation_policy": {
     "conflict_behavior": "surface_conflicts",
-    "requires_accepted_coordinate": true,
-    "requires_explicit_evaluation_time": true,
-    "result_expiry": null,
-    "tag": "playbill-query-evaluation-policy-v1",
     "visible_currency": [
       "current"
     ],
@@ -42,189 +35,92 @@
       "many": true,
       "max_items": 500,
       "name": "component",
-      "orderings": [],
-      "predicate": "security.assessment.component",
-      "tag": "playbill-query-include-v1",
-      "where": null
+      "predicate": "security.assessment.component"
     }
   ],
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
-  },
   "maximum_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 1000,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
-  "orderings": [],
-  "parameters": [],
-  "pins": [
-    {
-      "artifact_digest": "sha256:662ac282b60d67a57c8b0e5ac74bb649a49b7673338f10b4cccc702a54460a18",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.assessment.component"
-      }
-    },
-    {
-      "artifact_digest": "sha256:0b62bdc6ed1ef9c6f669fc5f7c52f232a53bb6ef7a33e1ce5275901d460644f2",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.assessment.cve_id"
-      }
-    },
-    {
-      "artifact_digest": "sha256:8a26385285d9070cf4bbe6cd668ab1552085ccda821002ae5501d438ada1781b",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.assessment.expected_status"
-      }
-    },
-    {
-      "artifact_digest": "sha256:723255dab0a197f0e810623a47b48a75665926920464dd68568acf1eb9f7c79f",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.assessment.justification"
-      }
-    },
-    {
-      "artifact_digest": "sha256:3943580408f5ba36b2d327ff765256478de74163a43928debd3d910d3dae0304",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.assessment.release"
-      }
-    },
-    {
-      "artifact_digest": "sha256:a24aa7d4af2dcd216ec99481a708e1961888815dace147c5a0f6eb3a0074eb64",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.assessment.release_id"
-      }
-    },
-    {
-      "artifact_digest": "sha256:559f0bb604462c15c52ac23d21338ea4be8fa0fa1221aa27d36a29aa99f4a645",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.assessment.status"
-      }
-    },
-    {
-      "artifact_digest": "sha256:97b3d2b4c70eca2f81cf880ef40a18312af4fccf801f2d51b283d6125df02538",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.assessment.vulnerability"
-      }
-    }
-  ],
   "projection": {
     "fields": [
       {
         "name": "assessment",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "assessment",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "cve_id",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "assessment",
           "kind": "claim_value",
-          "predicate": "security.assessment.cve_id",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.assessment.cve_id"
         }
       },
       {
         "name": "expected_status",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "assessment",
           "kind": "claim_value",
-          "predicate": "security.assessment.expected_status",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.assessment.expected_status"
         }
       },
       {
         "name": "justification",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "assessment",
           "kind": "claim_value",
-          "predicate": "security.assessment.justification",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.assessment.justification"
         }
       },
       {
         "name": "release",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "release",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "release_id",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "assessment",
           "kind": "claim_value",
-          "predicate": "security.assessment.release_id",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.assessment.release_id"
         }
       },
       {
         "name": "status",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "assessment",
           "kind": "claim_value",
-          "predicate": "security.assessment.status",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.assessment.status"
         }
       },
       {
         "name": "status_role",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "assessment",
           "field": "role",
           "kind": "claim_field",
-          "predicate": "security.assessment.status",
-          "tag": "playbill-query-claim-field-ref-v1"
+          "predicate": "security.assessment.status"
         }
       },
       {
         "name": "vulnerability",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "vulnerability",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       }
-    ],
-    "tag": "playbill-query-projection-v1"
+    ]
   },
-  "result_binding": "assessment",
-  "result_cardinality": "many",
   "result_shape": "path",
   "traversal": [
     {
@@ -233,11 +129,9 @@
       "from_binding": "assessment",
       "predicate": "security.assessment.release",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.release"
-      ],
-      "where": null
+      ]
     },
     {
       "binding": "vulnerability",
@@ -245,12 +139,9 @@
       "from_binding": "assessment",
       "predicate": "security.assessment.vulnerability",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.vulnerability"
-      ],
-      "where": null
+      ]
     }
-  ],
-  "where": null
+  ]
 }

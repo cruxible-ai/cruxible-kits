@@ -18,7 +18,7 @@
   "description": "The fully read source (host/owner/repo@ref:path, registry/name, or an inventory scope's name); with scope, the coverage's key.",
   "evidence_admission_policy": {
     "rules": [],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "none",

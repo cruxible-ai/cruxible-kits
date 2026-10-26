@@ -136,7 +136,7 @@ class Params:
     default_ref: str = "main"
     repo_pull: str = "security.repo-acquire"
     registry_pull: str = "security.registry-acquire"
-    release_pull: str = "security.release-acquire"
+    release_pull: str = "security.fetch"
     versions: int = 3
 
 
@@ -463,6 +463,7 @@ def _hq5_artifact(answers: _Answers, target: Target, registry_coverage: Coverage
     if isinstance(declared, str) and served is None:
         tag = name.split("/", 1)[0]
         source = answers.gap(f"{target.locator}@{tag}", answers.params.release_pull, {
+            "logical_source": "github.release", "max_bytes": 4194304,
             "url": f"https://api.github.com/repos/{target.name}/releases/tags/{tag}"})
         answers.unknown("HQ5", subject, source)
         return

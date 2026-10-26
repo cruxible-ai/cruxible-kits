@@ -1,7 +1,7 @@
 """SARIF 2.1.0 scan results: first-party code findings, keyed so every finder meets.
 
 ``SarifFindings`` (``security.sarif-findings``) reads a retained SARIF log (the
-``security.sarif-v1`` Capture's text) beside the findings held for one
+``security.file-v1`` Capture's text) beside the findings held for one
 repository (rows of ``security.finding_index``) and returns what changed, as
 proposal ``items`` (the import Line proposes them) and ``inbox`` items (the
 attention Line posts them). No network, no clock: the output is a function of

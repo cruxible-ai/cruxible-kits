@@ -1,0 +1,127 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v3",
+  "definition": {
+    "budget": {
+      "max_capture_bytes": 67108864,
+      "max_provider_calls": 1,
+      "wall_clock": {
+        "microseconds": 120000000
+      }
+    },
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.asset-fetch-input"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      }
+    },
+    "description": "Read one GitHub release asset (input.url); retain the bytes under security.fetched-large-v1 with logical source github.release.asset.",
+    "hard_caps": {
+      "max_capture_bytes": 67108864,
+      "max_items": 1,
+      "max_provider_calls": 1,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000
+      }
+    },
+    "name": "security.asset-fetch",
+    "nodes": [
+      {
+        "capture_contract": {
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.fetched-large-v1"
+          }
+        },
+        "id": "asset",
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.release-asset/v1"
+          }
+        },
+        "kind": "source",
+        "provider": {
+          "slot_name": "asset"
+        },
+        "request": {
+          "url": "$input.url"
+        }
+      },
+      {
+        "contract_out": {
+          "target": {
+            "kind": "Contract",
+            "name": "security-http-evidence"
+          }
+        },
+        "fields": {
+          "body_digest": "$steps.asset.retrieved.body_sha256",
+          "status": "$steps.asset.retrieved.status_code",
+          "url": "$steps.asset.retrieved.final_url"
+        },
+        "id": "summary",
+        "kind": "project"
+      }
+    ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.release-asset/v1"
+          }
+        },
+        "slot_name": "asset"
+      }
+    ],
+    "returns": "summary",
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:3913ffdc5b37236e5dc4df01057ba361f65c7fb54146b87d0b51eb5032c84df4",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.asset-fetch"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security-http-evidence"
+      },
+      "schema": {
+        "fields": {
+          "body_digest": {
+            "type": "string"
+          },
+          "status": {
+            "type": "int"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security.asset-fetch-input"
+      },
+      "schema": {
+        "fields": {
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

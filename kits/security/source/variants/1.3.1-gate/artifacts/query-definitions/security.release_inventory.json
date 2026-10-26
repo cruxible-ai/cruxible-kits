@@ -1,28 +1,21 @@
 {
-  "artifact_format": "playbill-query-definition-v1",
+  "artifact_format": "cruxible-query-definition-v3",
   "dedupe": "path",
   "default_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 100,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
   "description": "Every release with its product, supplier, components, OSV coverage and product aliases. Scoped to supported, current Claims; missing evidence is not a negative finding.",
   "entry": {
     "binding": "release",
-    "subject_id": null,
     "subject_kinds": [
       "security.release"
-    ],
-    "tag": "playbill-query-entry-v1"
+    ]
   },
   "evaluation_policy": {
     "conflict_behavior": "surface_conflicts",
-    "requires_accepted_coordinate": true,
-    "requires_explicit_evaluation_time": true,
-    "result_expiry": null,
-    "tag": "playbill-query-evaluation-policy-v1",
     "visible_currency": [
       "current"
     ],
@@ -34,201 +27,96 @@
     "kind": "QueryDefinition",
     "name": "security.release_inventory"
   },
-  "includes": [],
-  "lifecycle": {
-    "predecessor_digest": null,
-    "state": "live"
-  },
   "maximum_budgets": {
     "max_paths": 20000,
     "max_paths_per_result": 1000,
     "max_results": 2000,
-    "max_traversal_depth": 10,
-    "tag": "playbill-query-budgets-v1"
+    "max_traversal_depth": 10
   },
-  "orderings": [],
-  "parameters": [],
-  "pins": [
-    {
-      "artifact_digest": "sha256:bdf132d406f6cb60826db49c6dc7c7df67a155b7e680da0fe09aaef555f64dee",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.product.supplied_by"
-      }
-    },
-    {
-      "artifact_digest": "sha256:cfafb776f4c831be8e811730da5aedd3f003de73e770c9821163dde79840556b",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.release.component"
-      }
-    },
-    {
-      "artifact_digest": "sha256:501a4d7c187d5295cbd2cb5021a07ef5ca4a0f90b340c75dcffb10afcd206f2d",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.release.osv_coverage"
-      }
-    },
-    {
-      "artifact_digest": "sha256:be90dfcb4fc01f54a01f86f95ac00141c3cd769c5c833a4d9a68a9189ac60e11",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.release.product"
-      }
-    },
-    {
-      "artifact_digest": "sha256:674242200de03d048d6d26312d2242161a976fe160e3308d99af36a6cf005d32",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.release.product_alias"
-      }
-    },
-    {
-      "artifact_digest": "sha256:aa855c4dd68ec712f33d3c25157a1fed051b2296396886a2a886b4e6ca36a6b8",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.release.product_name"
-      }
-    },
-    {
-      "artifact_digest": "sha256:fa4551e8e6ca8af73d8121697f3ea17a601afe74e45107f3023f1ef4eee65ade",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.release.unidentified_components"
-      }
-    },
-    {
-      "artifact_digest": "sha256:4f00800056fb9c2af1d558a2ebdc688148172e319f5fdf9bcf8aaf121305a283",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.release.version"
-      }
-    },
-    {
-      "artifact_digest": "sha256:447410ca6e35eb4882db331c1691c4fa82eccd9ac2a11f19cee7eb1f9d73a196",
-      "role": "claim-type",
-      "target": {
-        "kind": "ClaimType",
-        "name": "security.supplier.name"
-      }
-    }
-  ],
   "projection": {
     "fields": [
       {
         "name": "components",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "release",
           "kind": "claim_value",
-          "predicate": "security.release.component",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.release.component"
         }
       },
       {
         "name": "osv_coverage",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "release",
           "kind": "claim_value",
-          "predicate": "security.release.osv_coverage",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.release.osv_coverage"
         }
       },
       {
         "name": "product",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "product",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "product_alias",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "release",
           "kind": "claim_value",
-          "predicate": "security.release.product_alias",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.release.product_alias"
         }
       },
       {
         "name": "product_name",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "release",
           "kind": "claim_value",
-          "predicate": "security.release.product_name",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.release.product_name"
         }
       },
       {
         "name": "release",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "release",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "supplier",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "supplier",
           "field": "subject_id",
-          "kind": "subject_field",
-          "tag": "playbill-query-subject-field-ref-v1"
+          "kind": "subject_field"
         }
       },
       {
         "name": "supplier_name",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "supplier",
           "kind": "claim_value",
-          "predicate": "security.supplier.name",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.supplier.name"
         }
       },
       {
         "name": "unidentified",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "release",
           "kind": "claim_value",
-          "predicate": "security.release.unidentified_components",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.release.unidentified_components"
         }
       },
       {
         "name": "version",
-        "tag": "playbill-query-projection-field-v1",
         "value": {
           "binding": "release",
           "kind": "claim_value",
-          "predicate": "security.release.version",
-          "tag": "playbill-query-claim-value-ref-v1"
+          "predicate": "security.release.version"
         }
       }
-    ],
-    "tag": "playbill-query-projection-v1"
+    ]
   },
-  "result_binding": "release",
-  "result_cardinality": "many",
   "result_shape": "path",
   "traversal": [
     {
@@ -237,11 +125,9 @@
       "from_binding": "release",
       "predicate": "security.release.product",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.product"
-      ],
-      "where": null
+      ]
     },
     {
       "binding": "supplier",
@@ -249,12 +135,9 @@
       "from_binding": "product",
       "predicate": "security.product.supplied_by",
       "required": false,
-      "tag": "playbill-query-traversal-step-v1",
       "target_subject_kinds": [
         "security.supplier"
-      ],
-      "where": null
+      ]
     }
-  ],
-  "where": null
+  ]
 }

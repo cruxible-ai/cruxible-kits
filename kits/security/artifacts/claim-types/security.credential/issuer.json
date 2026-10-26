@@ -19,7 +19,7 @@
   "description": "Who issues the credential (aws-iam/111122223333, stripe, postgres/partners-db); with name, the credential's key.",
   "evidence_admission_policy": {
     "rules": [],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "none",

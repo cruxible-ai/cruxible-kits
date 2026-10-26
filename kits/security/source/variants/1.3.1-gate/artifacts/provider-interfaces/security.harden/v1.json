@@ -1,0 +1,79 @@
+{
+  "artifact_format": "cruxible-provider-interface-v4",
+  "identity": {
+    "kind": "ProviderInterface",
+    "name": "security.harden/v1"
+  },
+  "interface": {
+    "contracts": {
+      "input": {
+        "allow_extra": false,
+        "fields": {
+          "hq1": {
+            "type": "json"
+          },
+          "hq2": {
+            "type": "json"
+          },
+          "hq3": {
+            "type": "json"
+          },
+          "hq4": {
+            "type": "json"
+          },
+          "hq5": {
+            "type": "json"
+          },
+          "hq6": {
+            "type": "json"
+          },
+          "params": {
+            "type": "json"
+          },
+          "truncated": {
+            "type": "json"
+          }
+        }
+      },
+      "output": {
+        "allow_extra": false,
+        "fields": {
+          "answers": {
+            "type": "json"
+          },
+          "found": {
+            "type": "integer"
+          },
+          "gaps": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "json"
+          },
+          "none": {
+            "type": "integer"
+          },
+          "posted": {
+            "type": "integer"
+          },
+          "targets": {
+            "type": "integer"
+          },
+          "unknown": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "effect_class": "pure",
+    "interface_id": "security.harden",
+    "refusals": [
+      "provider_declined"
+    ],
+    "version": 1
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

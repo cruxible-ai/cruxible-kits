@@ -1,0 +1,304 @@
+{
+  "activation_policy": "drain",
+  "artifact_format": "cruxible-procedure-v3",
+  "definition": {
+    "budget": {
+      "max_capture_bytes": 67108864,
+      "max_provider_calls": 3,
+      "wall_clock": {
+        "microseconds": 300000000
+      }
+    },
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-applicability-input"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-applicability-output"
+      }
+    },
+    "description": "Read OSV's published ecosystem list and query indexed components and watched CVEs; retain both provider answers under security.fetched-v1, sources osv.dev.ecosystems and osv.dev.query. Propose changed coverage and applicability, recording unindexed types without asserting coverage. Runs as a Line; never settles.",
+    "hard_caps": {
+      "max_capture_bytes": 67108864,
+      "max_items": 5000,
+      "max_provider_calls": 3,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 600000000
+      }
+    },
+    "name": "security.osv-applicability",
+    "nodes": [
+      {
+        "id": "releases",
+        "kind": "state_tap",
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.release_inventory"
+          }
+        }
+      },
+      {
+        "id": "watched",
+        "kind": "state_tap",
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.watched_vulnerabilities"
+          }
+        }
+      },
+      {
+        "id": "assessments",
+        "kind": "state_tap",
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.assessment_index"
+          }
+        }
+      },
+      {
+        "capture_contract": {
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.fetched-v1"
+          }
+        },
+        "id": "ecosystems",
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-ecosystems/v1"
+          }
+        },
+        "kind": "source",
+        "provider": {
+          "slot_name": "ecosystems"
+        },
+        "request": {}
+      },
+      {
+        "capture_contract": {
+          "target": {
+            "kind": "CaptureContract",
+            "name": "security.fetched-v1"
+          }
+        },
+        "id": "osv",
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-query/v1"
+          }
+        },
+        "kind": "source",
+        "provider": {
+          "slot_name": "osv"
+        },
+        "request": {
+          "ecosystems": "$steps.ecosystems",
+          "purl_types": {
+            "osv_ecosystems": {
+              "apk/alpine": "Alpine",
+              "apk/chainguard": "Chainguard",
+              "apk/wolfi": "Wolfi",
+              "bitnami": "Bitnami",
+              "cargo": "crates.io",
+              "composer": "Packagist",
+              "conan": "ConanCenter",
+              "cran": "CRAN",
+              "deb/debian": "Debian",
+              "deb/ubuntu": "Ubuntu",
+              "gem": "RubyGems",
+              "githubactions": "GitHub Actions",
+              "golang": "Go",
+              "hackage": "Hackage",
+              "hex": "Hex",
+              "maven": "Maven",
+              "npm": "npm",
+              "nuget": "NuGet",
+              "pub": "Pub",
+              "pypi": "PyPI",
+              "rpm/almalinux": "AlmaLinux",
+              "rpm/mageia": "Mageia",
+              "rpm/openeuler": "openEuler",
+              "rpm/opensuse": "openSUSE",
+              "rpm/redhat": "Red Hat",
+              "rpm/rocky-linux": "Rocky Linux",
+              "rpm/suse": "SUSE",
+              "swift": "SwiftURL"
+            },
+            "sources": [
+              "https://github.com/package-url/purl-spec/blob/main/PURL-TYPES.rst (purl types and their namespaces)",
+              "https://ossf.github.io/osv-schema/#defined-ecosystems (OSV ecosystem names and the purl type each uses)",
+              "https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt (what OSV indexes now: captured on every run)"
+            ]
+          },
+          "releases": "$steps.releases.result.rows",
+          "watched": "$steps.watched.result.rows"
+        }
+      },
+      {
+        "id": "decide",
+        "input": {
+          "assessments": "$steps.assessments.result.rows",
+          "osv": "$steps.osv",
+          "releases": "$steps.releases.result.rows",
+          "watched": "$steps.watched.result.rows"
+        },
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-applicability/v1"
+          }
+        },
+        "kind": "call",
+        "provider": {
+          "slot_name": "decide"
+        }
+      },
+      {
+        "contract_out": {
+          "target": {
+            "kind": "Contract",
+            "name": "security.osv-applicability-output"
+          }
+        },
+        "fields": {
+          "affected": "$steps.decide.affected",
+          "changed": "$steps.decide.changed",
+          "coverage": "$steps.decide.coverage",
+          "inconclusive": "$steps.decide.inconclusive",
+          "judged": "$steps.decide.judged",
+          "not_affected": "$steps.decide.not_affected",
+          "packages": "$steps.decide.packages",
+          "unchanged": "$steps.decide.unchanged",
+          "unkeyed": "$steps.decide.unkeyed"
+        },
+        "id": "summary",
+        "kind": "project"
+      },
+      {
+        "id": "changed",
+        "kind": "guard",
+        "message": "OSV changes no assessment.",
+        "on_false": "nochange",
+        "predicate": {
+          "left": {
+            "alias": "decide",
+            "kind": "step",
+            "path": [
+              "changed"
+            ]
+          },
+          "operator": "gt",
+          "right": 0
+        },
+        "refusal_code": "no_change"
+      },
+      {
+        "candidate_templates": {
+          "items": "$steps.decide.items"
+        },
+        "id": "propose",
+        "kind": "propose_change_set",
+        "result": "$steps.summary"
+      },
+      {
+        "id": "nochange",
+        "kind": "halt",
+        "reason": "no_change"
+      }
+    ],
+    "pin_slots": [
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-applicability/v1"
+          }
+        },
+        "slot_name": "decide"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-ecosystems/v1"
+          }
+        },
+        "slot_name": "ecosystems"
+      },
+      {
+        "interface": {
+          "target": {
+            "kind": "ProviderInterface",
+            "name": "security.osv-query/v1"
+          }
+        },
+        "slot_name": "osv"
+      }
+    ],
+    "returns": "summary",
+    "terminal_capability": 2
+  },
+  "definition_digest": "sha256:0d4506af9136044d2b92ea5b4abc13251cb208ab983860b7d99c9f194b21ade8",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.osv-applicability"
+  },
+  "owned_contracts": [
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security.osv-applicability-input"
+      },
+      "schema": {
+        "fields": {}
+      }
+    },
+    {
+      "identity": {
+        "kind": "Contract",
+        "name": "security.osv-applicability-output"
+      },
+      "schema": {
+        "fields": {
+          "affected": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "coverage": {
+            "type": "integer"
+          },
+          "inconclusive": {
+            "type": "integer"
+          },
+          "judged": {
+            "type": "integer"
+          },
+          "not_affected": {
+            "type": "integer"
+          },
+          "packages": {
+            "type": "integer"
+          },
+          "unchanged": {
+            "type": "integer"
+          },
+          "unkeyed": {
+            "type": "json"
+          }
+        }
+      }
+    }
+  ]
+}

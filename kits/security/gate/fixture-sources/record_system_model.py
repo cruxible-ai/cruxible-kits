@@ -4,7 +4,7 @@
 
 Writes ``src/security_gate_sources/responses/github/`` and ``.../pypi/``: exactly
 the requests the kit's ``security.repo-snapshot`` and ``security.pypi-release``
-Sources and its web.fetch Blueprints make for the gate's questions about
+Sources and its slotted HTTP Procedures make for the gate's questions about
 cruxible-ai/cruxible, answered by the live sources once:
 
 - ``github/repo.json``: the commits and contents answers for the workflows at two

@@ -21,25 +21,25 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [
+              "security.credential-state"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.credential-state-v1"
+              "name": "security.file-erasable-v1"
             }
           }
         ],
         "claim_roles": [
           "observation"
         ],
-        "evidence_kinds": [
-          "credential_state"
-        ],
         "rule_id": "retained-security-evidence",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "captured",

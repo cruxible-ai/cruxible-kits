@@ -13,7 +13,7 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "Why a not_affected release is not affected (the VEX/CSAF justification): an observation from a source, or (normative) an analyst's judgment citing their own words or a workspace file (security.workspace-evidence-v1). Required in practice with every not_affected status; core cannot require it.",
+  "description": "Why a not_affected release is not affected (the VEX/CSAF justification): an observation from a source, or (normative) an analyst's judgment citing their own words or a workspace file (security.file-v1). Required in practice with every not_affected status; core cannot require it.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -21,6 +21,7 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
@@ -28,62 +29,56 @@
             }
           },
           {
+            "logical_sources": [
+              "security.analysis.evidence"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.workspace-evidence-v1"
+              "name": "security.file-v1"
             }
           }
         ],
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "self_asserted",
-          "workspace_file"
-        ],
         "rule_id": "analyst-judgment",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       },
       {
         "admission": "direct",
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [
+              "cve.record",
+              "osv.dev.query"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.cve-record-http-v1"
+              "name": "security.fetched-v1"
             }
           },
           {
+            "logical_sources": [],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
               "name": "security.observation-output-v1"
-            }
-          },
-          {
-            "role": "capture-contract",
-            "target": {
-              "kind": "CaptureContract",
-              "name": "security.osv-query-v1"
             }
           }
         ],
         "claim_roles": [
           "observation"
         ],
-        "evidence_kinds": [
-          "http_response"
-        ],
         "rule_id": "source-verdict",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "self",

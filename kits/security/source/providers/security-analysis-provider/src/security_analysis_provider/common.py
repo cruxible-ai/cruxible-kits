@@ -97,6 +97,19 @@ class Row:
         return None
 
 
+def unindexed_counts(purls: Iterable[str], ecosystems: Mapping[str, Any]) -> dict[str, int]:
+    """Count what the kit's OSV map cannot name; this is no assertion of coverage."""
+    counts: dict[str, int] = {}
+    for purl in purls:
+        package = purl.removeprefix("pkg:").split("@", 1)[0]
+        parts = package.split("/")
+        kind = parts[0]
+        key = "/".join(parts[:2]) if kind in {"apk", "deb", "rpm"} else kind
+        if key not in ecosystems:
+            counts[kind] = counts.get(kind, 0) + 1
+    return dict(sorted(counts.items()))
+
+
 def parse_rows(rows: object) -> list[Row]:
     if not isinstance(rows, list):
         raise InputError("state-tap rows must be a list")

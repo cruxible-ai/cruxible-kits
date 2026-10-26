@@ -21,6 +21,7 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
@@ -28,48 +29,47 @@
             }
           },
           {
+            "logical_sources": [
+              "security.analysis.evidence"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.workspace-evidence-v1"
+              "name": "security.file-v1"
             }
           }
         ],
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "self_asserted",
-          "workspace_file"
-        ],
         "rule_id": "analyst-judgment",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       },
       {
         "admission": "direct",
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [
+              "sarif.log"
+            ],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.sarif-v1"
+              "name": "security.file-v1"
             }
           }
         ],
         "claim_roles": [
           "observation"
         ],
-        "evidence_kinds": [
-          "sarif_log"
-        ],
         "rule_id": "source-verdict",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_freshness": null,
   "evidence_requirement": "self",
