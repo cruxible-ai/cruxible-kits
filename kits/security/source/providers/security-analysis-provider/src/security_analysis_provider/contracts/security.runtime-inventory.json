@@ -27,11 +27,6 @@
           "type": "json",
           "optional": true,
           "default": {}
-        },
-        "asset": {
-          "type": "string",
-          "optional": true,
-          "default": ""
         }
       },
       "allow_extra": false

@@ -424,11 +424,10 @@ def _components(items: object) -> Iterable[Mapping[str, Any]]:
             yield from _components(item.get("components"))
 
 
-def _cyclonedx_scan(document: Mapping[str, Any], *, scope: str = "", asset: str = "") -> Scan:
+def _cyclonedx_scan(document: Mapping[str, Any]) -> Scan:
     metadata = document.get("metadata") if isinstance(document.get("metadata"), Mapping) else {}
     properties = _properties(metadata, metadata.get("component"))
-    scope = properties.get("cruxible.scope") or scope
-    asset = properties.get("cruxible.asset") or asset
+    scope, asset = properties.get("cruxible.scope"), properties.get("cruxible.asset")
     if not scope or not asset:
         raise InputError("a CycloneDX inventory names its asset and scope in metadata "
                          "properties cruxible.asset and cruxible.scope")
@@ -458,7 +457,7 @@ def _cyclonedx_scan(document: Mapping[str, Any], *, scope: str = "", asset: str 
     return scan
 
 
-def read_inventory(text: str, *, scope: str = "", asset: str = "") -> Scan:
+def read_inventory(text: str) -> Scan:
     try:
         document = json.loads(text)
     except ValueError as error:
@@ -466,7 +465,7 @@ def read_inventory(text: str, *, scope: str = "", asset: str = "") -> Scan:
     if not isinstance(document, Mapping):
         raise InputError("the inventory is not a JSON object")
     if document.get("bomFormat") == "CycloneDX":
-        return _cyclonedx_scan(document, scope=scope, asset=asset)
+        return _cyclonedx_scan(document)
     return _kit_scan(document)
 
 
@@ -577,8 +576,8 @@ def held_patches(rows: list[Row]) -> dict[str, HeldPatch]:
 
 def inventory(text: str, held_rows: list[Row], patch_rows: list[Row],
               line_scope: str, run_rows: list[Row] | None = None, *,
-              asset: str = "", ecosystems: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    scan = read_inventory(text, scope=line_scope, asset=asset)
+              ecosystems: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    scan = read_inventory(text)
     skipped = unindexed_counts((run.purl for _, runs, _ in scan.assets.values()
                                 for run in runs.values()), ecosystems or {})
     summary: dict[str, Any] = {
@@ -754,7 +753,6 @@ class RuntimeInventory:
                                parse_rows(context.input.get("patches")),
                                str(context.input.get("scope") or ""),
                                parse_rows(context.input.get("runs") or []),
-                               asset=str(context.input.get("asset") or ""),
                                ecosystems=context.input.get("osv_ecosystems") or {})
         except InputError as error:
             return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, str(error))

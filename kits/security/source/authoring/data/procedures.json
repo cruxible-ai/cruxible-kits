@@ -1510,12 +1510,7 @@
     "procedure": "security.inventory-import",
     "description": "Read the runtime-inventory Capture that triggered the Line (security.file-erasable-v1) for the Line's scope (parameter scope) and propose what changed: each asset by key and asset.scanned_in the scope's coverage, each release it runs (by product name, the purl's whole namespace and name, and version, with its purl as release.component) as asset.runs; a full scan retires runs it no longer sees (of the products it looked for) and restates the coverage revision (an unchanged scan re-observes it: freshness moves, nothing is proposed). A complete read states each asset's nones (asset.runs inverses): every product it named in looked_for that the asset does not run, and under * every product the asset ran before and no longer does (the run retires in the same change: a flip) or declares installing and does not run; a held none is restated (refreshed), retired when the product runs again or the scan no longer looks for it. For each open patch of a scanned asset: verification verified when a full scan shows the affected release no longer running, failed when it is claimed completed and a scan still shows it. A CycloneDX SBOM of one asset (metadata properties cruxible.scope, cruxible.asset) reads as that asset's complete run set, never as the scope's coverage, and only while every component is identified (a purl with a version, an OS component too): one that isn't could be any product, so the SBOM then only adds (unidentified counts them). Two ecosystems' packages of one name and version are one release with both purls as components. Halts other_scope for another scope's scan, no_change when nothing changed. Runs as a Line with trigger_input inventory.",
     "input": {
-      "scope": "string",
-      "asset": {
-        "type": "string",
-        "optional": true,
-        "default": ""
-      }
+      "scope": "string"
     },
     "returns": {
       "fields": {
@@ -1637,8 +1632,7 @@
             "rpm/rocky-linux": "Rocky Linux",
             "rpm/suse": "SUSE",
             "swift": "SwiftURL"
-          },
-          "asset": "$input.asset"
+          }
         }
       },
       {
