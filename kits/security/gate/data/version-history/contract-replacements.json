@@ -1,0 +1,70 @@
+{
+  "security.kev-http-v1": [
+    "security.fetched-v1",
+    "cisa.kev.catalog"
+  ],
+  "security.cve-record-http-v1": [
+    "security.fetched-v1",
+    "cve.record"
+  ],
+  "security.osv-query-v1": [
+    "security.fetched-v1",
+    "osv.dev.query"
+  ],
+  "security.osv-ecosystems-v1": [
+    "security.fetched-v1",
+    "osv.dev.ecosystems"
+  ],
+  "security.epss-daily-v1": [
+    "security.fetched-v1",
+    "first.epss.daily"
+  ],
+  "security.repo-snapshot-v1": [
+    "security.fetched-v1",
+    "github.repo.snapshot"
+  ],
+  "security.pypi-release-v1": [
+    "security.fetched-v1",
+    "pypi.release"
+  ],
+  "security.github-release-v1": [
+    "security.fetched-v1",
+    "github.release"
+  ],
+  "security.github-api-v1": [
+    "security.fetched-v1",
+    "github.api"
+  ],
+  "security.release-asset-v1": [
+    "security.fetched-large-v1",
+    "github.release.asset"
+  ],
+  "security.cyclonedx-sbom-v1": [
+    "security.file-v1",
+    "cyclonedx.sbom"
+  ],
+  "security.workspace-evidence-v1": [
+    "security.file-v1",
+    "security.analysis.evidence"
+  ],
+  "security.sarif-v1": [
+    "security.file-v1",
+    "sarif.log"
+  ],
+  "security.reproduction-v1": [
+    "security.file-v1",
+    "security.reproduction"
+  ],
+  "security.runtime-inventory-v1": [
+    "security.file-erasable-v1",
+    "security.inventory"
+  ],
+  "security.log-read-v1": [
+    "security.file-erasable-v1",
+    "security.log-read"
+  ],
+  "security.credential-state-v1": [
+    "security.file-erasable-v1",
+    "security.credential-state"
+  ]
+}

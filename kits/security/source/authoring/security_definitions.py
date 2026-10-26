@@ -10,8 +10,8 @@ never published); any other release is the base.
 SubjectKinds that name every security Subject, the QueryDefinitions and the
 acquisition policy. ``procedures`` (after ``cruxible-provider-web`` and the
 bundled ``security-analysis-provider`` and ``security-sources-provider`` are
-installed) proposes the acquisition Blueprints and the triage, attention,
-import and applicability Procedures, the system model's pull Blueprints, parse
+installed) proposes the acquisition Procedures and the triage, attention,
+import and applicability Procedures, the system model's pull Procedures, parse
 Procedures and the hardening Procedure, and the code findings' acquisition, import
 and attention Procedures. Then ``cruxible kit build`` exports the
 release (the kit README's "Building a release").
@@ -30,27 +30,11 @@ from typing import Any
 
 from cruxible_client import Cruxible
 from cruxible_core.claims.claim_type_inputs import ClaimTypeInputRecord, lower_claim_type_input
-from cruxible_client.authoring.inputs import CarriedContractInput
-from cruxible_client.authoring.procedures import (
-    Call,
-    EmitCapture,
-    Guard,
-    Halt,
-    Output,
-    Project,
-    ProposeChangeSet,
-    Sequence,
-    Source,
-    StateTap,
-)
 from cruxible_client.contracts.acquisition_policies import SourceAcquisitionPolicy
 from cruxible_client.contracts.artifacts import ArtifactIdentity
-from cruxible_client.contracts.authoring.inputs import BlueprintInput, ProcedureInput, QueryDefinitionInput
-from cruxible_client.contracts.procedures.authored import ProcedureSpec, lower_procedure_spec
+from cruxible_client.contracts.authoring.inputs import ProcedureInput, QueryDefinitionInput
+from cruxible_client.contracts.procedures.authored import ProcedureSpec
 from cruxible_client.contracts.query.authored import QuerySpecInput
-from cruxible_client.contracts.captures import (
-    CanonicalDuration,
-)
 from cruxible_client.contracts.capture_contract_inputs import (CaptureContractInputRecord, lower_capture_contract_input)
 from cruxible_client.contracts.claim_types import (
     ClaimFreshnessDuration,
@@ -64,36 +48,29 @@ from cruxible_client.contracts.policies import (
     ClaimEvidenceAdmissionPolicy,
     ClaimEvidenceAdmissionRule,
 )
-from cruxible_client.contracts.procedures.contract_schema import PropertySchema
-from cruxible_client.contracts.procedures.models import (
-    GuardPredicate,
-    PredicateOperand,
-    ProcedureBudget,
-    ProcedureHardCaps,
-)
 
 DATA = Path(__file__).resolve().parent / "data"
 KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 KEV_SOURCE = "cisa.kev.catalog"
-KEV_CONTRACT = "security.kev-http-v1"
-CVE_CONTRACT = "security.cve-record-http-v1"
-OSV_CONTRACT = "security.osv-query-v1"
+KEV_CONTRACT = "cisa.kev.catalog"
+CVE_CONTRACT = "cve.record"
+OSV_CONTRACT = "osv.dev.query"
 #: OSV's published ecosystem list (ecosystems.txt): what OSV indexes, OSV's own word.
-OSV_ECOSYSTEMS_CONTRACT = "security.osv-ecosystems-v1"
-EPSS_CONTRACT = "security.epss-daily-v1"
-SBOM_CONTRACT = "security.cyclonedx-sbom-v1"
+OSV_ECOSYSTEMS_CONTRACT = "osv.dev.ecosystems"
+EPSS_CONTRACT = "first.epss.daily"
+SBOM_CONTRACT = "cyclonedx.sbom"
 OUTPUT_CONTRACT = "security.observation-output-v1"
-REPO_CONTRACT = "security.repo-snapshot-v1"
-PYPI_CONTRACT = "security.pypi-release-v1"
-GH_RELEASE_CONTRACT = "security.github-release-v1"
-GH_API_CONTRACT = "security.github-api-v1"
-ASSET_CONTRACT = "security.release-asset-v1"
-SARIF_CONTRACT = "security.sarif-v1"
-REPRO_CONTRACT = "security.reproduction-v1"
+REPO_CONTRACT = "github.repo.snapshot"
+PYPI_CONTRACT = "pypi.release"
+GH_RELEASE_CONTRACT = "github.release"
+GH_API_CONTRACT = "github.api"
+ASSET_CONTRACT = "github.release.asset"
+SARIF_CONTRACT = "sarif.log"
+REPRO_CONTRACT = "security.reproduction"
 #: Incident response (1.3.0): what runs where, a log read, a credential's key state.
-INVENTORY_CONTRACT = "security.runtime-inventory-v1"
-LOG_CONTRACT = "security.log-read-v1"
-CREDENTIAL_CONTRACT = "security.credential-state-v1"
+INVENTORY_CONTRACT = "security.inventory"
+LOG_CONTRACT = "security.log-read"
+CREDENTIAL_CONTRACT = "security.credential-state"
 #: The system model's pull contracts: every fact about the organization's systems
 #: cites a Capture under one of them.
 SYSTEM_CONTRACTS = (REPO_CONTRACT, PYPI_CONTRACT, GH_RELEASE_CONTRACT, GH_API_CONTRACT,
@@ -158,7 +135,7 @@ JUSTIFICATIONS = {
     "vulnerable_code_not_present": "The component is present but not the vulnerable code "
     "(for example, a fixed version).",
 }
-WORKSPACE_EVIDENCE_CONTRACT = "security.workspace-evidence-v1"
+WORKSPACE_EVIDENCE_CONTRACT = "security.analysis.evidence"
 SELF_SOURCE_CONTRACT = "playbill.coordinator-self-source-v1"
 # Each use keeps its provider's source restriction when contract shapes coalesce.
 CONTRACT_USES = {
@@ -287,7 +264,7 @@ CLAIM_TYPES: list[ClaimRow] = [
      (CVE_CONTRACT, OSV_CONTRACT, OUTPUT_CONTRACT), (),
      "Whether the release is affected by the vulnerability. An observation is a source's verdict "
      "(OSV, a CVE record) citing its Capture; a normative Claim is an analyst's judgment citing "
-     "their own words or a workspace file (security.workspace-evidence-v1, retained by "
+     "their own words or a workspace file (security.file-v1, retained by "
      "security.evidence-acquire: a source's Capture is not citable for a judgment), with their "
      "reasoning in its because. The kit's Procedures never revise a normative status; retire "
      "it to hand the assessment back to them."),
@@ -296,7 +273,7 @@ CLAIM_TYPES: list[ClaimRow] = [
      (CVE_CONTRACT, OSV_CONTRACT, OUTPUT_CONTRACT), (),
      "Why a not_affected release is not affected (the VEX/CSAF justification): an observation "
      "from a source, or (normative) an analyst's judgment citing their own words or a "
-     "workspace file (security.workspace-evidence-v1). Required in practice with every "
+     "workspace file (security.file-v1). Required in practice with every "
      "not_affected status; core cannot require it."),
     ("security.assessment.component", ("security.assessment",), "literal", PURL, "many",
      "judged", (CVE_CONTRACT, OSV_CONTRACT), ("trim",),
@@ -304,7 +281,7 @@ CLAIM_TYPES: list[ClaimRow] = [
      "dependency an affected release needs to change. An observation is a source's word (OSV's "
      "answer for the component, or a CVE record whose packageName names it); a normative Claim "
      "is an analyst's, citing their own words or a workspace file "
-     "(security.workspace-evidence-v1, via security.evidence-acquire)."),
+     "(security.file-v1, via security.evidence-acquire)."),
     ("security.release.product_alias", ("security.release",), "literal", ALIAS, "many",
      "normative", (WORKSPACE_EVIDENCE_CONTRACT,), ("trim",),
      "Another name the release's product goes by in vulnerability records, as an analyst "
@@ -714,7 +691,7 @@ RESPONSE: list[ClaimRow] = [
      {"enum": sorted(AUDIT_RESULTS), "type": "string"}, "one", "normative",
      (LOG_CONTRACT, WORKSPACE_EVIDENCE_CONTRACT), (),
      "The auditor's judgment: exploited, not_exploited or inconclusive, citing the decisive "
-     "log read (security.log-read-v1) or a workspace file (security.workspace-evidence-v1); "
+     "log read (security.file-erasable-v1) or a workspace file (security.file-v1); "
      "own words are refused. Reasoning goes in a section of "
      "the incident's note. A disagreeing auditor contends (set --contend): while the slot "
      "reads conflict the answer is unknown. Never settled by a Mandate."),
@@ -987,386 +964,6 @@ def acquisition_policy() -> SourceAcquisitionPolicy:
     )
 
 
-# --- Blueprints and Procedures ------------------------------------------------
-
-
-def _contract(name: str, **fields: PropertySchema) -> CarriedContractInput:
-    return CarriedContractInput(name=name, fields=fields, allow_extra=False)
-
-
-def _ints(*names: str) -> dict[str, PropertySchema]:
-    return {name: PropertySchema(type="integer") for name in names}
-
-
-EMPTY = _contract("security-empty-input")
-URL_INPUT = _contract("security-url-input", url=PropertySchema(type="string"))
-HTTP_SUMMARY = _contract(
-    "security-http-evidence",
-    url=PropertySchema(type="string"),
-    status=PropertySchema(type="int"),
-    body_digest=PropertySchema(type="string"),
-)
-OSV_SUMMARY = _contract(
-    "security-osv-applicability-summary",
-    unkeyed=PropertySchema(type="json"),
-    **_ints("changed", "affected", "not_affected", "inconclusive", "unchanged", "judged",
-            "coverage", "packages"),
-)
-
-
-_S = PropertySchema(type="string")
-_J = PropertySchema(type="json")
-_I = PropertySchema(type="integer")
-REPO_INPUT = _contract("security-repo-input", forge_host=_S, full_name=_S, ref=_S, scope=_S,
-                       path=_S)
-SNAPSHOT_SUMMARY = _contract("security-repo-snapshot-summary", locator=_S, revision=_S)
-REGISTRY_INPUT = _contract("security-registry-input", project=_S, versions=_I)
-REGISTRY_SUMMARY = _contract("security-registry-summary", project=_S, versions=_J)
-#: Hardening question -> the QueryDefinition the harden Procedure taps for it.
-# Incident response.
-#: respond's taps, in order: alias -> QueryDefinition.
-
-
-def _seconds(value: int) -> CanonicalDuration:
-    return CanonicalDuration(microseconds=value * 1_000_000)
-
-
-def _fetch(url: object, logical_source: str, max_bytes: int) -> dict[str, object]:
-    return {
-        "url": url,
-        "logical_source": logical_source,
-        "expected_format": "json",
-        "render": False,
-        "extract": False,
-        "max_bytes": max_bytes,
-    }
-
-
-def _summary(source: str, next: str | None = None) -> Project:
-    return Project(
-        "summary",
-        next=next,
-        fields={
-            "url": f"$steps.{source}.retrieved.final_url",
-            "status": f"$steps.{source}.retrieved.status_code",
-            "body_digest": f"$steps.{source}.retrieved.body_sha256",
-        },
-        contract_out=HTTP_SUMMARY,
-    )
-
-
-def _changed(alias: str, field: str = "changed") -> GuardPredicate:
-    return GuardPredicate(
-        left=PredicateOperand(kind="step", alias=alias, path=(field,)),
-        operator="gt",
-        right=PredicateOperand(kind="literal", value=0),
-    )
-
-
-def _caps(seconds: int, calls: int, capture_bytes: int, items: int) -> ProcedureHardCaps:
-    return ProcedureHardCaps(max_wall_clock=_seconds(seconds), max_provider_calls=calls,
-                             max_capture_bytes=capture_bytes, max_items=items,
-                             max_repeat_attempts=1)
-
-
-def _budget(seconds: int, calls: int, capture_bytes: int) -> ProcedureBudget:
-    return ProcedureBudget(wall_clock=_seconds(seconds), max_provider_calls=calls,
-                           max_capture_bytes=capture_bytes)
-
-
-def _project(summary: CarriedContractInput, alias: str, next: str) -> Project:
-    return Project("summary", next=next, contract_out=summary,
-                   fields={name: f"$steps.{alias}.{name}" for name in summary.fields})
-
-
-def _blueprint(sequence: Sequence, interface: dict[str, Any], slot: str,
-               also: dict[str, dict[str, Any]] | None = None) -> BlueprintInput:
-    """Open the Sequence's ``slot`` Source (and each Source ``also`` names) as a slot typed
-    by its interface: every network Source is the consumer's to bind."""
-
-    slots = {slot: interface, **(also or {})}
-    built = lower_procedure_spec(sequence.build().spec, named=False)
-    definition = dict(built.definition)
-    nodes = []
-    for node in definition["nodes"]:
-        node = dict(node)
-        name = node.get("as", node.get("node_id", node.get("id")))
-        if node["kind"] == "source" and name in slots:
-            node["provider"] = {"kind": "slot", "slot_name": name}
-            node.pop("implementation_digest", None)
-        nodes.append(node)
-    definition["nodes"] = nodes
-    definition["pin_slots"] = [
-        {
-            "slot_name": name,
-            "pin_role": "provider",
-            "artifact_kind": "Provider",
-        }
-        for name in sorted(slots)
-    ]
-    return BlueprintInput(kind="blueprint", definition=definition, contracts=built.contracts,
-                          activation_policy=built.activation_policy)
-
-
-def _interface(cx: Cruxible, name: str) -> dict[str, Any]:
-    from cruxible_client.contracts.get_reads import GetRequest
-
-    read = cx._client.get(cx._instance_id, request=GetRequest(ref=f"ProviderInterface:{name}",
-                                                                detail="proof"))
-    assert read.proof is not None
-    return dict(read.proof["entry"])
-
-
-def kev_acquire(cx: Cruxible, release: str) -> BlueprintInput:
-    web = cx.provider_interface("web.fetch", provider=WEB_PROVIDER)
-    budget_seconds = 90 if release == VARIANT else 60
-    sequence = Sequence(
-        [
-            Source("catalog", capture_contract=_capture(KEV_CONTRACT), next="summary",
-                   request=_fetch(KEV_URL, KEV_SOURCE, KEV_MAX_BYTES)),
-            _summary("catalog", next="emit"),
-            EmitCapture("emit", capture_contract=_capture(OUTPUT_CONTRACT), input=Output("summary"),
-                        result=Output("summary")),
-        ],
-        name="security.kev-acquire",
-        description=(
-            "Fetch the CISA KEV catalog (static JSON, no rendering) and retain it under "
-            "security.fetched-v1. Interpretation is security.kev-triage's and "
-            "security.kev-attention's job."
-            + (" 1.1.0: a 90 s budget." if release == VARIANT else "")
-        ),
-        contract_in=EMPTY,
-        contract_out=HTTP_SUMMARY,
-        budget=_budget(budget_seconds, 1, 16_777_216),
-        hard_caps=_caps(120, 1, 16_777_216, 1),
-    ).bind(catalog=web)
-    return _blueprint(sequence, _interface(cx, "web.fetch"), "catalog")
-
-
-def cve_record_acquire(cx: Cruxible) -> BlueprintInput:
-    web = cx.provider_interface("web.fetch", provider=WEB_PROVIDER)
-    sequence = Sequence(
-        [
-            Source("record", capture_contract=_capture(CVE_CONTRACT), next="summary",
-                   request=_fetch("$input.url", "cve.record", CVE_MAX_BYTES)),
-            _summary("record"),
-        ],
-        name="security.cve-record-acquire",
-        description=(
-            "Fetch one CVE record (pass the full https://cveawg.mitre.org/api/cve/<CVE> URL "
-            "as input.url) and retain it under security.fetched-v1; "
-            "security.cve-applicability reads it when it lands."
-        ),
-        contract_in=URL_INPUT,
-        contract_out=HTTP_SUMMARY,
-        returns="summary",
-        budget=_budget(60, 1, 4_194_304),
-        hard_caps=_caps(120, 1, 4_194_304, 1),
-    ).bind(record=web)
-    return _blueprint(sequence, _interface(cx, "web.fetch"), "record")
-
-
-def epss_acquire(cx: Cruxible) -> BlueprintInput:
-    epss = cx.provider_interface("security.epss-daily", provider=SOURCES_PROVIDER)
-    sequence = Sequence(
-        [
-            Source("epss", capture_contract=_capture(EPSS_CONTRACT), next="summary", request={}),
-            _summary("epss", next="emit"),
-            EmitCapture("emit", capture_contract=_capture(OUTPUT_CONTRACT), input=Output("summary"),
-                        result=Output("summary")),
-        ],
-        name="security.epss-acquire",
-        description=(
-            "Fetch FIRST's current EPSS daily scores file (gzip CSV) and retain it under "
-            "security.fetched-v1. Interpretation is security.epss-triage's job."
-        ),
-        contract_in=EMPTY,
-        contract_out=HTTP_SUMMARY,
-        budget=_budget(120, 1, 33_554_432),
-        hard_caps=_caps(300, 1, 33_554_432, 1),
-    ).bind(epss=epss)
-    return _blueprint(sequence, _interface(cx, "security.epss-daily"), "epss")
-
-
-def osv_applicability(cx: Cruxible) -> BlueprintInput:
-    osv = cx.provider_interface("security.osv-query", provider=SOURCES_PROVIDER)
-    ecosystems = cx.provider_interface("security.osv-ecosystems", provider=SOURCES_PROVIDER)
-    decide = cx.provider_interface("security.osv-applicability", provider=ANALYSIS_PROVIDER)
-    sequence = Sequence(
-        [
-            StateTap("releases", query="security.release_inventory", next="watched"),
-            StateTap("watched", query="security.watched_vulnerabilities", next="assessments"),
-            StateTap("assessments", query="security.assessment_index", next="ecosystems"),
-            # What OSV indexes, in its own words, retained as its own Capture.
-            Source("ecosystems", capture_contract=_capture(OSV_ECOSYSTEMS_CONTRACT), next="osv",
-                   request={}),
-            # The purl type map is kit data (its sources cited): edit it by authoring a
-            # successor of this Procedure.
-            Source("osv", capture_contract=_capture(OSV_CONTRACT), next="decide",
-                   request={"releases": "$steps.releases.result.rows",
-                            "watched": "$steps.watched.result.rows",
-                            "ecosystems": "$steps.ecosystems",
-                            "purl_types": {"osv_ecosystems": PURL_OSV_ECOSYSTEMS["osv_ecosystems"],
-                                           "sources": PURL_OSV_ECOSYSTEMS["sources"]}}),
-            Call("decide", next="summary",
-                 input={"osv": "$steps.osv", "releases": "$steps.releases.result.rows",
-                        "watched": "$steps.watched.result.rows",
-                        "assessments": "$steps.assessments.result.rows"}),
-            _project(OSV_SUMMARY, "decide", "changed"),
-            Guard("changed", predicate=_changed("decide"), on_true="propose",
-                  on_false="nochange", refusal_code="no_change",
-                  message="OSV changes no assessment."),
-            ProposeChangeSet("propose", candidate_templates={"items": "$steps.decide.items"},
-                             result=Output("summary")),
-            Halt("nochange", reason="no_change"),
-        ],
-        name="security.osv-applicability",
-        description=(
-            "Retain OSV's ecosystem list (ecosystems.txt, under security.fetched-v1), "
-            "then ask OSV.dev about every SBOM component (purl@version) of every release whose "
-            "ecosystem OSV indexes (by the kit's purl type map, carried in this Procedure; the "
-            "rest are recorded not_indexed, never asked) and every watched CVE, retain the "
-            "answer under security.fetched-v1, and propose what changed: each release's OSV "
-            "coverage (complete, or partial with the purl types not indexed), the packages "
-            "OSV says each watched CVE affects, and an assessment per (release, CVE): affected "
-            "(watching the CVE when it is new), not_affected with its VEX justification, or "
-            "inconclusive. Propose-only; never settles. Runs as a Line (daily, or `line run` "
-            "after an SBOM or inventory import is accepted)."
-        ),
-        contract_in=EMPTY,
-        contract_out=OSV_SUMMARY,
-        returns="summary",
-        activation_policy="drain",
-        budget=_budget(300, 3, 67_108_864),
-        hard_caps=_caps(600, 3, 67_108_864, 5000),
-    ).bind(osv=osv, ecosystems=ecosystems, decide=decide)
-    return _blueprint(sequence, _interface(cx, "security.osv-query"), "osv",
-                      also={"ecosystems": _interface(cx, "security.osv-ecosystems")})
-
-
-# --- the system model: pull, parse, harden -------------------------------------
-
-
-def repo_acquire(cx: Cruxible) -> BlueprintInput:
-    snapshot = cx.provider_interface("security.repo-snapshot", provider=SOURCES_PROVIDER)
-    sequence = Sequence(
-        [
-            Source("snapshot", capture_contract=_capture(REPO_CONTRACT), next="summary", request={
-                name: f"$input.{name}" for name in ("forge_host", "full_name", "ref", "scope",
-                                                    "path")}),
-            Project("summary", contract_out=SNAPSHOT_SUMMARY, fields={
-                "locator": "$steps.snapshot.locator",
-                "revision": "$steps.snapshot.revision"}),
-        ],
-        name="security.repo-acquire",
-        description=(
-            "Read what one GitHub repository declares at one ref for one scope (input: "
-            "forge_host, full_name, ref, scope ci.workflows or release.manifest, path) and "
-            "retain it under security.fetched-v1: the revision R and every file at R. "
-            "An unchanged source is the same bytes. A parse Line for that source reads it "
-            "when it lands."
-        ),
-        contract_in=REPO_INPUT,
-        contract_out=SNAPSHOT_SUMMARY,
-        returns="summary",
-        budget=_budget(120, 1, 16_777_216),
-        hard_caps=_caps(300, 1, 16_777_216, 1),
-    ).bind(snapshot=snapshot)
-    return _blueprint(sequence, _interface(cx, "security.repo-snapshot"), "snapshot")
-
-
-def registry_acquire(cx: Cruxible) -> BlueprintInput:
-    registry = cx.provider_interface("security.pypi-release", provider=SOURCES_PROVIDER)
-    sequence = Sequence(
-        [
-            Source("registry", capture_contract=_capture(PYPI_CONTRACT), next="summary", request={
-                "project": "$input.project", "versions": "$input.versions"}),
-            Project("summary", contract_out=REGISTRY_SUMMARY, fields={
-                "project": "$steps.registry.project",
-                "versions": "$steps.registry.versions"}),
-        ],
-        name="security.registry-acquire",
-        description=(
-            "Read what PyPI serves for one project (input: project, versions = the newest N, "
-            "default 3): each file's digest and provenance, retained under "
-            "security.fetched-v1. A parse Line for that project reads it when it lands."
-        ),
-        contract_in=REGISTRY_INPUT,
-        contract_out=REGISTRY_SUMMARY,
-        returns="summary",
-        budget=_budget(120, 1, 16_777_216),
-        hard_caps=_caps(300, 1, 16_777_216, 1),
-    ).bind(registry=registry)
-    return _blueprint(sequence, _interface(cx, "security.pypi-release"), "registry")
-
-
-def _github_fetch(cx: Cruxible, name: str, slot: str, contract: str, logical_source: str,
-                  description: str, *, max_bytes: int) -> BlueprintInput:
-    web = cx.provider_interface("web.fetch", provider=WEB_PROVIDER)
-    request = _fetch("$input.url", logical_source, max_bytes)
-    sequence = Sequence(
-        [
-            Source(slot, capture_contract=_capture(contract), next="summary", request=request),
-            _summary(slot),
-        ],
-        name=name,
-        description=description,
-        contract_in=URL_INPUT,
-        contract_out=HTTP_SUMMARY,
-        returns="summary",
-        budget=_budget(120, 1, max_bytes),
-        hard_caps=_caps(300, 1, max_bytes, 1),
-    ).bind(**{slot: web})
-    return _blueprint(sequence, _interface(cx, "web.fetch"), slot)
-
-
-def release_acquire(cx: Cruxible) -> BlueprintInput:
-    return _github_fetch(
-        cx, "security.release-acquire", "release", GH_RELEASE_CONTRACT, "github.release",
-        "Fetch one GitHub release (input.url: https://api.github.com/repos/OWNER/REPO/"
-        f"releases/tags/TAG) and retain it under {GH_RELEASE_CONTRACT}: its assets, their "
-        "digests, uploader and update times. Cite the Capture for artifact facts.",
-        max_bytes=GITHUB_MAX_BYTES)
-
-
-def asset_fetch(cx: Cruxible) -> BlueprintInput:
-    """A kit Source, not web.fetch: web.fetch leaves archives to the document plane."""
-
-    asset = cx.provider_interface("security.release-asset", provider=SOURCES_PROVIDER)
-    sequence = Sequence(
-        [
-            Source("asset", capture_contract=_capture(ASSET_CONTRACT), next="summary",
-                   request={"url": "$input.url"}),
-            _summary("asset"),
-        ],
-        name="security.asset-fetch",
-        description=(
-            "Read the bytes one GitHub release asset serves (input.url: its download URL, "
-            "https://github.com/OWNER/REPO/releases/download/TAG/NAME) and retain them under "
-            f"{ASSET_CONTRACT}; the summary's body_digest is the served digest "
-            "(security.artifact.sha256)."
-        ),
-        contract_in=URL_INPUT,
-        contract_out=HTTP_SUMMARY,
-        returns="summary",
-        budget=_budget(120, 1, ASSET_MAX_BYTES * 2),
-        hard_caps=_caps(300, 1, ASSET_MAX_BYTES * 2, 1),
-    ).bind(asset=asset)
-    return _blueprint(sequence, _interface(cx, "security.release-asset"), "asset")
-
-
-def history_acquire(cx: Cruxible) -> BlueprintInput:
-    return _github_fetch(
-        cx, "security.history-acquire", "history", GH_API_CONTRACT, "github.api",
-        "Fetch one GitHub API answer about history (input.url: commits?path=...&sha=..., or "
-        "actions/workflows/W/runs?branch=...) and retain it under "
-        f"{GH_API_CONTRACT}: which commit changed a path, which runs ran.",
-        max_bytes=GITHUB_MAX_BYTES)
-
-
-# --- incident response: acquire, import, respond ----------------------------------
-
-
 def _backlog_measurement(digest: str) -> dict[str, Any]:
     return {
         "name": "kev-backlog-cleared",
@@ -1455,18 +1052,8 @@ def _held_query(cx: Cruxible, name: str) -> tuple[dict[str, Any], str] | None:
     return dict(proof["envelope"]), str(proof["artifact_digest"])
 
 
-def procedure_specs(cx: Cruxible | None = None) -> list[ProcedureSpec]:
+def procedure_specs(cx: Cruxible | None = None, release: str = RELEASE) -> list[ProcedureSpec]:
     records = json.loads((DATA / "procedures.json").read_text())
-    if cx is not None:
-        # K1b will make these provider positions slots. K1a retains the selected builds.
-        bindings = {}
-        for record in records:
-            for step in record["steps"]:
-                if "call" in step or "source" in step:
-                    key = (step["interface"], step["provider"])
-                    if key not in bindings:
-                        bindings[key] = cx.provider_interface(key[0], provider=key[1])
-                    step["provider"] = bindings[key].provider
     from cruxible_client.contracts.query.definitions import parse_query_definition, query_definition_digest
     if cx is not None:
         _, digest = _held_query(cx, "security.kev_triage_backlog")
@@ -1475,18 +1062,17 @@ def procedure_specs(cx: Cruxible | None = None) -> list[ProcedureSpec]:
         digest = query_definition_digest(parse_query_definition(
             (Path(__file__).parents[2] / "artifacts" / path).read_bytes(), path=path)).tagged
     for record in records:
+        if release == VARIANT and record["procedure"] == "security.fetch-observed":
+            record["budget"]["wall_clock"] = "PT90S"
+            record["description"] += " Gate variant: a 90 second budget."
         if record["procedure"] == "security.kev-triage":
             record["measurements"] = [_backlog_measurement(digest)]
     return [ProcedureSpec.model_validate(record) for record in records]
 
 
 def procedures(cx: Cruxible, release: str) -> None:
-    draft = cx.changes(rationale=f"security kit {release}: authored Procedures and acquisition Blueprints.")
-    for factory in (lambda cx: kev_acquire(cx, release), cve_record_acquire, epss_acquire,
-                    osv_applicability, repo_acquire, registry_acquire, release_acquire,
-                    asset_fetch, history_acquire):
-        draft.procedure(definition=factory(cx))
-    for spec in procedure_specs(cx):
+    draft = cx.changes(rationale=f"security kit {release}: 28 slotted authored Procedures.")
+    for spec in procedure_specs(cx, release):
         draft.procedure(definition=ProcedureInput(kind="procedure", spec=spec))
     submit(cx, draft, "procedures")
 

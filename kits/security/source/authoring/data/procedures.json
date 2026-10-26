@@ -25,7 +25,7 @@
         "source": "sbom",
         "contract": "security.file-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "sbom",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -47,6 +47,9 @@
     "output": {
       "bytes_digest": "string",
       "byte_length": "integer"
+    },
+    "slots": {
+      "sbom": "workspace.file"
     }
   },
   {
@@ -75,7 +78,7 @@
         "source": "evidence",
         "contract": "security.file-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "evidence",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -97,6 +100,9 @@
     "output": {
       "bytes_digest": "string",
       "byte_length": "integer"
+    },
+    "slots": {
+      "evidence": "workspace.file"
     }
   },
   {
@@ -128,7 +134,7 @@
         "source": "catalog",
         "contract": "security.fetched-v1",
         "interface": "web.fetch",
-        "provider": "cruxible-provider-web",
+        "provider": "catalog",
         "request": {
           "expected_format": "json",
           "extract": false,
@@ -145,7 +151,7 @@
       {
         "call": "parse",
         "interface": "security.kev-catalog",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "catalog_base64": "$catalog.retrieved.body_base64",
           "watched": "$watched.result.rows"
@@ -176,7 +182,11 @@
     },
     "halt_order": [
       "nochange"
-    ]
+    ],
+    "slots": {
+      "catalog": "web.fetch@3",
+      "parse": "security.kev-catalog@2"
+    }
   },
   {
     "procedure": "security.kev-attention",
@@ -206,7 +216,7 @@
         "source": "catalog",
         "contract": "security.fetched-v1",
         "interface": "web.fetch",
-        "provider": "cruxible-provider-web",
+        "provider": "catalog",
         "request": {
           "expected_format": "json",
           "extract": false,
@@ -231,7 +241,7 @@
       {
         "call": "match",
         "interface": "security.kev-attention",
-        "provider": "security-analysis-provider",
+        "provider": "match",
         "input": {
           "assessments": "$assessments.result.rows",
           "catalog_base64": "$catalog.retrieved.body_base64",
@@ -265,7 +275,11 @@
     },
     "halt_order": [
       "quiet"
-    ]
+    ],
+    "slots": {
+      "catalog": "web.fetch@3",
+      "match": "security.kev-attention@1"
+    }
   },
   {
     "procedure": "security.epss-triage",
@@ -297,7 +311,7 @@
         "source": "epss",
         "contract": "security.fetched-v1",
         "interface": "security.epss-daily",
-        "provider": "security-sources-provider",
+        "provider": "epss",
         "request": {}
       },
       {
@@ -307,7 +321,7 @@
       {
         "call": "parse",
         "interface": "security.epss-scores",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "daily_base64": "$epss.retrieved.body_base64",
           "watched": "$watched.result.rows"
@@ -339,7 +353,11 @@
     },
     "halt_order": [
       "nochange"
-    ]
+    ],
+    "slots": {
+      "epss": "security.epss-daily@1",
+      "parse": "security.epss-scores@1"
+    }
   },
   {
     "procedure": "security.sbom-import",
@@ -374,7 +392,7 @@
         "source": "sbom",
         "contract": "security.file-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "sbom",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -397,7 +415,7 @@
       {
         "call": "parse",
         "interface": "security.cyclonedx-components",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "releases": "$releases.result.rows",
           "sbom_text": "$sbom.content.text",
@@ -462,7 +480,11 @@
     },
     "halt_order": [
       "nochange"
-    ]
+    ],
+    "slots": {
+      "sbom": "workspace.file",
+      "parse": "security.cyclonedx-components@1"
+    }
   },
   {
     "procedure": "security.cve-applicability",
@@ -496,7 +518,7 @@
         "source": "record",
         "contract": "security.fetched-v1",
         "interface": "web.fetch",
-        "provider": "cruxible-provider-web",
+        "provider": "record",
         "request": {
           "expected_format": "json",
           "extract": false,
@@ -525,7 +547,7 @@
       {
         "call": "decide",
         "interface": "security.cve-applicability",
-        "provider": "security-analysis-provider",
+        "provider": "decide",
         "input": {
           "assessments": "$assessments.result.rows",
           "collections": {
@@ -664,7 +686,11 @@
     },
     "halt_order": [
       "nochange"
-    ]
+    ],
+    "slots": {
+      "record": "web.fetch@3",
+      "decide": "security.cve-applicability@1"
+    }
   },
   {
     "procedure": "security.repo-parse",
@@ -710,7 +736,7 @@
         "source": "snapshot",
         "contract": "security.fetched-v1",
         "interface": "security.repo-snapshot",
-        "provider": "security-sources-provider",
+        "provider": "snapshot",
         "request": {
           "forge_host": "$input.forge_host",
           "full_name": "$input.full_name",
@@ -762,7 +788,7 @@
       {
         "call": "parse",
         "interface": "security.workflow-facts",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "coverage": "$coverage.result.rows",
           "held": "$held.result.rows",
@@ -794,7 +820,11 @@
     },
     "halt_order": [
       "other"
-    ]
+    ],
+    "slots": {
+      "snapshot": "security.repo-snapshot@1",
+      "parse": "security.workflow-facts@1"
+    }
   },
   {
     "procedure": "security.registry-parse",
@@ -833,7 +863,7 @@
         "source": "registry",
         "contract": "security.fetched-v1",
         "interface": "security.pypi-release",
-        "provider": "security-sources-provider",
+        "provider": "registry",
         "request": {
           "project": "$input.project",
           "versions": "$input.versions"
@@ -867,7 +897,7 @@
       {
         "call": "parse",
         "interface": "security.registry-facts",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "coverage": "$coverage.result.rows",
           "held": "$held.result.rows",
@@ -894,7 +924,11 @@
     },
     "halt_order": [
       "other"
-    ]
+    ],
+    "slots": {
+      "registry": "security.pypi-release@1",
+      "parse": "security.registry-facts@1"
+    }
   },
   {
     "procedure": "security.harden",
@@ -955,7 +989,7 @@
       {
         "call": "classify",
         "interface": "security.harden",
-        "provider": "security-analysis-provider",
+        "provider": "classify",
         "input": {
           "hq1": "$hq1.result.rows",
           "hq2": "$hq2.result.rows",
@@ -1004,7 +1038,10 @@
     },
     "halt_order": [
       "quiet"
-    ]
+    ],
+    "slots": {
+      "classify": "security.harden@1"
+    }
   },
   {
     "procedure": "security.sarif-acquire",
@@ -1032,7 +1069,7 @@
         "source": "sarif",
         "contract": "security.file-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "sarif",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1054,6 +1091,9 @@
     "output": {
       "bytes_digest": "string",
       "byte_length": "integer"
+    },
+    "slots": {
+      "sarif": "workspace.file"
     }
   },
   {
@@ -1082,7 +1122,7 @@
         "source": "reproduction",
         "contract": "security.file-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "reproduction",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1104,6 +1144,9 @@
     "output": {
       "bytes_digest": "string",
       "byte_length": "integer"
+    },
+    "slots": {
+      "reproduction": "workspace.file"
     }
   },
   {
@@ -1148,7 +1191,7 @@
         "source": "sarif",
         "contract": "security.file-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "sarif",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1174,7 +1217,7 @@
       {
         "call": "parse",
         "interface": "security.sarif-findings",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "held": "$held.result.rows",
           "repo_ref": "$input.repo_ref",
@@ -1228,7 +1271,11 @@
     "halt_order": [
       "nochange",
       "other"
-    ]
+    ],
+    "slots": {
+      "sarif": "workspace.file",
+      "parse": "security.sarif-findings@1"
+    }
   },
   {
     "procedure": "security.sarif-attention",
@@ -1272,7 +1319,7 @@
         "source": "sarif",
         "contract": "security.file-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "sarif",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1298,7 +1345,7 @@
       {
         "call": "parse",
         "interface": "security.sarif-findings",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "held": "$held.result.rows",
           "repo_ref": "$input.repo_ref",
@@ -1354,7 +1401,11 @@
     "halt_order": [
       "quiet",
       "other"
-    ]
+    ],
+    "slots": {
+      "sarif": "workspace.file",
+      "parse": "security.sarif-findings@1"
+    }
   },
   {
     "procedure": "security.inventory-acquire",
@@ -1382,7 +1433,7 @@
         "source": "inventory",
         "contract": "security.file-erasable-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "inventory",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1404,6 +1455,9 @@
     "output": {
       "bytes_digest": "string",
       "byte_length": "integer"
+    },
+    "slots": {
+      "inventory": "workspace.file"
     }
   },
   {
@@ -1432,7 +1486,7 @@
         "source": "log",
         "contract": "security.file-erasable-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "log",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1454,6 +1508,9 @@
     "output": {
       "bytes_digest": "string",
       "byte_length": "integer"
+    },
+    "slots": {
+      "log": "workspace.file"
     }
   },
   {
@@ -1482,7 +1539,7 @@
         "source": "credential",
         "contract": "security.file-erasable-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "credential",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1504,6 +1561,9 @@
     "output": {
       "bytes_digest": "string",
       "byte_length": "integer"
+    },
+    "slots": {
+      "credential": "workspace.file"
     }
   },
   {
@@ -1551,7 +1611,7 @@
         "source": "inventory",
         "contract": "security.file-erasable-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "inventory",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1591,7 +1651,7 @@
       {
         "call": "parse",
         "interface": "security.runtime-inventory",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "held": "$held.result.rows",
           "inventory_text": "$inventory.content.text",
@@ -1686,7 +1746,11 @@
     "halt_order": [
       "nochange",
       "other"
-    ]
+    ],
+    "slots": {
+      "inventory": "workspace.file",
+      "parse": "security.runtime-inventory@1"
+    }
   },
   {
     "procedure": "security.log-import",
@@ -1723,7 +1787,7 @@
         "source": "log",
         "contract": "security.file-erasable-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "log",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1749,7 +1813,7 @@
       {
         "call": "parse",
         "interface": "security.log-reads",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "held": "$held.result.rows",
           "incident": "$input.incident",
@@ -1813,7 +1877,11 @@
     "halt_order": [
       "nochange",
       "other"
-    ]
+    ],
+    "slots": {
+      "log": "workspace.file",
+      "parse": "security.log-reads@1"
+    }
   },
   {
     "procedure": "security.credential-import",
@@ -1848,7 +1916,7 @@
         "source": "credential",
         "contract": "security.file-erasable-v1",
         "interface": "workspace.file",
-        "provider": "cruxible-builtin",
+        "provider": "credential",
         "request": {
           "coordinate": {
             "revision": "working"
@@ -1871,7 +1939,7 @@
       {
         "call": "parse",
         "interface": "security.credential-state",
-        "provider": "security-analysis-provider",
+        "provider": "parse",
         "input": {
           "held": "$held.result.rows",
           "state_text": "$credential.content.text",
@@ -1924,7 +1992,11 @@
     },
     "halt_order": [
       "nochange"
-    ]
+    ],
+    "slots": {
+      "credential": "workspace.file",
+      "parse": "security.credential-state@1"
+    }
   },
   {
     "procedure": "security.respond",
@@ -2016,7 +2088,7 @@
       {
         "call": "classify",
         "interface": "security.respond",
-        "provider": "security-analysis-provider",
+        "provider": "classify",
         "input": {
           "audits": "$audits.result.rows",
           "credentials": "$credentials.result.rows",
@@ -2070,6 +2142,494 @@
     },
     "halt_order": [
       "quiet"
-    ]
+    ],
+    "slots": {
+      "classify": "security.respond@1"
+    }
+  },
+  {
+    "procedure": "security.fetch",
+    "description": "Fetch one HTTP JSON response with the supplied URL, logical source and byte limit; retain it under security.fetched-v1. Direct runs bind the single fitting web.fetch build.",
+    "input": {
+      "url": "string",
+      "logical_source": "string",
+      "max_bytes": "integer"
+    },
+    "output": {
+      "url": "string",
+      "status": "int",
+      "body_digest": "string"
+    },
+    "steps": [
+      {
+        "source": "fetch",
+        "contract": "security.fetched-v1",
+        "interface": "web.fetch",
+        "provider": "fetch",
+        "request": {
+          "url": "$input.url",
+          "logical_source": "$input.logical_source",
+          "max_bytes": "$input.max_bytes",
+          "expected_format": "json",
+          "extract": false,
+          "render": false
+        }
+      },
+      {
+        "project": "summary",
+        "fields": {
+          "url": "$fetch.retrieved.final_url",
+          "status": "$fetch.retrieved.status_code",
+          "body_digest": "$fetch.retrieved.body_sha256"
+        },
+        "output": {
+          "url": "string",
+          "status": "int",
+          "body_digest": "string"
+        },
+        "contract": "security-http-evidence"
+      }
+    ],
+    "slots": {
+      "fetch": "web.fetch@3"
+    },
+    "budget": {
+      "wall_clock": "PT60S",
+      "provider_calls": 1,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT120S",
+      "provider_calls": 1,
+      "capture_bytes": 16777216,
+      "items": 1
+    },
+    "returns": "summary"
+  },
+  {
+    "procedure": "security.fetch-observed",
+    "description": "Fetch one HTTP JSON response with the supplied URL, logical source and byte limit; retain it under security.fetched-v1. Emit the summary as run evidence; runs as a Line.",
+    "input": {
+      "url": "string",
+      "logical_source": "string",
+      "max_bytes": "integer"
+    },
+    "output": {
+      "url": "string",
+      "status": "int",
+      "body_digest": "string"
+    },
+    "steps": [
+      {
+        "source": "fetch",
+        "contract": "security.fetched-v1",
+        "interface": "web.fetch",
+        "provider": "fetch",
+        "request": {
+          "url": "$input.url",
+          "logical_source": "$input.logical_source",
+          "max_bytes": "$input.max_bytes",
+          "expected_format": "json",
+          "extract": false,
+          "render": false
+        }
+      },
+      {
+        "project": "summary",
+        "fields": {
+          "url": "$fetch.retrieved.final_url",
+          "status": "$fetch.retrieved.status_code",
+          "body_digest": "$fetch.retrieved.body_sha256"
+        },
+        "output": {
+          "url": "string",
+          "status": "int",
+          "body_digest": "string"
+        },
+        "contract": "security-http-evidence"
+      },
+      {
+        "emit": "security.observation-output-v1",
+        "input": "$summary",
+        "result": "$summary"
+      }
+    ],
+    "slots": {
+      "fetch": "web.fetch@3"
+    },
+    "budget": {
+      "wall_clock": "PT60S",
+      "provider_calls": 1,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT120S",
+      "provider_calls": 1,
+      "capture_bytes": 16777216,
+      "items": 1
+    }
+  },
+  {
+    "procedure": "security.epss-acquire",
+    "description": "Fetch FIRST's current EPSS daily scores and emit their retained summary; security.epss-triage reads the first.epss.daily landing.",
+    "input": {},
+    "output": {
+      "url": "string",
+      "status": "int",
+      "body_digest": "string"
+    },
+    "steps": [
+      {
+        "source": "epss",
+        "contract": "security.fetched-v1",
+        "interface": "security.epss-daily",
+        "provider": "epss",
+        "request": {}
+      },
+      {
+        "project": "summary",
+        "fields": {
+          "url": "$epss.retrieved.final_url",
+          "status": "$epss.retrieved.status_code",
+          "body_digest": "$epss.retrieved.body_sha256"
+        },
+        "output": {
+          "url": "string",
+          "status": "int",
+          "body_digest": "string"
+        },
+        "contract": "security-http-evidence"
+      },
+      {
+        "emit": "security.observation-output-v1",
+        "input": "$summary",
+        "result": "$summary"
+      }
+    ],
+    "slots": {
+      "epss": "security.epss-daily@1"
+    },
+    "budget": {
+      "wall_clock": "PT120S",
+      "provider_calls": 1,
+      "capture_bytes": 33554432
+    },
+    "caps": {
+      "wall_clock": "PT300S",
+      "provider_calls": 1,
+      "capture_bytes": 33554432,
+      "items": 1
+    }
+  },
+  {
+    "procedure": "security.asset-fetch",
+    "description": "Read one GitHub release asset (input.url); retain the bytes under security.fetched-large-v1 with logical source github.release.asset.",
+    "input": {
+      "url": "string"
+    },
+    "output": {
+      "url": "string",
+      "status": "int",
+      "body_digest": "string"
+    },
+    "steps": [
+      {
+        "source": "asset",
+        "contract": "security.fetched-large-v1",
+        "interface": "security.release-asset",
+        "provider": "asset",
+        "request": {
+          "url": "$input.url"
+        }
+      },
+      {
+        "project": "summary",
+        "fields": {
+          "url": "$asset.retrieved.final_url",
+          "status": "$asset.retrieved.status_code",
+          "body_digest": "$asset.retrieved.body_sha256"
+        },
+        "output": {
+          "url": "string",
+          "status": "int",
+          "body_digest": "string"
+        },
+        "contract": "security-http-evidence"
+      }
+    ],
+    "slots": {
+      "asset": "security.release-asset@1"
+    },
+    "budget": {
+      "wall_clock": "PT120S",
+      "provider_calls": 1,
+      "capture_bytes": 67108864
+    },
+    "caps": {
+      "wall_clock": "PT300S",
+      "provider_calls": 1,
+      "capture_bytes": 67108864,
+      "items": 1
+    },
+    "returns": "summary"
+  },
+  {
+    "procedure": "security.repo-acquire",
+    "description": "Read one GitHub repository at a ref for a declared scope and path; retain its files under security.fetched-v1, logical source github.repo.snapshot.",
+    "input": {
+      "forge_host": "string",
+      "full_name": "string",
+      "ref": "string",
+      "scope": "string",
+      "path": "string"
+    },
+    "output": {
+      "locator": "string",
+      "revision": "string"
+    },
+    "steps": [
+      {
+        "source": "snapshot",
+        "contract": "security.fetched-v1",
+        "interface": "security.repo-snapshot",
+        "provider": "snapshot",
+        "request": {
+          "forge_host": "$input.forge_host",
+          "full_name": "$input.full_name",
+          "ref": "$input.ref",
+          "scope": "$input.scope",
+          "path": "$input.path"
+        }
+      },
+      {
+        "project": "summary",
+        "fields": {
+          "locator": "$snapshot.locator",
+          "revision": "$snapshot.revision"
+        },
+        "output": {
+          "locator": "string",
+          "revision": "string"
+        }
+      }
+    ],
+    "slots": {
+      "snapshot": "security.repo-snapshot@1"
+    },
+    "budget": {
+      "wall_clock": "PT120S",
+      "provider_calls": 1,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300S",
+      "provider_calls": 1,
+      "capture_bytes": 16777216,
+      "items": 1
+    },
+    "returns": "summary"
+  },
+  {
+    "procedure": "security.registry-acquire",
+    "description": "Read the newest requested PyPI versions and their provenance; retain under security.fetched-v1, logical source pypi.release.",
+    "input": {
+      "project": "string",
+      "versions": "integer"
+    },
+    "output": {
+      "project": "string",
+      "versions": "json"
+    },
+    "steps": [
+      {
+        "source": "registry",
+        "contract": "security.fetched-v1",
+        "interface": "security.pypi-release",
+        "provider": "registry",
+        "request": {
+          "project": "$input.project",
+          "versions": "$input.versions"
+        }
+      },
+      {
+        "project": "summary",
+        "fields": {
+          "project": "$registry.project",
+          "versions": "$registry.versions"
+        },
+        "output": {
+          "project": "string",
+          "versions": "json"
+        }
+      }
+    ],
+    "slots": {
+      "registry": "security.pypi-release@1"
+    },
+    "budget": {
+      "wall_clock": "PT120S",
+      "provider_calls": 1,
+      "capture_bytes": 16777216
+    },
+    "caps": {
+      "wall_clock": "PT300S",
+      "provider_calls": 1,
+      "capture_bytes": 16777216,
+      "items": 1
+    },
+    "returns": "summary"
+  },
+  {
+    "procedure": "security.osv-applicability",
+    "description": "Read OSV's published ecosystem list and query indexed components and watched CVEs; retain both provider answers under security.fetched-v1, sources osv.dev.ecosystems and osv.dev.query. Propose changed coverage and applicability, recording unindexed types without asserting coverage. Runs as a Line; never settles.",
+    "input": {},
+    "output": {
+      "changed": "integer",
+      "affected": "integer",
+      "not_affected": "integer",
+      "inconclusive": "integer",
+      "unchanged": "integer",
+      "judged": "integer",
+      "coverage": "integer",
+      "packages": "integer",
+      "unkeyed": "json"
+    },
+    "steps": [
+      {
+        "tap": "releases",
+        "query": "security.release_inventory"
+      },
+      {
+        "tap": "watched",
+        "query": "security.watched_vulnerabilities"
+      },
+      {
+        "tap": "assessments",
+        "query": "security.assessment_index"
+      },
+      {
+        "source": "ecosystems",
+        "contract": "security.fetched-v1",
+        "interface": "security.osv-ecosystems",
+        "provider": "ecosystems",
+        "request": {}
+      },
+      {
+        "source": "osv",
+        "contract": "security.fetched-v1",
+        "interface": "security.osv-query",
+        "provider": "osv",
+        "request": {
+          "releases": "$releases.result.rows",
+          "watched": "$watched.result.rows",
+          "ecosystems": "$ecosystems",
+          "purl_types": {
+            "osv_ecosystems": {
+              "apk/alpine": "Alpine",
+              "apk/chainguard": "Chainguard",
+              "apk/wolfi": "Wolfi",
+              "bitnami": "Bitnami",
+              "cargo": "crates.io",
+              "composer": "Packagist",
+              "conan": "ConanCenter",
+              "cran": "CRAN",
+              "deb/debian": "Debian",
+              "deb/ubuntu": "Ubuntu",
+              "gem": "RubyGems",
+              "githubactions": "GitHub Actions",
+              "golang": "Go",
+              "hackage": "Hackage",
+              "hex": "Hex",
+              "maven": "Maven",
+              "npm": "npm",
+              "nuget": "NuGet",
+              "pub": "Pub",
+              "pypi": "PyPI",
+              "rpm/almalinux": "AlmaLinux",
+              "rpm/mageia": "Mageia",
+              "rpm/openeuler": "openEuler",
+              "rpm/opensuse": "openSUSE",
+              "rpm/redhat": "Red Hat",
+              "rpm/rocky-linux": "Rocky Linux",
+              "rpm/suse": "SUSE",
+              "swift": "SwiftURL"
+            },
+            "sources": [
+              "https://github.com/package-url/purl-spec/blob/main/PURL-TYPES.rst (purl types and their namespaces)",
+              "https://ossf.github.io/osv-schema/#defined-ecosystems (OSV ecosystem names and the purl type each uses)",
+              "https://osv-vulnerabilities.storage.googleapis.com/ecosystems.txt (what OSV indexes now: captured on every run)"
+            ]
+          }
+        }
+      },
+      {
+        "call": "decide",
+        "interface": "security.osv-applicability",
+        "provider": "decide",
+        "input": {
+          "osv": "$osv",
+          "releases": "$releases.result.rows",
+          "watched": "$watched.result.rows",
+          "assessments": "$assessments.result.rows"
+        }
+      },
+      {
+        "project": "summary",
+        "fields": {
+          "changed": "$decide.changed",
+          "affected": "$decide.affected",
+          "not_affected": "$decide.not_affected",
+          "inconclusive": "$decide.inconclusive",
+          "unchanged": "$decide.unchanged",
+          "judged": "$decide.judged",
+          "coverage": "$decide.coverage",
+          "packages": "$decide.packages",
+          "unkeyed": "$decide.unkeyed"
+        },
+        "output": {
+          "changed": "integer",
+          "affected": "integer",
+          "not_affected": "integer",
+          "inconclusive": "integer",
+          "unchanged": "integer",
+          "judged": "integer",
+          "coverage": "integer",
+          "packages": "integer",
+          "unkeyed": "json"
+        }
+      },
+      {
+        "id": "changed",
+        "guard": "decide.changed > 0",
+        "then": "propose",
+        "refusal_code": "no_change",
+        "message": "OSV changes no assessment.",
+        "else_id": "nochange",
+        "else": "halt(no_change)"
+      },
+      {
+        "id": "propose",
+        "propose": "$decide.items",
+        "result": "$summary"
+      }
+    ],
+    "slots": {
+      "ecosystems": "security.osv-ecosystems@1",
+      "osv": "security.osv-query@1",
+      "decide": "security.osv-applicability@1"
+    },
+    "budget": {
+      "wall_clock": "PT300S",
+      "provider_calls": 3,
+      "capture_bytes": 67108864
+    },
+    "caps": {
+      "wall_clock": "PT600S",
+      "provider_calls": 3,
+      "capture_bytes": 67108864,
+      "items": 5000
+    },
+    "returns": "summary",
+    "activation": "drain"
   }
 ]

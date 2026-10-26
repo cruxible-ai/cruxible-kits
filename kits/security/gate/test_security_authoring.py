@@ -38,7 +38,7 @@ module_spec = importlib.util.spec_from_file_location("security_definitions", MOD
 defs = importlib.util.module_from_spec(module_spec)
 module_spec.loader.exec_module(defs)
 ORACLE = json.loads(
-    (Path(__file__).parent / "data/light-artifacts/procedures.json").read_text()
+    (Path(__file__).parent / "data/version-history/procedures.json").read_text()
 )
 QUERY_ORACLE = json.loads(
     (Path(__file__).parent / "data/light-artifacts/query-trees.json").read_text()
@@ -62,7 +62,8 @@ def _operation(interface):
 
 
 @pytest.mark.parametrize("name", sorted(SPECS))
-def test_authored_procedure_lowers_to_stored_bytes(name):
+def test_authored_procedure_has_consistent_stored_bytes(name):
+    """Consistency only; the core-fixture semantic comparison below is independent."""
     path = f"procedures/{name}.json"
     wire = (KIT / "artifacts" / path).read_bytes()
     stored = parse_procedure(wire, path=path)
@@ -101,6 +102,11 @@ def _semantic(value):
     if isinstance(value, list):
         return [_semantic(item) for item in value]
     if isinstance(value, dict):
+        # Provider choices become slots. Verify their interfaces independently below;
+        # the core oracle remains the independent behavior/evidence/topology reference.
+        if "provider" in value and "interface" in value:
+            value = {**value, "provider": {"by_interface": value["interface"]}}
+        value = {k: ([] if k == "pin_slots" else v) for k, v in value.items()}
         # New provider builds and named interface versions are acceptance coordinates.
         if set(value) == {"kind", "name"} and value["kind"] in {
             "Provider",
@@ -118,7 +124,8 @@ def _semantic(value):
             if key != "definition_digest"
         }
     if isinstance(value, str):
-        for old, (new, _) in defs.CONTRACT_USES.items():
+        replacements = json.loads((Path(__file__).parent / "data/version-history/contract-replacements.json").read_text())
+        for old, (new, _) in replacements.items():
             value = value.replace(old, new)
     return value
 
@@ -200,7 +207,7 @@ def test_all_21_triggers_name_contracts_and_sources():
     assert all(
         "acquisition_policy_name" not in member and "acquisition_policy" not in member
         for member in members
-        if member["kind"] in {"line", "blueprint_instance"}
+        if member["kind"] == "line"
     )
     names = {contract.identity.name for contract in defs.capture_contracts()}
     for trigger in triggers:
@@ -249,6 +256,11 @@ def test_claim_type_defaults_preserve_all_137_structural_and_admission_decisions
             == oracle["evidence_hashes"][claim_type.predicate]
         ), claim_type.predicate
         data = {field: body.get(field) for field in oracle["fields"]}
+        repairs = json.loads((Path(__file__).parent / "data/version-history/description-repairs.json").read_text())
+        if claim_type.predicate in repairs:
+            repair = repairs[claim_type.predicate]
+            assert data["description"] == repair["after"]
+            data["description"] = repair["before"]
         # Nonliteral inputs omit canonical_form; None and [] both mean no transforms.
         if body["object_kind"] == "subject" and data["canonical_form"] is None:
             data["canonical_form"] = []
@@ -274,3 +286,29 @@ def test_shared_contracts_refuse_a_different_providers_source():
 def test_unannotated_inventory_context_is_not_invented_by_a_landing_line():
     assert "asset" not in SPECS["security.inventory-import"].input
     assert set(SPECS["security.inventory-acquire"].input) == {"relative_path"}
+
+
+def test_folded_inventory_and_slot_interfaces_are_explicit():
+    assert len(SPECS) == 28
+    assert not list((KIT / "artifacts/blueprints").rglob("*.json"))
+    assert set(SPECS) - {name.removesuffix(".json") for name in ORACLE} == {
+        "security.fetch", "security.fetch-observed", "security.epss-acquire",
+        "security.asset-fetch", "security.registry-acquire", "security.repo-acquire",
+        "security.osv-applicability",
+    }
+    assert SPECS["security.osv-applicability"].activation == "drain"
+    assert len(SPECS["security.osv-applicability"].slots) == 3
+    for spec in SPECS.values():
+        assert spec.source is None  # No source-compiled parent of a slotted child.
+        for step in spec.steps:
+            if hasattr(step, "provider"):
+                assert step.provider in spec.slots
+                interface = spec.slots[step.provider]
+                assert interface.partition("@")[0] == step.interface
+    members = json.loads((KIT / "examples/automation.json").read_text())["members"]
+    assert not [m for m in members if m["kind"] == "blueprint_instance"]
+    lines = [m for m in members if m["kind"] == "line"]
+    assert len(lines) == 19
+    assert all("bindings" not in line for line in lines)
+    assert sum(m["kind"] == "trigger" for m in members) == 21
+    assert sum(m["kind"] == "procedure_mandate" for m in members) == 11
