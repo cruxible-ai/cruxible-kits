@@ -1,8 +1,10 @@
 """Upgrade a retained, stopped K1a scratch world; never author new Blueprints on 36.
 
 The runner's sibling k1b/legacy-template is a copy of the accepted K1a gate world.
-SECURITY_KIT_LEGACY_WORLD can select another stopped pre-fold gate world. Nothing
-in that original world is written: each run copies it before starting a daemon.
+SECURITY_KIT_LEGACY_WORLD can select another stopped pre-fold gate world. Each run
+copies it before starting a daemon. The copied registry initially names the old
+scratch workspace; before public detach/attach finishes, startup floor delivery
+may advertise there. The copied ledger and projections remain isolated.
 No compiler selector, law, stored artifact, projection or ledger is patched.
 """
 

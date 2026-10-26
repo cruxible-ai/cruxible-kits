@@ -15,5 +15,6 @@ compares the old/new wheel's KEV source and verifies the new rationale on an
 accepted Claim after re-granting settlement. The release Provider source and
 1.3.0 wheel are unchanged.
 
-The variant also changes the KEV acquisition Blueprint budget, adds `kev_cwes`
-vocabulary, and changes the exposure query budget for the kept-local-edit check.
+The variant also changes the slotted `security.fetch-observed` budget from 60 to
+90 seconds and `security.kev-triage` from 120 to 150 seconds, adds `kev_cwes`
+vocabulary, and changes the exposure query limit for the kept-local-edit check.

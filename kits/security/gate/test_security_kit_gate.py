@@ -979,7 +979,7 @@ def test_13_accept_and_dedupe(gate: Gate) -> None:
     assert len(items) == 1 and items[0]["occurrences"] >= 2, items
     item = items[0]
     gate.out("inbox", "ack", gate.values["inbox_item"])
-    record("13", "accepted; kev_listed true/false cite the kev-http-v1 Capture; floor at head; "
+    record("13", "accepted; kev_listed true/false cite the fetched-v1/cisa.kev.catalog Capture; floor at head; "
            f"next tick: triage no_change; attention re-posted the same item "
            f"({item['occurrences']} sightings, 1 item); acknowledged")
 

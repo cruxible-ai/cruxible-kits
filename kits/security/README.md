@@ -1267,6 +1267,8 @@ Procedure revision carries its Mandates to propose-only; review and re-author th
 KEV/EPSS settle grants to restore settlement. Triggers retain their exact bytes.
 A Line or Trigger you edit still needs explicit enablement. A provider move that
 changes a Line's bindings is a Line revision and needs that enablement too.
+A release shipping a new provider build re-binds the affected Lines and disables
+them until they are explicitly re-enabled.
 
 Provider builds remain installed alongside older builds. A direct or invoked run
 requires one fitting build per slot; use `--bind slot=provider` for a direct run or
@@ -1667,7 +1669,8 @@ appears, change the list the same way (`retire` an old value, `add` a new one).
 
 ### Generic HTTP reads
 
-`security.fetch` takes `url`, `logical_source` and `max_bytes`. A CVE record uses
+`security.fetch` takes `url`, `logical_source` and `max_bytes`. Its direct-read
+contract allows exactly `cve.record`, `github.api` and `github.release`. A CVE record uses
 `cve.record` and 1,048,576 bytes; a GitHub release uses `github.release`, and API
 history uses `github.api`, both with 4,194,304 bytes. For example:
 

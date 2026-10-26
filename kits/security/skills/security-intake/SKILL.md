@@ -86,7 +86,7 @@ Gaps arrive as inbox items with a `pull` and an `input`; that pull with that inp
 | Gap | What it is asking for |
 |---|---|
 | `security.inventory-acquire` (`covering`, `looking_for`) | a current full scan of the scope that holds the host, looking for the named products; a new scope if none holds it |
-| `security.fetch` (`url`) | the CVE's record, read once with exactly that input |
+| `security.fetch` (`url`, `logical_source`, `max_bytes`) | the CVE's record, with source `cve.record` and the supplied byte limit |
 | `security.osv-applicability` | OSV's answer for this release's current components, or for a CVE it hasn't decided |
 | `statement`: `security.assessment.status` | a judgment, because no source can decide: OSV doesn't index these releases' components. A purl OSV indexes (a re-scan), a product alias the record names, or an analyst's judgment answers it |
 | `statement`: `security.release.unidentified_components` | two Claims disagree about the count; resolve it before a none rests on it |
