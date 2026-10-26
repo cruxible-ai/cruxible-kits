@@ -466,16 +466,29 @@ def _reads_landing(docs: KitDocs, node: SourceNode) -> bool:
 
 
 def _effects(docs: KitDocs, definition: DefinitionDoc) -> tuple[str, ...]:
-    """What a definition's run does: retain a Capture (a source node no example Line feeds
-    from its landing, or an emit node) and its terminals."""
+    """What a definition's run does: what it retains (a source node no Line feeds from its
+    landing, or an emit node) and its terminals."""
 
-    retains = any(
-        node.definition == definition.name and not _reads_landing(docs, node)
-        for node in docs.source_nodes
-    )
-    effects = ["retains a Capture"] if retains else []
+    retained = []
+    for node in docs.source_nodes:
+        if node.definition != definition.name or _reads_landing(docs, node):
+            continue
+        source = _node_source(node, None)
+        if node.emitted:
+            text = "its run's output"
+        elif source:
+            text = _a(_label(source))
+        else:
+            text = "a Capture under the logical source it is given"
+        if text not in retained:
+            retained.append(text)
+    effects = ["retains " + _and(retained)] if retained else []
     effects += [label for kind, label in _TERMINALS if kind in definition.node_kinds]
     return tuple(effects)
+
+
+def _and(items: list[str], word: str = "and") -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + f" {word} " + items[-1]
 
 
 def _producers(docs: KitDocs) -> dict[str, list[SourceNode]]:
@@ -747,7 +760,6 @@ def _glance(docs: KitDocs) -> list[str]:
 _EVIDENCE_GROUPS = {
     "http_response": "HTTP and file captures",
     "procedure_output": "Procedure outputs",
-    "coordinator_self_source": "Core self-source dependency",
     "sbom_document": "SBOM documents",
     "workspace_file": "Workspace files an analyst cites",
     "sarif_log": "Scan results (SARIF)",
@@ -763,21 +775,23 @@ def _evidence_diagram(docs: KitDocs) -> list[str]:
     out = [
         "### How evidence reaches each kind",
         "",
-        "Each box on the left is one source and the Capture contract it is retained under, "
-        "grouped by shape; ClaimType rules below name the permitted logical sources. An arrow points to a Subject kind whose "
+        "Each box on the left is one of the kit's Capture contracts, grouped by the shape of "
+        "what it holds, with its replay (`exact`, or `attested`); the logical sources under each "
+        "are in [Logical sources](#logical-sources). An arrow points to a Subject kind whose "
         "ClaimTypes may cite it. A thick arrow carries at least one ClaimType that requires a "
         "Capture (`captured`); a dotted arrow only ClaimTypes that may cite one. The number is "
         "how many of that kind's ClaimTypes the contract backs. Names drop the "
-        f"{_code(docs.owns)} prefix. Not drawn: the statements that may instead cite their "
-        "author's own word (Evidence `own word` below), and kinds that hold only statements "
-        "their author's origin supports.",
+        f"{_code(docs.owns)} prefix. Not drawn: core's self-source (a statement citing its "
+        "author's own word, Evidence `own word` below) and the kinds none of whose ClaimTypes "
+        "cite one of the kit's contracts.",
         "",
         "```mermaid",
         "flowchart LR",
     ]
     # Only the kit's own contracts: a statement citing its author's word (core's self-source)
     # is noted in the text, not drawn.
-    contracts = sorted(name for name in evidenced if name in docs.contracts)
+    owned = _owned_contracts(docs)
+    contracts = sorted(name for name in evidenced if name in owned)
     groups: dict[str, list[str]] = defaultdict(list)
     for contract in contracts:
         doc = docs.contracts[contract]
@@ -907,9 +921,15 @@ def _roles(claim_type: ClaimTypeDoc) -> str:
 
 
 def _evidence(claim_type: ClaimTypeDoc) -> str:
-    return ", ".join(
-        "own word" if name == SELF_SOURCE else (
-            f"`{name}`" + (f" from {', '.join(sources)}" if sources else ""))
+    """The Captures a Claim may cite, in words: what was read, then the contract it is kept
+    under (any source under a contract whose rule names none)."""
+
+    return "; ".join(
+        "own word"
+        if name == SELF_SOURCE
+        else (_and([_label(source) for source in sources], "or") + f" (`{name}`)")
+        if sources
+        else f"`{name}`"
         for name, sources in claim_type.source_uses
     )
 
@@ -955,9 +975,10 @@ def _models(docs: KitDocs) -> list[str]:
         "",
         "One section per Subject kind: what it is, how core names it (its key), and the "
         "ClaimTypes that can be stated about it. **Role**: an `observation` is a source's word, "
-        "a `normative` statement is someone's decision. **Evidence**: the Capture contracts a "
-        "Claim may cite (`own word`: its author's statement). **Captured required**: a Claim "
-        "must cite a retained Capture under one of them (`per rule`: the evidence rules "
+        "a `normative` statement is someone's decision. **Evidence**: the Captures a Claim may "
+        "cite: what was read, and the contract it is kept under (`own word`: its author's "
+        "statement; each logical source's id is in [Logical sources](#logical-sources)). "
+        "**Captured required**: a Claim must cite a retained Capture under one of them (`per rule`: the evidence rules "
         "decide). **Contention**: what the slot reads when two current, supported answers "
         "compete: `unresolved` (a one-valued slot then reads contested, with no value) or "
         "`all held` (a many-valued slot keeps every answer).",
@@ -1060,6 +1081,11 @@ def _contracts(docs: KitDocs) -> list[str]:
                 "; ".join(
                     _producer_text(docs, definition, nodes, by_definition)
                     for definition, nodes in _by_definition(producers.get(contract.name, []))
+                )
+                or (
+                    "core: the statement itself, which a Claim supplies as its own source"
+                    if contract.name == SELF_SOURCE
+                    else ""
                 ),
                 _code(started),
                 f"{len(backs)} ClaimTypes; {captured} {'requires' if captured == 1 else 'require'} a Capture"
@@ -1068,7 +1094,7 @@ def _contracts(docs: KitDocs) -> list[str]:
             )
         )
     out += _table(
-        ("Contract", "Captures", "Grade", "Produced by", "Landings start", "Supports"),
+        ("Contract", "Shape, replay", "Grade", "Produced by", "Landings start", "Supports"),
         rows,
     )
     return out + ["", *_logical_sources(docs)]
@@ -1143,27 +1169,61 @@ def _logical_sources(docs: KitDocs) -> list[str]:
     return out
 
 
-def _may_settle(docs: KitDocs, line: LineDoc) -> str:
+# How a kind reads in a sentence when its plural is not the name plus "s".
+_PLURALS = {"change": "changes (commits)", "coverage": "coverage records"}
+
+
+def _plural(docs: KitDocs, kind: str) -> str:
+    short = _short(docs, kind)
+    if short in _PLURALS:
+        return _PLURALS[short]
+    return short[:-1] + "ies" if short.endswith("y") else short + "s"
+
+
+def _run_does(docs: KitDocs, line: LineDoc) -> str:
+    """What one run of a Line does, in words: what it retains, proposes, settles or posts."""
+
     definition = docs.definitions.get(_definition_of(docs, line.procedure))
-    effects = _effects(docs, definition) if definition else ()
-    mandates = sorted(
-        (m for m in docs.mandates.values() if m.procedure == line.procedure),
-        key=lambda item: item.name,
-    )
-    scope = sorted({entry for m in mandates for entry in m.namespace})
-    if line.max_authority == "settle":
-        return f"settles within {_code(scope)}" if scope else "settles (needs a settle Mandate)"
-    if line.max_authority == "propose":
+    kinds = definition.node_kinds if definition else frozenset()
+    retained = []
+    for item in _retentions(docs):
+        if item.line != line.name:
+            continue
         text = (
-            f"nothing: proposes for review within {_code(scope)}"
-            if scope
-            else "nothing: proposes for review"
+            "its run's output"
+            if item.emitted
+            else _a(_label(item.source))
+            if item.source
+            else "a Capture"
         )
-        if "settles a ChangeSet" in effects:
-            text += "; its terminal settles once a settle Mandate and a `settle` cap graduate it"
-        return text
-    done = [effect for effect in effects if effect != "settles a ChangeSet"]
-    return "nothing: " + ", ".join(done) if done else "nothing"
+        if text not in retained:
+            retained.append(text)
+    parts = ["retains " + _and(retained)] if retained else []
+    if kinds & {"propose_change_set", "settle_change_set"}:
+        mandates = [m for m in docs.mandates.values() if m.procedure == line.procedure]
+        scope = sorted({entry for m in mandates for entry in m.namespace})
+        subjects = [entry.removeprefix("subjects/") for entry in scope if entry.startswith("subjects/")]
+        creates = f" and new {_and([_plural(docs, k) for k in subjects])}" if subjects else ""
+        if line.max_authority == "settle":
+            text = f"settles Claim changes{creates}" if mandates else "settles (needs a settle Mandate)"
+        elif line.max_authority == "propose":
+            text = f"proposes Claim changes{creates} for review"
+            if not mandates:
+                text += " (needs a propose Mandate)"
+            if "settle_change_set" in kinds:
+                text += (
+                    "; it can settle them itself once you grant it a settle Mandate and raise "
+                    "its max authority to `settle`"
+                )
+        else:
+            text = "proposes nothing at max authority `observe`"
+        parts.append(text)
+    if "post_inbox" in kinds:
+        parts.append("posts inbox items")
+    if line.max_authority == "observe":
+        parts.append("changes nothing the instance holds")
+    text = "; ".join(parts) or "nothing"
+    return text[:1].upper() + text[1:]
 
 
 def _started_by(docs: KitDocs, line: str) -> str:
@@ -1183,18 +1243,20 @@ def _runs(docs: KitDocs) -> list[str]:
         f"The example ChangeSet (`{EXAMPLE.as_posix()}`) authors these Lines disabled; you adapt, "
         "approve and enable them. **Started by**: each Trigger in words (a schedule, or which "
         "logical source landing and who retains it), its name and raw form after it. **Max "
-        "authority** caps what a run may do (`observe`, `propose`, `settle`).",
+        "authority** caps what a run may do (`observe`, `propose`, `settle`). **What a run "
+        "does**: what it retains, proposes (a ChangeSet that waits for review), settles or "
+        "posts to the inbox, and the Subjects it may create (its Mandates' scope).",
         "",
     ]
     out += _table(
-        ("Line", "Started by", "Procedure", "Max authority", "What it may settle"),
+        ("Line", "Started by", "Procedure", "Max authority", "What a run does"),
         (
             (
                 f"`{line.name}`",
                 _started_by(docs, line.name),
                 f"`{line.procedure}`",
                 line.max_authority,
-                _may_settle(docs, line),
+                _run_does(docs, line),
             )
             for line in sorted(docs.lines.values(), key=lambda item: item.name)
         ),
