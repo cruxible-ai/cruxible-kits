@@ -2152,7 +2152,14 @@
     "description": "Fetch one HTTP JSON response with the supplied URL, logical source and byte limit; retain it under security.fetched-v1. Direct runs bind the single fitting web.fetch build.",
     "input": {
       "url": "string",
-      "logical_source": "string",
+      "logical_source": {
+        "type": "string",
+        "enum": [
+          "cve.record",
+          "github.api",
+          "github.release"
+        ]
+      },
       "max_bytes": "integer"
     },
     "output": {

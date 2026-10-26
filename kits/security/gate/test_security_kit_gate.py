@@ -553,6 +553,16 @@ def test_04_slots(gate: Gate) -> None:
                          "--bind", "unknown=security-gate-sources", check=False,
                          bind_sources=False)
     assert "slot_undeclared" in undeclared.stdout + undeclared.stderr
+    catalog = gate.payload("forbidden-direct-catalog", {
+        "url": "https://cveawg.mitre.org/api/cve/" + LOG4SHELL,
+        "logical_source": "cisa.kev.catalog", "max_bytes": 1048576})
+    refused = gate.cx("procedure", "run", "security.fetch", catalog,
+                      "--bind", "fetch=security-gate-sources", check=False,
+                      bind_sources=False)
+    assert refused.returncode != 0, refused.stdout
+    diagnostic = refused.stdout + refused.stderr
+    assert "logical_source" in diagnostic and "outside the declared enum" in diagnostic, diagnostic
+    assert "slot_binding_ambiguous" not in diagnostic
     runnable = {name: gate.card(f"Procedure:{name}")["runnable"] for name in (
         "security.fetch-observed", "security.fetch", "security.epss-acquire",
         "security.osv-applicability", "security.sbom-acquire")}

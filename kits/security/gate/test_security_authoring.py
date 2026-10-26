@@ -303,6 +303,55 @@ def test_unannotated_inventory_context_is_not_invented_by_a_landing_line():
     assert set(SPECS["security.inventory-acquire"].input) == {"relative_path"}
 
 
+def test_direct_fetch_contract_limits_sources_without_restricting_governed_lines():
+    from cruxible_client.contracts.procedures.contracts import (
+        ProcedureContractValidationError,
+        validate_contract_schema,
+    )
+
+    spec = SPECS["security.fetch"]
+    assert spec.input["logical_source"].enum == [
+        "cve.record",
+        "github.api",
+        "github.release",
+    ]
+    for release in (KIT, KIT / "source/variants/1.3.1-gate"):
+        path = "procedures/security.fetch.json"
+        stored = parse_procedure((release / "artifacts" / path).read_bytes(), path=path)
+        contract = next(
+            c.contract_schema
+            for c in stored.owned_contracts
+            if c.identity == stored.definition.contract_in.target
+        )
+        for source in ("cve.record", "github.api", "github.release"):
+            validate_contract_schema(
+                contract,
+                {
+                    "url": "https://example.invalid/response.json",
+                    "logical_source": source,
+                    "max_bytes": 1048576,
+                },
+            )
+        for source in (
+            "cisa.kev.catalog",
+            "first.epss.daily",
+            "github.repo.snapshot",
+            "pypi.release",
+        ):
+            with pytest.raises(
+                ProcedureContractValidationError, match="outside the declared enum"
+            ):
+                validate_contract_schema(
+                    contract,
+                    {
+                        "url": "https://example.invalid/response.json",
+                        "logical_source": source,
+                        "max_bytes": 1048576,
+                    },
+                )
+    assert SPECS["security.fetch-observed"].input["logical_source"] == "string"
+
+
 def test_folded_inventory_and_slot_interfaces_are_explicit():
     assert len(SPECS) == 28
     assert not list((KIT / "artifacts/blueprints").rglob("*.json"))
