@@ -9,7 +9,7 @@ wrote (one per product release). The loop, every step timed:
 
 1. ``init``; ``kit add`` the kit directory; bind Procedure slots by fit on the
    real providers (``cruxible-provider-web``, ``security-sources-provider``);
-   the README's automation change set; enable every Line.
+   the kit's example automation change set; enable every Line.
 2. SBOM import: ``procedure run security.sbom-acquire`` per SBOM; each landing
    runs ``security.sbom-import``; accept each proposal.
 3. OSV applicability (live api.osv.dev): ``line run``; accept the proposal.

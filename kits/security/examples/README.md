@@ -41,7 +41,7 @@ with its `security.file-erasable-v1` landing Trigger, and the propose Mandates o
 the inventory, log and credential imports. Let the principal that acquires your scans
 and state reads (not the one who patches or rotates) arm the import Lines. Each
 incident's respond Line and log import Line are declared with the incident itself
-(the main README's **Declare the incident**); `incident-status.md` is an example
+([Declare the incident](../walkthroughs.md#declare-the-incident) in the kit's walkthroughs); `incident-status.md` is an example
 status page with a projection block the incident's status query renders. No Mandate
 covers an audit result, a verification, a remediation, a credential fact or an
 incident field.
@@ -53,7 +53,7 @@ NAME`. Start with these propose grants; review the resulting SBOM, KEV, EPSS and
 applicability proposals.
 
 For KEV/EPSS graduation, review the field scopes and keyed-vulnerability
-condition in the main README's **Measure and graduate** section and
+condition in the main README's [Measure and graduate](../README.md#measure-and-graduate) and
 `gate/recipe.py`'s `graduate()`. Submit that separate ChangeSet through the same
 approval flow and re-enable the two changed Lines. Applicability stays propose-only.
 Compatible named Procedure revisions retain Line bytes and enablements. Exact

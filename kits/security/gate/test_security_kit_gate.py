@@ -2768,7 +2768,7 @@ def test_36_applicability_and_declaration(gate: Gate) -> None:
     deb_rows = [r for r in urgent if _field(r, "release") == debian]
     assert {(_field(r, "asset"), _field(r, "observed")) for r in deb_rows} == {
         (None, ids["app-1"])}, deb_rows
-    # Declare the incident: its Claims, its respond and log-import Lines (README template).
+    # Declare the incident: its Claims, its respond and log-import Lines (walkthroughs.md template).
     incident = _write_created(gate, RESPONDER, "incident", {
         "because": "One response to PHP2Shell (CVE-2026-109618, CVE-2026-109619): "
                    "unauthenticated RCE in PHP, exploited in the wild.",

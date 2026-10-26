@@ -1,7 +1,8 @@
-"""The README consumer recipe as payloads, for the release gate and the self-dogfood run.
+"""The kit docs' consumer recipe as payloads, for the release gate and the self-dogfood run.
 
-Every function returns the exact authoring JSON the README shows; nothing here
-talks to a daemon. Capture-landing Triggers resolve CaptureContracts by name at prepare time.
+Every function returns the exact authoring JSON the kit's pages show (README.md,
+in-depth.md); nothing here talks to a daemon. Capture-landing Triggers resolve
+CaptureContracts by name at prepare time.
 """
 
 from __future__ import annotations

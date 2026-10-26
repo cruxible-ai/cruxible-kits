@@ -8,9 +8,9 @@ description: Bring an organization's state into the Cruxible security kit - what
 Use this skill when the security kit is installed but the instance doesn't yet hold what the user ships and
 runs, and whenever an answer comes back **unknown**. The state says what to do next: `cruxible next`, the
 inbox and each Line's runs name what is waiting, failing or missing, with the fetch or repair for each. This
-skill says what those things mean and what only the user can tell you. The kit's README is the source for
-every name, body format and recipe (*Intake recipes*, *The evidence each action lands*); the [security
-analyst skill](../security-analyst/SKILL.md) works the answers.
+skill says what those things mean and what only the user can tell you. The kit's `intake.md` is the source
+for every name, body format and recipe, `walkthroughs.md` (*The evidence each action lands*) for the incident
+bodies; the [security analyst skill](../security-analyst/SKILL.md) works the answers.
 
 ## What only the user can tell you
 
@@ -64,7 +64,7 @@ Ask; never infer these from what you happen to find:
 
 ## Conventions the kit can't check
 
-- **Name software the way OSV knows it.** OSV answers only for the purl types it indexes (the README lists
+- **Name software the way OSV knows it.** OSV answers only for the purl types it indexes (`intake.md` lists
   the kit's map). A `pkg:brew`, `pkg:generic` or `pkg:docker` release stays partial and its incident pairs
   unknown, so name a binary by what it is: a Go binary by its module, a Python or Node tool by its PyPI or
   npm package, each at the version installed on that host, never the newest one a package manager offers.
@@ -73,7 +73,7 @@ Ask; never infer these from what you happen to find:
   `metadata.component`, so the host joins that release.
 - **An SBOM lists what ships.** A component without a purl (a workspace member, an unnamed OS component)
   leaves the release partial; a dependency the generator dropped (a git dependency) is simply absent. Add it
-  by the purl OSV knows it by, or leave the release honestly partial. The README has generator routes and
+  by the purl OSV knows it by, or leave the release honestly partial. `intake.md` has generator routes and
   their known gaps.
 - **Look for what an incident needs.** A host's none for a product exists only if its scan looked for that
   product: name the products whose absence matters beside `"*"`.
@@ -92,7 +92,7 @@ Gaps arrive as inbox items with a `pull` and an `input`; that pull with that inp
 | `statement`: `security.release.unidentified_components` | two Claims disagree about the count; resolve it before a none rests on it |
 | `statement`: `security.audit.log_source` | the audit's log sources: every source the service lists, or the answer stays unknown |
 | `statement` with `input.missing` | each missing piece: a value to state, or a span of a source to read |
-| any other pull | the body that Procedure reads (README) |
+| any other pull | the body that Procedure reads (`intake.md`; an incident's in `walkthroughs.md`) |
 
 A source that no longer exists (logs past retention, HTTP 410) can't be fetched: it is residue to report,
 not a gap to close. Report each answer as found, none or unknown; for each unknown, the fetch that answers
