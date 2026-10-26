@@ -1,6 +1,6 @@
 # Security kit walkthroughs
 
-Three areas of the kit worked end to end with the release gate's names: the
+Three areas of the kit worked end to end as the release gate runs them: the
 hardening questions about your CI and registries, the weaknesses found in your
 own code, and responding to an incident. The [README](README.md) explains how
 the kit models your world and runs on its own; start there.
@@ -47,7 +47,7 @@ queries traverse.
    cx = Cruxible.connect()
    draft = cx.changes(rationale="Ask about our release targets.")
    target = draft.subject(cx.new_subject(
-       "security.target", key={"registry": "pypi", "name": "cruxible"},
+       "security.target", key={"registry": "pypi", "name": "example-app"},
        rationale="We publish it."))
    draft.claim(subject=target, predicate="security.target.publish_gate", value="push:tags:v*",
                role="normative", rationale="Only a v* tag push may publish.",
@@ -56,22 +56,24 @@ queries traverse.
    intent.outcome.status   # 'landed'
    ```
 
-2. **Harden**: enable the system model's Lines (in the example
-   `security.repo-pull.cruxible-ci`, `security.repo-parse.cruxible-ci`, the two
-   `security.registry-pull.*` and `security.registry-parse.*` Lines, and
-   `security.harden`) and run `cruxible line run security.harden`. Every answer
+2. **Harden**: author your repositories' and PyPI projects' pull and parse Lines
+   ([Add a repository](intake.md#add-a-repository), [Add a PyPI
+   project](intake.md#add-a-pypi-project): `security.repo-pull.example-app`,
+   `security.repo-parse.example-app`, `security.registry-pull.example-app`,
+   `security.registry-parse.example-app`), enable them and the example's
+   `security.harden`, and run `cruxible line run security.harden`. Every answer
    starts unknown; `cruxible inbox list --line
    security.harden` holds one gap item per source, `{source, pull, input}`, however
    many questions wait on it. Answer one by running its pull with its input:
    `cruxible procedure run security.registry-acquire input.json`.
 
 3. **Parse.** A parse Line reads one source's pulls (its taps are keyed by its
-   parameters, never by the landed Capture): the example has
-   `security.repo-parse.cruxible-ci` (`main`'s workflows) and
-   `security.registry-parse.cruxible`/`-client`, each with its landing Trigger;
-   every other landing halts `other_source`. For another source, copy a parse Line
-   member with its parameters (`source`, `repo_source`, `forge_host`, `full_name`,
-   `ref`, `scope`, `path`) and its landing Trigger, and enable it. Review and
+   parameters, never by the landed Capture): intake's recipe authors
+   `security.repo-parse.example-app` (`main`'s workflows) and
+   `security.registry-parse.example-app`, each with its landing Trigger;
+   every other landing halts `other_source`. For another source, author a parse
+   Line with its parameters (`source`, `repo_source`, `forge_host`, `full_name`,
+   `ref`, `scope`, `path`) and its landing Trigger as the recipe does, and enable it. Review and
    activate the parse proposals, then run `security.harden` again (its landing
    Triggers fire before you accept, so under propose re-run it after accepting).
 
@@ -168,12 +170,14 @@ shows who wrote a verdict. No Mandate ever covers `verdict`, `justification`,
 
 ### A code finding, end to end
 
-The gate's names, for `github.com/cruxible-ai/gate-app` (principals `scanner`,
-`triage`, `reviewer`, `maintainer`):
+For the repository `github.com/example-org/example-app`, its findings Lines
+authored by intake's recipe ([Its scans](intake.md#its-scans)); the gate runs the
+same steps on its fixture repository (principals `scanner`, `triage`, `reviewer`,
+`maintainer`):
 
 1. **Scan and annotate.** `semgrep scan --sarif --output scans/semgrep.sarif`, then
    add to each run what the scanner knows and SARIF tools do not all write:
-   `versionControlProvenance: [{"repositoryUri": "https://github.com/cruxible-ai/gate-app",
+   `versionControlProvenance: [{"repositoryUri": "https://github.com/example-org/example-app",
    "revisionId": "<commit>"}]` and `properties: {"cruxible.coverage": "full"}` (every rule
    of the configuration over the whole repository; `partial` otherwise, which never
    verifies a fix). SARIF carries code snippets, and `security.file-v1` keeps its
@@ -181,12 +185,12 @@ The gate's names, for `github.com/cruxible-ai/gate-app` (principals `scanner`,
    the secrets), and check a scan of code that embeds credentials before you do.
 2. **Report (a proposal).** `cruxible procedure run security.sarif-acquire` with
    `{"relative_path": "scans/semgrep.sarif"}` retains it under `security.file-v1`; the
-   landing runs `security.sarif-import.gate-app` (parameter `repo_ref`), which proposes
+   landing runs `security.sarif-import.example-app` (parameter `repo_ref`), which proposes
    `security.finding` `CWE-89` at `app/db.py#snippet:...` with `rule`
    `semgrep:sqli-fstring-execute`, `reported_by` `semgrep` and `severity` `high`. Another
    repository's Line halts `wrong_repo`; an unchanged scan halts `no_change`. The
    reviewer approves (`cruxible proposal approve ID`).
-3. **Locate.** Catalogue the file (`cruxible files add gate-app-db app/db.py`), then
+3. **Locate.** Catalogue the file (`cruxible files add example-app-db app/db.py`), then
    `write` `{"op": "add", "field": "security.finding.location", "value": "app/db.py:12-12",
    "evidence": {"kind": "file", "file": "app/db.py#<the sink line>"}}`.
 4. **Triage.** A false positive cites the code read: run `security.evidence-acquire` on
@@ -197,7 +201,7 @@ The gate's names, for `github.com/cruxible-ai/gate-app` (principals `scanner`,
    environment dumps from it first), and in one write appends `findings/<id>.md#Reproduction`,
    sets `reproduction` (that section, own words), `verdict` `confirmed` citing the PoC
    Capture (`contend: true` when a contrary verdict stands), and `affects`
-   `security.release/gate-app--1.0.0`. While both contend, the verdict reads `conflict`
+   `security.release/example-app--1.0.0`. While both contend, the verdict reads `conflict`
    and `next` shows `claim_conflicted`; retiring the wrong call (`was-wrong`) resolves it.
 6. **Remediate.** A `security.remediation` with `work.finding` and `progress`
    `in_progress`. While release 1.0.0 is served, HQ6 posts the finding.

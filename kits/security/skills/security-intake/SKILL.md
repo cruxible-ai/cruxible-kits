@@ -1,6 +1,6 @@
 ---
 name: security-intake
-description: Bring an organization's state into the Cruxible security kit - what it ships (an SBOM per product), what runs where (a scan per inventory scope), its services, credentials and log sources - and read what each kind of unknown is asking for.
+description: Bring an organization's state into the Cruxible security kit - what it ships (an SBOM per product), what runs where (a scan per inventory scope), its services, credentials and log sources, its repositories and PyPI projects - and read what each kind of unknown is asking for.
 ---
 
 # Security intake
@@ -23,6 +23,8 @@ Ask; never infer these from what you happen to find:
 - the services, how critical each is, which hosts serve them and which face the internet;
 - each credential: its issuer and name, where it is used, what it reaches;
 - where each service's logs live, how long they are kept, and who can read them;
+- which repositories (and the branch to read) and PyPI projects to model, and which repositories' scans to
+  import: `intake.md` authors their Lines for that list, and the kit names none of them;
 - which Lines run. Enabling a Line is the user's consent to its definition and Triggers: name the ones that
   are off and ask.
 

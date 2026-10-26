@@ -1065,12 +1065,12 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:d46340bba797e45d674fe9e33261155d2829140db0f3f85619990dc4f1baf785"
+      "sha256": "sha256:beefe4b44daa6724dfc2bdb47893545bd9c304dbfdf91af221a047539fec412b"
     },
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:ac475d28325be7029a4882ae598ab550b529e0770469304d60a0ae49ee3a3d96"
+      "sha256": "sha256:e573b69a8afc6c200e0e9fb6672c6032856f6564caf087b63c052359e6d41c05"
     },
     {
       "path": "examples/automation.json",
@@ -1105,12 +1105,12 @@
     {
       "path": "skills/security-intake/SKILL.md",
       "role": "skill",
-      "sha256": "sha256:65cd5f6232ffd311cf04d11877ee103ffd3dbe272c82027571b07925364115d0"
+      "sha256": "sha256:7cfe7365ff4c0cb10daa76b4fcd3d9684b2713f1944b11b49169e790d34e6307"
     },
     {
       "path": "walkthroughs.md",
       "role": "reference",
-      "sha256": "sha256:f459451f66a02d7c4a3140903775bfefd3c066b5a0234684a786bd0cb2e8dfa8"
+      "sha256": "sha256:7c34ba5769b92c3eb0943c20f9c1dcf14d8cbab3c253626f3d30a8efba0f8520"
     }
   ],
   "kit_id": "security",
