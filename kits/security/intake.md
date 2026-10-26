@@ -65,16 +65,42 @@ cruxible line run security.epss-daily
 ## Services
 
 A value never creates the Subject it names, so state the services before
-anything points at them:
+anything points at them. The examples on this page use the Python SDK
+(`cruxible-client`, which `cruxible` installs), connected once:
 
-~~~yaml
-because: Service map from the platform runbook, 2026-10-22.
-changes:
-  - {op: set, subject: security.service/storefront, field: criticality, value: critical}
-  - {op: set, subject: security.service/payments, field: criticality, value: critical}
+~~~python
+from cruxible_client import Cruxible
+
+cx = Cruxible.connect()
+services = cx.changes(because="Service map from the platform runbook, 2026-10-22.")
+for service in ("storefront", "payments"):
+    services.set(f"security.service/{service}", "criticality", "critical")
+outcome = services.write()
+outcome.status   # 'accepted'
 ~~~
 
-`cruxible write intake/services.yaml`.
+For an MCP-only client the same write is `cruxible_write` with these arguments
+(on the CLI, `cruxible write FILE` takes them as a JSON or YAML file):
+
+~~~json
+{
+  "because": "Service map from the platform runbook, 2026-10-22.",
+  "changes": [
+    {
+      "op": "set",
+      "subject": "security.service/storefront",
+      "field": "criticality",
+      "value": "critical"
+    },
+    {
+      "op": "set",
+      "subject": "security.service/payments",
+      "field": "criticality",
+      "value": "critical"
+    }
+  ]
+}
+~~~
 
 ## Credentials
 
@@ -84,9 +110,20 @@ the first 16 hex of the secret's sha256, computed where the secret already
 lives.
 
 ~~~json
-{"issuer": "stripe", "name": "storefront-live", "read": "state_read", "complete": true,
- "keys": [{"key_id": "fp:3f9a1c0d22b84e6a", "state": "active",
-           "created_at": "2026-03-02T10:00:00Z", "created_by": "ops"}]}
+{
+  "issuer": "stripe",
+  "name": "storefront-live",
+  "read": "state_read",
+  "complete": true,
+  "keys": [
+    {
+      "key_id": "fp:3f9a1c0d22b84e6a",
+      "state": "active",
+      "created_at": "2026-03-02T10:00:00Z",
+      "created_by": "ops"
+    }
+  ]
+}
 ~~~
 
 `complete: true` says the listing holds every key the issuer has for the
@@ -105,37 +142,46 @@ body is echoed); the bytes are kept, so erase the Capture. The import
 creates the credential (`security.credential/stripe--storefront-live`).
 Approve it, then state where it's used and what it reaches:
 
-~~~yaml
-because: Where the Stripe live key is used, from the payments runbook.
-changes:
-  - {op: add, subject: security.credential/stripe--storefront-live, field: used_by, value: security.service/storefront}
-  - {op: add, subject: security.credential/stripe--storefront-live, field: reaches, value: security.service/payments}
+~~~python
+key = cx.changes(because="Where the Stripe live key is used, from the payments runbook.",
+                 subject="security.credential/stripe--storefront-live")
+key.add("used_by", "security.service/storefront")
+key.add("reaches", "security.service/payments")
+outcome = key.write()
 ~~~
 
 ## A runtime inventory per scope
 
 A scope is the set of hosts one scan reads in full. Each scope needs its own
 import Line; the example automation has `security.inventory-import.prod`. For
-another scope, submit this pair (`cruxible authoring submit
-intake/scope-staging.json`) and ask the user to enable the Line:
+another scope, submit this pair and ask the user to enable the Line:
 
-~~~json
-{"kind": "change_set", "rationale": "Inventory scope staging.", "members": [
-  {"kind": "line", "name": "security.inventory-import.staging", "procedure_name": "security.inventory-import",
-   "max_authority": "propose",
-   "trigger_input": "inventory", "parameters": {"scope": "staging"}},
-  {"kind": "trigger", "name": "security.inventory-landed.staging", "line_name": "security.inventory-import.staging",
-   "schedule": {"kind": "capture_landing", "capture_contract": "security.file-erasable-v1", "logical_sources": ["security.inventory"]}}
-]}
+~~~python
+from cruxible_client.contracts.authoring.models import CaptureLandingByNameSchedule
+
+scope = cx.changes(rationale="Inventory scope staging.")
+scope.line(name="security.inventory-import.staging", procedure="security.inventory-import",
+           max_authority="propose", trigger_input="inventory", parameters={"scope": "staging"})
+scope.trigger(name="security.inventory-landed.staging", line="security.inventory-import.staging",
+              schedule=CaptureLandingByNameSchedule(capture_contract="security.file-erasable-v1",
+                                                    logical_sources=("security.inventory",)))
+intent = scope.submit()
+intent.outcome.status   # 'landed'
 ~~~
 
 Write each scope's scan in the kit's format, from whatever its scanner
 outputs:
 
 ~~~json
-{"scope": "prod", "looked_for": ["*"], "coverage": "full",
- "assets": [{"hostname": "app-1.example.com", "runs": ["pkg:generic/myapp@1.0.0"]},
-            {"hostname": "app-2.example.com", "runs": ["pkg:generic/myapp@1.0.0"]}]}
+{
+  "scope": "prod",
+  "looked_for": ["*"],
+  "coverage": "full",
+  "assets": [
+    {"hostname": "app-1.example.com", "runs": ["pkg:generic/myapp@1.0.0"]},
+    {"hostname": "app-2.example.com", "runs": ["pkg:generic/myapp@1.0.0"]}
+  ]
+}
 ~~~
 
 - **`runs`** holds package URLs. Name your own software
@@ -201,13 +247,14 @@ approved, and OSV answers only the releases and CVEs it held when it ran; until 
 runs again those pairs stay unknown (`osv_line`). Then state what you know about each host, from deploy config or
 the user:
 
-~~~yaml
-because: Host roles from deploy/prod.yaml, 2026-10-22.
-changes:
-  - {op: add, subject: security.asset/app-1.example.com, field: installs, value: security.release/myapp--1.0.0}
-  - {op: add, subject: security.asset/app-1.example.com, field: serves, value: security.service/storefront}
-  - {op: set, subject: security.asset/app-1.example.com, field: internet_exposed, value: true}
-  - {op: set, subject: security.asset/app-1.example.com, field: environment, value: production}
+~~~python
+host = cx.changes(because="Host roles from deploy/prod.yaml, 2026-10-22.",
+                  subject="security.asset/app-1.example.com")
+host.add("installs", "security.release/myapp--1.0.0")
+host.add("serves", "security.service/storefront")
+host.set("internet_exposed", True)
+host.set("environment", "production")
+outcome = host.write()
 ~~~
 
 `installs` is what a host is meant to run, beside what scans see it run.
@@ -225,27 +272,24 @@ State where each service's logs live, so an incident's audit starts from the
 list instead of a hunt. The value is a pointer only, a short identifier such
 as `caddy:app-1:/var/log/caddy/access.log` or `storefront/nginx-access`.
 Retention, the tool and query that read it, and who owns it go in a section of
-`security/log-sources.md` that the Claim cites:
+`security/log-sources.md` that the Claim cites, written in the same change set:
 
-~~~yaml
-because: Where storefront's logs live, from the platform runbook, 2026-10-22.
-changes:
-  - {op: add, subject: security.service/storefront, field: log_source, value: storefront/nginx-access,
-     evidence: {kind: section, file: security/log-sources.md, section: [storefront], own_words: true}}
-  - {op: add, subject: security.service/storefront, field: log_source, value: storefront/php-fpm,
-     evidence: {kind: section, file: security/log-sources.md, section: [storefront], own_words: true}}
-docs:
-  - op: append
-    file: security/log-sources.md
-    text: |
-      # storefront
-
-      storefront/nginx-access: Loki, `{app="storefront", log="access"}`, 30-day retention, platform team.
-      storefront/php-fpm: Loki, `{app="storefront", log="php-fpm"}`, 30-day retention, platform team.
+~~~python
+logs = cx.changes(because="Where storefront's logs live, from the platform runbook, 2026-10-22.",
+                  subject="security.service/storefront")
+logs.append_section("security/log-sources.md", id="storefront", text=(
+    "# storefront\n\n"
+    'storefront/nginx-access: Loki, `{app="storefront", log="access"}`, 30-day retention, '
+    "platform team.\n"
+    'storefront/php-fpm: Loki, `{app="storefront", log="php-fpm"}`, 30-day retention, '
+    "platform team.\n"))
+for source in ("storefront/nginx-access", "storefront/php-fpm"):
+    logs.add("log_source", source, supported_by=logs.section("storefront"))
+outcome = logs.write()
 ~~~
 
-`cruxible write intake/log-sources.yaml`. When a source moves or a new one
-appears, change the list the same way (`retire` an old value, `add` a new one).
+When a source moves or a new one appears, change the list the same way
+(`retire` an old value, `add` a new one).
 
 ## Generic HTTP reads
 
@@ -254,10 +298,13 @@ contract allows exactly `cve.record`, `github.api` and `github.release`. A CVE r
 `cve.record` and 1,048,576 bytes; a GitHub release uses `github.release`, and API
 history uses `github.api`, both with 4,194,304 bytes. For example:
 
-```json
-{"url": "https://cveawg.mitre.org/api/cve/CVE-2021-44228",
- "logical_source": "cve.record", "max_bytes": 1048576}
-```
+~~~json
+{
+  "url": "https://cveawg.mitre.org/api/cve/CVE-2021-44228",
+  "logical_source": "cve.record",
+  "max_bytes": 1048576
+}
+~~~
 
 Save it as `intake/cve.json` and run
 `cruxible procedure run security.fetch intake/cve.json`. The KEV daily Line uses
