@@ -1,6 +1,6 @@
 {
   "interface_id": "security.epss-daily",
-  "version": 1,
+  "version": 2,
   "effect_class": "external_read",
   "contracts": {
     "input": {
@@ -28,5 +28,8 @@
   },
   "refusals": [
     "provider_declined"
+  ],
+  "produces": [
+    "first.epss.daily"
   ]
 }

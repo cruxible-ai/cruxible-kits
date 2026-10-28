@@ -8,7 +8,7 @@
 # definitions. Release gates bind a fixture implementation instead.
 [project]
 name = "security-sources-provider"
-version = "1.2.0"
+version = "1.2.1"
 description = "Security kit provider: OSV.dev (queries and ecosystem list), FIRST EPSS, GitHub and PyPI acquisition Sources."
 requires-python = ">=3.11"
 license = "Apache-2.0"
