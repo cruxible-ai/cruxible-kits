@@ -44,7 +44,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.pypi-release/v1"
+            "name": "security.pypi-release/v2"
           }
         },
         "kind": "source",
@@ -171,7 +171,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.pypi-release/v1"
+            "name": "security.pypi-release/v2"
           }
         },
         "slot_name": "registry"
@@ -180,7 +180,7 @@
     "returns": "summary",
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:bb6c2d98611503206f35910b653627e5424dcd9f315658808d37b7068f529882",
+  "definition_digest": "sha256:7676ce98f743e614e0b98f597853c4bd8aedba50379fc4b114a95559c3ffb78d",
   "identity": {
     "kind": "Procedure",
     "name": "security.registry-parse"

@@ -2,7 +2,7 @@
   "artifact_format": "cruxible-provider-interface-v4",
   "identity": {
     "kind": "ProviderInterface",
-    "name": "security.release-asset/v1"
+    "name": "security.epss-daily/v2"
   },
   "interface": {
     "contracts": {
@@ -10,6 +10,8 @@
         "allow_extra": false,
         "fields": {
           "url": {
+            "default": "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz",
+            "optional": true,
             "type": "string"
           }
         }
@@ -28,11 +30,14 @@
       "output": "playbill-provider-result-to-external-capture-v1"
     },
     "effect_class": "external_read",
-    "interface_id": "security.release-asset",
+    "interface_id": "security.epss-daily",
+    "produces": [
+      "first.epss.daily"
+    ],
     "refusals": [
       "provider_declined"
     ],
-    "version": 1
+    "version": 2
   },
   "lifecycle": {
     "predecessor_digest": null,

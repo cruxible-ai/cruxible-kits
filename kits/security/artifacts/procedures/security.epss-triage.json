@@ -44,7 +44,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-daily/v1"
+            "name": "security.epss-daily/v2"
           }
         },
         "kind": "source",
@@ -134,7 +134,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-daily/v1"
+            "name": "security.epss-daily/v2"
           }
         },
         "slot_name": "epss"
@@ -152,7 +152,7 @@
     "returns": "summary",
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:f76de64a94e928cda18ffa72352d3d13175a21c851060f8df65cbc5eed6da078",
+  "definition_digest": "sha256:d105ad7bc7ea80199cedf4a1d2a017e7e3ca450e1e80cf5b27d010c67b855c03",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"

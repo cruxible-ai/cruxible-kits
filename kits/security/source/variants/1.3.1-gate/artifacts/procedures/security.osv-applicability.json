@@ -74,7 +74,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.osv-ecosystems/v1"
+            "name": "security.osv-ecosystems/v2"
           }
         },
         "kind": "source",
@@ -94,7 +94,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.osv-query/v1"
+            "name": "security.osv-query/v2"
           }
         },
         "kind": "source",
@@ -230,7 +230,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.osv-ecosystems/v1"
+            "name": "security.osv-ecosystems/v2"
           }
         },
         "slot_name": "ecosystems"
@@ -239,7 +239,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.osv-query/v1"
+            "name": "security.osv-query/v2"
           }
         },
         "slot_name": "osv"
@@ -248,7 +248,7 @@
     "returns": "summary",
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:0d4506af9136044d2b92ea5b4abc13251cb208ab983860b7d99c9f194b21ade8",
+  "definition_digest": "sha256:7018e93688727cb3d0b86e22e8fc9578a3f540825194a4dde7eaef1f4cfed4f1",
   "identity": {
     "kind": "Procedure",
     "name": "security.osv-applicability"

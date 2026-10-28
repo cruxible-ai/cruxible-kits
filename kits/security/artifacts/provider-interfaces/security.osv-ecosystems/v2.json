@@ -2,7 +2,7 @@
   "artifact_format": "cruxible-provider-interface-v4",
   "identity": {
     "kind": "ProviderInterface",
-    "name": "security.osv-ecosystems/v1"
+    "name": "security.osv-ecosystems/v2"
   },
   "interface": {
     "contracts": {
@@ -31,10 +31,13 @@
     },
     "effect_class": "external_read",
     "interface_id": "security.osv-ecosystems",
+    "produces": [
+      "osv.dev.ecosystems"
+    ],
     "refusals": [
       "provider_declined"
     ],
-    "version": 1
+    "version": 2
   },
   "lifecycle": {
     "predecessor_digest": null,

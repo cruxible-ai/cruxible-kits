@@ -1,6 +1,6 @@
 {
   "interface_id": "security.pypi-release",
-  "version": 1,
+  "version": 2,
   "effect_class": "external_read",
   "contracts": {
     "input": {
@@ -37,5 +37,8 @@
   },
   "refusals": [
     "provider_declined"
+  ],
+  "produces": [
+    "pypi.release"
   ]
 }

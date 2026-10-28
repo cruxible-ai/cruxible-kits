@@ -44,7 +44,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.release-asset/v1"
+            "name": "security.release-asset/v2"
           }
         },
         "kind": "source",
@@ -76,7 +76,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.release-asset/v1"
+            "name": "security.release-asset/v2"
           }
         },
         "slot_name": "asset"
@@ -85,7 +85,7 @@
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:3913ffdc5b37236e5dc4df01057ba361f65c7fb54146b87d0b51eb5032c84df4",
+  "definition_digest": "sha256:52d0e954610c8b0c5695841fefeb2cbb69a58aec36a2fdb7d482c0b72d1aeedc",
   "identity": {
     "kind": "Procedure",
     "name": "security.asset-fetch"

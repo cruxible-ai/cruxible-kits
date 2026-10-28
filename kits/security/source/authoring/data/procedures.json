@@ -355,7 +355,7 @@
       "nochange"
     ],
     "slots": {
-      "epss": "security.epss-daily@1",
+      "epss": "security.epss-daily@2",
       "parse": "security.epss-scores@1"
     }
   },
@@ -822,7 +822,7 @@
       "other"
     ],
     "slots": {
-      "snapshot": "security.repo-snapshot@1",
+      "snapshot": "security.repo-snapshot@2",
       "parse": "security.workflow-facts@1"
     }
   },
@@ -926,7 +926,7 @@
       "other"
     ],
     "slots": {
-      "registry": "security.pypi-release@1",
+      "registry": "security.pypi-release@2",
       "parse": "security.registry-facts@1"
     }
   },
@@ -2287,7 +2287,7 @@
       }
     ],
     "slots": {
-      "epss": "security.epss-daily@1"
+      "epss": "security.epss-daily@2"
     },
     "budget": {
       "wall_clock": "PT120S",
@@ -2332,7 +2332,7 @@
       }
     ],
     "slots": {
-      "asset": "security.release-asset@1"
+      "asset": "security.release-asset@2"
     },
     "budget": {
       "wall_clock": "PT120S",
@@ -2384,7 +2384,7 @@
       }
     ],
     "slots": {
-      "snapshot": "security.repo-snapshot@1"
+      "snapshot": "security.repo-snapshot@2"
     },
     "budget": {
       "wall_clock": "PT120S",
@@ -2428,7 +2428,7 @@
       }
     ],
     "slots": {
-      "registry": "security.pypi-release@1"
+      "registry": "security.pypi-release@2"
     },
     "budget": {
       "wall_clock": "PT120S",
@@ -2558,8 +2558,8 @@
       }
     ],
     "slots": {
-      "ecosystems": "security.osv-ecosystems@1",
-      "osv": "security.osv-query@1",
+      "ecosystems": "security.osv-ecosystems@2",
+      "osv": "security.osv-query@2",
       "decide": "security.osv-applicability@1"
     },
     "budget": {

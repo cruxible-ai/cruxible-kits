@@ -2,7 +2,7 @@
   "artifact_format": "cruxible-provider-interface-v4",
   "identity": {
     "kind": "ProviderInterface",
-    "name": "security.repo-snapshot/v1"
+    "name": "security.repo-snapshot/v2"
   },
   "interface": {
     "contracts": {
@@ -65,10 +65,13 @@
     },
     "effect_class": "external_read",
     "interface_id": "security.repo-snapshot",
+    "produces": [
+      "github.repo.snapshot"
+    ],
     "refusals": [
       "provider_declined"
     ],
-    "version": 1
+    "version": 2
   },
   "lifecycle": {
     "predecessor_digest": null,
