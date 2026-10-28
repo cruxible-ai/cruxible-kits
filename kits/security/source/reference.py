@@ -12,10 +12,10 @@ counts table between ``<!-- BEGIN GENERATED: glance -->`` and ``<!-- END
 GENERATED: glance -->``, and the hand-written text outside it is kept. ``check``
 also reads the README's hand-written concept map (the Mermaid block after
 ``CONCEPT_MAP``) and refuses one that names a kind or a field the kit does not
-define, and the generator's small hand maps (a label per logical source, the logical
-source an interface's Provider names, the Procedures the Lines you author per incident or
-per source run) where they
-disagree with the definitions. Output is byte-stable: everything is sorted and nothing depends on the
+define, and the generator's small hand maps (a label per logical source, the Procedures
+the Lines you author per incident or per source run) where they disagree with the
+definitions. A source node whose request names no logical source takes the one its
+interface declares it ``produces``. Output is byte-stable: everything is sorted and nothing depends on the
 clock or the machine.
 
 ``build_release.py`` runs this after copying a release; ``scripts/kits.py check``
@@ -102,17 +102,6 @@ SOURCE_LABELS = {
     "security.log-read": "log read",
     "security.reproduction": "proof-of-concept run report",
 }
-# Provider interfaces whose Provider names the logical source itself (the source node's
-# request carries none). ``check`` refuses a source node it cannot place, and an entry no
-# such node uses.
-INTERFACE_SOURCES = {
-    "security.epss-daily": "first.epss.daily",
-    "security.osv-ecosystems": "osv.dev.ecosystems",
-    "security.osv-query": "osv.dev.query",
-    "security.pypi-release": "pypi.release",
-    "security.release-asset": "github.release.asset",
-    "security.repo-snapshot": "github.repo.snapshot",
-}
 _CRON = re.compile(r"([0-9]{1,2}) ([0-9]{1,2}|\*/[0-9]{1,2}) \* \* \*")
 
 Json = dict[str, Any]
@@ -154,6 +143,7 @@ class SourceNode:
     alias: str | None
     contract: str
     interface: str | None
+    interface_version: str | None  # the pinned ``<id>/v<n>``, whose ``produces`` places it
     provider: str | None
     emitted: bool  # an emit_capture terminal: the run's own output, retained
     logical_source: str | None  # the request's, literal or an ``$input.`` reference
@@ -231,6 +221,9 @@ class KitDocs:
     queries: dict[str, QueryDoc]
     interfaces: set[str]
     policies: set[str]
+    # Each carried interface version's ``produces``: the logical sources its Provider names
+    # itself, for a source node whose request names none.
+    produces: dict[str, tuple[str, ...]] = field(default_factory=dict)
     lines: dict[str, LineDoc] = field(default_factory=dict)
     triggers: dict[str, TriggerDoc] = field(default_factory=dict)
     mandates: dict[str, MandateDoc] = field(default_factory=dict)
@@ -329,6 +322,7 @@ def _definition(raw: Json, kind: str) -> tuple[DefinitionDoc, list[SourceNode]]:
             continue
         provider = node.get("provider") or {}
         interface = node.get("interface") or {}
+        pinned_interface = interface.get("target", {}).get("name") or None
         nodes.append(
             SourceNode(
                 definition=name,
@@ -336,6 +330,7 @@ def _definition(raw: Json, kind: str) -> tuple[DefinitionDoc, list[SourceNode]]:
                 alias=node.get("as"),
                 contract=node["capture_contract"]["target"]["name"],
                 interface=interface.get("target", {}).get("name", "").split("/")[0] or None,
+                interface_version=pinned_interface,
                 provider=provider.get("target", {}).get("name", "").split("/")[0] or None,
                 emitted=node["kind"] == "emit_capture",
                 logical_source=(
@@ -423,7 +418,9 @@ def load(kit_dir: Path) -> KitDocs:
             query = _query(raw)
             docs.queries[query.name] = query
         elif top == "provider-interfaces":
-            docs.interfaces.add(raw.get("interface", raw)["interface_id"])
+            definition = raw.get("interface", raw)
+            docs.interfaces.add(definition["interface_id"])
+            docs.produces[raw["identity"]["name"]] = tuple(definition.get("produces", ()))
         elif top == "source-acquisition-policies":
             docs.policies.add(raw["identity"]["name"])
     example = kit_dir / EXAMPLE
@@ -498,7 +495,7 @@ def _effects(docs: KitDocs, definition: DefinitionDoc) -> tuple[str, ...]:
     for node in docs.source_nodes:
         if node.definition != definition.name or _reads_landing(docs, node):
             continue
-        source = _node_source(node, None)
+        source = _node_source(docs, node, None)
         if node.emitted:
             text = "its run's output"
         elif source:
@@ -552,14 +549,16 @@ class Retention:
     given: bool  # the request takes its logical source from the run's input
 
 
-def _node_source(node: SourceNode, line: LineDoc | None) -> str | None:
+def _node_source(docs: KitDocs, node: SourceNode, line: LineDoc | None) -> str | None:
     raw = node.logical_source
     if raw and raw.startswith("$input."):
         value = (line.parameters if line else {}).get(raw.removeprefix("$input."))
         return value if isinstance(value, str) else None
     if raw or node.emitted:
         return raw
-    return INTERFACE_SOURCES.get(node.interface or "")
+    # The request names none: the Provider names it, as its interface declares.
+    produced = docs.produces.get(node.interface_version or "", ())
+    return produced[0] if len(produced) == 1 else None
 
 
 def _retentions(docs: KitDocs) -> list[Retention]:
@@ -580,7 +579,7 @@ def _retentions(docs: KitDocs) -> list[Retention]:
             out.append(
                 Retention(
                     contract=node.contract,
-                    source=_node_source(node, line),
+                    source=_node_source(docs, node, line),
                     definition=node.definition,
                     line=line.name if line else None,
                     interface=node.interface,
@@ -1169,7 +1168,7 @@ def _logical_sources(docs: KitDocs) -> list[str]:
                 if node.definition in PER_LINE
                 and PER_LINE[node.definition][0] == node.alias
                 and node.alias is not None
-                and _node_source(node, None) == source
+                and _node_source(docs, node, None) == source
             }
         )
         cited = sum(
@@ -1491,9 +1490,6 @@ def derivation_problems(docs: KitDocs) -> list[str]:
         problems.append(f"logical source {source} has no label in SOURCE_LABELS")
     for source in sorted(set(SOURCE_LABELS) - set(named)):
         problems.append(f"SOURCE_LABELS labels {source}, which nothing names")
-    placed = {node.interface for node in docs.source_nodes if not node.logical_source}
-    for interface in sorted(set(INTERFACE_SOURCES) - placed):
-        problems.append(f"INTERFACE_SOURCES maps {interface}, which no source node reads")
     for item in _retentions(docs):
         if item.source is None and not item.emitted and (item.line or not item.given):
             problems.append(
