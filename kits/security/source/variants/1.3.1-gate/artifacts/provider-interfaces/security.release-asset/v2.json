@@ -2,20 +2,15 @@
   "artifact_format": "cruxible-provider-interface-v4",
   "identity": {
     "kind": "ProviderInterface",
-    "name": "security.pypi-release/v1"
+    "name": "security.release-asset/v2"
   },
   "interface": {
     "contracts": {
       "input": {
         "allow_extra": false,
         "fields": {
-          "project": {
+          "url": {
             "type": "string"
-          },
-          "versions": {
-            "default": 3,
-            "optional": true,
-            "type": "integer"
           }
         }
       },
@@ -25,13 +20,7 @@
           "input_bucket": {
             "type": "string"
           },
-          "project": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string"
-          },
-          "versions": {
+          "retrieved": {
             "type": "json"
           }
         }
@@ -39,11 +28,14 @@
       "output": "playbill-provider-result-to-external-capture-v1"
     },
     "effect_class": "external_read",
-    "interface_id": "security.pypi-release",
+    "interface_id": "security.release-asset",
+    "produces": [
+      "github.release.asset"
+    ],
     "refusals": [
       "provider_declined"
     ],
-    "version": 1
+    "version": 2
   },
   "lifecycle": {
     "predecessor_digest": null,

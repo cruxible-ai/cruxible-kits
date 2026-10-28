@@ -44,7 +44,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.repo-snapshot/v1"
+            "name": "security.repo-snapshot/v2"
           }
         },
         "kind": "source",
@@ -206,7 +206,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.repo-snapshot/v1"
+            "name": "security.repo-snapshot/v2"
           }
         },
         "slot_name": "snapshot"
@@ -215,7 +215,7 @@
     "returns": "summary",
     "terminal_capability": 2
   },
-  "definition_digest": "sha256:6469db45d45a91a5d336ecf7b6c87ccd085482cc2b18add3d27e7a541068539d",
+  "definition_digest": "sha256:15b844337225822ec14bb14922f73cc4fdccbd351d3dfa391e2c3753c8cf7a58",
   "identity": {
     "kind": "Procedure",
     "name": "security.repo-parse"

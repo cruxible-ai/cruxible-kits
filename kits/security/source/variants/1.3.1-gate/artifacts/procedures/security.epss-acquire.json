@@ -44,7 +44,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-daily/v1"
+            "name": "security.epss-daily/v2"
           }
         },
         "kind": "source",
@@ -86,7 +86,7 @@
         "interface": {
           "target": {
             "kind": "ProviderInterface",
-            "name": "security.epss-daily/v1"
+            "name": "security.epss-daily/v2"
           }
         },
         "slot_name": "epss"
@@ -95,7 +95,7 @@
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:cdf5a5007ddbb0068e49a3d908a5cfb0671bc52d6c14c688a95c1f7c97307427",
+  "definition_digest": "sha256:bb5190bc94a72fd623d1c4f684dadf886cfacebc8eeae76e40845e9a387013ff",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-acquire"

@@ -2,7 +2,7 @@
   "artifact_format": "cruxible-provider-interface-v4",
   "identity": {
     "kind": "ProviderInterface",
-    "name": "security.osv-query/v1"
+    "name": "security.osv-query/v2"
   },
   "interface": {
     "contracts": {
@@ -53,10 +53,13 @@
     },
     "effect_class": "external_read",
     "interface_id": "security.osv-query",
+    "produces": [
+      "osv.dev.query"
+    ],
     "refusals": [
       "provider_declined"
     ],
-    "version": 1
+    "version": 2
   },
   "lifecycle": {
     "predecessor_digest": null,

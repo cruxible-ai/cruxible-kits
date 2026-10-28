@@ -37,14 +37,14 @@
         "version": 1
       },
       "definition": {
-        "digest": "sha256:696c2602cfee60374ce6abb3f9ee3794b676b24d27cde733356f1dd99293732d",
+        "digest": "sha256:fa201a15e56d28f23c685db8caee2d227f5974fa001923503ca230b569aa77b5",
         "path": "contracts/security.osv-query.json"
       },
       "fixtures": {
         "digest": "sha256:cf28ae32515d7f454e9d3953beeb51a94bf6f840297fbe890751c984d8846198",
         "path": "registration-fixtures/security.osv-query.json"
       },
-      "interface_digest": "sha256:9f6744d0260ce513dfa7fe7c8eaceb3ec1b7e4b660c5b01be09b805eb819a978",
+      "interface_digest": "sha256:4a66429901de4d01c0dae280b0b0c67078b11e7f68b99ae0c1732fbdc718d945",
       "interface_id": "security.osv-query",
       "predecessors": [],
       "vocabulary": {
@@ -63,14 +63,14 @@
         "version": 1
       },
       "definition": {
-        "digest": "sha256:d572aadb6e252cf40b2061b89dcffba805907415d845b96cebfb4ae330ddd198",
+        "digest": "sha256:b411ed7055e8360462dfb70e46b23240269c070471db7bbcee4b3da4b8d8a25d",
         "path": "contracts/security.osv-ecosystems.json"
       },
       "fixtures": {
         "digest": "sha256:d84a3f65aba7c004ae0565777e670293b7706add6044865daaf72355d66b6e10",
         "path": "registration-fixtures/security.osv-ecosystems.json"
       },
-      "interface_digest": "sha256:8a7b148641d017c2bd1a6cc60e1c99a5a9e8e6cff351ae27ae27479639198e51",
+      "interface_digest": "sha256:a5edd62f0bb7ff71f0e789b2e9879c2da0d6594bc0e4440a6eb5d967fc3b4d55",
       "interface_id": "security.osv-ecosystems",
       "predecessors": [],
       "vocabulary": {
@@ -89,14 +89,14 @@
         "version": 1
       },
       "definition": {
-        "digest": "sha256:73ec58ba23e16f8366a5095af45c2cada32113a4b0b1431b27e2d0116cc7bfb0",
+        "digest": "sha256:b0e023998296e491ee6f5a382a57f6eadeea76898c40f462a6d53e0547469b64",
         "path": "contracts/security.epss-daily.json"
       },
       "fixtures": {
         "digest": "sha256:838ef4d102481d4c098ad7fb0827e727c81386f2e637725a8ab1383fc105db5d",
         "path": "registration-fixtures/security.epss-daily.json"
       },
-      "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
+      "interface_digest": "sha256:83158c508f49f1039c0f58544f17aec2008c1d777ad86002ec3f36b3ac4ae9a8",
       "interface_id": "security.epss-daily",
       "predecessors": [],
       "vocabulary": {
@@ -115,14 +115,14 @@
         "version": 1
       },
       "definition": {
-        "digest": "sha256:f128a651f1d4f171f3adf6e698a8b22282b0156d81654838564bed1840b1eec1",
+        "digest": "sha256:9bd15ce060ab01f80ec986cb2dc3135ce5033c956517f23c366ea486dac69d04",
         "path": "contracts/security.repo-snapshot.json"
       },
       "fixtures": {
         "digest": "sha256:f9bc3dd8348ebf5e363e508c36ea6537b20b7bd9509a15a1fb5ea2fd19a639fd",
         "path": "registration-fixtures/security.repo-snapshot.json"
       },
-      "interface_digest": "sha256:0f00171442e6ffd5239a321b026f95998a7a9e17772d0ed04af60c4fb34bc59b",
+      "interface_digest": "sha256:4dabad3717c8d112d6d76c5ba47f3e5b81b43d03b39c7126c7cdfce4607b5cfe",
       "interface_id": "security.repo-snapshot",
       "predecessors": [],
       "vocabulary": {
@@ -141,14 +141,14 @@
         "version": 1
       },
       "definition": {
-        "digest": "sha256:9a2c97535d9c0917b003e3b175398e27b6c0000dc83b06a53ee172ff8ca47801",
+        "digest": "sha256:cef738bd302f18e326b946d8a27b38f6f681292bed95318d692ed2113c8d28e1",
         "path": "contracts/security.pypi-release.json"
       },
       "fixtures": {
         "digest": "sha256:2aca9455c8327de29eaccba24013991cb767ae53f5f5fbab8340125707d11a43",
         "path": "registration-fixtures/security.pypi-release.json"
       },
-      "interface_digest": "sha256:0804f4b5e1b6b08d9e7fcadd63147d72d5ee3f7dcf433003f5a7154534c9cfb7",
+      "interface_digest": "sha256:08dc620694170d9c35a49812233cd8d99d4aabe2e4bd03606e23683d53380d43",
       "interface_id": "security.pypi-release",
       "predecessors": [],
       "vocabulary": {
@@ -167,14 +167,14 @@
         "version": 1
       },
       "definition": {
-        "digest": "sha256:303b03aef718b95c93fdc8c8a00297c8dcd867c37505421854e508bc5068f317",
+        "digest": "sha256:3965e1845949e88465249aae15d5ef77c213066e3f45284f3e274f1507b6298b",
         "path": "contracts/security.release-asset.json"
       },
       "fixtures": {
         "digest": "sha256:f3ad8c9b21f96647d327728f4f31310fbfdcdeabbe9a44e198cab4d5e150f42a",
         "path": "registration-fixtures/security.release-asset.json"
       },
-      "interface_digest": "sha256:9f856f117a2b700118092a8bd1e50d0436ba429b3615b73e7083c9b3d9a6827e",
+      "interface_digest": "sha256:a2bc0066f970b05a5c550efb197fa373cf8be3c988642f814d676670d71d7110",
       "interface_id": "security.release-asset",
       "predecessors": [],
       "vocabulary": {
@@ -184,7 +184,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:342a0c215d8c6743a09af7d99056910c5c7dabc4ba5f6f073f8851e19e8a8498",
+    "digest": "sha256:802bdca50db0f2148b766e069b24f9655059a514cbe0937917e5f87e770b748b",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

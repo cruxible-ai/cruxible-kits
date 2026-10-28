@@ -358,3 +358,38 @@ def test_a_timeout_on_every_attempt_fails_the_run(monkeypatch: Any) -> None:
         "releases": _rows("components", ["pkg:pypi/requests@2.32.3"]), "watched": [],
         "ecosystems": ecosystems, "purl_types": PURL_TYPES}))
     assert result.status == "error" and "Timeout" in result.error.message
+
+
+def test_each_source_stamps_only_the_logical_sources_its_interface_produces() -> None:
+    """The source_identity each Source writes is what its interface declares it produces."""
+
+    import ast
+
+    package = Path(security_sources_provider.__file__).parent
+    module = ast.parse((package / "sources.py").read_text())
+    constants = {
+        target.id: node.value.value
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+    classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
+    manifest = json.loads((package / "manifest.json").read_text())
+    assert len(manifest["implementations"]) == 6
+    for implementation in manifest["implementations"]:
+        interface = implementation["interface_id"]
+        _module, _, name = implementation["entrypoint"].partition(":")
+        stamped = {
+            constants[keyword.value.id]
+            for call in ast.walk(classes[name])
+            if isinstance(call, ast.Call)
+            for keyword in call.keywords
+            if keyword.arg == "source_identity" and isinstance(keyword.value, ast.Name)
+        }
+        definition = json.loads((package / "contracts" / f"{interface}.json").read_text())
+        assert stamped, interface
+        assert stamped <= set(definition["produces"]), (interface, stamped)
+        assert definition["produces"] == sorted(set(definition["produces"])), interface

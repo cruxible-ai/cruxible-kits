@@ -23,7 +23,7 @@ Providers `kit add` installs:
 |---|---|---|---|
 | `cruxible-provider-web` | 0.2.2 | by name from the index | `search.web`, `web.fetch` |
 | `security-analysis-provider` | 1.3.0 | bundled wheel | `security.credential-state`, `security.cve-applicability`, `security.cyclonedx-components`, `security.epss-scores`, `security.harden`, `security.kev-attention`, `security.kev-catalog`, `security.log-reads`, `security.osv-applicability`, `security.registry-facts`, `security.respond`, `security.runtime-inventory`, `security.sarif-findings`, `security.workflow-facts` |
-| `security-sources-provider` | 1.2.0 | bundled wheel | `security.epss-daily`, `security.osv-ecosystems`, `security.osv-query`, `security.pypi-release`, `security.release-asset`, `security.repo-snapshot` |
+| `security-sources-provider` | 1.2.1 | bundled wheel | `security.epss-daily`, `security.osv-ecosystems`, `security.osv-query`, `security.pypi-release`, `security.release-asset`, `security.repo-snapshot` |
 
 ### How evidence reaches each kind
 

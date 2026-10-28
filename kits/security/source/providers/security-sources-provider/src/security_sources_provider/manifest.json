@@ -1,7 +1,7 @@
 {
   "distribution": {
     "name": "security-sources-provider",
-    "version": "1.2.0"
+    "version": "1.2.1"
   },
   "entrypoint_group": "cruxible.providers",
   "implementations": [
@@ -23,7 +23,7 @@
       ],
       "deterministic": false,
       "entrypoint": "security_sources_provider.sources:OsvQuery",
-      "interface_digest": "sha256:9f6744d0260ce513dfa7fe7c8eaceb3ec1b7e4b660c5b01be09b805eb819a978",
+      "interface_digest": "sha256:4a66429901de4d01c0dae280b0b0c67078b11e7f68b99ae0c1732fbdc718d945",
       "interface_id": "security.osv-query",
       "requires_extras": [],
       "side_effects": false
@@ -46,7 +46,7 @@
       ],
       "deterministic": false,
       "entrypoint": "security_sources_provider.sources:OsvEcosystems",
-      "interface_digest": "sha256:8a7b148641d017c2bd1a6cc60e1c99a5a9e8e6cff351ae27ae27479639198e51",
+      "interface_digest": "sha256:a5edd62f0bb7ff71f0e789b2e9879c2da0d6594bc0e4440a6eb5d967fc3b4d55",
       "interface_id": "security.osv-ecosystems",
       "requires_extras": [],
       "side_effects": false
@@ -69,7 +69,7 @@
       ],
       "deterministic": false,
       "entrypoint": "security_sources_provider.sources:EpssDaily",
-      "interface_digest": "sha256:bdac36d3b002287344e03f620ee7bca94c0f9a18008618f0b8ab380517db6a96",
+      "interface_digest": "sha256:83158c508f49f1039c0f58544f17aec2008c1d777ad86002ec3f36b3ac4ae9a8",
       "interface_id": "security.epss-daily",
       "requires_extras": [],
       "side_effects": false
@@ -93,7 +93,7 @@
       ],
       "deterministic": false,
       "entrypoint": "security_sources_provider.sources:RepoSnapshot",
-      "interface_digest": "sha256:0f00171442e6ffd5239a321b026f95998a7a9e17772d0ed04af60c4fb34bc59b",
+      "interface_digest": "sha256:4dabad3717c8d112d6d76c5ba47f3e5b81b43d03b39c7126c7cdfce4607b5cfe",
       "interface_id": "security.repo-snapshot",
       "requires_extras": [],
       "side_effects": false
@@ -116,7 +116,7 @@
       ],
       "deterministic": false,
       "entrypoint": "security_sources_provider.sources:PypiRelease",
-      "interface_digest": "sha256:0804f4b5e1b6b08d9e7fcadd63147d72d5ee3f7dcf433003f5a7154534c9cfb7",
+      "interface_digest": "sha256:08dc620694170d9c35a49812233cd8d99d4aabe2e4bd03606e23683d53380d43",
       "interface_id": "security.pypi-release",
       "requires_extras": [],
       "side_effects": false
@@ -141,7 +141,7 @@
       ],
       "deterministic": false,
       "entrypoint": "security_sources_provider.sources:ReleaseAsset",
-      "interface_digest": "sha256:9f856f117a2b700118092a8bd1e50d0436ba429b3615b73e7083c9b3d9a6827e",
+      "interface_digest": "sha256:a2bc0066f970b05a5c550efb197fa373cf8be3c988642f814d676670d71d7110",
       "interface_id": "security.release-asset",
       "requires_extras": [],
       "side_effects": false
