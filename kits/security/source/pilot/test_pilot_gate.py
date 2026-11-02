@@ -63,8 +63,18 @@ def epss_answer() -> dict[str, Any]:
     return json.loads((FIXTURES / "epss-api.json").read_bytes())
 
 
-def _bytes(document: Mapping[str, Any]) -> bytes:
+def _bytes(document: Mapping[str, Any] | bytes) -> bytes:
+    """A baseline replays the fixture's own bytes; only a mutation re-serializes."""
+
+    if isinstance(document, bytes):
+        return document
     return json.dumps(document, indent=4).encode()
+
+
+def fixture_bytes(exchange_id: str) -> bytes:
+    """The recorded body exactly as the file holds it (no parse, no re-serialization)."""
+
+    return (FIXTURES / EXCHANGES[exchange_id]["body"]).read_bytes()
 
 
 # -- the real web.fetch, answering from recordings ------------------------------------
@@ -231,6 +241,10 @@ def pilot_world(tmp_path: Path, *, watch: tuple[str, ...] = WATCH) -> Any:
 
 
 def run(instance: Any, routes: Mapping[str, bytes], *, line: str, minute: int = 0) -> Any:
+    return service_run(instance, Replay(routes), line=line, minute=minute)
+
+
+def service_run(instance: Any, replay: Replay, *, line: str, minute: int = 0) -> Any:
     from cruxible_core.service.procedures.procedure_runs import (
         LineRunRequest,
         service_run_playbill_line,
@@ -244,17 +258,19 @@ def run(instance: Any, routes: Mapping[str, bytes], *, line: str, minute: int = 
         actor_context=actor(),
         caller_rung=2,
         daemon_clock=_Clock(NOW + timedelta(minutes=minute)),
-        provider_runtime_operator=Replay(routes).operator(),  # type: ignore[arg-type]
+        provider_runtime_operator=replay.operator(),  # type: ignore[arg-type]
     )
 
 
-def kev(instance: Any, catalog: Mapping[str, Any], *, minute: int = 0, line: str = kit.KEV_LINE):
+def kev(
+    instance: Any, catalog: Mapping[str, Any] | bytes, *, minute: int = 0, line: str = kit.KEV_LINE
+):
     state = run(instance, {kit.KEV_URL: _bytes(catalog)}, line=line, minute=minute)
     assert state.status == "succeeded", state.terminal
     return state
 
 
-def epss(instance: Any, answer: Mapping[str, Any], *, minute: int = 0) -> Any:
+def epss(instance: Any, answer: Mapping[str, Any] | bytes, *, minute: int = 0) -> Any:
     state = run(instance, {kit.epss_url(WATCH): _bytes(answer)}, line=kit.EPSS_LINE, minute=minute)
     assert state.status == "succeeded", state.terminal
     return state
@@ -277,6 +293,48 @@ def summary(state: Any, kind: str) -> Any:
     return found
 
 
+def stored_capture(instance: Any, state: Any) -> tuple[str, bytes]:
+    """The commitment digest and bytes of the one Capture the run's call admitted."""
+
+    from cruxible_client.contracts.captures import parse_capture_envelope
+    from cruxible_client.contracts.cas_contracts import BodyAccessContext
+
+    (call,) = [n.summary for n in state.nodes if n.summary and n.summary.kind == "call"]
+    (capture,) = call.capture_digests
+    access = BodyAccessContext(principal_id="kit-pilot-gate", can_read_body=True)
+    envelope = parse_capture_envelope(instance.body_store().read(capture, access=access))
+    return envelope.commitment.digest, instance.body_store().read(
+        envelope.commitment.digest, access=access
+    )
+
+
+def accepted(instance: Any, claim: Any) -> Any:
+    """The Claim as the accepted head holds it (after a settle)."""
+
+    from cruxible_client.contracts.claims import parse_claim
+
+    name = claim.identity.name
+    path = f"claims/{name[4:6]}/{name}.json"
+    return parse_claim(instance.tree_at(instance.accepted_coordinate().git_oid)[path], path=path)
+
+
+def utc(value: Any) -> str:
+    """A datetime (or its wire text) as canonical UTC text."""
+
+    from datetime import UTC, datetime
+
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def listed_from(catalog: Mapping[str, Any], cve_id: str) -> str:
+    """dateAdded at 00:00 UTC: the moment the listing takes effect (D-R29)."""
+
+    added = next(v for v in catalog["vulnerabilities"] if v["cveID"] == cve_id)["dateAdded"]
+    return f"{added}T00:00:00Z"
+
+
 def cve(value: str) -> str:
     return value.lower()
 
@@ -295,9 +353,52 @@ def record(catalog: dict[str, Any], cve_id: str) -> dict[str, Any]:
 # -- the gate ---------------------------------------------------------------------------
 
 
-def test_g1_identical_runs_write_nothing_and_settle_by_basis(tmp_path: Path) -> None:
+#: Core bug found in the fix round (kit-pilot report F6): with ``effective_from``
+#: bound, a held membership is never "the same statement" again -- the claims
+#: terminal compares the held Claim's ``effective_from`` (a datetime) with the
+#: template's resolved wire text, so every complete read adds another identical
+#: membership. Each scenario below re-reads a catalog after a first run; they
+#: pass with the binding removed (commit be71725) and must pass once core compares
+#: typed values. Strict: the fix turns them green and drops this marker.
+EFFECTIVE_FROM_RERUN = pytest.mark.xfail(
+    strict=True,
+    reason="core F6: claims sameness compares effective_from datetime with wire text",
+)
+
+
+@pytest.mark.parametrize("exchange_id", ["kev-catalog", "epss-api"])
+def test_baseline_replay_stores_the_fixture_bytes_verbatim(tmp_path: Path, exchange_id) -> None:
+    """D-R25/D-R27: through the real web.fetch adapter, the admitted Capture's body
+    is the origin's bytes exactly -- no wrapper, no re-serialization."""
+
+    import hashlib
+
     instance = pilot_world(tmp_path)
-    first = kev(instance, kev_catalog())
+    origin = fixture_bytes(exchange_id)
+    line, url = (
+        (kit.KEV_LINE, kit.KEV_URL)
+        if exchange_id == "kev-catalog"
+        else (kit.EPSS_LINE, kit.epss_url(WATCH))
+    )
+    assert EXCHANGES[exchange_id]["url"] == url
+    replay = Replay({url: origin})
+    state = service_run(instance, replay, line=line)
+    assert state.status == "succeeded", state.terminal
+    assert replay.requests == [url]
+    digest, body = stored_capture(instance, state)
+    assert body == origin
+    assert digest == "sha256:" + hashlib.sha256(origin).hexdigest()
+    # The downstream terminal reads those same bytes.
+    extracted = summary(state, "extract")
+    records = json.loads(origin)["vulnerabilities" if exchange_id == "kev-catalog" else "data"]
+    assert extracted.records == len(records) and extracted.complete
+    assert summary(state, "claims").written == (32 if exchange_id == "kev-catalog" else 30)
+    assert state.terminal_egress[0].settle_outcome == "settled"
+
+
+def test_g1_first_run_settles_by_basis_with_dated_membership(tmp_path: Path) -> None:
+    instance = pilot_world(tmp_path)
+    first = kev(instance, fixture_bytes("kev-catalog"))
     claims = changed(instance, first)
     assert set(claims) == {
         *((cve(c), p) for c in LISTED for p in (LISTED_IN, DATE_ADDED, DUE_DATE, RANSOMWARE)),
@@ -313,15 +414,31 @@ def test_g1_identical_runs_write_nothing_and_settle_by_basis(tmp_path: Path) -> 
         for p in (LISTED_IN, DATE_ADDED)
     )
     assert first.terminal_egress[0].settle_outcome == "settled"
+    # Membership takes effect from dateAdded at 00:00 UTC (D-R29), as accepted.
+    catalog = kev_catalog()
+    for c in LISTED:
+        membership = accepted(instance, claims[(cve(c), LISTED_IN)])
+        assert membership.lifecycle.state == "live"
+        assert utc(membership.statement.effective_from) == listed_from(catalog, c)
+        assert membership.backing.procedure_evidence.value.basis == "extracted"
+    assert utc(
+        accepted(instance, claims[(cve(LISTED[0]), LISTED_IN)]).statement.effective_from
+    ) == ("2021-12-10T00:00:00Z")
     assert summary(first, "extract").complete
     assert (summary(first, "claims").written, summary(first, "claims").inverse_written) == (32, 2)
-    scored = epss(instance, epss_answer(), minute=1)
+    scored = epss(instance, fixture_bytes("epss-api"), minute=1)
     assert len(changed(instance, scored)) == 30
     assert scored.terminal_egress[0].settle_outcome == "settled"
 
+
+@EFFECTIVE_FROM_RERUN
+def test_g1_identical_runs_write_nothing(tmp_path: Path) -> None:
+    instance = pilot_world(tmp_path)
+    kev(instance, fixture_bytes("kev-catalog"))
+    epss(instance, fixture_bytes("epss-api"), minute=1)
     before = instance.accepted_coordinate()
-    again = kev(instance, kev_catalog(), minute=2)
-    rescored = epss(instance, epss_answer(), minute=3)
+    again = kev(instance, fixture_bytes("kev-catalog"), minute=2)
+    rescored = epss(instance, fixture_bytes("epss-api"), minute=3)
     for state, count in ((again, 34), (rescored, 30)):
         (egress,) = state.terminal_egress
         assert egress.proposal_id is None and all(c.unchanged for c in egress.children)
@@ -330,6 +447,7 @@ def test_g1_identical_runs_write_nothing_and_settle_by_basis(tmp_path: Path) -> 
     assert instance.accepted_coordinate() == before
 
 
+@EFFECTIVE_FROM_RERUN
 def test_g4_g18_a_count_mismatch_never_writes_absence(tmp_path: Path) -> None:
     instance = pilot_world(tmp_path)
     short = kev_catalog()
@@ -357,6 +475,7 @@ def test_g4_g18_a_count_mismatch_never_writes_absence(tmp_path: Path) -> None:
     assert all(f.source_incomplete for f in findings)
 
 
+@EFFECTIVE_FROM_RERUN
 def test_g5_delisting_inverts_membership_and_mirrors_dates_then_relisting(
     tmp_path: Path,
 ) -> None:
@@ -383,6 +502,9 @@ def test_g5_delisting_inverts_membership_and_mirrors_dates_then_relisting(
     relisted = changed(instance, back)
     positive = relisted[(cve(DELISTED), LISTED_IN)]
     assert positive.statement.object.kind == "subject"
+    assert utc(accepted(instance, positive).statement.effective_from) == listed_from(
+        kev_catalog(), DELISTED
+    )
     assert positive.backing.procedure_evidence.value.basis == "extracted"
     assert back.terminal_egress[0].settle_outcome == "settled"
 

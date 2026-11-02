@@ -44,7 +44,10 @@ KEV_SOURCE = "cisa.kev.catalog"
 EPSS_SOURCE = "first.epss.api"
 KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 EPSS_API = "https://api.first.org/data/v1/epss"
-KEV_ROW = "security.kev-entry"
+#: The KEV record row. (``security.kev-entry@1``, the first pilot shape, had no
+#: ``listed_from``; an accepted Contract version never changes, so the reshaped
+#: row is a new name rather than an edit.)
+KEV_ROW = "security.kev-record"
 EPSS_ROW = "security.epss-row"
 WATCH_ROW = "security.watched-vulnerability"
 WATCHED_QUERY = "security.watched_vulnerabilities"
@@ -248,6 +251,7 @@ def vocabulary() -> dict[str, Any]:
             "description": "One KEV catalog record's fields the slice writes.",
             "fields": {
                 "date_added": "date",
+                "listed_from": "datetime",
                 "due_date": "date?",
                 "ransomware_use": f"enum_of {VULN}.kev_ransomware_use?",
             },
@@ -369,6 +373,13 @@ def kev_spec() -> dict[str, Any]:
                 "duplicates": "refuse_key",
                 "fields": {
                     "date_added": {"at": "dateAdded", "parse": "date"},
+                    # The same dateAdded, as the moment the listing takes effect:
+                    # 00:00 UTC that day (D-R29), for listed_in's effective_from.
+                    "listed_from": {
+                        "at": "dateAdded",
+                        "parse": "date",
+                        "project": "utc_start_of_day",
+                    },
                     "due_date": {"at": "dueDate", "parse": "date", "presence": "optional"},
                     "ransomware_use": {
                         "at": "knownRansomwareCampaignUse",
@@ -394,9 +405,7 @@ def kev_spec() -> dict[str, Any]:
                     {
                         "type": VULN + ".listed_in",
                         "value": {"kind": CATALOG, "key": {"catalog_id": "cisa-kev"}},
-                        # effective_from is typed datetime and dateAdded is a date:
-                        # core refuses the assignment (claims_type_invalid), so the
-                        # date stays in kev_date_added (kit-pilot report, core gap).
+                        "effective_from": "$item.fields.listed_from",
                         "when_absent": "inverse",
                         "rationale": f"CISA KEV catalog {version} lists {{$item.key.cve_id}}.",
                     },
