@@ -11,7 +11,6 @@ built wheel carries always matches the bytes beside it.
 from __future__ import annotations
 
 import base64
-import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -37,13 +36,6 @@ _CATALOG = _b64(
             "vulnerabilities": [{"cveID": "CVE-0000-0000", "dateAdded": "2026-01-01"}],
         }
     ).encode()
-)
-_EPSS = _b64(
-    gzip.compress(
-        b"#model_version:fixture,score_date:2026-01-01T00:00:00Z\ncve,epss,percentile\n"
-        b"CVE-0000-0000,0.00100,0.10000\n",
-        mtime=0,
-    )
 )
 _SBOM = json.dumps(
     {
@@ -108,22 +100,6 @@ SIZE = {"small": "at most 1000 rows", "large": "more than 1000 rows"}
 #: interface -> (entrypoint, classifier, description, dimensions, fixture input, bucket,
 #:               declared selector)
 INTERFACES: dict[str, tuple[str, str, str, list[dict[str, Any]], dict[str, Any], str, str]] = {
-    "security.kev-catalog": (
-        "kev:KevTriage",
-        "kev:classify_triage",
-        "A KEV catalog body and the watched vulnerabilities to compare it with.",
-        [
-            _dimension(
-                "catalog",
-                "whether a catalog body is present",
-                {"present": "a nonempty base64 body"},
-            ),
-            _dimension("watchlist", "how many watched vulnerabilities the request carries", SIZE),
-        ],
-        {"catalog_base64": _CATALOG, "watched": []},
-        "catalog=present;watchlist=small",
-        "catalog=present;watchlist=*",
-    ),
     "security.kev-attention": (
         "kev:KevAttention",
         "kev:classify_attention",
@@ -139,20 +115,6 @@ INTERFACES: dict[str, tuple[str, str, str, list[dict[str, Any]], dict[str, Any],
         {"catalog_base64": _CATALOG, "releases": [], "watched": [], "assessments": []},
         "catalog=present;inventory=small",
         "catalog=present;inventory=*",
-    ),
-    "security.epss-scores": (
-        "epss:EpssTriage",
-        "epss:classify",
-        "An EPSS daily file and the watched vulnerabilities to score.",
-        [
-            _dimension(
-                "daily", "whether a daily file is present", {"present": "a nonempty base64 body"}
-            ),
-            _dimension("watchlist", "how many watched vulnerabilities the request carries", SIZE),
-        ],
-        {"daily_base64": _EPSS, "watched": []},
-        "daily=present;watchlist=small",
-        "daily=present;watchlist=*",
     ),
     "security.cyclonedx-components": (
         "sbom:CycloneDxComponents",

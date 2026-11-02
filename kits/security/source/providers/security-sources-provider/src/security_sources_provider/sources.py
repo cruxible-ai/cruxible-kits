@@ -1,11 +1,11 @@
-"""The security kit's network Sources: OSV.dev, FIRST's EPSS daily file, GitHub and PyPI.
+"""The security kit's network Sources: OSV.dev, GitHub and PyPI.
 
 Each returns Core's shared acquisition wire (``external_capture_result``): the
 exact exchanges it had with the origin, bodies base64 inside one canonical JSON
 bundle, and mints no Capture itself -- the CaptureContract decides the grade.
 Every request goes through one httpx client whose request hook records the
 endpoint on the run's egress recorder; the endpoints are declared in the
-manifest (``https://api.osv.dev``, ``https://epss.empiricalsecurity.com``).
+manifest (``https://api.osv.dev`` and the others below).
 
 ``security.osv-ecosystems`` retains OSV's published ecosystem list
 (``ecosystems.txt``), exactly as served: what OSV indexes is OSV's own word,
@@ -26,8 +26,8 @@ OSV schema) and must be on the captured list (``ecosystems``: the
 no advisories, and is recorded in the bundle's ``not_indexed`` with why. The
 bundle also records the map it applied and the digest of the list it read.
 
-``security.epss-daily`` fetches the current EPSS daily scores file (gzip CSV,
-following the redirect to the dated file) and retains its exact bytes.
+EPSS is no longer fetched here: the ``security.epss-triage`` Procedure reads
+FIRST's API through ``web.fetch`` and extracts it (kit pilot).
 
 ``security.repo-snapshot`` reads what one GitHub repository declares at one ref
 for one scope (``ci.workflows``: every workflow file under a directory;
@@ -85,11 +85,8 @@ OSV_ECOSYSTEMS_HOST = "https://osv-vulnerabilities.storage.googleapis.com"
 OSV_ECOSYSTEMS_URL = f"{OSV_ECOSYSTEMS_HOST}/ecosystems.txt"
 OSV_ECOSYSTEMS_SOURCE = "osv.dev.ecosystems"
 MAX_ECOSYSTEMS_BYTES = 1_048_576
-EPSS_URL = "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz"
-EPSS_SOURCE = "first.epss.daily"
 USER_AGENT = "security-sources-provider/1.0 (cruxible security kit)"
 BATCH = 1000
-MAX_EPSS_BYTES = 16_777_216
 MAX_RECORDS = 5000
 WATCH_LIMIT = 1000
 GITHUB_API = "https://api.github.com"
@@ -260,13 +257,6 @@ def classify_osv(payload: Mapping[str, Any]) -> Mapping[str, str] | None:
         "components": "none" if not purls else "small" if len(purls) <= BATCH else "large",
         "watchlist": "small" if len(cves) <= WATCH_LIMIT else "large",
     }
-
-
-def classify_epss(payload: Mapping[str, Any]) -> Mapping[str, str] | None:
-    url = payload.get("url", EPSS_URL)
-    if not isinstance(url, str) or not url.startswith("https://"):
-        return None
-    return {"file": "daily"}
 
 
 @dataclass(frozen=True)
@@ -481,82 +471,6 @@ class OsvEcosystems:
                     "status": response.status_code,
                     "body_sha256": _sha256(body),
                     "source": self._source,
-                },
-                observed_at=datetime.now(UTC),
-            ),
-            metrics={"byte_count": float(len(body))},
-        )
-
-
-class EpssDaily:
-    """The ``security.epss-daily`` implementation (external read, Source)."""
-
-    interface_id = "security.epss-daily"
-
-    def __init__(self, transport_factory: TransportFactory | None = None) -> None:
-        self._transport_factory = transport_factory or (lambda: None)
-        self._source = "network" if transport_factory is None else "packaged-recording"
-
-    def __call__(self, context: ProviderRunContext) -> ProviderResult:
-        url = str(context.input.get("url") or EPSS_URL)
-        if not url.startswith("https://epss.empiricalsecurity.com/"):
-            return ProviderResult.refused(
-                RefusalCode.PROVIDER_DECLINED,
-                "the EPSS file is read from epss.empiricalsecurity.com",
-            )
-        timeout = max(5.0, context.budgets.wall_clock_seconds * 0.8)
-        try:
-            with _client(
-                context.egress,
-                base_url="https://epss.empiricalsecurity.com",
-                timeout=timeout,
-                transport=self._transport_factory(),
-            ) as client:
-                final = url
-                response = client.get(url)
-                for _ in range(3):
-                    if response.status_code not in {301, 302, 303, 307, 308}:
-                        break
-                    final = str(httpx.URL(final).join(response.headers.get("location", "")))
-                    if not final.startswith("https://epss.empiricalsecurity.com/"):
-                        return ProviderResult.refused(
-                            RefusalCode.PROVIDER_DECLINED, "the EPSS redirect left the origin"
-                        )
-                    response = client.get(final)
-        except httpx.HTTPError as error:
-            return ProviderResult.failed("HttpError", f"{type(error).__name__}: {error}")
-        if response.status_code != 200:
-            return ProviderResult.failed("HttpStatus", f"EPSS answered {response.status_code}")
-        body = response.content
-        if len(body) > MAX_EPSS_BYTES:
-            return ProviderResult.refused(
-                RefusalCode.PROVIDER_DECLINED, "the EPSS file is too large"
-            )
-        source = self._source
-        material = {
-            "input_bucket": context.input_bucket,
-            "retrieved": {
-                "url": url,
-                "final_url": final,
-                "status_code": response.status_code,
-                "content_type": response.headers.get("content-type", ""),
-                "byte_count": len(body),
-                "body_sha256": _sha256(body),
-                "body_base64": base64.b64encode(body).decode("ascii"),
-                "source": source,
-            },
-        }
-        return ProviderResult.ok(
-            external_capture_result(
-                canonical_json(material),
-                source_identity=EPSS_SOURCE,
-                coordinate_type="http-response-v1",
-                selector_type="whole-response-v1",
-                coordinate={
-                    "request_digest": _sha256(url.encode()),
-                    "status": response.status_code,
-                    "body_sha256": _sha256(body),
-                    "source": source,
                 },
                 observed_at=datetime.now(UTC),
             ),

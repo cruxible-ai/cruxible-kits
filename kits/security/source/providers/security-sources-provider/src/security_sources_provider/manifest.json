@@ -56,29 +56,6 @@
         "local_env"
       ],
       "bucket_conformance": {
-        "file=daily": "epss-daily-fixture"
-      },
-      "capture_contract_families": [
-        "security.epss.daily.v1"
-      ],
-      "declared_endpoints": [
-        "https://epss.empiricalsecurity.com"
-      ],
-      "declared_input_buckets": [
-        "file=daily"
-      ],
-      "deterministic": false,
-      "entrypoint": "security_sources_provider.sources:EpssDaily",
-      "interface_digest": "sha256:83158c508f49f1039c0f58544f17aec2008c1d777ad86002ec3f36b3ac4ae9a8",
-      "interface_id": "security.epss-daily",
-      "requires_extras": [],
-      "side_effects": false
-    },
-    {
-      "backends": [
-        "local_env"
-      ],
-      "bucket_conformance": {
         "scope=*": "repo-snapshot-fixture"
       },
       "capture_contract_families": [

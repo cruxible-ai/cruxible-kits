@@ -10,25 +10,6 @@
         "local_env"
       ],
       "bucket_conformance": {
-        "catalog=present;watchlist=*": "kev-catalog-fixture"
-      },
-      "capture_contract_families": [],
-      "declared_endpoints": [],
-      "declared_input_buckets": [
-        "catalog=present;watchlist=*"
-      ],
-      "deterministic": true,
-      "entrypoint": "security_analysis_provider.kev:KevTriage",
-      "interface_digest": "sha256:102036c6548173cc88668c1265af902c9ac3dc7c347da6ac080c548d6beab5c4",
-      "interface_id": "security.kev-catalog",
-      "requires_extras": [],
-      "side_effects": false
-    },
-    {
-      "backends": [
-        "local_env"
-      ],
-      "bucket_conformance": {
         "catalog=present;inventory=*": "kev-attention-fixture"
       },
       "capture_contract_families": [],
@@ -40,25 +21,6 @@
       "entrypoint": "security_analysis_provider.kev:KevAttention",
       "interface_digest": "sha256:0badd0d8c3547816db58b0964ca4584c13b54aa8e98210fb97c645f5c0d3f141",
       "interface_id": "security.kev-attention",
-      "requires_extras": [],
-      "side_effects": false
-    },
-    {
-      "backends": [
-        "local_env"
-      ],
-      "bucket_conformance": {
-        "daily=present;watchlist=*": "epss-scores-fixture"
-      },
-      "capture_contract_families": [],
-      "declared_endpoints": [],
-      "declared_input_buckets": [
-        "daily=present;watchlist=*"
-      ],
-      "deterministic": true,
-      "entrypoint": "security_analysis_provider.epss:EpssTriage",
-      "interface_digest": "sha256:5d2bb4e2e84aebdfa01f3d1a6800ef8e2c8e8e468f047cc94eeff9cdb69f5b64",
-      "interface_id": "security.epss-scores",
       "requires_extras": [],
       "side_effects": false
     },

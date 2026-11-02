@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -17,7 +16,6 @@ from cruxible_provider_runtime.provider_api import ProviderRunContext
 from cruxible_provider_runtime.registration import load_registration
 from security_sources_provider.sources import (
     OSV_ECOSYSTEMS_URL,
-    EpssDaily,
     OsvEcosystems,
     OsvQuery,
     PypiRelease,
@@ -160,39 +158,6 @@ def test_osv_query_batches_components_then_fetches_hits_watched_and_their_aliase
     }
     assert material["source"] == "packaged-recording"
     assert context.egress.observed() == ["https://api.osv.dev"]
-
-
-def test_epss_daily_follows_the_dated_redirect_and_keeps_the_exact_bytes() -> None:
-    body = gzip.compress(
-        b"#model_version:v1,score_date:2026-10-10T00:00:00Z\ncve,epss,percentile\n", mtime=0
-    )
-    routes = {
-        ("GET", "/epss_scores-current.csv.gz"): (
-            302,
-            b"",
-            {"location": "epss_scores-2026-10-10.csv.gz"},
-        ),
-        ("GET", "/epss_scores-2026-10-10.csv.gz"): (
-            200,
-            body,
-            {"content-type": "application/gzip"},
-        ),
-    }
-    context = _context("security.epss-daily", {})
-    material = _material(EpssDaily(lambda: static_transport(routes))(context))
-    retrieved = material["retrieved"]
-    assert (
-        retrieved["final_url"] == "https://epss.empiricalsecurity.com/epss_scores-2026-10-10.csv.gz"
-    )
-    assert base64.b64decode(retrieved["body_base64"]) == body
-    assert context.egress.observed() == ["https://epss.empiricalsecurity.com"]
-
-
-def test_epss_refuses_another_origin() -> None:
-    result = EpssDaily(lambda: httpx.MockTransport(lambda r: httpx.Response(500)))(
-        _context("security.epss-daily", {"url": "https://example.org/x.csv.gz"})
-    )
-    assert result.status == "refused"
 
 
 SHA = "e848cbb6787262db349912c48d9c008d8068ede8"
@@ -378,7 +343,7 @@ def test_each_source_stamps_only_the_logical_sources_its_interface_produces() ->
     }
     classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
     manifest = json.loads((package / "manifest.json").read_text())
-    assert len(manifest["implementations"]) == 6
+    assert len(manifest["implementations"]) == 5
     for implementation in manifest["implementations"]:
         interface = implementation["interface_id"]
         _module, _, name = implementation["entrypoint"].partition(":")

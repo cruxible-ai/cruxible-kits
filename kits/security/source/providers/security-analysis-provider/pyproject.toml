@@ -19,9 +19,7 @@ dependencies = [
 ]
 
 [project.entry-points."cruxible.providers"]
-"security.kev-catalog" = "security_analysis_provider.kev:KevTriage"
 "security.kev-attention" = "security_analysis_provider.kev:KevAttention"
-"security.epss-scores" = "security_analysis_provider.epss:EpssTriage"
 "security.cyclonedx-components" = "security_analysis_provider.sbom:CycloneDxComponents"
 "security.osv-applicability" = "security_analysis_provider.applicability:OsvApplicability"
 "security.cve-applicability" = "security_analysis_provider.applicability:CveApplicability"

@@ -1,15 +1,8 @@
-"""CISA KEV catalog: triage of watched vulnerabilities, and attention for inventory nobody tracks.
+"""CISA KEV catalog: attention for inventory nobody tracks.
 
-``KevTriage`` (``security.kev-catalog``) compares the retained catalog with the
-watched vulnerabilities (rows of ``security.watched_vulnerabilities``) and
-returns one observation Claim item per KEV field whose catalog value differs
-from the held Claim, revising it when one is held. An identical catalog yields
-no items. A watched vulnerability the catalog does not list gets
-``kev_listed = false`` once; its other KEV fields are left alone. A field whose
-held Claims conflict is skipped and reported, never overwritten.
-
-A catalog whose ``count`` disagrees with the entries it holds is incomplete and
-refused: a missing entry must never read as unlisted.
+KEV triage (membership, dates, ransomware use of watched vulnerabilities) is no
+longer provider code: the ``security.kev-triage`` Procedure extracts the catalog
+Capture and writes its Claims through a declared claims template (kit pilot).
 
 ``KevAttention`` (``security.kev-attention``) finds catalog entries added in the
 last ``NEW_WINDOW_DAYS`` days (counted back from the catalog's own
@@ -35,41 +28,16 @@ from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunCo
 
 from .common import (
     InputError,
-    claim_item,
     cve_token,
     decode_base64,
     decode_json,
     match_token,
-    once_per,
     parse_rows,
     sorted_items,
 )
 
 WATCH_LIMIT = 1000
 NEW_WINDOW_DAYS = 7
-VULNERABILITY = "security.vulnerability"
-
-# Projected field -> (ClaimType predicate, KEV catalog key).
-FIELDS: dict[str, tuple[str, str]] = {
-    "kev_listed": ("security.vulnerability.kev_listed", ""),
-    "kev_date_added": ("security.vulnerability.kev_date_added", "dateAdded"),
-    "kev_due_date": ("security.vulnerability.kev_due_date", "dueDate"),
-    "kev_ransomware_use": (
-        "security.vulnerability.kev_ransomware_use",
-        "knownRansomwareCampaignUse",
-    ),
-}
-
-
-def classify_triage(payload: Mapping[str, Any]) -> Mapping[str, str] | None:
-    """Bucket a triage request: a catalog is present, and the watch list is small or large."""
-
-    catalog = payload.get("catalog_base64")
-    watched = payload.get("watched")
-    if not isinstance(catalog, str) or not catalog or not isinstance(watched, list):
-        return None
-    return {"catalog": "present", "watchlist": "small" if len(watched) <= WATCH_LIMIT else "large"}
-
 
 def classify_attention(payload: Mapping[str, Any]) -> Mapping[str, str] | None:
     catalog = payload.get("catalog_base64")
@@ -97,86 +65,8 @@ def _catalog(payload: Mapping[str, Any]) -> tuple[dict[str, Any], str, Mapping[s
     return index, str(catalog.get("catalogVersion") or ""), catalog
 
 
-def _catalog_value(field: str, entry: Mapping[str, Any] | None) -> Any:
-    if field == "kev_listed":
-        return entry is not None
-    if entry is None:
-        return None
-    raw = entry.get(FIELDS[field][1])
-    if not isinstance(raw, str) or not raw.strip():
-        return None
-    if field == "kev_ransomware_use":
-        lowered = raw.strip().lower()
-        return lowered if lowered in {"known", "unknown"} else None
-    return raw.strip()
-
-
 def _declined(error: InputError) -> ProviderResult:
     return ProviderResult.refused(RefusalCode.PROVIDER_DECLINED, str(error))
-
-
-class KevTriage:
-    """The ``security.kev-catalog`` implementation."""
-
-    interface_id = "security.kev-catalog"
-
-    def __call__(self, context: ProviderRunContext) -> ProviderResult:
-        try:
-            index, version, _ = _catalog(context.input)
-            rows = once_per(parse_rows(context.input.get("watched")), "vulnerability")
-        except InputError as error:
-            return _declined(error)
-        items: list[dict[str, Any]] = []
-        skipped: list[dict[str, str]] = []
-        listed = watched = 0
-        for row in rows:
-            vulnerability = row.subject("vulnerability")
-            cve = cve_token(row.value("cve_id"))
-            if vulnerability is None or cve is None:
-                continue
-            watched += 1
-            entry = index.get(cve)
-            listed += entry is not None
-            for name in sorted(FIELDS):
-                predicate, key = FIELDS[name]
-                value = _catalog_value(name, entry)
-                if value is None:
-                    continue
-                state = row.state(name)
-                if state == "conflict":
-                    skipped.append({"cve_id": cve, "field": name, "reason": "conflict"})
-                    continue
-                if state == "present" and row.value(name) == value:
-                    continue
-                rationale = (
-                    f"CISA KEV catalog {version} ({len(index)} entries) does not list {cve}."
-                    if entry is None
-                    else f"CISA KEV catalog {version} lists {cve} with "
-                    f"{key or 'an entry'} = {value!r}."
-                )
-                items.append(
-                    claim_item(
-                        vulnerability,
-                        predicate,
-                        value,
-                        rationale,
-                        revises=row.claim_id(vulnerability, predicate)
-                        if state == "present"
-                        else None,
-                    )
-                )
-        return ProviderResult.ok(
-            {
-                "items": sorted_items(items),
-                "changed": len(items),
-                "watched": watched,
-                "listed": listed,
-                "catalog_version": version,
-                "catalog_count": len(index),
-            },
-            metrics={"items": float(len(items)), "watched": float(watched)},
-            events=[{"skipped": skipped}] if skipped else [],
-        )
 
 
 def _matches(release: Mapping[str, str], entry: Mapping[str, Any]) -> str | None:

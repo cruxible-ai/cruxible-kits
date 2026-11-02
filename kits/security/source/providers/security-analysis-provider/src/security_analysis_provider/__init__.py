@@ -1,7 +1,6 @@
 """The security kit's analysis provider: deterministic readings of retained security sources.
 
-Interfaces: ``security.kev-catalog`` (KEV triage), ``security.kev-attention``
-(KEV inbox attention), ``security.epss-scores`` (EPSS triage),
+Interfaces: ``security.kev-attention`` (KEV inbox attention),
 ``security.cyclonedx-components`` (SBOM import), ``security.osv-applicability``
 and ``security.cve-applicability`` (applicability assessments),
 ``security.workflow-facts`` and ``security.registry-facts`` (the system model:

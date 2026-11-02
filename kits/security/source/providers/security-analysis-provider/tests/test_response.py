@@ -1007,17 +1007,6 @@ def test_an_nvd_answer_with_null_configurations_is_no_answer_not_a_crash() -> No
 # --- the KEV and OSV readers: a truncated answer is incomplete, never none --------
 
 
-def test_a_kev_catalog_whose_count_disagrees_with_its_entries_is_refused() -> None:
-    from security_analysis_provider.kev import KevTriage
-
-    catalog = {"catalogVersion": "x", "dateReleased": "2026-10-17T00:00:00Z", "count": 3,
-               "vulnerabilities": [{"cveID": "CVE-2026-109618", "dateAdded": "2026-10-15"}]}
-    output = _context(KevTriage(), {
-        "catalog_base64": base64.b64encode(json.dumps(catalog).encode()).decode(),
-        "watched": []})
-    assert output.status == "refused" and "incomplete" in output.refusal.message
-
-
 def _osv_exchange(method: str, path: str, body: object, request: object = None) -> dict:
     return {"method": method, "path": path, "request": request, "status": 200,
             "body_sha256": "sha256:" + "0" * 64,

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import gzip
 import json
 from pathlib import Path
 from typing import Any
@@ -23,8 +22,7 @@ from security_analysis_provider.applicability import (
     version_key,
 )
 from security_analysis_provider.common import component_set
-from security_analysis_provider.epss import EpssTriage
-from security_analysis_provider.kev import KevAttention, KevTriage
+from security_analysis_provider.kev import KevAttention
 from security_analysis_provider.sbom import CycloneDxComponents
 
 DATA = Path(__file__).parent / "data"
@@ -178,52 +176,6 @@ def _statements(items: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
 # --- KEV ------------------------------------------------------------------------
 
 
-def test_kev_triage_proposes_changed_fields_by_path_and_nothing_for_a_held_catalog() -> None:
-    output = _run(
-        KevTriage(),
-        {
-            "catalog_base64": _catalog_b64(),
-            "watched": [_vuln("CVE-2021-44228"), _vuln("CVE-2021-44832")],
-        },
-    )
-    assert _statements(output["items"]) == [
-        ("subjects/security.vulnerability/cve-2021-44228.json", "kev_date_added", "2021-12-10"),
-        ("subjects/security.vulnerability/cve-2021-44228.json", "kev_due_date", "2021-12-24"),
-        ("subjects/security.vulnerability/cve-2021-44228.json", "kev_listed", True),
-        ("subjects/security.vulnerability/cve-2021-44228.json", "kev_ransomware_use", "known"),
-        ("subjects/security.vulnerability/cve-2021-44832.json", "kev_listed", False),
-    ]
-    assert (output["changed"], output["listed"], output["watched"]) == (5, 1, 2)
-    held = _run(
-        KevTriage(),
-        {
-            "catalog_base64": _catalog_b64(),
-            "watched": [
-                _vuln(
-                    "CVE-2021-44228",
-                    kev_listed=True,
-                    kev_date_added="2021-12-10",
-                    kev_due_date="2021-12-24",
-                    kev_ransomware_use="known",
-                ),
-                _vuln("CVE-2021-44832", kev_listed=False),
-            ],
-        },
-    )
-    assert held["items"] == [] and held["changed"] == 0
-    revised = _run(
-        KevTriage(),
-        {
-            "catalog_base64": _catalog_b64(),
-            "watched": [
-                _vuln("CVE-2021-44228", {"kev_listed": "CLM-" + "a" * 32}, kev_listed=False)
-            ],
-        },
-    )
-    listed = [i for i in revised["items"] if i["statement"]["predicate"].endswith("kev_listed")]
-    assert listed[0]["revises"] == "CLM-" + "a" * 32
-
-
 def test_kev_attention_posts_new_listings_matching_unwatched_or_unassessed_inventory() -> None:
     widget = _release("widget server", "4.2", supplier="Example Corp")
     log4j = _release("log4j2", "2.14.1", supplier="Apache")
@@ -256,41 +208,6 @@ def test_kev_attention_posts_new_listings_matching_unwatched_or_unassessed_inven
 
 
 # --- EPSS -----------------------------------------------------------------------
-
-
-def _epss(rows: str) -> str:
-    text = (
-        "#model_version:v2026.06.15,score_date:2026-10-10T12:00:23Z\ncve,epss,percentile\n" + rows
-    )
-    return base64.b64encode(gzip.compress(text.encode(), mtime=0)).decode()
-
-
-def test_epss_triage_states_scores_verbatim_and_revises_only_changes() -> None:
-    daily = _epss("CVE-2021-44228,0.99999,1.00000\nCVE-2024-34064,0.00979,0.61101\n")
-    output = _run(
-        EpssTriage(),
-        {
-            "daily_base64": daily,
-            "watched": [
-                _vuln("CVE-2021-44228"),
-                _vuln(
-                    "CVE-2024-34064",
-                    {"epss_score": "CLM-" + "b" * 32},
-                    epss_score="0.00900",
-                    epss_percentile="0.61101",
-                ),
-                _vuln("CVE-2099-0001"),
-            ],
-        },
-    )
-    assert _statements(output["items"]) == [
-        ("subjects/security.vulnerability/cve-2021-44228.json", "epss_percentile", "1.00000"),
-        ("subjects/security.vulnerability/cve-2021-44228.json", "epss_score", "0.99999"),
-        ("subjects/security.vulnerability/cve-2024-34064.json", "epss_score", "0.00979"),
-    ]
-    revising = [i for i in output["items"] if i["revises"]]
-    assert [i["revises"] for i in revising] == ["CLM-" + "b" * 32]
-    assert (output["watched"], output["scored"], output["model_version"]) == (3, 2, "v2026.06.15")
 
 
 # --- SBOM -----------------------------------------------------------------------
@@ -793,15 +710,6 @@ def test_a_release_osv_answered_for_is_osvs_once_osv_knows_the_cve() -> None:
 
 def test_the_registration_verifies() -> None:
     load_registration(Path(security_analysis_provider.__file__).parent)
-
-
-def test_a_vulnerability_on_several_watched_paths_is_triaged_once() -> None:
-    row = _vuln("CVE-2021-44228")
-    output = _run(KevTriage(), {"catalog_base64": _catalog_b64(), "watched": [row, row]})
-    assert output["watched"] == 1 and output["changed"] == 4
-
-
-# --- K1 review regressions: negatives need complete, exact, bound evidence -------------
 
 
 def test_any_affected_component_makes_the_release_affected_whatever_the_order() -> None:

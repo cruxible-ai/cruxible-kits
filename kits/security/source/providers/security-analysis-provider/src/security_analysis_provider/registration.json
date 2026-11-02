@@ -2,36 +2,10 @@
   "interfaces": [
     {
       "classifier": {
-        "entrypoint": "security_analysis_provider.kev:classify_triage",
-        "identity": "security.kev-catalog.input",
-        "source": {
-          "digest": "sha256:353ae9a918efa5ef0a0a9cbfe0e22d50724031e9f3ee9b9dbac77ba1c92ebc2f",
-          "path": "kev.py"
-        },
-        "version": 1
-      },
-      "definition": {
-        "digest": "sha256:c01f4e876880228254c5c91284ac11007064d37c2e5d181e444081779886476e",
-        "path": "contracts/security.kev-catalog.json"
-      },
-      "fixtures": {
-        "digest": "sha256:e3673a5bf6a39167fbe30f13f9ca5407f7e19809f4e702e4ab23d2db37743bd9",
-        "path": "registration-fixtures/security.kev-catalog.json"
-      },
-      "interface_digest": "sha256:102036c6548173cc88668c1265af902c9ac3dc7c347da6ac080c548d6beab5c4",
-      "interface_id": "security.kev-catalog",
-      "predecessors": [],
-      "vocabulary": {
-        "digest": "sha256:f3f3f1620db31336c929a8f392cddcbc1f6e8da0b80ff62240a8ab1bd1fbc049",
-        "path": "vocab/security.kev-catalog.json"
-      }
-    },
-    {
-      "classifier": {
         "entrypoint": "security_analysis_provider.kev:classify_attention",
         "identity": "security.kev-attention.input",
         "source": {
-          "digest": "sha256:353ae9a918efa5ef0a0a9cbfe0e22d50724031e9f3ee9b9dbac77ba1c92ebc2f",
+          "digest": "sha256:6b2974fbf52027b18d582f29893caf876ea1644105c0fd16fa9cc7ccb50e07da",
           "path": "kev.py"
         },
         "version": 1
@@ -50,32 +24,6 @@
       "vocabulary": {
         "digest": "sha256:463e56090db9ab8317e991fc1081f209c160a81397d7ff3952ddf7328d10ed54",
         "path": "vocab/security.kev-attention.json"
-      }
-    },
-    {
-      "classifier": {
-        "entrypoint": "security_analysis_provider.epss:classify",
-        "identity": "security.epss-scores.input",
-        "source": {
-          "digest": "sha256:90ba2ec68b3bde46576b0333af761a4ab20400b662376fdc78346bdede2ad5d0",
-          "path": "epss.py"
-        },
-        "version": 1
-      },
-      "definition": {
-        "digest": "sha256:80dd257444078a122b9273f8faf4258814aa2a5ffb6de42d34bcdbcc0858842d",
-        "path": "contracts/security.epss-scores.json"
-      },
-      "fixtures": {
-        "digest": "sha256:9bbd9f093b23ea6d5c6088f8eee8e0f523bd8ebd8f68c592c826e6e18260d983",
-        "path": "registration-fixtures/security.epss-scores.json"
-      },
-      "interface_digest": "sha256:5d2bb4e2e84aebdfa01f3d1a6800ef8e2c8e8e468f047cc94eeff9cdb69f5b64",
-      "interface_id": "security.epss-scores",
-      "predecessors": [],
-      "vocabulary": {
-        "digest": "sha256:683c79ed3d8fdf411dbb35a8a47707ba95f9ee423f1e3af9b138157148e2c554",
-        "path": "vocab/security.epss-scores.json"
       }
     },
     {
@@ -366,7 +314,7 @@
     }
   ],
   "manifest": {
-    "digest": "sha256:bb236b5ec9494e752fb2e10e65f4c3395ccfca545223ff9e57c11effc5f2dac9",
+    "digest": "sha256:083832581c1e3b5c084eac60a7767b9da8846af5be235154296d6c5139774a81",
     "path": "manifest.json"
   },
   "runtime_requirements": [],

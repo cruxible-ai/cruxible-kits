@@ -1,4 +1,4 @@
-"""The security kit's network Sources: ``security.osv-query``, ``security.epss-daily``,
+"""The security kit's network Sources: ``security.osv-query``,
 ``security.repo-snapshot``, ``security.pypi-release`` and ``security.release-asset``."""
 
 from __future__ import annotations

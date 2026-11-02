@@ -83,17 +83,6 @@ INTERFACES: dict[
         ["https://osv-vulnerabilities.storage.googleapis.com"],
         "security.osv.ecosystems.v1",
     ),
-    "security.epss-daily": (
-        "sources:EpssDaily",
-        "sources:classify_epss",
-        "The FIRST EPSS daily scores file to retain.",
-        [_dimension("file", "which EPSS file", {"daily": "the current daily scores file"})],
-        {"url": "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz"},
-        "file=daily",
-        "file=daily",
-        ["https://epss.empiricalsecurity.com"],
-        "security.epss.daily.v1",
-    ),
     "security.repo-snapshot": (
         "sources:RepoSnapshot",
         "sources:classify_repo",
