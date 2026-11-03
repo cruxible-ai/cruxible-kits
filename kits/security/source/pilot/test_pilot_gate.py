@@ -353,19 +353,6 @@ def record(catalog: dict[str, Any], cve_id: str) -> dict[str, Any]:
 # -- the gate ---------------------------------------------------------------------------
 
 
-#: Core bug found in the fix round (kit-pilot report F6): with ``effective_from``
-#: bound, a held membership is never "the same statement" again -- the claims
-#: terminal compares the held Claim's ``effective_from`` (a datetime) with the
-#: template's resolved wire text, so every complete read adds another identical
-#: membership. Each scenario below re-reads a catalog after a first run; they
-#: pass with the binding removed (commit be71725) and must pass once core compares
-#: typed values. Strict: the fix turns them green and drops this marker.
-EFFECTIVE_FROM_RERUN = pytest.mark.xfail(
-    strict=True,
-    reason="core F6: claims sameness compares effective_from datetime with wire text",
-)
-
-
 @pytest.mark.parametrize("exchange_id", ["kev-catalog", "epss-api"])
 def test_baseline_replay_stores_the_fixture_bytes_verbatim(tmp_path: Path, exchange_id) -> None:
     """D-R25/D-R27: through the real web.fetch adapter, the admitted Capture's body
@@ -431,7 +418,6 @@ def test_g1_first_run_settles_by_basis_with_dated_membership(tmp_path: Path) -> 
     assert scored.terminal_egress[0].settle_outcome == "settled"
 
 
-@EFFECTIVE_FROM_RERUN
 def test_g1_identical_runs_write_nothing(tmp_path: Path) -> None:
     instance = pilot_world(tmp_path)
     kev(instance, fixture_bytes("kev-catalog"))
@@ -447,7 +433,6 @@ def test_g1_identical_runs_write_nothing(tmp_path: Path) -> None:
     assert instance.accepted_coordinate() == before
 
 
-@EFFECTIVE_FROM_RERUN
 def test_g4_g18_a_count_mismatch_never_writes_absence(tmp_path: Path) -> None:
     instance = pilot_world(tmp_path)
     short = kev_catalog()
@@ -475,7 +460,6 @@ def test_g4_g18_a_count_mismatch_never_writes_absence(tmp_path: Path) -> None:
     assert all(f.source_incomplete for f in findings)
 
 
-@EFFECTIVE_FROM_RERUN
 def test_g5_delisting_inverts_membership_and_mirrors_dates_then_relisting(
     tmp_path: Path,
 ) -> None:
