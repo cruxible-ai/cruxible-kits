@@ -1,0 +1,36 @@
+{
+ "schema_version": 2,
+ "manifest": {
+  "path": "manifest.yaml",
+  "digest": "sha256:f830b4608f6125a103e67166e8695c8eedd812a5da44444061b4614810dd3499"
+ },
+ "operations": [
+  {
+   "name": "osv.query",
+   "in": "osv.query.request@1",
+   "out": "osv.query.result@1",
+   "effect": "external_read",
+   "refusals": {
+    "provider_declined": {
+     "contract": "osv.query.refusal.provider_declined@1",
+     "absorbable": false
+    }
+   },
+   "entrypoint": "security_osv_provider.osv:OsvQuery"
+  },
+  {
+   "name": "osv.match",
+   "in": "osv.match.request@1",
+   "out": "osv.match.result@1",
+   "effect": "pure",
+   "refusals": {
+    "provider_declined": {
+     "contract": "osv.match.refusal.provider_declined@1",
+     "absorbable": false
+    }
+   },
+   "entrypoint": "security_osv_provider.osv:OsvMatch"
+  }
+ ],
+ "runtime_requirements": []
+}

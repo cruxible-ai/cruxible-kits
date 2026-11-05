@@ -70,6 +70,19 @@ project](intake.md#add-a-pypi-project)) and see [Your
 systems](walkthroughs.md#your-systems-the-hardening-questions); for scanner and reviewer
 findings in your own code, [Your code's findings](walkthroughs.md#your-codes-findings).
 
+## Distro packages read "not checked" (Claim-authority form, batch 1)
+
+In the Claim-authority form of the kit (`source/pilot/`, see its
+[README](source/pilot/README.md)), OSV says which vulnerabilities affect each
+SBOM component, for its exact purl@version. OSV's distribution ecosystems
+(Debian, Ubuntu, Alpine, the RPM distributions) are keyed by **source** package
+name, while an SBOM lists **binary** packages (`libc6` is `glibc` to OSV). This
+version cannot map one to the other. So a distro component (purl type `deb`,
+`rpm` or `apk`) is not asked about. It reads **not checked**: never clean, and
+absence never retires its Claims. A component whose OSV answer was incomplete
+(a failed or truncated query, or an advisory OSV could not serve) reads the
+same way. Language packages (PyPI, npm, Maven, Go, crates.io, ...) are checked.
+
 ## How it models your world
 
 Four words carry the rest of the kit's docs. A **Subject** is one thing the kit

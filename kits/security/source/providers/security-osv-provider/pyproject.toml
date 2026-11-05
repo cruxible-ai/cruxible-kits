@@ -1,0 +1,37 @@
+# The security kit's OSV plane (batch 1, D-R37 template form). One distribution,
+# one lock, one identity unit; two operations:
+#   osv.query  (fetch, external_read): OSV's raw responses, one Capture each;
+#   osv.match  (derive, pure): those responses + the queried components -> one
+#              derived JSON document (affected pairs, `queried`, `not_checked`).
+#
+# PREPARED, NOT WIRED: the list Capture output (osv.query) and the derive input /
+# derived Capture (osv.match) need core lanes A + B (template-slice-decisions
+# a1-a8, b1-b8, c1-c6). No uv.lock yet: `uv lock` runs when the package is wired.
+[project]
+name = "security-osv-provider"
+version = "0.1.0.dev0"
+description = "Security kit provider: OSV.dev queries (raw responses) and their match derivation."
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "The Cruxible maintainers" }]
+dependencies = [
+  "cruxible-provider-runtime>=0.3.0",
+  "httpx>=0.27",
+]
+
+[project.entry-points."cruxible.providers"]
+"osv.query" = "security_osv_provider.osv:OsvQuery"
+"osv.match" = "security_osv_provider.osv:OsvMatch"
+
+[dependency-groups]
+dev = ["pytest>=8.2"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/security_osv_provider"]
+
+[tool.hatch.build.targets.wheel.extra-metadata]
+"uv.lock" = "uv.lock"
