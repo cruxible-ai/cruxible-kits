@@ -6,8 +6,12 @@ Every step is an ordinary governed write the instance's approval policy admits
 1. the Contracts cruxible-provider-web's operations pin (``web_contracts.py``);
 2. ``provider install`` of the web wheel (its lock and the runtime wheel beside it);
 3. the two CaptureKinds (``capture-contract propose``);
-4. vocabulary, Procedures, watched Subjects and the Lines/Mandates/Triggers
+4. vocabulary, Procedures, vulnerability Subjects and the Lines/Mandates/Triggers
    (``authoring submit`` of the change sets ``definitions.py`` writes).
+
+A ``seed.json`` (own-word affected_by, labelled seed) is NOT installed here: it is
+state an agent states, submitted by hand after the SBOM import Lines have run
+(see the instance README).
 
     python install.py PAYLOADS --providers PROVIDERS_CHECKOUT --wheels WHEEL_DIR
 

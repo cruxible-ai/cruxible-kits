@@ -28,6 +28,7 @@ catalog read is the declared inverse (D-R11, D-R24); the KEV dates mirror; the
 ransomware field surfaces. EPSS decimals are typed in the extract (D-R23).
 
     python definitions.py OUT_DIR [--watch CVE ...] [--now ISO8601]
+        [--workspace DIR --sbom NAME=RELATIVE_PATH ...] [--seed PURL=CVE ...]
 """
 
 from __future__ import annotations
@@ -773,19 +774,30 @@ def seed_affected_by(pairs: Sequence[tuple[str, str]], *, reason: str) -> dict[s
     }
 
 
-def write_all(out: Path, *, watch: Sequence[str], now: datetime) -> list[Path]:
+def write_all(
+    out: Path,
+    *,
+    watch: Sequence[str],
+    now: datetime,
+    sboms: Sequence[tuple[str, str, str]] = (),
+    seeds: Sequence[tuple[str, str]] = (),
+) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     for name, record in capture_kinds().items():
         path = out / f"capture-kind.{name}.json"
         path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
         written.append(path)
-    for name, payload in (
+    vulnerabilities = list(dict.fromkeys([*watch, *(cve for _purl, cve in seeds)]))
+    payloads = [
         ("vocabulary", vocabulary()),
         ("procedures", procedures()),
-        ("automation", automation(watch, now=now)),
-        ("watch", watch_subjects(watch)),
-    ):
+        ("automation", automation(vulnerabilities, now=now, sboms=sboms)),
+        ("watch", watch_subjects(vulnerabilities)),
+    ]
+    if seeds:
+        payloads.append(("seed", seed_affected_by(seeds, reason="recorded OSV answer")))
+    for name, payload in payloads:
         ChangeSetInput.model_validate(payload)
         path = out / f"{name}.json"
         path.write_text(json.dumps(payload, indent=1, sort_keys=True) + "\n")
@@ -794,13 +806,38 @@ def write_all(out: Path, *, watch: Sequence[str], now: datetime) -> list[Path]:
 
 
 def main() -> None:
+    from inventory import lint_sbom
+
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("out", type=Path)
-    parser.add_argument("--watch", nargs="*", default=list(DEFAULT_WATCH))
+    parser.add_argument("--watch", nargs="*", default=[], help="CVE ids to create as Subjects")
     parser.add_argument("--now", default=None, help="ISO-8601 instant Mandates start from")
+    parser.add_argument("--workspace", type=Path, default=None, help="the SBOMs' workspace root")
+    parser.add_argument(
+        "--sbom", nargs="*", default=[], help="NAME=RELATIVE_PATH: two import Lines per SBOM"
+    )
+    parser.add_argument(
+        "--seed", nargs="*", default=[], help="PURL=CVE: an own-word affected_by seed"
+    )
     args = parser.parse_args()
     now = datetime.fromisoformat(args.now) if args.now else datetime.now(UTC)
-    for path in write_all(args.out, watch=args.watch, now=now.replace(microsecond=0)):
+    sboms = []
+    for item in args.sbom:
+        name, _, relative = item.partition("=")
+        if args.workspace is None:
+            raise SystemExit("--sbom needs --workspace (the lint reads each SBOM)")
+        lint = lint_sbom((args.workspace / relative).read_bytes(), relative)
+        for warning in lint.warnings:
+            print(f"lint warning: {warning}")
+        sboms.append((name, relative, lint.inventory_id))
+    seeds = [tuple(item.split("=", 1)) for item in args.seed]
+    for path in write_all(
+        args.out,
+        watch=args.watch,
+        now=now.replace(microsecond=0),
+        sboms=sboms,
+        seeds=seeds,  # type: ignore[arg-type]
+    ):
         print(path)
 
 
