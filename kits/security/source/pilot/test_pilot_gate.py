@@ -134,6 +134,14 @@ class Replay:
         web_fetch = _web_fetch()
 
         def output(context: Any) -> dict[str, Any]:
+            if "commitment_digest" in context.input:
+                # Core's builtin workspace.file (the SBOM import's read): the
+                # daemon has already read the file; the builtin structures it.
+                from cruxible_core.providers.builtin_workspace_file import WorkspaceFile
+
+                envelope = WorkspaceFile()(context)
+                assert envelope.status == "ok", envelope
+                return dict(envelope.output or {})
             result = web_fetch(client_factory=self.client_factory())(
                 ProviderRunContext(
                     run_id=context.run_id,
@@ -201,7 +209,57 @@ def submit(instance: Any, payload: Mapping[str, Any], *, name: str) -> None:
     author(instance, ChangeSetInput.model_validate(payload), name=name)
 
 
-def pilot_world(tmp_path: Path, *, watch: tuple[str, ...] = WATCH) -> Any:
+#: The pilot's watch list now comes from the chain (K-B1-2): one test SBOM lists a
+#: stand-in component per watched CVE, and a SEED states each affected_by (OSV is
+#: not wired yet). KEV and EPSS read the same watched rows as before.
+PILOT_SBOM = "sboms/pilot-watch.cdx.json"
+PILOT_SBOM_LINE = "pilot-watch"
+
+
+def pilot_component(cve_id: str) -> str:
+    return f"pkg:generic/pilot-watch/{cve_id.lower()}@1"
+
+
+def pilot_sbom(watch: tuple[str, ...]) -> bytes:
+    document = {
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.6",
+        "version": 1,
+        "metadata": {
+            "component": {
+                "type": "application",
+                "name": "pilot-watch",
+                "purl": "pkg:generic/pilot-watch",
+            }
+        },
+        "components": [
+            {"type": "library", "name": c.lower(), "purl": pilot_component(c)} for c in watch
+        ],
+    }
+    return json.dumps(document, indent=2).encode()
+
+
+def workspace(tmp_path: Path) -> Path:
+    root = tmp_path / "workspace"
+    root.mkdir(exist_ok=True)
+    return root
+
+
+def write_file(tmp_path: Path, relative: str, content: bytes) -> None:
+    path = workspace(tmp_path) / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+
+
+def kit_world(
+    tmp_path: Path,
+    *,
+    watch: tuple[str, ...] = (),
+    sboms: tuple[tuple[str, str, str], ...] = (),
+) -> Any:
+    """A fresh instance holding every kit definition, the catalog and ``watch``'s
+    vulnerability Subjects, and the Lines (one SBOM import Line per ``sboms``)."""
+
     from cruxible_client.contracts.capture_contract_inputs import (
         CaptureContractInputRecord,
         lower_capture_contract_input,
@@ -213,6 +271,7 @@ def pilot_world(tmp_path: Path, *, watch: tuple[str, ...] = WATCH) -> Any:
 
     checkout = require_provider_checkout()
     instance, _owner = initialize_local(tmp_path)
+    workspace(tmp_path)
     submit(
         instance,
         {"kind": "change_set", "members": web_contract_members(checkout)},
@@ -236,8 +295,35 @@ def pilot_world(tmp_path: Path, *, watch: tuple[str, ...] = WATCH) -> Any:
     for index, member in enumerate(kit.procedures()["members"]):
         author(instance, ProcedureInput.model_validate(member), name=f"procedure-{index}")
     submit(instance, kit.watch_subjects(watch), name="watch")
-    submit(instance, kit.automation(watch, now=NOW), name="automation")
+    submit(instance, kit.automation(watch, now=NOW, sboms=sboms), name="automation")
     return instance
+
+
+def pilot_world(tmp_path: Path, *, watch: tuple[str, ...] = WATCH) -> Any:
+    instance = kit_world(
+        tmp_path, watch=watch, sboms=((PILOT_SBOM_LINE, PILOT_SBOM, "pkg:generic/pilot-watch"),)
+    )
+    write_file(tmp_path, PILOT_SBOM, pilot_sbom(watch))
+    import_sbom(instance, PILOT_SBOM_LINE, minute=-5)
+    submit(
+        instance,
+        kit.seed_affected_by([(pilot_component(c), c) for c in watch], reason="pilot gate"),
+        name="seed",
+    )
+    return instance
+
+
+def import_sbom(instance: Any, name: str, *, minute: int = 0) -> tuple[Any, Any]:
+    """Run one SBOM's two Lines by hand: name the inventory, then import its components."""
+
+    from inventory import inventory_line_name, sbom_line_name
+
+    out = []
+    for line in (inventory_line_name(name), sbom_line_name(name)):
+        state = run(instance, {}, line=line, minute=minute)
+        assert state.status == "succeeded", (line, state.terminal)
+        out.append(state)
+    return out[0], out[1]
 
 
 def run(instance: Any, routes: Mapping[str, bytes], *, line: str, minute: int = 0) -> Any:
@@ -245,6 +331,7 @@ def run(instance: Any, routes: Mapping[str, bytes], *, line: str, minute: int = 
 
 
 def service_run(instance: Any, replay: Replay, *, line: str, minute: int = 0) -> Any:
+    from cruxible_core.documents.workspace_file import WorkspaceFileReader
     from cruxible_core.service.procedures.procedure_runs import (
         LineRunRequest,
         service_run_playbill_line,
@@ -259,6 +346,12 @@ def service_run(instance: Any, replay: Replay, *, line: str, minute: int = 0) ->
         caller_rung=2,
         daemon_clock=_Clock(NOW + timedelta(minutes=minute)),
         provider_runtime_operator=replay.operator(),  # type: ignore[arg-type]
+        workspace_file_reader=WorkspaceFileReader(
+            instance_id=instance.descriptor.instance_id,
+            operating_profile="local",
+            attached_roots=(instance.root.parent / "workspace",),
+            managed_roots=(instance.root,),
+        ),
     )
 
 

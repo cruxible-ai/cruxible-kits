@@ -1,0 +1,45 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:3d1f7c2a-9b8e-4f6d-a5c4-2e1b0f9d8c7a",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-04T12:00:00Z",
+    "tools": {"components": [{"type": "application", "name": "hand-written demo", "version": "1"}]},
+    "component": {
+      "type": "application",
+      "bom-ref": "demo-app",
+      "name": "log4j-demo-app",
+      "version": "1.0.0",
+      "description": "DEMO APP (not real software): a small Java service pinning log4j-core 2.14.1.",
+      "purl": "pkg:maven/com.example/log4j-demo-app@1.0.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-api@2.14.1",
+      "group": "org.apache.logging.log4j",
+      "name": "log4j-api",
+      "version": "2.14.1",
+      "purl": "pkg:maven/org.apache.logging.log4j/log4j-api@2.14.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1",
+      "group": "org.apache.logging.log4j",
+      "name": "log4j-core",
+      "version": "2.14.1",
+      "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.slf4j/slf4j-api@1.7.32",
+      "group": "org.slf4j",
+      "name": "slf4j-api",
+      "version": "1.7.32",
+      "purl": "pkg:maven/org.slf4j/slf4j-api@1.7.32"
+    }
+  ]
+}
