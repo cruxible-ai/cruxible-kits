@@ -2,14 +2,16 @@
 
 ``recordings/`` holds real api.osv.dev exchanges (recorded 2026-11-04 for the
 kit's two demo SBOMs, plus a distro binary-name miss, its source-name hit and an
-advisory OSV does not know). No test opens a socket. Core wiring (list Captures,
-derive inputs, derived Captures) is not exercised here: it waits for core lanes
-A + B.
+advisory OSV does not know). No test opens a socket. The core wiring (list
+Captures, derive inputs, derived Captures) is exercised by the kit gate
+(``source/pilot/test_dependency_gate.py``).
 """
 
 from __future__ import annotations
 
+import base64
 import json
+import socket
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -33,9 +35,18 @@ def sbom_purls(name: str) -> list[str]:
 
 
 class Recorded:
-    """An OSV origin answering from recordings, by method + URL + request body."""
+    """An OSV origin answering from recordings, by method + URL + request body.
 
-    def __init__(self, overrides: Mapping[str, tuple[int, bytes]] | None = None) -> None:
+    ``overrides`` answer a URL with (status, bytes); ``drop`` URLs raise a
+    transport error (no response at all).
+    """
+
+    def __init__(
+        self,
+        overrides: Mapping[str, tuple[int, bytes]] | None = None,
+        *,
+        drop: tuple[str, ...] = (),
+    ) -> None:
         self.answers: dict[tuple[str, str, str], tuple[int, bytes]] = {}
         for item in INDEX:
             body = "" if item["request"] is None else json.dumps(item["request"], sort_keys=True)
@@ -44,12 +55,15 @@ class Recorded:
                 (RECORDINGS / item["body"]).read_bytes(),
             )
         self.overrides = dict(overrides or {})
+        self.drop = drop
         self.requests: list[str] = []
 
     def transport(self) -> httpx.MockTransport:
         def handle(request: httpx.Request) -> httpx.Response:
             url = str(request.url)
             self.requests.append(f"{request.method} {url}")
+            if url in self.drop:
+                raise httpx.ConnectError("dropped", request=request)
             if url in self.overrides:
                 status, content = self.overrides[url]
                 return httpx.Response(status, content=content)
@@ -85,11 +99,17 @@ def context(payload: Mapping[str, Any], operation: str) -> Any:
     )
 
 
-def query(components: list[str], origin: Recorded) -> list[dict[str, Any]]:
+def query_result(components: list[str], origin: Recorded) -> Any:
     result = osv.OsvQuery(transport_factory=origin.transport)(
         context({"components": components, "logical_source": "osv.dev.query"}, osv.QUERY)
     )
     assert result.status == "ok", result
+    return result
+
+
+def query(components: list[str], origin: Recorded) -> list[dict[str, Any]]:
+    result = query_result(components, origin)
+    assert result.incomplete_captures == []
     return list(result.output["responses"])
 
 
@@ -101,8 +121,6 @@ def derive(responses: list[dict[str, Any]], components: list[str]) -> tuple[byte
         )
     )
     assert result.status == "ok", result
-    import base64
-
     content = base64.b64decode(result.output["document"]["content_base64"])
     return content, json.loads(content)
 
@@ -114,8 +132,6 @@ def test_each_response_is_one_member_verbatim() -> None:
     # One batch, then one record per advisory the batch names.
     assert [r["coordinate"]["method"] for r in responses].count("POST") == 1
     batch = next(r for r in responses if r["coordinate"]["method"] == "POST")
-    import base64
-
     assert (
         base64.b64decode(batch["content_base64"])
         == (RECORDINGS / "batch-log4j-demo-app.body").read_bytes()
@@ -189,22 +205,236 @@ def test_a_failed_batch_leaves_every_component_in_it_unanswered() -> None:
     assert {r["reason"] for r in document["not_checked"]} == {"batch_failed"}
 
 
-def test_match_is_byte_identical_across_runs() -> None:
+def test_match_is_byte_identical_across_runs_with_the_network_blocked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purity conformance (b5): two runs, byte-identical output, no socket."""
+
     components = sbom_purls("log4j-demo-app.cdx.json")
     responses = query(components, Recorded())
-    first, _ = derive(responses, components)
-    second, _ = derive(responses, components)
+
+    def blocked(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("osv.match opened a socket")
+
+    monkeypatch.setattr(socket, "socket", blocked)
+    monkeypatch.setattr(socket, "create_connection", blocked)
+    first = osv.OsvMatch()(
+        context({"responses": responses, "components": components}, osv.MATCH)
+    ).output
+    second = osv.OsvMatch()(
+        context({"responses": responses, "components": components}, osv.MATCH)
+    ).output
     assert first == second
+    # Stamped with its inputs' observation time, never the clock.
+    assert first["document"]["observed_at"] == max(r["observed_at"] for r in responses)
 
 
-@pytest.mark.parametrize("operation", [osv.QUERY, osv.MATCH])
+def test_fixed_versions_are_the_packages_own_fixed_events_sorted_as_text() -> None:
+    components = sbom_purls("log4j-demo-app.cdx.json")
+    _content, document = derive(query(components, Recorded()), components)
+    rows = {(r["purl"].split("/")[-1], r["cve_id"]): r for r in document["affected"]}
+    # Log4Shell's advisory lists three log4j-core release lines (and other
+    # packages' fixes, which are not this component's).
+    assert rows[("log4j-core@2.14.1", "CVE-2021-44228")]["fixed"] == ["2.12.2", "2.15.0", "2.3.1"]
+    assert rows[("log4j-api@2.14.1", "CVE-2026-49844")]["fixed"] == ["2.25.5", "2.26.1"]
+    # An advisory with no fixed event for the package carries no list.
+    assert all("fixed" not in r or r["fixed"] for r in document["affected"])
+    assert document["count"] == len(document["affected"])
+
+
+def test_pypi_names_match_under_pep503() -> None:
+    record = {
+        "affected": [
+            {
+                "package": {"purl": "pkg:pypi/Foo_Bar"},
+                "ranges": [{"events": [{"introduced": "0"}, {"fixed": "1.2"}]}],
+            },
+            {"package": {"purl": "pkg:pypi/other"}, "ranges": [{"events": [{"fixed": "9"}]}]},
+        ]
+    }
+    assert osv.fixed_versions(record, "pkg:pypi/foo-bar@1.0") == ["1.2"]
+
+
+def test_a_request_with_no_response_is_missing_and_named_incomplete() -> None:
+    """R-ON2: a transport failure leaves the member out and names the list field."""
+
+    components = sbom_purls("log4j-demo-app.cdx.json")
+    advisory = f"{osv.OSV_API}/v1/vulns/GHSA-jfh8-c2jp-5v3q"
+    result = query_result(components, Recorded(drop=(advisory,)))
+    assert result.incomplete_captures == [osv.RESPONSES]
+    responses = result.output["responses"]
+    assert len(responses) == 1 + 8
+    _content, document = derive(responses, components)
+    core = "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+    assert {"purl": core, "reason": "advisory_unreadable"} in document["not_checked"]
+    # A dropped batch: its purls were never answered.
+    batch = query_result(components, Recorded(drop=(f"{osv.OSV_API}/v1/querybatch",)))
+    assert batch.incomplete_captures == [osv.RESPONSES] and batch.output["responses"] == []
+    _content, document = derive([], components)
+    assert document["queried"] == [] and {r["reason"] for r in document["not_checked"]} == {
+        "not_asked"
+    }
+
+
+def _synthetic(n: int) -> tuple[list[str], Recorded]:
+    """n components, each with one advisory naming one CVE, answered by a fake OSV."""
+
+    purls = [f"pkg:pypi/pkg{i}@1.0" for i in range(n)]
+    batch = {"results": [{"vulns": [{"id": f"GHSA-{i:04d}"}]} for i in range(n)]}
+    overrides = {f"{osv.OSV_API}/v1/querybatch": (200, json.dumps(batch).encode())}
+    for i in range(n):
+        record = {
+            "id": f"GHSA-{i:04d}",
+            "aliases": [f"CVE-2026-{1000 + i}"],
+            "affected": [
+                {
+                    "package": {"purl": f"pkg:pypi/pkg{i}"},
+                    "ranges": [{"events": [{"introduced": "0"}, {"fixed": "1.1"}]}],
+                }
+            ],
+        }
+        overrides[f"{osv.OSV_API}/v1/vulns/GHSA-{i:04d}"] = (200, json.dumps(record).encode())
+    return purls, Recorded(overrides=overrides)
+
+
+@pytest.mark.parametrize("n", [10, 40])
+def test_work_grows_linearly_with_components(n: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Work counts at two sizes: one request and one decode per member, one
+    fixed-version scan per pair; constant per component."""
+
+    purls, origin = _synthetic(n)
+    responses = query(purls, origin)
+    assert len(origin.requests) == 1 + n
+    counts = {"decode": 0, "index": 0}
+    real_input, real_index = osv.capture_input, osv.fixed_index
+
+    def counted_input(view: Any) -> Any:
+        counts["decode"] += 1
+        return real_input(view)
+
+    def counted_index(record: Any) -> Any:
+        counts["index"] += 1
+        return real_index(record)
+
+    monkeypatch.setattr(osv, "capture_input", counted_input)
+    monkeypatch.setattr(osv, "fixed_index", counted_index)
+    _content, document = derive(responses, purls)
+    assert len(document["affected"]) == n
+    assert counts == {"decode": 1 + n, "index": n}
+
+
+def _shared(n: int) -> tuple[list[str], Recorded]:
+    """n components and ONE advisory affecting all n packages (with aliases)."""
+
+    purls = [f"pkg:pypi/pkg{i}@1.0" for i in range(n)]
+    batch = {"results": [{"vulns": [{"id": "GHSA-0000"}]} for _ in sorted(purls)]}
+    record = {
+        "id": "GHSA-0000",
+        "aliases": ["CVE-2026-0001", "CVE-2026-0002"],
+        "affected": [
+            {
+                "package": {"purl": f"pkg:pypi/pkg{i}"},
+                "ranges": [{"events": [{"introduced": "0"}, {"fixed": "1.1"}]}],
+            }
+            for i in range(n)
+        ],
+    }
+    overrides = {
+        f"{osv.OSV_API}/v1/querybatch": (200, json.dumps(batch).encode()),
+        f"{osv.OSV_API}/v1/vulns/GHSA-0000": (200, json.dumps(record).encode()),
+    }
+    return purls, Recorded(overrides=overrides)
+
+
+@pytest.mark.parametrize("n", [10, 40])
+def test_one_shared_advisory_costs_linear_work(n: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    """F4: one advisory affecting n packages is indexed once; package
+    normalizations grow linearly (n entries + n components), never n x n."""
+
+    purls, origin = _shared(n)
+    responses = query(purls, origin)
+    calls = {"base": 0, "index": 0}
+    real_base, real_index = osv.package_base, osv.fixed_index
+
+    def counted_base(purl: str) -> str:
+        calls["base"] += 1
+        return real_base(purl)
+
+    def counted_index(record: Any) -> Any:
+        calls["index"] += 1
+        return real_index(record)
+
+    monkeypatch.setattr(osv, "package_base", counted_base)
+    monkeypatch.setattr(osv, "fixed_index", counted_index)
+    _content, document = derive(responses, purls)
+    assert len(document["affected"]) == 2 * n  # two CVE aliases per component
+    assert {tuple(r["fixed"]) for r in document["affected"]} == {("1.1",)}
+    assert calls == {"base": 2 * n, "index": 1}
+
+
+def _one_package(n: int) -> tuple[list[str], Recorded]:
+    """n versions of ONE package, one advisory listing n fixed events for it."""
+
+    purls = [f"pkg:pypi/shared@0.{i}" for i in range(n)]
+    batch = {"results": [{"vulns": [{"id": "GHSA-0001"}]} for _ in sorted(purls)]}
+    record = {
+        "id": "GHSA-0001",
+        "aliases": ["CVE-2026-0003"],
+        "affected": [
+            {
+                "package": {"purl": "pkg:pypi/shared"},
+                "ranges": [
+                    {"events": [{"introduced": "0"}, *({"fixed": f"1.{i:04d}"} for i in range(n))]}
+                ],
+            }
+        ],
+    }
+    overrides = {
+        f"{osv.OSV_API}/v1/querybatch": (200, json.dumps(batch).encode()),
+        f"{osv.OSV_API}/v1/vulns/GHSA-0001": (200, json.dumps(record).encode()),
+    }
+    return purls, Recorded(overrides=overrides)
+
+
+@pytest.mark.parametrize("n", [40, 160])
+def test_many_versions_of_one_package_copy_bounded_fixes(
+    n: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F4 r2: n component versions share a package whose advisory lists n > MAX_FIXED
+    fixes. The index keeps MAX_FIXED per package, so each pair copies a bounded
+    list: total copied entries are n x MAX_FIXED, never n x n."""
+
+    purls, origin = _one_package(n)
+    responses = query(purls, origin)
+    sizes: list[int] = []
+    real_index = osv.fixed_index
+
+    def measured_index(record: Any) -> Any:
+        index = real_index(record)
+        sizes.extend(len(v) for v in index.values())
+        return index
+
+    monkeypatch.setattr(osv, "fixed_index", measured_index)
+    _content, document = derive(responses, purls)
+    assert sizes == [osv.MAX_FIXED]
+    expected = tuple(sorted(f"1.{i:04d}" for i in range(n))[: osv.MAX_FIXED])
+    assert len(document["affected"]) == n
+    assert {tuple(r["fixed"]) for r in document["affected"]} == {expected}
+
+
+@pytest.mark.parametrize("operation", [osv.QUERY, osv.MATCH, "sbom.components"])
 def test_registration_names_each_operation_and_its_entrypoint(operation: str) -> None:
+    import importlib
+
     root = HERE.parent / "src" / "security_osv_provider"
     registration = json.loads((root / "registration.json").read_text())
     (entry,) = [op for op in registration["operations"] if op["name"] == operation]
     module, _, name = entry["entrypoint"].partition(":")
-    assert operation in getattr(osv, name).operations
-    assert entry["effect"] == ("pure" if operation == osv.MATCH else "external_read")
+    assert operation in getattr(importlib.import_module(module), name).operations
+    assert entry["effect"] == ("external_read" if operation == osv.QUERY else "pure")
+    for contract in (entry["in"], entry["out"]):
+        cname, _, version = contract.partition("@")
+        assert (root / "contracts" / cname / f"v{version}.json").is_file()
     import hashlib
 
     manifest = (root / "manifest.yaml").read_bytes()

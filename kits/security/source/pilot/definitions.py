@@ -20,6 +20,12 @@ one row per vulnerability with the same row Contract, so kev-triage reads it
 unchanged. Every Procedure is in the template form (D-R37): epss-triage reads
 its key list from ``security.watched_cve_keys`` instead of shaping it.
 
+Batch 2, the dependency loop (``inventory.py``, ``osv.py``, ``triage.py``): one
+SBOM import Procedure whose inventory comes from the ``sbom.components`` derive,
+the OSV Line (``affected_by`` + ``fixed_in``), not_affected judgments as the
+``affected_by`` inverse with a VEX reason, and the triage and track-record
+Queries.
+
 No provider computes a Claim. ``web.fetch`` (cruxible-provider-web, bound by
 the Line) returns the catalog bytes; core extracts typed records under the
 CaptureKind's decoding and the claims template writes them. Membership is
@@ -28,7 +34,7 @@ catalog read is the declared inverse (D-R11, D-R24); the KEV dates mirror; the
 ransomware field surfaces. EPSS decimals are typed in the extract (D-R23).
 
     python definitions.py OUT_DIR [--watch CVE ...] [--now ISO8601]
-        [--workspace DIR --sbom NAME=RELATIVE_PATH ...] [--seed PURL=CVE ...]
+        [--sbom NAME=RELATIVE_PATH ...] [--seed PURL=CVE ...]
 """
 
 from __future__ import annotations
@@ -124,11 +130,13 @@ def capture_kinds() -> dict[str, dict[str, Any]]:
         }
 
     from inventory import capture_kinds as inventory_kinds
+    from osv import capture_kinds as osv_kinds
 
     return {
         KEV_KIND: kind(KEV_KIND, max_bytes=16 * 1024 * 1024, records=100_000),
         EPSS_KIND: kind(EPSS_KIND, max_bytes=1024 * 1024, records=1_000),
         **inventory_kinds(),
+        **osv_kinds(),
     }
 
 
@@ -316,6 +324,12 @@ def vocabulary() -> dict[str, Any]:
         {"kind": "query_definition", "query_definition": query}
         for query in watch_queries([*claim_types, *inventory_claim_types()])
     ]
+    # -- Batch 2, dependency loop: OSV vocabulary, triage and track-record Queries.
+    import osv
+    import triage
+
+    members += osv.vocabulary_members([*claim_types, *inventory_claim_types()])
+    members += triage.vocabulary_members()
     return {
         "kind": "change_set",
         "rationale": "Security kit vocabulary: SBOM inventory, KEV and EPSS facts, and the "
@@ -348,13 +362,13 @@ WATCH_KEYS_SPEC: dict[str, Any] = {
 }
 
 
-def watch_queries(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
-    """The two watch Queries, lowered against this vocabulary and made Subject-shaped.
+def subject_shaped(spec: Mapping[str, Any], claim_types: Sequence[Any]) -> dict[str, Any]:
+    """One Query, lowered against this vocabulary and made Subject-shaped.
 
     The authored form (``QuerySpecInput``) lowers a query with hops to one row per
-    path; the watch list is one row per vulnerability, so the lowered definition
-    is stated with ``result_shape: subject`` and Subject dedupe (every hop is
-    required, as a Subject-shaped query needs).
+    path; a list such as the watch list is one row per entry Subject, so the
+    lowered definition is stated with ``result_shape: subject`` and Subject
+    dedupe (every hop is required, as a Subject-shaped query needs).
     """
 
     from cruxible_client.contracts.claim_types import claim_type_path, render_claim_type
@@ -366,15 +380,18 @@ def watch_queries(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
 
     tree = {claim_type_path(t.predicate): render_claim_type(t) for t in claim_types}
     resolver = AuthoredQueryResolver(candidate_query_vocabulary(tree))
-    out = []
-    for spec in (WATCHED_SPEC, WATCH_KEYS_SPEC):
-        lowered = lower_query_spec(QuerySpecInput.model_validate(spec), resolver)
-        wire = lowered.model_dump(mode="json", by_alias=True)
-        for budget in ("default_budgets", "maximum_budgets"):
-            wire[budget] = {**wire[budget], "max_paths": None, "max_paths_per_result": None}
-        shaped = lowered.model_validate({**wire, "result_shape": "subject", "dedupe": "subject"})
-        out.append(shaped.model_dump(mode="json", by_alias=True))
-    return out
+    lowered = lower_query_spec(QuerySpecInput.model_validate(spec), resolver)
+    wire = lowered.model_dump(mode="json", by_alias=True)
+    for budget in ("default_budgets", "maximum_budgets"):
+        wire[budget] = {**wire[budget], "max_paths": None, "max_paths_per_result": None}
+    shaped = lowered.model_validate({**wire, "result_shape": "subject", "dedupe": "subject"})
+    return shaped.model_dump(mode="json", by_alias=True)
+
+
+def watch_queries(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
+    """The two watch Queries, Subject-shaped (one row per vulnerability)."""
+
+    return [subject_shaped(spec, claim_types) for spec in (WATCHED_SPEC, WATCH_KEYS_SPEC)]
 
 
 # -- 3. Procedures ----------------------------------------------------------------------
@@ -566,11 +583,14 @@ def epss_spec() -> dict[str, Any]:
 
 
 def procedures() -> dict[str, Any]:
+    import osv
     from inventory import procedure_members
 
     members = [
         *procedure_members(),
         *({"kind": "procedure", "spec": spec} for spec in (kev_spec(), epss_spec())),
+        # -- Batch 2, dependency loop: the OSV Procedure.
+        *osv.procedure_members(),
     ]
     for member in members:
         ProcedureInput.model_validate(member)
@@ -631,10 +651,12 @@ def automation(
     *,
     now: datetime,
     settle: bool = True,
-    sboms: Sequence[tuple[str, str, str]] = (),
+    sboms: Sequence[tuple[str, str]] = (),
+    osv_line: bool = True,
 ) -> dict[str, Any]:
     """The consumer's Lines: KEV and EPSS (the EPSS URL carries ``watch``, D-R34
-    pending), and two SBOM Lines per (name, workspace path, inventory id) in ``sboms``."""
+    pending), one SBOM import Line per (name, workspace path) in ``sboms``, and
+    the OSV Line."""
     valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
     expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
     lines = (
@@ -693,7 +715,12 @@ def automation(
             )
     from inventory import sbom_automation
 
-    members += sbom_automation(sboms, now=now, findings=FINDINGS)
+    members += sbom_automation(sboms, now=now)
+    # -- Batch 2, dependency loop: the OSV Line.
+    if osv_line:
+        import osv
+
+        members += osv.automation(now=now, findings=FINDINGS, settle=settle)
     members += [
         {
             "kind": "trigger",
@@ -710,7 +737,7 @@ def automation(
     ]
     return {
         "kind": "change_set",
-        "rationale": "Adopt the SBOM import, KEV and EPSS Lines.",
+        "rationale": "Adopt the SBOM import, OSV, KEV and EPSS Lines.",
         "members": members,
     }
 
@@ -742,10 +769,10 @@ def watch_subjects(watch: Sequence[str]) -> dict[str, Any]:
 def seed_affected_by(pairs: Sequence[tuple[str, str]], *, reason: str) -> dict[str, Any]:
     """A SEED: agents' own-word affected_by Claims (component purl, CVE id).
 
-    Until the OSV Line is wired (core lanes A + B), nothing writes
-    ``security.component.affected_by`` from OSV; this states it in the agent's own
-    words (normative, self-source), labelled as a seed. The OSV Line's
-    observations will sit beside it and the seed can then be retired.
+    The pilot gate's stand-in components are not real packages, so OSV says
+    nothing about them; this states ``security.component.affected_by`` in the
+    agent's own words (normative, self-source), labelled as a seed. A real
+    instance has the OSV Line instead.
     """
 
     from inventory import COMPONENT
@@ -779,7 +806,7 @@ def write_all(
     *,
     watch: Sequence[str],
     now: datetime,
-    sboms: Sequence[tuple[str, str, str]] = (),
+    sboms: Sequence[tuple[str, str]] = (),
     seeds: Sequence[tuple[str, str]] = (),
 ) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
@@ -789,7 +816,10 @@ def write_all(
         path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
         written.append(path)
     vulnerabilities = list(dict.fromkeys([*watch, *(cve for _purl, cve in seeds)]))
+    import osv
+
     payloads = [
+        ("osv-contracts", osv.provider_contracts()),
         ("vocabulary", vocabulary()),
         ("procedures", procedures()),
         ("automation", automation(vulnerabilities, now=now, sboms=sboms)),
@@ -806,36 +836,25 @@ def write_all(
 
 
 def main() -> None:
-    from inventory import lint_sbom
-
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("out", type=Path)
     parser.add_argument("--watch", nargs="*", default=[], help="CVE ids to create as Subjects")
     parser.add_argument("--now", default=None, help="ISO-8601 instant Mandates start from")
-    parser.add_argument("--workspace", type=Path, default=None, help="the SBOMs' workspace root")
     parser.add_argument(
-        "--sbom", nargs="*", default=[], help="NAME=RELATIVE_PATH: two import Lines per SBOM"
+        "--sbom", nargs="*", default=[], help="NAME=RELATIVE_PATH: one import Line per SBOM"
     )
     parser.add_argument(
         "--seed", nargs="*", default=[], help="PURL=CVE: an own-word affected_by seed"
     )
     args = parser.parse_args()
     now = datetime.fromisoformat(args.now) if args.now else datetime.now(UTC)
-    sboms = []
-    for item in args.sbom:
-        name, _, relative = item.partition("=")
-        if args.workspace is None:
-            raise SystemExit("--sbom needs --workspace (the lint reads each SBOM)")
-        lint = lint_sbom((args.workspace / relative).read_bytes(), relative)
-        for warning in lint.warnings:
-            print(f"lint warning: {warning}")
-        sboms.append((name, relative, lint.inventory_id))
+    sboms = [tuple(item.split("=", 1)) for item in args.sbom]
     seeds = [tuple(item.split("=", 1)) for item in args.seed]
     for path in write_all(
         args.out,
         watch=args.watch,
         now=now.replace(microsecond=0),
-        sboms=sboms,
+        sboms=sboms,  # type: ignore[arg-type]
         seeds=seeds,  # type: ignore[arg-type]
     ):
         print(path)

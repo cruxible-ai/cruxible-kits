@@ -2,7 +2,7 @@
  "schema_version": 2,
  "manifest": {
   "path": "manifest.yaml",
-  "digest": "sha256:f830b4608f6125a103e67166e8695c8eedd812a5da44444061b4614810dd3499"
+  "digest": "sha256:1870f8dc8d44db8f1aedf6b8b5874f902415ad7cfedb16fb6367ed1e5b4c5eaf"
  },
  "operations": [
   {
@@ -30,6 +30,19 @@
     }
    },
    "entrypoint": "security_osv_provider.osv:OsvMatch"
+  },
+  {
+   "name": "sbom.components",
+   "in": "sbom.components.request@1",
+   "out": "sbom.components.result@1",
+   "effect": "pure",
+   "refusals": {
+    "provider_declined": {
+     "contract": "sbom.components.refusal.provider_declined@1",
+     "absorbable": false
+    }
+   },
+   "entrypoint": "security_osv_provider.sbom:SbomComponents"
   }
  ],
  "runtime_requirements": []

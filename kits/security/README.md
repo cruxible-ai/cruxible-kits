@@ -83,6 +83,30 @@ absence never retires its Claims. A component whose OSV answer was incomplete
 (a failed or truncated query, or an advisory OSV could not serve) reads the
 same way. Language packages (PyPI, npm, Maven, Go, crates.io, ...) are checked.
 
+## The dependency loop (Claim-authority form, batch 2)
+
+In the Claim-authority form, the dependency loop runs on four Lines and a few
+Queries ([source/pilot/README.md](source/pilot/README.md) is the reference):
+
+- **SBOM import** (`security.sbom-import.<name>`, one Line per SBOM file): the
+  `sbom.components` derive names the inventory by the SBOM's own
+  `metadata.component` purl (or its path, with a `sbom_unnamed` warning), and
+  each component's membership retires when the SBOM stops listing it.
+- **OSV** (`security.osv-query`): which vulnerabilities affect each inventoried
+  component, by OSV's own version matching, with the versions OSV lists as
+  fixed (`security.component.fixed_in`, qualified by the CVE). It creates the
+  vulnerabilities it names and settles; a CVE OSV stops listing for a component
+  it answered in full retires.
+- **KEV and EPSS** read the watch list, `security.watched_vulnerabilities`.
+- **Judgments.** An agent's not_affected verdict is "affected_by none of V"
+  (normative, own words) plus `security.component.not_affected_reason`, a VEX
+  justification qualified by the CVE. V leaves the watch list for that component
+  only. OSV cannot override it: its next run reports `held_disagrees` to the OSV
+  Line's inbox.
+- **Worklists.** `security.urgent_exposures` (KEV-listed first, then EPSS),
+  `security.kev_triage_backlog` (KEV-listed and nobody has judged) and
+  `security.not_affected_judgments` (the track record).
+
 ## How it models your world
 
 Four words carry the rest of the kit's docs. A **Subject** is one thing the kit
