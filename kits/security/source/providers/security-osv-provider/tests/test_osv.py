@@ -305,22 +305,71 @@ def test_work_grows_linearly_with_components(n: int, monkeypatch: pytest.MonkeyP
     purls, origin = _synthetic(n)
     responses = query(purls, origin)
     assert len(origin.requests) == 1 + n
-    counts = {"decode": 0, "fixed": 0}
-    real_input, real_fixed = osv.capture_input, osv.fixed_versions
+    counts = {"decode": 0, "index": 0}
+    real_input, real_index = osv.capture_input, osv.fixed_index
 
     def counted_input(view: Any) -> Any:
         counts["decode"] += 1
         return real_input(view)
 
-    def counted_fixed(record: Any, purl: str) -> list[str]:
-        counts["fixed"] += 1
-        return real_fixed(record, purl)
+    def counted_index(record: Any) -> Any:
+        counts["index"] += 1
+        return real_index(record)
 
     monkeypatch.setattr(osv, "capture_input", counted_input)
-    monkeypatch.setattr(osv, "fixed_versions", counted_fixed)
+    monkeypatch.setattr(osv, "fixed_index", counted_index)
     _content, document = derive(responses, purls)
     assert len(document["affected"]) == n
-    assert counts == {"decode": 1 + n, "fixed": n}
+    assert counts == {"decode": 1 + n, "index": n}
+
+
+def _shared(n: int) -> tuple[list[str], Recorded]:
+    """n components and ONE advisory affecting all n packages (with aliases)."""
+
+    purls = [f"pkg:pypi/pkg{i}@1.0" for i in range(n)]
+    batch = {"results": [{"vulns": [{"id": "GHSA-0000"}]} for _ in sorted(purls)]}
+    record = {
+        "id": "GHSA-0000",
+        "aliases": ["CVE-2026-0001", "CVE-2026-0002"],
+        "affected": [
+            {
+                "package": {"purl": f"pkg:pypi/pkg{i}"},
+                "ranges": [{"events": [{"introduced": "0"}, {"fixed": "1.1"}]}],
+            }
+            for i in range(n)
+        ],
+    }
+    overrides = {
+        f"{osv.OSV_API}/v1/querybatch": (200, json.dumps(batch).encode()),
+        f"{osv.OSV_API}/v1/vulns/GHSA-0000": (200, json.dumps(record).encode()),
+    }
+    return purls, Recorded(overrides=overrides)
+
+
+@pytest.mark.parametrize("n", [10, 40])
+def test_one_shared_advisory_costs_linear_work(n: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    """F4: one advisory affecting n packages is indexed once; package
+    normalizations grow linearly (n entries + n components), never n x n."""
+
+    purls, origin = _shared(n)
+    responses = query(purls, origin)
+    calls = {"base": 0, "index": 0}
+    real_base, real_index = osv.package_base, osv.fixed_index
+
+    def counted_base(purl: str) -> str:
+        calls["base"] += 1
+        return real_base(purl)
+
+    def counted_index(record: Any) -> Any:
+        calls["index"] += 1
+        return real_index(record)
+
+    monkeypatch.setattr(osv, "package_base", counted_base)
+    monkeypatch.setattr(osv, "fixed_index", counted_index)
+    _content, document = derive(responses, purls)
+    assert len(document["affected"]) == 2 * n  # two CVE aliases per component
+    assert {tuple(r["fixed"]) for r in document["affected"]} == {("1.1",)}
+    assert calls == {"base": 2 * n, "index": 1}
 
 
 @pytest.mark.parametrize("operation", [osv.QUERY, osv.MATCH, "sbom.components"])

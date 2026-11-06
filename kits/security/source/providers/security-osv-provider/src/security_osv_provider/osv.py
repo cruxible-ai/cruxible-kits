@@ -288,24 +288,35 @@ def package_base(purl: str) -> str:
     return base
 
 
-def fixed_versions(record: Mapping[str, Any], purl: str) -> list[str]:
-    """Every ``fixed`` range event the advisory lists for the component's own package."""
+def fixed_index(record: Mapping[str, Any]) -> dict[str, set[str]]:
+    """Every ``fixed`` range event an advisory lists, by package (``package_base``).
 
-    wanted = package_base(purl)
-    found: set[str] = set()
+    Built once per advisory record and looked up per component: one shared
+    advisory affecting N packages costs N entries, never N x N comparisons.
+    """
+
+    index: dict[str, set[str]] = {}
     for affected in record.get("affected") or ():
         if not isinstance(affected, Mapping):
             continue
         package = affected.get("package")
         candidate = package.get("purl") if isinstance(package, Mapping) else None
-        if not isinstance(candidate, str) or package_base(candidate) != wanted:
+        if not isinstance(candidate, str):
             continue
+        found = index.setdefault(package_base(candidate), set())
         for range_ in affected.get("ranges") or ():
-            for event in (range_ or {}).get("events") or () if isinstance(range_, Mapping) else ():
+            events = range_.get("events") if isinstance(range_, Mapping) else None
+            for event in events or ():
                 version = event.get("fixed") if isinstance(event, Mapping) else None
                 if isinstance(version, str) and 0 < len(version) <= MAX_VERSION_LEN:
                     found.add(version)
-    return sorted(found)[:MAX_FIXED]
+    return index
+
+
+def fixed_versions(record: Mapping[str, Any], purl: str) -> list[str]:
+    """Every ``fixed`` range event the advisory lists for the component's own package."""
+
+    return sorted(fixed_index(record).get(package_base(purl), ()))[:MAX_FIXED]
 
 
 def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> dict[str, Any]:
@@ -361,12 +372,18 @@ def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> 
     # every one those advisories list.
     pairs: dict[tuple[str, str], dict[str, Any]] = {}
     fixed: dict[tuple[str, str], set[str]] = {}
+    # One fixed-event index per advisory, shared by every component and alias.
+    indexes: dict[str, dict[str, set[str]]] = {}
     unkeyed: list[dict[str, str]] = []
     for purl in asked:
         if purl in unanswered:
             continue
+        base = package_base(purl)
         for advisory in hits.get(purl, ()):
             record = records[advisory]
+            if advisory not in indexes:
+                indexes[advisory] = fixed_index(record)
+            versions = indexes[advisory].get(base, set())
             ids = cve_ids(record)
             if not ids:
                 unkeyed.append({"purl": purl, "osv_id": advisory})
@@ -375,7 +392,7 @@ def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> 
                 held = pairs.get(pair)
                 if held is None or advisory < held["osv_id"]:
                     pairs[pair] = {"purl": purl, "cve_id": cve, "osv_id": advisory}
-                fixed.setdefault(pair, set()).update(fixed_versions(record, purl))
+                fixed.setdefault(pair, set()).update(versions)
     affected: list[dict[str, Any]] = []
     for pair in sorted(pairs):
         row = dict(pairs[pair])
