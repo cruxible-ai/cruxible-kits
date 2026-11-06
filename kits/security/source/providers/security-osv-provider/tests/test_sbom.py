@@ -106,7 +106,10 @@ def test_nested_components_flatten_and_a_repeated_purl_is_one_record() -> None:
         {"type": "file", "name": "no-purl"},
     ]
     out = document(json.dumps(doc).encode())
-    assert out["count"] == 4 and out["unidentified"] == 1
+    assert len(out["components"]) == 4 and out["unidentified"] == 1
+    # count is every component listed: one above the records, so core's
+    # complete_when check reads the SBOM as incomplete (F1).
+    assert out["count"] == 5
     assert "pkg:maven/x/inner@1" in {c["purl"] for c in out["components"]}
 
 

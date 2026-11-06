@@ -10,7 +10,7 @@ document::
      "named_by":     "metadata_component" | "file_path",
      "warning":      "sbom_unnamed"                  # only when named by path
      "components":   [{"purl", "name", "inventory", "named_by", "warning"?}, ...],
-     "count":        len(components),
+     "count":        len(components) + unidentified,  # what the SBOM lists
      "held":         [purl, ...],    # what this inventory held before: the expect list
      "unidentified": N}                              # components with no purl
 
@@ -24,7 +24,11 @@ Two entries with the same purl text are one record (the same identifier
 listed twice). Two spellings that core's purl normalizer folds to one key stay
 two records, so core's ``duplicates: refuse_key`` writes nothing for that key
 (fail closed). A component with no purl cannot be keyed: it is counted in
-``unidentified`` and is never a record.
+``unidentified`` and is never a record, but it is still in ``count`` (every
+component the SBOM lists). The import declares ``complete_when: {count_at:
+/count}``, so an SBOM with any unidentified component is an incomplete read:
+its keyed components still write, and absence retires nothing. A held
+component whose purl went missing therefore never reads as removed.
 
 ``held`` is the import's absence scope: the components the inventory this SBOM
 names held before the run. Core cannot parameterize a read by a value only the
@@ -121,7 +125,9 @@ def components_document(
         "inventory": inventory,
         "named_by": named_by,
         "components": [records[key] for key in sorted(records)],
-        "count": len(records),
+        # Every component the SBOM lists, keyed or not: core's complete_when
+        # count check makes a read with an unidentified component incomplete.
+        "count": len(records) + unidentified,
         "held": sorted(
             {
                 str(row.get("purl"))
@@ -170,5 +176,5 @@ class SbomComponents:
                     selector_type=SELECTOR_TYPE,
                 )
             },
-            metrics={"components": float(document["count"])},
+            metrics={"components": float(len(document["components"]))},
         )

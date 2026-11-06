@@ -193,6 +193,34 @@ def test_an_unparseable_purl_is_inadmissible_its_siblings_write_and_nothing_reti
     assert len(inventory_of(instance, DEMO_APP)) == 3
 
 
+def test_a_lost_purl_beside_a_genuine_removal_retires_nothing(tmp_path: Path) -> None:
+    """F1: a held component still listed but without its purl cannot be keyed, so
+    the read is incomplete (count above records): nothing retires, not even the
+    component genuinely removed beside it; the remaining and new members write."""
+
+    instance = demo_world(tmp_path)
+    import_sbom(instance, "demo")
+    document = demo_document()
+    by_name = {c["name"]: c for c in document["components"]}
+    del by_name["log4j-api"]["purl"]  # still listed, purl lost
+    document["components"] = [c for c in document["components"] if c["name"] != "slf4j-api"]
+    document["components"].append(
+        {"type": "library", "name": "new-lib", "purl": "pkg:maven/com.example/new-lib@1.0"}
+    )
+    write_file(tmp_path, DEMO_PATH, json.dumps(document).encode())
+    state = import_sbom(instance, "demo", minute=1)
+    claims = summary(state, "claims")
+    assert (claims.written, claims.re_observed, claims.retired) == (1, 1, 0)
+    extract = summary(state, "extract")
+    assert not extract.complete
+    assert (extract.complete_when.expected, extract.complete_when.observed) == (3, 2)
+    assert any(r.kind == "count_mismatch" for r in state.completeness.reasons)
+    held = inventory_of(instance, DEMO_APP)
+    assert "pkg:maven/org.apache.logging.log4j/log4j-api@2.14.1" in held
+    assert "pkg:maven/org.slf4j/slf4j-api@1.7.32" in held
+    assert "pkg:maven/com.example/new-lib@1.0" in held
+
+
 def test_two_spellings_of_one_component_write_nothing_for_it(tmp_path: Path) -> None:
     """Two purls core's normalizer folds to one key: a duplicate, nothing written for
     that key, the siblings write, and the incomplete read retires nothing."""
