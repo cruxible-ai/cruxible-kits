@@ -9,7 +9,8 @@ Every step is an ordinary governed write the instance's approval policy admits
    of its wheel (``--osv-wheel``/``--osv-lock``; batch 2, the dependency loop);
 4. the CaptureKinds (``capture-contract propose``);
 5. vocabulary, Procedures, vulnerability Subjects and the Lines/Mandates/Triggers
-   (``authoring submit`` of the change sets ``definitions.py`` writes).
+   (``authoring submit`` of the change sets ``definitions.py`` writes);
+6. with ``--sarif-wheel``, code findings (see the block at the end).
 
 A ``seed.json`` (own-word affected_by, labelled seed) is NOT installed here: it is
 state an agent states, submitted by hand after the SBOM import Lines have run
@@ -58,6 +59,10 @@ def main() -> None:
     parser.add_argument("--wheels", type=Path, required=True)
     parser.add_argument("--osv-wheel", type=Path, required=True)
     parser.add_argument("--osv-lock", type=Path, required=True)
+    parser.add_argument(
+        "--sarif-wheel", type=Path, default=None, help="install code findings: the provider wheel"
+    )
+    parser.add_argument("--sarif-lock", type=Path, default=None, help="its uv.lock")
     args = parser.parse_args()
 
     contracts = args.payloads / "web-contracts.json"
@@ -122,6 +127,47 @@ def main() -> None:
         print(f"capture kind {name}: accepted")
     for name in ("vocabulary", "procedures", "watch", "automation"):
         submit(args.payloads / f"{name}.json")
+    if args.sarif_wheel is not None:
+        install_findings(args.payloads, args.sarif_wheel, args.sarif_lock, runtime)
+
+
+# -- Code findings (kit batch 2, lane 2): SARIF import ------------------------------------
+#
+# ``findings.py OUT_DIR --scan NAME=host/owner/repo=RELATIVE_PATH`` writes these
+# payloads into the same directory: the Contracts security-sarif-provider pins
+# (``sarif-contracts.json``), its two CaptureKinds, and the findings vocabulary,
+# Procedures and Lines. The provider wheel and its lock come from the package
+# (``uv lock`` then ``uv build`` in source/providers/security-sarif-provider).
+
+
+def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Path) -> None:
+    import findings
+
+    submit(payloads / "sarif-contracts.json")
+    installed = json.loads(
+        cruxible(
+            "provider",
+            "install",
+            str(wheel),
+            *(("--lock", str(lock)) if lock is not None else ()),
+            "--dependency",
+            str(runtime),
+            "--control-domain",
+            findings.PROVIDER_PACKAGE,
+            "--commit",
+            "--json",
+        )
+    )
+    ready = {row["operation"]: row["installed"] for row in installed["operations"]}
+    if not (installed["registered"] and ready.get("sarif.findings")):
+        raise SystemExit(f"sarif.findings is not installed: {installed}")
+    print(f"provider: {installed['build']} (sarif.findings installed)")
+    for name in findings.capture_kinds():
+        path = payloads / f"capture-kind.{name}.json"
+        cruxible("capture-contract", "propose", "--input", str(path), "--commit")
+        print(f"capture kind {name}: accepted")
+    for name in ("findings-vocabulary", "findings-procedures", "findings-automation"):
+        submit(payloads / f"{name}.json")
 
 
 if __name__ == "__main__":

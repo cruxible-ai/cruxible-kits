@@ -1,0 +1,114 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": []
+        }
+      ],
+      "properties": {
+        "cruxible.coverage": "full"
+      },
+      "results": [
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/files.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 26,
+                  "endLine": 12,
+                  "snippet": {
+                    "text": "    with open(path, \"rb\") as handle:"
+                  },
+                  "startColumn": 10,
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A path joined from caller input is opened; check it stays under its base."
+          },
+          "properties": {},
+          "ruleId": "open-joined-path"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Semgrep OSS",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "A path joined from caller input is opened; check it stays under its base."
+              },
+              "help": {
+                "markdown": "A path joined from caller input is opened; check it stays under its base.",
+                "text": "A path joined from caller input is opened; check it stays under its base."
+              },
+              "id": "open-joined-path",
+              "name": "open-joined-path",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+                  "CWE-73: External Control of File Name or Path",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: open-joined-path"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "SQL built with an f-string reaches cursor.execute; use bound parameters."
+              },
+              "help": {
+                "markdown": "SQL built with an f-string reaches cursor.execute; use bound parameters.",
+                "text": "SQL built with an f-string reaches cursor.execute; use bound parameters."
+              },
+              "id": "sqli-fstring-execute",
+              "name": "sqli-fstring-execute",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.8",
+                "tags": [
+                  "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+                  "OWASP-A03:2021 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: sqli-fstring-execute"
+              }
+            }
+          ],
+          "semanticVersion": "1.182.0"
+        }
+      },
+      "versionControlProvenance": [
+        {
+          "branch": "refs/heads/main",
+          "repositoryUri": "https://github.com/cruxible-ai/gate-app",
+          "revisionId": "4542a98e11173c33db444e3e537bb2eb0a214fe1"
+        }
+      ]
+    }
+  ],
+  "version": "2.1.0"
+}

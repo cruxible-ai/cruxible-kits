@@ -14,10 +14,12 @@ generator reads it.
 | `inventory.py` | The SBOM import, the inventory and component kinds, `affected_by` (with its inverse), `fixed_in` and `not_affected_reason` |
 | `osv.py` | The OSV Procedure and Line, the OSV response kind and the provider's Contracts as an authoring change set |
 | `triage.py` | The triage and track-record Queries, and `judgment()`: the two writes of a not_affected judgment |
+| `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines |
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
-| `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py` | The gate, run on recorded real bytes |
+| `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py` | The gate, run on recorded real bytes |
 | `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive), with its recorded OSV exchanges |
+| `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure) and its SARIF test data |
 
 ## The chain
 
@@ -193,6 +195,52 @@ A source that later disagrees is the OSV Line's `held_disagrees` inbox item.
   environment`.
 - `log4j-demo-app.cdx.json`: a **demo app**, not real software. It pins
   log4j-core 2.14.1, which reaches CVE-2021-44228 on KEV.
+
+## Code findings (batch 2)
+
+Two Procedures, each with one terminal, compose through the derived document:
+
+```mermaid
+flowchart LR
+  held["security.sarif_held_findings<br/>(the repository's findings)"] --> derive
+  file["SARIF file (workspace.file)"] --> derive["sarif.findings (derive, pure)"]
+  derive --> doc["security.sarif-findings"]
+  doc -->|"security.sarif-import.NAME: extract /findings/*"| finding["security.finding Claims"]
+  doc -->|"landing: security.sarif-attention.NAME, extract /attention/*"| inbox["Line inbox"]
+```
+
+| ClaimType on `security.finding` | Role | Written by |
+|---|---|---|
+| `repo`, `weakness`, `locus` | key | the import (subject `create: if_absent`) |
+| `rule`, `reported_by` (many) | observation | the import |
+| `severity` | observation, or normative | the import; an agent's judgment holds (`held_disagrees`) |
+| `reported_at` (path:line) | observation, mirrored | the import; it revises when a finding moves and retires when it is fixed |
+| `verification` (present / fixed) | observation; `fixed` needs complete input | the import; `fixed` only for a covered finding |
+| `verdict`, `justification`, `fixed_by` | normative (own words) | agents, never a Mandate |
+
+- **`expect` is the header's `covered`.** These are the held findings a full
+  run's rule set covers. They are the only Subjects whose absence the run
+  judges.
+- **Why the inbox goes through a second Procedure.** A Procedure has one
+  terminal, and neither a regression nor a gap is a core finding kind. So the
+  attention Procedure runs on the landing of the derived Capture (a
+  `capture_landing` Trigger); the Trigger substitutes the Capture for the
+  derive call.
+- **The Line reads its own logical source** (`sarif.NAME`). Absence then
+  retires only what that scanner's file wrote.
+- **Fail-closed rules.** A refused record, a duplicate key or a count
+  mismatch makes the read incomplete, so nothing is fixed or retired. A result
+  the derive cannot place (no repository path, no stable locator, an over-long
+  or multi-line locus, malformed locations) is a location gap, never a record,
+  and it taints its rule: that rule covers nothing in the scan, so none of its
+  held findings is fixed or retired. A result that is no record, or names no
+  rule, taints its whole tool for the scan: no held finding that tool reported
+  is fixed or retired, whatever another run of the tool says (a rule catalog
+  can be empty or incomplete). The header lists the tainted rules and tools. An unreadable SARIF file is refused by the derive, and
+  nothing is written.
+- **Not yet in core.** Today a record that is no object (or an out-of-bounds
+  key part) fails the whole run rather than only itself. The gate holds this as
+  a strict xfail with a core owner.
 
 ## Known limits
 

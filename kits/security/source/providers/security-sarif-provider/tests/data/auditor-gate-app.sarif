@@ -1,0 +1,74 @@
+{
+  "runs": [
+    {
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "properties": {
+        "cruxible.coverage": "partial"
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/db.py"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "cursor.execute(f\"SELECT * FROM users WHERE name = '{name}'\")"
+                  },
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "find_by_name interpolates the caller's name into the SQL text."
+          },
+          "ruleId": "CWE-89"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/templates/user.html"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Templates may render the name unescaped; not located yet."
+          },
+          "ruleId": "CWE-79"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "auditor",
+          "rules": [
+            {
+              "id": "CWE-89"
+            },
+            {
+              "id": "CWE-79"
+            }
+          ]
+        }
+      },
+      "versionControlProvenance": [
+        {
+          "repositoryUri": "https://github.com/cruxible-ai/gate-app",
+          "revisionId": "a382bce444533bfc4622e7f822b3d6c11cbd7510"
+        }
+      ]
+    }
+  ],
+  "version": "2.1.0"
+}

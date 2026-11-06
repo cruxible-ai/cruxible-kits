@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "artifacts": [
+        {
+          "location": {
+            "index": 0,
+            "uri": "app/db.py",
+            "uriBaseId": "%SRCROOT%"
+          }
+        },
+        {
+          "location": {
+            "index": 1,
+            "uri": "app/files.py",
+            "uriBaseId": "%SRCROOT%"
+          }
+        }
+      ],
+      "columnKind": "unicodeCodePoints",
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": []
+        }
+      ],
+      "properties": {
+        "cruxible.coverage": "full",
+        "semmle.formatSpecifier": "sarif-latest"
+      },
+      "results": [
+        {
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "index": 0,
+                  "uri": "app/db.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 68,
+                  "startColumn": 24,
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "This SQL query depends on a [user-provided value](1)."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "3d1c6f0a9e2b7745:1",
+            "primaryLocationStartColumnFingerprint": "15"
+          },
+          "relatedLocations": [
+            {
+              "id": 1,
+              "message": {
+                "text": "user-provided value"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "index": 0,
+                  "uri": "app/db.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 32,
+                  "startColumn": 28,
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "rule": {
+            "id": "py/sql-injection",
+            "index": 1
+          },
+          "ruleId": "py/sql-injection",
+          "ruleIndex": 1
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "organization": "GitHub",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "Accessing paths influenced by users can allow an attacker to access unexpected resources."
+              },
+              "id": "py/path-injection",
+              "name": "py/path-injection",
+              "properties": {
+                "description": "Accessing paths influenced by users can allow an attacker to access unexpected resources.",
+                "id": "py/path-injection",
+                "kind": "path-problem",
+                "name": "Uncontrolled data used in path expression",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "7.5",
+                "tags": [
+                  "correctness",
+                  "security",
+                  "external/cwe/cwe-022",
+                  "external/cwe/cwe-023",
+                  "external/cwe/cwe-036",
+                  "external/cwe/cwe-073",
+                  "external/cwe/cwe-099"
+                ]
+              },
+              "shortDescription": {
+                "text": "Uncontrolled data used in path expression"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "Building a SQL query from user-controlled sources is vulnerable to insertion of malicious SQL code by the user."
+              },
+              "id": "py/sql-injection",
+              "name": "py/sql-injection",
+              "properties": {
+                "description": "Building a SQL query from user-controlled sources is vulnerable to insertion of malicious SQL code by the user.",
+                "id": "py/sql-injection",
+                "kind": "path-problem",
+                "name": "SQL query built from user-controlled sources",
+                "precision": "high",
+                "problem.severity": "error",
+                "security-severity": "8.8",
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-089"
+                ]
+              },
+              "shortDescription": {
+                "text": "SQL query built from user-controlled sources"
+              }
+            }
+          ],
+          "semanticVersion": "2.19.3"
+        }
+      },
+      "versionControlProvenance": [
+        {
+          "branch": "refs/heads/main",
+          "repositoryUri": "https://github.com/cruxible-ai/gate-app",
+          "revisionId": "a382bce444533bfc4622e7f822b3d6c11cbd7510"
+        }
+      ]
+    }
+  ],
+  "version": "2.1.0"
+}
