@@ -99,10 +99,17 @@ def _web_fetch() -> Any:
 
 
 class Replay:
-    """web.fetch's real client, answered by URL from the bytes a scenario states."""
+    """web.fetch's real client, answered by URL from the bytes a scenario states.
 
-    def __init__(self, routes: Mapping[str, bytes]) -> None:
+    The kit's dependency-plane operations (sbom.components, osv.query,
+    osv.match) run the real security-osv-provider code (``dependency_replay``);
+    ``osv`` is the recorded OSV origin osv.query talks to.
+    """
+
+    def __init__(self, routes: Mapping[str, bytes], *, osv: Any = None) -> None:
         self.routes = dict(routes)
+        self.osv = osv
+        self.now: Any = None  # the run's daemon clock (service_run sets it)
         self.requests: list[str] = []
 
     def client_factory(self) -> Callable[..., Any]:
@@ -132,8 +139,22 @@ class Replay:
         from tests.support.operation_world import Invoker
 
         web_fetch = _web_fetch()
+        invoker = Invoker()
 
         def output(context: Any) -> dict[str, Any]:
+            # -- Batch 2, dependency loop: the kit's own provider, in-process.
+            import dependency_replay
+
+            if context.operation in dependency_replay.OPERATIONS:
+                answer = dependency_replay.run_operation(
+                    context,
+                    osv_transport=None if self.osv is None else self.osv.transport,
+                    now=self.now,
+                )
+                assert answer.status == "ok", answer
+                invoker.incomplete_captures = list(answer.incomplete_captures)
+                return dict(answer.output)
+            invoker.incomplete_captures = []
             if "commitment_digest" in context.input:
                 # Core's builtin workspace.file (the SBOM import's read): the
                 # daemon has already read the file; the builtin structures it.
@@ -161,7 +182,8 @@ class Replay:
             assert result.status == "ok", result
             return dict(result.output)
 
-        return Operator(Invoker(output=output))
+        invoker.output = output
+        return Operator(invoker)
 
 
 # -- the world: exactly the kit's payloads -------------------------------------------
@@ -255,7 +277,7 @@ def kit_world(
     tmp_path: Path,
     *,
     watch: tuple[str, ...] = (),
-    sboms: tuple[tuple[str, str, str], ...] = (),
+    sboms: tuple[tuple[str, str], ...] = (),
 ) -> Any:
     """A fresh instance holding every kit definition, the catalog and ``watch``'s
     vulnerability Subjects, and the Lines (one SBOM import Line per ``sboms``)."""
@@ -278,6 +300,12 @@ def kit_world(
         name="web-contracts",
     )
     _install_build(instance, _web_build(instance, checkout))
+    # -- Batch 2, dependency loop: security-osv-provider's Contracts and build.
+    import dependency_replay
+    import osv
+
+    submit(instance, osv.provider_contracts(), name="osv-contracts")
+    _install_build(instance, dependency_replay.provider_build(instance))
     kinds = {
         capture_contract_path(name): render_capture_contract(
             lower_capture_contract_input(
@@ -300,9 +328,7 @@ def kit_world(
 
 
 def pilot_world(tmp_path: Path, *, watch: tuple[str, ...] = WATCH) -> Any:
-    instance = kit_world(
-        tmp_path, watch=watch, sboms=((PILOT_SBOM_LINE, PILOT_SBOM, "pkg:generic/pilot-watch"),)
-    )
+    instance = kit_world(tmp_path, watch=watch, sboms=((PILOT_SBOM_LINE, PILOT_SBOM),))
     write_file(tmp_path, PILOT_SBOM, pilot_sbom(watch))
     import_sbom(instance, PILOT_SBOM_LINE, minute=-5)
     submit(
@@ -313,17 +339,14 @@ def pilot_world(tmp_path: Path, *, watch: tuple[str, ...] = WATCH) -> Any:
     return instance
 
 
-def import_sbom(instance: Any, name: str, *, minute: int = 0) -> tuple[Any, Any]:
-    """Run one SBOM's two Lines by hand: name the inventory, then import its components."""
+def import_sbom(instance: Any, name: str, *, minute: int = 0) -> Any:
+    """Run one SBOM's import Line by hand: its components and their inventory."""
 
-    from inventory import inventory_line_name, sbom_line_name
+    from inventory import sbom_line_name
 
-    out = []
-    for line in (inventory_line_name(name), sbom_line_name(name)):
-        state = run(instance, {}, line=line, minute=minute)
-        assert state.status == "succeeded", (line, state.terminal)
-        out.append(state)
-    return out[0], out[1]
+    state = run(instance, {}, line=sbom_line_name(name), minute=minute)
+    assert state.status == "succeeded", (name, state.terminal)
+    return state
 
 
 def run(instance: Any, routes: Mapping[str, bytes], *, line: str, minute: int = 0) -> Any:
@@ -338,6 +361,7 @@ def service_run(instance: Any, replay: Replay, *, line: str, minute: int = 0) ->
     )
     from tests.test_procedures.test_completeness_transfer import _Clock
 
+    replay.now = NOW + timedelta(minutes=minute)
     return service_run_playbill_line(
         instance,
         path_identity_digest=line,

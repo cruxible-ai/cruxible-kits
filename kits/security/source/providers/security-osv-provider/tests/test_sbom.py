@@ -50,7 +50,11 @@ def run(content: bytes, path: str = "sboms/demo.cdx.json") -> Any:
     return sbom.SbomComponents()(
         ProviderRunContext(
             run_id="run-test",
-            input={"sbom": wire(content), "relative_path": path, "logical_source": "cyclonedx.sbom"},
+            input={
+                "sbom": wire(content),
+                "relative_path": path,
+                "logical_source": "cyclonedx.sbom",
+            },
             operation=sbom.COMPONENTS,
             operation_signature_digest="sha256:" + "9" * 64,
             build_digest="sha256:" + "b" * 64,
@@ -108,14 +112,31 @@ def test_nested_components_flatten_and_a_repeated_purl_is_one_record() -> None:
 
 @pytest.mark.parametrize(
     "content",
-    [b"not json", json.dumps({"bomFormat": "SPDX"}).encode(), b'{"bomFormat":"CycloneDX","components":{}}'],
+    [
+        b"not json",
+        json.dumps({"bomFormat": "SPDX"}).encode(),
+        b'{"bomFormat":"CycloneDX","components":{}}',
+    ],
 )
 def test_a_document_that_is_not_a_cyclonedx_sbom_is_refused(content: bytes) -> None:
     result = run(content)
     assert result.status == "refused" and result.refusal.code == sbom.PROVIDER_DECLINED
 
 
-def test_pure_byte_identical_twice_with_the_network_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_held_is_the_inventorys_own_held_components() -> None:
+    from security_osv_provider.sbom import components_document
+
+    held = [
+        {"purl": "pkg:maven/x/a@1", "inventory_id": "pkg:maven/com.example/log4j-demo-app@1.0.0"},
+        {"purl": "pkg:maven/x/b@1", "inventory_id": "pkg:generic/other"},
+    ]
+    out = components_document(DEMO.read_bytes(), "sboms/demo.cdx.json", held)
+    assert out["held"] == ["pkg:maven/x/a@1"]
+
+
+def test_pure_byte_identical_twice_with_the_network_blocked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def blocked(*args: Any, **kwargs: Any) -> Any:
         raise AssertionError("sbom.components opened a socket")
 
@@ -133,8 +154,7 @@ def _sbom(n: int) -> bytes:
             "specVersion": "1.6",
             "metadata": {"component": {"name": "app", "purl": "pkg:generic/app@1"}},
             "components": [
-                {"type": "library", "name": f"p{i}", "purl": f"pkg:pypi/p{i}@1.0"}
-                for i in range(n)
+                {"type": "library", "name": f"p{i}", "purl": f"pkg:pypi/p{i}@1.0"} for i in range(n)
             ],
         }
     ).encode()

@@ -119,6 +119,7 @@ def _member(
     status: int,
     content_type: str,
     request_body: bytes | None,
+    observed_at: datetime,
     purls: Sequence[str] = (),
     advisory: str | None = None,
 ) -> dict[str, Any]:
@@ -147,7 +148,7 @@ def _member(
         source_identity=logical_source,
         coordinate_type=COORDINATE_TYPE,
         coordinate=coordinate,
-        observed_at=datetime.now(UTC),
+        observed_at=observed_at,
         selector_type=SELECTOR_TYPE,
     )
 
@@ -157,8 +158,14 @@ class OsvQuery:
 
     operations = (QUERY,)
 
-    def __init__(self, transport_factory: TransportFactory | None = None) -> None:
+    def __init__(
+        self,
+        transport_factory: TransportFactory | None = None,
+        *,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
         self._transport_factory = transport_factory or (lambda: None)
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     def __call__(self, context: ProviderRunContext) -> ProviderResult:
         source = str(context.input.get("logical_source") or "osv.dev.query")
@@ -202,6 +209,7 @@ class OsvQuery:
                         status=response.status_code,
                         content_type=response.headers.get("content-type", ""),
                         request_body=body,
+                        observed_at=self._clock(),
                         purls=chunk,
                     )
                 )
@@ -231,6 +239,7 @@ class OsvQuery:
                         status=response.status_code,
                         content_type=response.headers.get("content-type", ""),
                         request_body=None,
+                        observed_at=self._clock(),
                         advisory=advisory,
                     )
                 )

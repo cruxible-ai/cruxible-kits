@@ -1,20 +1,24 @@
-"""The security kit's inventory slice (batch 1): SBOM import and the OSV link.
+"""The security kit's inventory: SBOM import, components and the OSV link (D-R37).
 
 Everything is in the Procedure template form (D-R37): read -> fetch ->
 derive* -> extract -> claims, with filter/dedupe narrowing and inbox egress.
 
 - ``security.sbom-import`` reads a CycloneDX JSON SBOM through core's builtin
-  ``workspace.file`` (one Capture per file), extracts its components and writes
-  each component's ``in_inventory`` membership. The inventory is named by the
-  SBOM's own ``metadata.component`` purl (K-B1-5), read when the Line is
-  authored (:func:`lint_sbom`); an SBOM without one falls back to its file
-  path with a lint warning. A component the next import of the same file no
-  longer lists retires (``when_absent: mirror``) with the complete read as its
-  witness. Two Lines per SBOM: ``security.sbom-inventory.<name>`` creates the
-  inventory, then ``security.sbom-import.<name>`` writes its components.
+  ``workspace.file`` (one Capture per file); the pure derive ``sbom.components``
+  (security-osv-provider) emits one record per component carrying its
+  inventory: the SBOM's own ``metadata.component`` purl (K-B1-5, K-B1-G1), or,
+  without one, the file path plus ``warning: sbom_unnamed``. The claims write
+  each component's ``in_inventory`` and create the inventory by value
+  (``create: if_absent``, V1). The derive also selects, from every held
+  membership, the components this inventory held: its ``held`` header is
+  ``expect``, so a component the next import no longer lists retires
+  (``when_absent: mirror``) with the complete read as its witness. One
+  Procedure; one Line per SBOM file, naming nothing about the SBOM but its
+  path.
 - ``security.component.affected_by`` is OSV's word (K-B1-3): the vulnerabilities
-  OSV lists for the exact purl@version. Until the OSV Line is wired (core lanes
-  A + B, see ``osv.py``), it is seeded by agents' own-word proposals.
+  OSV lists for the exact purl@version (``osv.py``). An agent's not_affected
+  judgment is the declared inverse on its unit, "none of V" (K-B2-J1), with a
+  typed VEX reason (``security.component.not_affected_reason``, K-B2-J1b).
 - Applicability is the watch-list Query join (K-B1-2): ``definitions.py``'s
   ``security.watched_vulnerabilities`` walks vulnerability <- component.affected_by
   <- component.in_inventory -> inventory.
@@ -30,32 +34,41 @@ or a distro name table).
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Any, NamedTuple
+from typing import Any
 
 from cruxible_client.contracts.authoring.inputs import ProcedureInput
 from cruxible_core.claims.claim_type_inputs import ClaimTypeInputRecord, lower_claim_type_input
-
 from definitions import VULN, refs
 
 INVENTORY = "security.inventory"
 COMPONENT = "security.component"
 SBOM_KIND = "security.cyclonedx-sbom"
-#: The derived Capture osv.match emits (D-R37 derive; c5: the kit declares it).
+#: The derived Capture sbom.components emits (D-R37 derive; c5: the kit declares it).
+SBOM_COMPONENTS_KIND = "security.sbom-components"
+#: The derived Capture osv.match emits.
 OSV_MATCH_KIND = "security.osv-matches"
 SBOM_SOURCE = "cyclonedx.sbom"
 OSV_SOURCE = "osv.dev.query"
-SBOM_DOC_ROW = "security.sbom-document"
 SBOM_ROW = "security.sbom-component"
-HELD_ROW = "security.inventoried-component"
-INVENTORY_COMPONENTS = "security.inventory_components"
+#: The provider's own row Contract for one held membership (sbom.components' input).
+HELD_ROW = "sbom.components.held"
+INVENTORY_MEMBERSHIPS = "security.inventory_memberships"
 SBOM_PROCEDURE = "security.sbom-import"
-INVENTORY_PROCEDURE = "security.sbom-inventory"
-INVENTORY_LINE = "security.sbom-inventory"
 SBOM_LINE = "security.sbom-import"
 WORKSPACE_FILE = "cruxible-builtin#workspace.file"
+#: The kit's dependency-plane provider (sbom.components, osv.query, osv.match).
+DEPENDENCY_PROVIDER = "security-osv-provider"
+SBOM_COMPONENTS = f"{DEPENDENCY_PROVIDER}#sbom.components"
+#: The VEX justifications a not_affected judgment states (K-B2-J1b).
+VEX_JUSTIFICATIONS = (
+    "component_not_present",
+    "vulnerable_code_not_present",
+    "vulnerable_code_not_in_execute_path",
+    "vulnerable_code_cannot_be_controlled_by_adversary",
+    "inline_mitigations_already_exist",
+)
 
 _PATH = 'string{max_len: 256, pattern: "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"}'
 _SOURCE = 'string{pattern: "^[a-z][a-z0-9_.-]{0,255}$"}'
@@ -65,39 +78,59 @@ _INVENTORY_ID = "string{min_len: 1, max_len: 256}"
 # -- 1. CaptureKinds ------------------------------------------------------------------
 
 
+def _json_kind(
+    name: str, *, shape: str, grade: str, max_bytes: int, depth: int, records: int
+) -> dict[str, Any]:
+    return {
+        "name": name,
+        "shape": shape,
+        "grade": grade,
+        "retention": "P400D",
+        "erasable": False,
+        "max_bytes": max_bytes,
+        "selector_privacy": "direct_allowed",
+        "decoding": {
+            "format": "json",
+            "encoding": "identity",
+            "limits": {"decoded_bytes": max_bytes, "depth": depth, "records": records},
+        },
+    }
+
+
 def capture_kinds() -> dict[str, dict[str, Any]]:
-    """The SBOM file's kind (the file's bytes verbatim, decoded as JSON), and the
-    derived kind osv.match will emit (declared now so affected_by can name it)."""
+    """The SBOM file's kind (the file's bytes verbatim, decoded as JSON) and the two
+    derived kinds the dependency plane emits (sbom.components, osv.match).
+
+    A derived kind takes the ``http_response`` shape: a provider derive returns
+    its document as external Capture wire, which ``procedure_output`` does not
+    admit (e2).
+    """
 
     return {
-        OSV_MATCH_KIND: {
-            "name": OSV_MATCH_KIND,
-            "shape": "procedure_output",
-            "grade": "derived",
-            "retention": "P400D",
-            "erasable": False,
-            "max_bytes": 4 * 1024 * 1024,
-            "selector_privacy": "direct_allowed",
-            "decoding": {
-                "format": "json",
-                "encoding": "identity",
-                "limits": {"decoded_bytes": 4 * 1024 * 1024, "depth": 16, "records": 100_000},
-            },
-        },
-        SBOM_KIND: {
-            "name": SBOM_KIND,
-            "shape": "http_response",
-            "grade": "observed",
-            "retention": "P400D",
-            "erasable": False,
-            "max_bytes": 1024 * 1024,
-            "selector_privacy": "direct_allowed",
-            "decoding": {
-                "format": "json",
-                "encoding": "identity",
-                "limits": {"decoded_bytes": 1024 * 1024, "depth": 32, "records": 10_000},
-            },
-        },
+        SBOM_KIND: _json_kind(
+            SBOM_KIND,
+            shape="http_response",
+            grade="observed",
+            max_bytes=1024 * 1024,
+            depth=32,
+            records=20_000,
+        ),
+        SBOM_COMPONENTS_KIND: _json_kind(
+            SBOM_COMPONENTS_KIND,
+            shape="http_response",
+            grade="derived",
+            max_bytes=4 * 1024 * 1024,
+            depth=8,
+            records=20_000,
+        ),
+        OSV_MATCH_KIND: _json_kind(
+            OSV_MATCH_KIND,
+            shape="http_response",
+            grade="derived",
+            max_bytes=4 * 1024 * 1024,
+            depth=16,
+            records=100_000,
+        ),
     }
 
 
@@ -115,6 +148,7 @@ def _rule(rule_id: str, roles: Sequence[str], kind: str) -> dict[str, Any]:
 
 
 SELF_SOURCE = "cruxible.coordinator-self-source-v1"
+_MANY = {"cardinality": "many", "eligible_verdicts": ["supported"], "selector": "all"}
 
 
 def claim_type_records() -> list[dict[str, Any]]:
@@ -126,18 +160,6 @@ def claim_type_records() -> list[dict[str, Any]]:
             "value": {"kind": "string", "max_len": 256},
             "description": "What one SBOM describes, named by its metadata.component purl "
             "(or, without one, by the SBOM's workspace path); the inventory's key.",
-        },
-        {
-            "predicate": INVENTORY + ".sbom_path",
-            "allowed_subject_kinds": [INVENTORY],
-            "cardinality": "one",
-            "value": {"kind": "string", "max_len": 256},
-            "description": "The workspace path of the SBOM file the inventory was imported from.",
-            "permitted_roles": ["observation"],
-            "default_role": "observation",
-            "evidence_requirement": "captured",
-            "revision_evidence": "replace",
-            "evidence_admission_policy": {"rules": [_rule("sbom", ["observation"], SBOM_KIND)]},
         },
         {
             "predicate": COMPONENT + ".purl",
@@ -152,18 +174,16 @@ def claim_type_records() -> list[dict[str, Any]]:
             "allowed_subject_kinds": [COMPONENT],
             "cardinality": "many",
             "value": {"kind": "subject", "subject_kinds": [INVENTORY]},
-            "description": "An inventory whose SBOM lists the component, from the SBOM file "
-            "as retained.",
+            "description": "An inventory whose SBOM lists the component, from the SBOM's "
+            "components as sbom.components read them.",
             "permitted_roles": ["observation"],
             "default_role": "observation",
             "evidence_requirement": "captured",
             "revision_evidence": "replace",
-            "evidence_admission_policy": {"rules": [_rule("sbom", ["observation"], SBOM_KIND)]},
-            "resolution_policy": {
-                "cardinality": "many",
-                "eligible_verdicts": ["supported"],
-                "selector": "all",
+            "evidence_admission_policy": {
+                "rules": [_rule("sbom", ["observation"], SBOM_COMPONENTS_KIND)]
             },
+            "resolution_policy": _MANY,
         },
         {
             "predicate": COMPONENT + ".affected_by",
@@ -171,7 +191,8 @@ def claim_type_records() -> list[dict[str, Any]]:
             "cardinality": "many",
             "value": {"kind": "subject", "subject_kinds": [VULN]},
             "description": "A vulnerability OSV lists for the component's exact purl@version "
-            "(OSV's own version matching); normative when an agent states it.",
+            "(OSV's own version matching). None of V is an agent's not_affected judgment "
+            "(normative, own words), which OSV cannot override.",
             "permitted_roles": ["normative", "observation"],
             "default_role": "observation",
             "evidence_requirement": "self",
@@ -182,11 +203,37 @@ def claim_type_records() -> list[dict[str, Any]]:
                     _rule("self", ["normative"], SELF_SOURCE),
                 ]
             },
-            "resolution_policy": {
-                "cardinality": "many",
-                "eligible_verdicts": ["supported"],
-                "selector": "all",
+            "resolution_policy": _MANY,
+            # K-B2-J1: "affected_by none of V" is the judgment, on V's own unit.
+            "inverse": {"key": {"kind": "object"}, "evidence_rules": ["self"]},
+        },
+        {
+            "predicate": COMPONENT + ".fixed_in",
+            "allowed_subject_kinds": [COMPONENT],
+            "cardinality": "one",
+            "value": {
+                "kind": "list",
+                "item": {"kind": "string", "max_len": 64},
+                "max_items": 32,
             },
+            "description": "Qualified by a CVE id: the versions OSV's advisories for that CVE "
+            "list as fixed for the component's package, sorted as text (one per release line; "
+            "the kit compares no versions).",
+            "permitted_roles": ["observation"],
+            "default_role": "observation",
+            "evidence_requirement": "captured",
+            "revision_evidence": "replace",
+            "evidence_admission_policy": {"rules": [_rule("osv", ["observation"], OSV_MATCH_KIND)]},
+        },
+        {
+            "predicate": COMPONENT + ".not_affected_reason",
+            "allowed_subject_kinds": [COMPONENT],
+            "cardinality": "one",
+            "value": {"kind": "enum", "members": list(VEX_JUSTIFICATIONS)},
+            "description": "Qualified by a CVE id: the VEX justification of an agent's "
+            "not_affected judgment, stated beside affected_by none of that vulnerability.",
+            "permitted_roles": ["normative"],
+            "default_role": "normative",
         },
     ]
 
@@ -204,27 +251,15 @@ def vocabulary_members() -> list[dict[str, Any]]:
     return [
         {
             "kind": "contract",
-            "name": SBOM_DOC_ROW,
-            "version": 1,
-            "description": "The SBOM's metadata: what the SBOM describes.",
-            "fields": {
-                "component_purl": "string{max_len: 256}?",
-                "component_name": "string{max_len: 256}?",
-            },
-        },
-        {
-            "kind": "contract",
             "name": SBOM_ROW,
             "version": 1,
-            "description": "One CycloneDX component the import reads.",
-            "fields": {"name": "string{max_len: 256}?"},
-        },
-        {
-            "kind": "contract",
-            "name": HELD_ROW,
-            "version": 1,
-            "description": "One component an earlier import of this SBOM path inventoried.",
-            "fields": {"subject_kind": "string", "subject_id": "string", "purl": "string"},
+            "description": "One component sbom.components read from an SBOM.",
+            "fields": {
+                "name": "string{max_len: 256}?",
+                "inventory": _INVENTORY_ID,
+                "named_by": "enum[metadata_component, file_path]",
+                "warning": "enum[sbom_unnamed]?",
+            },
         },
         *(
             {"kind": "claim_type", "claim_type": t.model_dump(mode="json", by_alias=True)}
@@ -252,15 +287,13 @@ def vocabulary_members() -> list[dict[str, Any]]:
         {
             "kind": "query_definition",
             "query_definition": {
-                "query": INVENTORY_COMPONENTS,
-                "description": "Every component an inventory imported from one SBOM path holds.",
-                "params": {"path": "string"},
+                "query": INVENTORY_MEMBERSHIPS,
+                "description": "Every held inventory membership: a component's purl and its "
+                "inventory's id, one row per membership.",
                 "from": {"c": COMPONENT},
-                "hops": [
-                    {"i": f"c.{COMPONENT}.in_inventory!: {INVENTORY} where i.sbom_path == $path"}
-                ],
+                "hops": [{"i": f"c.{COMPONENT}.in_inventory!: {INVENTORY}"}],
                 "row": f"{HELD_ROW}@1",
-                "fields": ["c.subject_kind", "c.subject_id", "c.purl"],
+                "fields": ["c.purl", {"inventory_id": "i.inventory_id"}],
             },
         },
     ]
@@ -274,132 +307,112 @@ _SLOTS = {
         "in": "workspace.file.request@1",
         "out": "workspace.file.result@1",
         "effect": "pure",
-    }
+    },
+    "derive": {
+        "in": "sbom.components.request@1",
+        "out": "sbom.components.result@1",
+        "effect": "pure",
+    },
 }
 _CAPS = {
     "wall_clock": "PT2M",
-    "provider_calls": 1,
-    "capture_bytes": 1024 * 1024,
-    "items": 20_000,
+    "provider_calls": 2,
+    "capture_bytes": 8 * 1024 * 1024,
+    "items": 40_000,
     "read_rows": 20_000,
     "repeat_attempts": 1,
 }
-_PARAMS = {"relative_path": _PATH, "logical_source": _SOURCE, "inventory_id": _INVENTORY_ID}
+_PARAMS = {"relative_path": _PATH, "logical_source": _SOURCE}
 _PATH_REF = "$params.relative_path"
-_INVENTORY_REF = "$params.inventory_id"
-
-
-def _read_sbom() -> dict[str, Any]:
-    return {
-        "call": "sbom",
-        "slot": "read",
-        "captures": {"capture": SBOM_KIND},
-        "input": {"logical_source": "$params.logical_source", "relative_path": _PATH_REF},
-    }
-
-
-def inventory_spec() -> dict[str, Any]:
-    """``security.sbom-inventory``: name the inventory one SBOM describes.
-
-    fetch (workspace.file) -> extract ``/metadata`` -> claims: the inventory
-    Subject (keyed ``$params.inventory_id``, which :func:`lint_sbom` reads from
-    the SBOM's metadata.component purl) and its ``sbom_path``. It runs before
-    the component import, which names this inventory (composition through
-    state: a Subject-valued Claim names a live Subject).
-    """
-
-    return refs(
-        {
-            "procedure": INVENTORY_PROCEDURE,
-            "description": "Read one CycloneDX JSON SBOM from the workspace and name the "
-            "inventory it describes.",
-            "input": {},
-            "output": {},
-            "params": _PARAMS,
-            "slots": _SLOTS,
-            "hard_caps": _CAPS,
-            "steps": [
-                _read_sbom(),
-                {
-                    "extract": "document",
-                    "capture": "$steps.sbom.capture",
-                    "records": "/metadata",
-                    "row": f"{SBOM_DOC_ROW}@1",
-                    "fields": {
-                        "component_purl": {"at": "/component/purl", "presence": "optional"},
-                        "component_name": {"at": "/component/name", "presence": "optional"},
-                    },
-                },
-                {
-                    "id": "inventory",
-                    "for_each": "$steps.document.records",
-                    "subject": {
-                        "kind": INVENTORY,
-                        "key": {"inventory_id": _INVENTORY_REF},
-                        "create": "if_absent",
-                    },
-                    "claims": [
-                        {
-                            "type": INVENTORY + ".sbom_path",
-                            "value": _PATH_REF,
-                            "rationale": "Imported from the SBOM at {$params.relative_path}.",
-                        }
-                    ],
-                },
-            ],
-        }
-    )
 
 
 def sbom_spec() -> dict[str, Any]:
     """``security.sbom-import``: each component's membership in the SBOM's inventory.
 
-    read (the components this path's inventory held) -> fetch (workspace.file)
-    -> extract ``/components/*`` -> claims: the component Subject, created by
-    its purl, and ``in_inventory`` with ``when_absent: mirror`` over the held
-    set, so a component the SBOM no longer lists retires with the complete read
-    as witness.
+    read (every held membership) -> fetch (workspace.file) -> derive
+    (sbom.components: the inventory key, one record per component, and the
+    inventory's held components) -> extract ``/components/*`` -> claims: the
+    component Subject, created by its purl, and ``in_inventory``, whose inventory
+    is created by value (V1). A component the SBOM no longer lists retires
+    (``when_absent: mirror`` over the ``held`` header).
     """
 
     return refs(
         {
             "procedure": SBOM_PROCEDURE,
             "description": "Read one CycloneDX JSON SBOM from the workspace and write each "
-            "component's membership in its inventory; a component the SBOM no longer lists "
-            "retires.",
+            "component's membership in the inventory it describes; a component the SBOM no "
+            "longer lists retires.",
             "input": {},
             "output": {},
             "params": _PARAMS,
             "slots": _SLOTS,
             "hard_caps": _CAPS,
             "steps": [
-                {"read": "held", "query": INVENTORY_COMPONENTS, "params": {"path": _PATH_REF}},
-                _read_sbom(),
+                # Core refuses a read parameterized by runtime output, so the
+                # inventory's own held components are selected by the derive.
+                {"read": "memberships", "query": INVENTORY_MEMBERSHIPS},
                 {
-                    "extract": "components",
-                    "capture": "$steps.sbom.capture",
+                    "call": "sbom",
+                    "slot": "read",
+                    "captures": {"capture": SBOM_KIND},
+                    "input": {
+                        "logical_source": "$params.logical_source",
+                        "relative_path": _PATH_REF,
+                    },
+                },
+                {
+                    "call": "derived",
+                    "slot": "derive",
+                    "captures": {"document": SBOM_COMPONENTS_KIND},
+                    "input": {
+                        "sbom": "$steps.sbom.capture",
+                        "held": "$steps.memberships.rows",
+                        "relative_path": _PATH_REF,
+                        "logical_source": "$params.logical_source",
+                    },
+                },
+                {
+                    "extract": "listed",
+                    "capture": "$steps.derived.document",
                     "records": "/components/*",
                     "row": f"{SBOM_ROW}@1",
                     "key": {"purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"}},
-                    "duplicates": "first",
-                    "fields": {"name": {"at": "name", "presence": "optional"}},
+                    "duplicates": "refuse_key",
+                    "complete_when": {"count_at": "/count"},
+                    "fields": {
+                        "name": {"at": "name", "presence": "optional"},
+                        "inventory": {"at": "inventory"},
+                        "named_by": {"at": "named_by"},
+                        "warning": {"at": "warning", "presence": "optional"},
+                    },
+                    "header": {
+                        "held": {
+                            "at": "/held",
+                            "type": "list<string{max_len: 256}>{max_items: 20000}",
+                        },
+                    },
                 },
                 {
                     "id": "write",
-                    "for_each": "$steps.components.records",
+                    "for_each": "$steps.listed.records",
                     "subject": {
                         "kind": COMPONENT,
                         "key": {"purl": "$item.key.purl"},
                         "create": "if_absent",
                     },
-                    "expect": "$steps.held.rows",
+                    "expect": "$steps.listed.header.held",
                     "claims": [
                         {
                             "type": COMPONENT + ".in_inventory",
-                            "value": {"kind": INVENTORY, "key": {"inventory_id": _INVENTORY_REF}},
+                            "value": {
+                                "kind": INVENTORY,
+                                "key": {"inventory_id": "$item.fields.inventory"},
+                                "create": "if_absent",
+                            },
                             "when_absent": "mirror",
                             "rationale": "The SBOM at {$params.relative_path} lists "
-                            "{$item.key.purl}.",
+                            "{$item.key.purl} (inventory named by {$item.fields.named_by}).",
                         }
                     ],
                 },
@@ -409,46 +422,16 @@ def sbom_spec() -> dict[str, Any]:
 
 
 def procedure_members() -> list[dict[str, Any]]:
-    members = [{"kind": "procedure", "spec": spec} for spec in (inventory_spec(), sbom_spec())]
+    members = [{"kind": "procedure", "spec": sbom_spec()}]
     for member in members:
         ProcedureInput.model_validate(member)
     return members
 
 
-class SbomLint(NamedTuple):
-    """What the authoring lint found in one SBOM file (K-B1-5): the inventory id
-    its Lines name, and any warning."""
-
-    inventory_id: str
-    warnings: tuple[str, ...]
-
-
-def lint_sbom(content: bytes, relative_path: str) -> SbomLint:
-    """The inventory one SBOM names: its ``metadata.component`` purl, else its path.
-
-    The fallback raises a lint warning: an SBOM without metadata.component is
-    named by where it sits, so moving the file starts a new inventory.
-    """
-
-    document = json.loads(content)
-    component = (document.get("metadata") or {}).get("component") or {}
-    purl = component.get("purl")
-    if isinstance(purl, str) and purl.strip():
-        return SbomLint(purl.strip(), ())
-    return SbomLint(
-        relative_path,
-        (
-            f"cruxible.kit.security.sbom_unnamed: {relative_path} has no "
-            "metadata.component purl; its inventory is named by its path, and moving "
-            "the file starts a new inventory",
-        ),
-    )
-
-
 # -- 4. Automation ----------------------------------------------------------------------
 
 #: The import settles component memberships on the extracted record and retires
-#: them on absence; the inventory Line settles the inventory's SBOM path.
+#: them on absence, creating components and inventories (G4).
 SBOM_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
     COMPONENT + ".in_inventory": {
         "create": {"basis": ["extracted"]},
@@ -456,105 +439,71 @@ SBOM_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
         "retire": {"basis": ["absence"]},
     },
 }
-INVENTORY_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
-    INVENTORY + ".sbom_path": {
-        "create": {"basis": ["extracted"]},
-        "revise": {"basis": ["extracted"]},
-    },
-}
+
+
+#: The findings an SBOM import Line routes to its inbox (D-R10). Not
+#: ``claim_not_in_source``: a component two SBOMs list holds a membership from
+#: each one's logical source, so every import of one surfaces the other's (core
+#: weighs every held unit of the many-valued slot, D-R18); those stay in the run
+#: report.
+SBOM_FINDINGS = ("extract_refused", "duplicate_key", "incomplete_source", "slot_contested")
 
 
 def sbom_line_name(suffix: str) -> str:
     return f"{SBOM_LINE}.{suffix}"
 
 
-def inventory_line_name(suffix: str) -> str:
-    return f"{INVENTORY_LINE}.{suffix}"
-
-
 def sbom_automation(
-    sboms: Sequence[tuple[str, str, str]], *, now: datetime, findings: Sequence[str]
+    sboms: Sequence[tuple[str, str]], *, now: datetime, findings: Sequence[str] = SBOM_FINDINGS
 ) -> list[dict[str, Any]]:
-    """Two Lines per SBOM, (line suffix, workspace path, inventory id) each: the inventory
-    Line names the inventory, then the import Line writes its components. A
-    capture_landing Trigger chains them (the inventory Line's Capture lands, the
-    import runs); Lines are enabled by the consumer.
+    """One Line per SBOM file, (line suffix, workspace path) each. The Line names
+    only the file: the inventory comes from the SBOM itself (K-B1-G1).
 
-    Each SBOM's Lines read under their own logical source
-    (``cyclonedx.sbom.<suffix>``): absence retires only Claims from the same
-    logical source (D-R18), so dropping a component from one SBOM never retires
-    its membership in another inventory. The inventory id comes from
-    :func:`lint_sbom`.
+    Each SBOM's Line reads under its own logical source (``cyclonedx.sbom.<suffix>``):
+    absence retires only Claims from the same logical source (D-R18), so
+    dropping a component from one SBOM never retires its membership in another
+    inventory. (``workspace.file`` reads one path, and a Line run takes no
+    per-run input before R-ON5, so one Line per file is the v1 form.)
     """
 
     valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
     expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
     members: list[dict[str, Any]] = []
-    for suffix, path, inventory_id in sboms:
-        source = f"{SBOM_SOURCE}.{suffix}"
-        for line, procedure, scope, created in (
-            (
-                inventory_line_name(suffix),
-                INVENTORY_PROCEDURE,
-                INVENTORY_SETTLE_SCOPE,
-                [INVENTORY],
-            ),
-            (
-                sbom_line_name(suffix),
-                SBOM_PROCEDURE,
-                SBOM_SETTLE_SCOPE,
-                [COMPONENT],
-            ),
-        ):
-            members += [
-                {
-                    "kind": "line",
-                    "name": line,
-                    "procedure_name": procedure,
-                    "bindings": {"read": WORKSPACE_FILE},
-                    "parameters": {
-                        "relative_path": path,
-                        "logical_source": source,
-                        "inventory_id": inventory_id,
-                    },
-                    "acquisition": {},
-                    "findings": {"inbox": list(findings)},
-                    "max_authority": "settle",
-                },
-                {
-                    "kind": "procedure_mandate",
-                    "name": line + "-propose",
-                    "line_name": line,
-                    "grants": "propose",
-                    "namespace": ["claims", "subjects"],
-                    "valid_from": valid_from,
-                    "expires_at": expires_at,
-                },
-                {
-                    "kind": "procedure_mandate",
-                    "name": line + "-settle",
-                    "line_name": line,
-                    "grants": "settle",
-                    "namespace": ["claims"],
-                    "valid_from": valid_from,
-                    "expires_at": expires_at,
-                    "subject_creation": created,
-                    "scope": [
-                        {"claim_type": claim_type, "changes": changes}
-                        for claim_type, changes in scope.items()
-                    ],
-                },
-            ]
-        members.append(
+    for suffix, path in sboms:
+        line = sbom_line_name(suffix)
+        members += [
             {
-                "kind": "trigger",
-                "name": f"security.sbom-landed.{suffix}",
-                "line_name": sbom_line_name(suffix),
-                "schedule": {
-                    "kind": "capture_landing",
-                    "capture_contract": SBOM_KIND,
-                    "logical_sources": [source],
-                },
-            }
-        )
+                "kind": "line",
+                "name": line,
+                "procedure_name": SBOM_PROCEDURE,
+                "bindings": {"read": WORKSPACE_FILE, "derive": SBOM_COMPONENTS},
+                "parameters": {"relative_path": path, "logical_source": f"{SBOM_SOURCE}.{suffix}"},
+                "acquisition": {},
+                "findings": {"inbox": list(findings)},
+                "max_authority": "settle",
+            },
+            {
+                "kind": "procedure_mandate",
+                "name": line + "-propose",
+                "line_name": line,
+                "grants": "propose",
+                "namespace": ["claims", "subjects"],
+                "valid_from": valid_from,
+                "expires_at": expires_at,
+            },
+            {
+                "kind": "procedure_mandate",
+                "name": line + "-settle",
+                "line_name": line,
+                "grants": "settle",
+                "namespace": ["claims"],
+                "valid_from": valid_from,
+                "expires_at": expires_at,
+                "subject_creation": [COMPONENT, INVENTORY],
+                "scope": [
+                    {"claim_type": claim_type, "changes": changes}
+                    for claim_type, changes in SBOM_SETTLE_SCOPE.items()
+                ],
+            },
+        ]
     return members
