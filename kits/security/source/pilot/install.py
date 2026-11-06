@@ -5,15 +5,18 @@ Every step is an ordinary governed write the instance's approval policy admits
 
 1. the Contracts cruxible-provider-web's operations pin (``web_contracts.py``);
 2. ``provider install`` of the web wheel (its lock and the runtime wheel beside it);
-3. the two CaptureKinds (``capture-contract propose``);
-4. vocabulary, Procedures, vulnerability Subjects and the Lines/Mandates/Triggers
+3. the Contracts security-osv-provider's operations pin, and ``provider install``
+   of its wheel (``--osv-wheel``/``--osv-lock``; batch 2, the dependency loop);
+4. the CaptureKinds (``capture-contract propose``);
+5. vocabulary, Procedures, vulnerability Subjects and the Lines/Mandates/Triggers
    (``authoring submit`` of the change sets ``definitions.py`` writes).
 
 A ``seed.json`` (own-word affected_by, labelled seed) is NOT installed here: it is
 state an agent states, submitted by hand after the SBOM import Lines have run
 (see the instance README).
 
-    python install.py PAYLOADS --providers PROVIDERS_CHECKOUT --wheels WHEEL_DIR
+    python install.py PAYLOADS --providers PROVIDERS_CHECKOUT --wheels WHEEL_DIR \
+        --osv-wheel SECURITY_OSV_PROVIDER.whl --osv-lock SECURITY_OSV_PROVIDER_uv.lock
 
 ``cruxible`` must be on PATH and already pointed at the instance (``cruxible
 init`` in the workspace, or CRUXIBLE_SERVER_SOCKET + --instance-id).
@@ -53,6 +56,8 @@ def main() -> None:
     parser.add_argument("payloads", type=Path, help="the directory definitions.py wrote")
     parser.add_argument("--providers", type=Path, required=True)
     parser.add_argument("--wheels", type=Path, required=True)
+    parser.add_argument("--osv-wheel", type=Path, required=True)
+    parser.add_argument("--osv-lock", type=Path, required=True)
     args = parser.parse_args()
 
     contracts = args.payloads / "web-contracts.json"
@@ -89,6 +94,28 @@ def main() -> None:
     if not (installed["registered"] and ready.get("web.fetch")):
         raise SystemExit(f"web.fetch is not installed: {installed}")
     print(f"provider: {installed['build']} (web.fetch installed)")
+    # -- Batch 2, dependency loop: security-osv-provider (sbom.components, osv.*).
+    submit(args.payloads / "osv-contracts.json")
+    installed = json.loads(
+        cruxible(
+            "provider",
+            "install",
+            str(args.osv_wheel),
+            "--lock",
+            str(args.osv_lock),
+            "--dependency",
+            str(runtime),
+            "--control-domain",
+            "security-osv-provider",
+            "--commit",
+            "--json",
+        )
+    )
+    ready = {row["operation"]: row["installed"] for row in installed["operations"]}
+    wanted = ("sbom.components", "osv.query", "osv.match")
+    if not (installed["registered"] and all(ready.get(name) for name in wanted)):
+        raise SystemExit(f"security-osv-provider is not installed: {installed}")
+    print(f"provider: {installed['build']} ({', '.join(wanted)} installed)")
     for name in kit.capture_kinds():
         path = args.payloads / f"capture-kind.{name}.json"
         cruxible("capture-contract", "propose", "--input", str(path), "--commit")
