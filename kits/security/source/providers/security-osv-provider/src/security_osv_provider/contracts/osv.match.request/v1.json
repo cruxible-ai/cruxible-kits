@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-contract-v1",
-  "description": "This run's OSV responses (their Capture bytes, passed by core) and the components the run asked about. DRAFT: Capture inputs need core lane B (b1, b4).",
+  "description": "This run's OSV responses (their Capture bytes, passed by core) and the components the run asked about.",
   "fields": {
     "components": {
       "type": {

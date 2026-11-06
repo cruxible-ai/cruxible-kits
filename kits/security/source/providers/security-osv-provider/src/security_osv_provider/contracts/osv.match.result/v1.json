@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-contract-v1",
-  "description": "One derived JSON document: queried (components OSV answered in full), not_checked (with why: a distro package whose source name is unknown, a failed or truncated batch, an unreadable advisory), affected (purl, cve_id, osv_id) and unkeyed (advisories with no CVE alias). A not-checked component is never clean, and absence never retires its Claims. DRAFT: the derived Capture needs core lane B (c1-c6).",
+  "description": "One derived JSON document: queried (components OSV answered in full), not_checked (with why: a distro package whose source name is unknown, a failed or truncated batch, an unreadable advisory), affected (purl, cve_id, osv_id, and fixed: the versions OSV lists as fixed for the component's package, sorted as text), count, and unkeyed (advisories with no CVE alias). A not-checked component is never clean, and absence never retires its Claims.",
   "fields": {
     "document": {
       "type": {

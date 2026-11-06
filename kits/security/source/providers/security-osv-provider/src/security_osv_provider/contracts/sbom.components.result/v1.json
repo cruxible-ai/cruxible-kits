@@ -1,0 +1,14 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One derived JSON document: inventory (the SBOM's metadata.component purl, or its path with warning sbom_unnamed), named_by, components (one record per distinct purl, nested components flattened, each carrying inventory and named_by), count, and unidentified (components with no purl, never records).",
+  "fields": {
+    "document": {
+      "type": {
+        "capture_kind": "*",
+        "kind": "capture"
+      }
+    }
+  },
+  "name": "sbom.components.result",
+  "version": 1
+}

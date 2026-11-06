@@ -1,0 +1,40 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One CycloneDX JSON SBOM this run read (its Capture bytes, passed by core), its workspace path (the inventory's name when the SBOM has no metadata.component purl), every held inventory membership (a state read; the derive selects this inventory's as its expect list) and the logical source the derived document is stated under.",
+  "fields": {
+    "held": {
+      "type": {
+        "item": {
+          "contract": {
+            "digest": "sha256:9f0b4b2146a9cf936a39571c66e3a61e988f93c54c4162be72c9e85df455490d",
+            "name": "sbom.components.held",
+            "version": 1
+          },
+          "kind": "contract"
+        },
+        "kind": "list",
+        "max_items": 20000
+      }
+    },
+    "logical_source": {
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    },
+    "relative_path": {
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "sbom": {
+      "type": {
+        "capture_kind": "*",
+        "kind": "capture"
+      }
+    }
+  },
+  "name": "sbom.components.request",
+  "version": 1
+}
