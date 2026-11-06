@@ -1,0 +1,23 @@
+{
+ "schema_version": 2,
+ "manifest": {
+  "path": "manifest.yaml",
+  "digest": "sha256:313705c481c5727030975eff34395a37bca242e24586c966022f4d1700969639"
+ },
+ "operations": [
+  {
+   "name": "sarif.findings",
+   "in": "sarif.findings.request@1",
+   "out": "sarif.findings.result@1",
+   "effect": "pure",
+   "refusals": {
+    "provider_declined": {
+     "contract": "sarif.findings.refusal.provider_declined@1",
+     "absorbable": false
+    }
+   },
+   "entrypoint": "security_sarif_provider.sarif:SarifFindings"
+  }
+ ],
+ "runtime_requirements": []
+}
