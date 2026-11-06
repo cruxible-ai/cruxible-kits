@@ -288,6 +288,49 @@ def test_import_work_is_linear_in_components(tmp_path: Path) -> None:
         assert high <= low * 1.15 + 2.0, (counter, measured)
 
 
+def _unrelated_world(tmp_path: Path, unrelated: int) -> Any:
+    """The demo SBOM beside an unrelated inventory of ``unrelated`` components."""
+
+    instance = kit_world(tmp_path, sboms=(("demo", DEMO_PATH), ("other", "sboms/other.cdx.json")))
+    write_file(tmp_path, DEMO_PATH, DEMO_SBOM.read_bytes())
+    write_file(tmp_path, "sboms/other.cdx.json", _synthetic_sbom(unrelated))
+    import_sbom(instance, "other", minute=-5)
+    return instance
+
+
+def _counted_demo_import(tmp_path: Path, unrelated: int) -> dict[str, float]:
+    from tests.test_scale._counters import counting, trace_sqlite
+
+    with trace_sqlite(tmp_path):
+        instance = _unrelated_world(tmp_path, unrelated)
+        with counting(tmp_path) as window:
+            state = import_sbom(instance, "demo")
+    assert not window.unexplained, window.unexplained
+    assert summary(state, "claims").written == 3
+    (read,) = [n.summary for n in state.nodes if n.node == "memberships"]
+    return {"read_rows": read.rows, "sql_vm_steps": window.counts["sql_vm_steps"]}
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="blocked on core (review F2): the import reads every held membership because a "
+    "read's params may not come from an earlier step's output (graph.py:375 'admission "
+    "selectors cannot depend on runtime output'); a read keyed by the derive's inventory "
+    "makes a fixed SBOM's import constant in unrelated inventories",
+)
+def test_a_fixed_sbom_imports_in_constant_work_beside_growing_unrelated_inventories(
+    tmp_path: Path,
+) -> None:
+    measured = {}
+    for unrelated in (10, 40):
+        root = tmp_path / f"u{unrelated}"
+        root.mkdir()
+        measured[unrelated] = _counted_demo_import(root, unrelated)
+    small, large = measured[10], measured[40]
+    assert large["read_rows"] == small["read_rows"], measured
+    assert large["sql_vm_steps"] <= small["sql_vm_steps"] * 1.15, measured
+
+
 @pytest.mark.parametrize("name", ["cruxible-env", "log4j-demo-app"])
 def test_both_demo_sboms_import(tmp_path: Path, name: str) -> None:
     content = (EXAMPLES / f"{name}.cdx.json").read_bytes()

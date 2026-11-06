@@ -63,7 +63,13 @@ core's builtin `workspace.file` → derive `sbom.components` → extract
   derived document's `held` header: the components this inventory held before
   the run. Core refuses a read parameterized by a runtime value ("admission
   selectors cannot depend on runtime output"), so the import reads every held
-  membership and the derive selects the inventory's own.
+  membership and the derive selects the inventory's own. **Blocked on core:**
+  that read grows with every other inventory in the instance, and past the
+  Procedure's 20,000-row read ceiling it stops even a small SBOM importing. A
+  read keyed by the derive's inventory (queued in the core batch) makes it
+  constant; the gate's strict xfail
+  `test_a_fixed_sbom_imports_in_constant_work_beside_growing_unrelated_inventories`
+  pins it.
 - **Absence never crosses inventories.** Each SBOM's Line reads under its own
   logical source, and absence only retires Claims from the same source. A
   component two SBOMs list has a membership from each; importing one surfaces
@@ -74,7 +80,10 @@ core's builtin `workspace.file` → derive `sbom.components` → extract
   the read incomplete, so nothing retires (blocked today by a core bug: the run
   fails instead; see the gate's strict xfail). Two spellings that fold to one key
   are a duplicate: nothing is written for that key. A component with no purl is
-  counted in `unidentified` and is never a record.
+  counted in `unidentified` and is never a record, but it is in the derive's
+  `count`, so the extract's `complete_when` count check reads that SBOM as
+  incomplete: its keyed components write and nothing retires. A held component
+  whose purl went missing never reads as removed.
 - **Nested components** are flattened by the derive.
 
 ## OSV: one Procedure (K-B1-3, K-B1-4)
@@ -131,19 +140,26 @@ gets no answer, while `glibc` at the same version gets 33 advisories.
 A not_affected judgment is the inverse on the `affected_by` unit: "component
 `affected_by` none of V", normative, in the agent's own words. `affected_by`
 declares `inverse: {key: object, evidence_rules: [self]}`, and a self-sourced
-normative none satisfies `self`. It is two writes (`triage.judgment()` builds
-both):
+normative none satisfies `self`. It is two writes, **in this order**
+(`triage.judgment()` builds both, as `.reason` and `.verdict`):
 
-1. `cruxible write FILE`: retire OSV's observation of V on that component
-   (`reason: superseded`; a none beside the live value of its unit is refused)
-   and add `{"none": "security.vulnerability/<cve>"}` with `role: normative`;
-2. `cruxible authoring submit FILE`: the Claim `security.component.not_affected_reason`
-   (one of `component_not_present`, `vulnerable_code_not_present`,
-   `vulnerable_code_not_in_execute_path`,
+1. `cruxible authoring submit FILE`: the Claim
+   `security.component.not_affected_reason` (one of `component_not_present`,
+   `vulnerable_code_not_present`, `vulnerable_code_not_in_execute_path`,
    `vulnerable_code_cannot_be_controlled_by_adversary`,
    `inline_mitigations_already_exist`), qualified by the CVE id. Free-text
    specifics stay in the rationale. (The write verbs carry no qualifier, so the
    reason is a separate submit.)
+2. `cruxible write FILE`: retire OSV's observation of V on that component
+   (`reason: superseded`; a none beside the live value of its unit is refused)
+   and add `{"none": "security.vulnerability/<cve>"}` with `role: normative`.
+
+Only the none hides the pair: the exposure, the backlog and the watch list all
+key on it. A judgment that stops after the first write leaves the pair exposed,
+and `triage.judgment_status()` reads it **judgment incomplete** (a reason with
+no none); making the second write finishes it. The two are not one atomic
+change: core has no single change that states a none and a qualified Claim
+together (surface gap G4).
 
 Queries skip nones, so V leaves the watch list for that component only: a
 vulnerability another component still has stays watched. OSV's next run cannot
@@ -156,13 +172,16 @@ of V, incoming: V), which the OSV Line routes to its inbox.
 |---|---|
 | `security.urgent_exposures` | One per (inventory, component, vulnerability): KEV-listed first (by `kev_date_added`), then by EPSS score; with KEV dates, ransomware use and EPSS |
 | `security.kev_triage_backlog` | The KEV-listed exposures nobody has judged (a judged pair is no exposure) |
-| `security.not_affected_judgments` | Every component with a judgment: its VEX reasons and `affected_by` values |
+| `security.not_affected_judgments` | Every component with a not_affected reason: its VEX reasons and `affected_by` values (candidates; each pair's status is `triage.judgment_status()`) |
 | `security.watched_vulnerabilities` | One per vulnerability some inventoried component is affected by (K-B1-2) |
 
-Who judged and when: the compact query
-`cruxible query security.component --select purl,not_affected_reason --claims`
-gives each reason's CVE qualifier and Claim id (and each none's Claim id), and
-`cruxible get CLM-… --detail history` gives the actor and the accepted time.
+Which pairs are judged, and who judged them when: the compact query
+`cruxible query security.component --select purl,not_affected_reason,affected_by --claims`
+gives each reason's CVE qualifier and Claim id and each none's Claim id;
+`triage.judgment_status(row)` pairs them per CVE (`judged`, or `judgment
+incomplete` when only the reason exists), and `cruxible get CLM-… --detail
+history` gives the actor and the accepted time. (A named Query cannot pair a
+reason's qualifier with a none's value, so the per-pair status is this view.)
 A source that later disagrees is the OSV Line's `held_disagrees` inbox item.
 
 ## Demo SBOMs (K-B1-7)
