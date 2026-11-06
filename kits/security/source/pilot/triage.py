@@ -7,24 +7,34 @@ judgment is ordinary state.
   exposure, KEV-listed first (``kev_date_added`` present), then by EPSS score.
 - ``security.kev_triage_backlog``: the KEV-listed exposures nobody has judged
   (a judged pair holds "none of V", so it is no exposure any more).
-- ``security.not_affected_judgments``: the track record. Every component with a
-  not_affected judgment, its VEX reason (qualified by the CVE) and, beside it,
-  the affected_by nones (run it with ``claims``/``nones``: each names its
-  Claim; ``get`` on the Claim gives who stated it and when). A source that
-  later disagrees surfaces as a ``held_disagrees`` finding in the OSV Line's
-  inbox.
+- ``security.not_affected_judgments``: the candidates for the track record:
+  every component with a not_affected reason. Which of its pairs are judged is
+  :func:`judgment_status` over the compact query
+  (``query security.component --select purl,not_affected_reason,affected_by
+  --claims``): a pair is ``judged`` only when the none of V exists, and
+  ``judgment incomplete`` when only its reason does. Each entry names its
+  Claims; ``get --detail history`` on a Claim gives who stated it and when. A
+  source that later disagrees surfaces as a ``held_disagrees`` finding in the
+  OSV Line's inbox.
 
-A not_affected judgment is two writes an agent makes together
-(:func:`judgment`): the ``write`` that retires OSV's observation of V and
-adds "affected_by none of V" (normative, own words, K-B2-J1), and the Claim of
-its VEX reason (K-B2-J1b, qualified by the CVE, which the write verbs cannot
-carry).
+A not_affected judgment is two writes (:func:`judgment`), in this order:
+
+1. the Claim of its VEX reason (K-B2-J1b, qualified by the CVE; the write verbs
+   cannot carry a qualifier, so it is an ``authoring submit``);
+2. the ``write`` that retires OSV's observation of V and adds "affected_by none
+   of V" (normative, own words, K-B2-J1).
+
+Everything that hides a pair keys on the none: the exposure, the backlog and
+the watch list. So if the second write fails, is refused or never happens, the
+pair stays exposed and reads ``judgment incomplete``: visible, and recovered by
+making the second write. (A single atomic change set needs core: surface gap
+G4.)
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import Any, NamedTuple
 
 from definitions import VULN
 from inventory import COMPONENT, INVENTORY, VEX_JUSTIFICATIONS
@@ -70,8 +80,9 @@ BACKLOG_SPEC: dict[str, Any] = {
 }
 JUDGMENTS_SPEC: dict[str, Any] = {
     "query": JUDGMENTS,
-    "description": "Every component with a not_affected judgment: its VEX reasons (each "
-    "qualified by its CVE) and its affected_by nones; each names its Claim.",
+    "description": "Every component with a not_affected reason (each qualified by its "
+    "CVE) and its affected_by values; a pair is judged only when its none of V exists "
+    "(see triage.judgment_status).",
     "from": {"c": COMPONENT},
     "where": "exists c.not_affected_reason",
     "row": f"{JUDGMENT_ROW}@1",
@@ -117,6 +128,15 @@ def vocabulary_members() -> list[dict[str, Any]]:
     return members
 
 
+class Judgment(NamedTuple):
+    """A not_affected judgment's two writes, in the order they must land."""
+
+    #: FIRST: ``authoring submit`` this change set (the VEX reason, qualified).
+    reason: dict[str, Any]
+    #: SECOND: ``write`` this request (retire OSV's observation, add the none).
+    verdict: dict[str, Any]
+
+
 def judgment(
     purl: str,
     cve_id: str,
@@ -124,8 +144,14 @@ def judgment(
     reason: str,
     because: str,
     retire: Sequence[str] = (),
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    """A not_affected judgment: (the ``write`` request, the reason's change set).
+) -> Judgment:
+    """A not_affected judgment: the reason's change set, then the ``write`` request.
+
+    Submit ``reason`` first and ``verdict`` second. Only the none of V (the
+    second write) hides the pair from the exposure, the backlog and the watch
+    list, so a judgment that stops between the two leaves the pair exposed and
+    :func:`judgment_status` reports it ``judgment incomplete``; make the second
+    write to finish it.
 
     ``purl`` is the component's key (its purl@version); ``retire`` names the OSV
     observation Claims of this unit the judgment supersedes (a none beside the live
@@ -136,7 +162,7 @@ def judgment(
         raise ValueError(f"reason must be one of {VEX_JUSTIFICATIONS}")
     vulnerability = f"{VULN}/{cve_id.lower()}"
     component = f"{COMPONENT}/{purl}"
-    write = {
+    verdict = {
         "because": because,
         "changes": [
             *({"op": "retire", "target": claim, "reason": "superseded"} for claim in retire),
@@ -165,4 +191,52 @@ def judgment(
             }
         ],
     }
-    return write, stated
+    return Judgment(reason=stated, verdict=verdict)
+
+
+JUDGED = "judged"
+INCOMPLETE = "judgment incomplete"
+
+
+def judgment_status(row: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """The judgments of one component, from its compact query row.
+
+    ``row`` is one row of ``query security.component --select
+    purl,not_affected_reason,affected_by --claims`` (its ``claims`` and
+    ``nones`` cells). One entry per CVE that has a not_affected reason or an
+    affected_by none: ``judged`` when both exist, ``judgment incomplete`` when
+    only the reason does (the second write is missing: the pair is still
+    exposed), and a none without a reason is ``judged`` with no reason (J1 alone).
+    """
+
+    def text(value: Any) -> str:
+        return str(getattr(value, "value", value))
+
+    def cell(name: str, part: str) -> list[Any]:
+        found = (row.get(part) or {}).get(name) or []
+        return list(found)
+
+    def field(item: Any, name: str) -> Any:
+        return item.get(name) if isinstance(item, Mapping) else getattr(item, name, None)
+
+    reasons = {
+        str(field(c, "qualifier")).upper(): c
+        for c in cell("not_affected_reason", "claims")
+        if field(c, "qualifier")
+    }
+    nones = {
+        text(field(n, "of")).rsplit("/", 1)[-1].upper(): n for n in cell("affected_by", "nones")
+    }
+    out = []
+    for cve in sorted(set(reasons) | set(nones)):
+        stated, none = reasons.get(cve), nones.get(cve)
+        out.append(
+            {
+                "cve_id": cve,
+                "status": JUDGED if none is not None else INCOMPLETE,
+                "reason": None if stated is None else text(field(stated, "value")),
+                "reason_claim": None if stated is None else field(stated, "claim"),
+                "none_claim": None if none is None else field(none, "claim"),
+            }
+        )
+    return out

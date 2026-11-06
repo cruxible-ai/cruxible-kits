@@ -149,30 +149,50 @@ def affected_claim(instance: Any, purl: str, cve_id: str) -> str:
     raise AssertionError(f"{purl} holds no affected_by {cve_id}")
 
 
-def judge(instance: Any, purl: str, cve_id: str, *, minute: int = 0) -> Any:
-    """An agent's not_affected judgment: the write, then its VEX reason."""
-
+def write(instance: Any, request: dict[str, Any]) -> Any:
     from cruxible_client.contracts.write import WriteRequest
     from cruxible_core.proposals.proposals import AuthenticatedActor
     from cruxible_core.service.authoring.write_verbs import WriteCaller, service_playbill_write
 
-    write, stated = triage.judgment(
-        purl,
-        cve_id,
-        reason="vulnerable_code_not_in_execute_path",
-        because=f"The demo app never logs attacker input through {purl.split('/')[-1]}.",
-        retire=(affected_claim(instance, purl, cve_id),),
-    )
-    outcome = service_playbill_write(
+    return service_playbill_write(
         instance,
-        request=WriteRequest.model_validate(write),
+        request=WriteRequest.model_validate(request),
         caller=WriteCaller(
             actor=AuthenticatedActor(actor_id="owner"), may_activate=True, may_approve=True
         ),
     )
+
+
+def judgment(instance: Any, purl: str, cve_id: str, *, retire: bool = True) -> Any:
+    return triage.judgment(
+        purl,
+        cve_id,
+        reason="vulnerable_code_not_in_execute_path",
+        because=f"The demo app never logs attacker input through {purl.split('/')[-1]}.",
+        retire=(affected_claim(instance, purl, cve_id),) if retire else (),
+    )
+
+
+def judge(instance: Any, purl: str, cve_id: str) -> Any:
+    """An agent's not_affected judgment: its VEX reason FIRST, then the none of V."""
+
+    both = judgment(instance, purl, cve_id)
+    submit(instance, both.reason, name=f"reason-{abs(hash((purl, cve_id))):x}")
+    outcome = write(instance, both.verdict)
     assert outcome.status == "accepted", outcome
-    submit(instance, stated, name=f"reason-{abs(hash((purl, cve_id))):x}")
     return outcome
+
+
+def status(instance: Any, purl: str) -> list[dict[str, Any]]:
+    (row,) = query_rows(
+        instance,
+        None,
+        kind=inventory.COMPONENT,
+        where=[{"field": "purl", "eq": purl}],
+        select=("purl", "not_affected_reason", "affected_by"),
+        claims=True,
+    )
+    return triage.judgment_status(row)
 
 
 # -- OSV writes, re-observes and retires -------------------------------------------
@@ -291,6 +311,7 @@ def test_a_judgment_removes_v_from_the_watch_list_for_that_component_only(
     run_osv(instance, OSV({QUERYBATCH: batch_with(shared_log4shell)}))
     assert {(CORE, LOG4SHELL), (API, LOG4SHELL)} <= exposures(instance)
     outcome = judge(instance, CORE, LOG4SHELL)
+    assert [s["status"] for s in status(instance, CORE)] == [triage.JUDGED]
     # A self-sourced normative "none of V" is admissible under the inverse's [self] rule.
     assert outcome.changes[-1].after.object == {"none": f"{kit.VULN}/{LOG4SHELL.lower()}"}
     assert (CORE, LOG4SHELL) not in exposures(instance)
@@ -349,6 +370,39 @@ def test_the_track_record_lists_each_judgment_with_its_reason_and_claim(
     for claim in (reason.claim, none.claim):
         (revision,) = get(instance, claim, detail="history").history.revisions
         assert revision.actor == "owner" and revision.accepted
+
+
+def test_a_judgment_stopped_between_its_writes_leaves_the_pair_exposed_and_pending(
+    tmp_path: Path,
+) -> None:
+    """F3: the reason lands first; when the none of V fails, the pair stays in the
+    exposure, the backlog and the watch list, and reads 'judgment incomplete'.
+    Making the second write completes it."""
+
+    instance = world(tmp_path)
+    run_osv(instance)
+    kev(instance, fixture_bytes("kev-catalog"), minute=1)
+    both = judgment(instance, CORE, LOG4SHELL, retire=False)
+    submit(instance, both.reason, name="reason-first")
+    # The second write fails: a none beside the live OSV value is refused.
+    refused = write(instance, both.verdict)
+    assert refused.status == "refused"
+    assert (CORE, LOG4SHELL) in exposures(instance)
+    assert (CORE, LOG4SHELL) in exposures(instance, triage.BACKLOG)
+    assert LOG4SHELL in {r["cve_id"] for r in query_rows(instance, kit.WATCHED_QUERY)}
+    (pending,) = status(instance, CORE)
+    assert (pending["cve_id"], pending["status"], pending["none_claim"]) == (
+        LOG4SHELL,
+        triage.INCOMPLETE,
+        None,
+    )
+    # Recovery: the second write, with OSV's observation retired.
+    retry = write(instance, judgment(instance, CORE, LOG4SHELL).verdict)
+    assert retry.status == "accepted", retry
+    (done,) = status(instance, CORE)
+    assert done["status"] == triage.JUDGED and done["none_claim"] and done["reason_claim"]
+    assert (CORE, LOG4SHELL) not in exposures(instance)
+    assert (CORE, LOG4SHELL) not in exposures(instance, triage.BACKLOG)
 
 
 # -- triage worklists ---------------------------------------------------------------
