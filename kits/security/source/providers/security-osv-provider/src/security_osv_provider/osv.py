@@ -288,11 +288,13 @@ def package_base(purl: str) -> str:
     return base
 
 
-def fixed_index(record: Mapping[str, Any]) -> dict[str, set[str]]:
-    """Every ``fixed`` range event an advisory lists, by package (``package_base``).
+def fixed_index(record: Mapping[str, Any]) -> dict[str, tuple[str, ...]]:
+    """The ``fixed`` range events an advisory lists, by package (``package_base``).
 
     Built once per advisory record and looked up per component: one shared
     advisory affecting N packages costs N entries, never N x N comparisons.
+    Each package keeps only its lexically smallest ``MAX_FIXED`` versions, the
+    only ones a pair can list, so a lookup copies a bounded list.
     """
 
     index: dict[str, set[str]] = {}
@@ -310,13 +312,13 @@ def fixed_index(record: Mapping[str, Any]) -> dict[str, set[str]]:
                 version = event.get("fixed") if isinstance(event, Mapping) else None
                 if isinstance(version, str) and 0 < len(version) <= MAX_VERSION_LEN:
                     found.add(version)
-    return index
+    return {package: tuple(sorted(found)[:MAX_FIXED]) for package, found in index.items()}
 
 
 def fixed_versions(record: Mapping[str, Any], purl: str) -> list[str]:
     """Every ``fixed`` range event the advisory lists for the component's own package."""
 
-    return sorted(fixed_index(record).get(package_base(purl), ()))[:MAX_FIXED]
+    return list(fixed_index(record).get(package_base(purl), ()))
 
 
 def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> dict[str, Any]:
@@ -373,7 +375,7 @@ def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> 
     pairs: dict[tuple[str, str], dict[str, Any]] = {}
     fixed: dict[tuple[str, str], set[str]] = {}
     # One fixed-event index per advisory, shared by every component and alias.
-    indexes: dict[str, dict[str, set[str]]] = {}
+    indexes: dict[str, dict[str, tuple[str, ...]]] = {}
     unkeyed: list[dict[str, str]] = []
     for purl in asked:
         if purl in unanswered:
@@ -383,7 +385,7 @@ def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> 
             record = records[advisory]
             if advisory not in indexes:
                 indexes[advisory] = fixed_index(record)
-            versions = indexes[advisory].get(base, set())
+            versions = indexes[advisory].get(base, ())
             ids = cve_ids(record)
             if not ids:
                 unkeyed.append({"purl": purl, "osv_id": advisory})

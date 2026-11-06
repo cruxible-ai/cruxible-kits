@@ -372,6 +372,56 @@ def test_one_shared_advisory_costs_linear_work(n: int, monkeypatch: pytest.Monke
     assert calls == {"base": 2 * n, "index": 1}
 
 
+def _one_package(n: int) -> tuple[list[str], Recorded]:
+    """n versions of ONE package, one advisory listing n fixed events for it."""
+
+    purls = [f"pkg:pypi/shared@0.{i}" for i in range(n)]
+    batch = {"results": [{"vulns": [{"id": "GHSA-0001"}]} for _ in sorted(purls)]}
+    record = {
+        "id": "GHSA-0001",
+        "aliases": ["CVE-2026-0003"],
+        "affected": [
+            {
+                "package": {"purl": "pkg:pypi/shared"},
+                "ranges": [
+                    {"events": [{"introduced": "0"}, *({"fixed": f"1.{i:04d}"} for i in range(n))]}
+                ],
+            }
+        ],
+    }
+    overrides = {
+        f"{osv.OSV_API}/v1/querybatch": (200, json.dumps(batch).encode()),
+        f"{osv.OSV_API}/v1/vulns/GHSA-0001": (200, json.dumps(record).encode()),
+    }
+    return purls, Recorded(overrides=overrides)
+
+
+@pytest.mark.parametrize("n", [40, 160])
+def test_many_versions_of_one_package_copy_bounded_fixes(
+    n: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F4 r2: n component versions share a package whose advisory lists n > MAX_FIXED
+    fixes. The index keeps MAX_FIXED per package, so each pair copies a bounded
+    list: total copied entries are n x MAX_FIXED, never n x n."""
+
+    purls, origin = _one_package(n)
+    responses = query(purls, origin)
+    sizes: list[int] = []
+    real_index = osv.fixed_index
+
+    def measured_index(record: Any) -> Any:
+        index = real_index(record)
+        sizes.extend(len(v) for v in index.values())
+        return index
+
+    monkeypatch.setattr(osv, "fixed_index", measured_index)
+    _content, document = derive(responses, purls)
+    assert sizes == [osv.MAX_FIXED]
+    expected = tuple(sorted(f"1.{i:04d}" for i in range(n))[: osv.MAX_FIXED])
+    assert len(document["affected"]) == n
+    assert {tuple(r["fixed"]) for r in document["affected"]} == {expected}
+
+
 @pytest.mark.parametrize("operation", [osv.QUERY, osv.MATCH, "sbom.components"])
 def test_registration_names_each_operation_and_its_entrypoint(operation: str) -> None:
     import importlib
