@@ -396,9 +396,9 @@ def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> 
     affected: list[dict[str, Any]] = []
     for pair in sorted(pairs):
         row = dict(pairs[pair])
-        versions = sorted(fixed[pair])[:MAX_FIXED]
-        if versions:
-            row["fixed"] = versions
+        listed = sorted(fixed[pair])[:MAX_FIXED]
+        if listed:
+            row["fixed"] = listed
         affected.append(row)
     return {
         "queried": [p for p in asked if p not in unanswered],
