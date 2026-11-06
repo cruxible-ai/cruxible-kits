@@ -500,6 +500,45 @@ def test_a_held_finding_whose_result_cannot_be_placed_is_never_fixed(
     assert ("f-CWE-22" in out["covered"]) == ("semgrep:open-joined-path" not in tainted)
 
 
+def _malformed_run(catalog: list[dict[str, Any]]) -> dict[str, Any]:
+    """A Semgrep run whose one result is a scalar, with the given rule catalog."""
+
+    run_ = copy.deepcopy(log("semgrep-gate-app-vulnerable.sarif")["runs"][0])
+    run_["tool"]["driver"]["rules"] = catalog
+    run_["results"] = [42]
+    return run_
+
+
+@pytest.mark.parametrize(
+    "catalog",
+    [[], [{"id": "open-joined-path"}]],
+    ids=["empty_catalog", "catalog_omits_the_rule"],
+)
+def test_an_unknown_rule_taints_its_tool_across_runs(catalog: list[dict[str, Any]]) -> None:
+    """A clean full run of the same tool never re-authorizes the malformed run's negatives."""
+
+    document = log("semgrep-gate-app-fixed.sarif")  # the clean full rescan: no SQLi
+    document["runs"].insert(0, _malformed_run(catalog))
+    out = derive(document, held=_sqli_held())
+    assert out["tainted_tools"] == ["semgrep"]
+    assert out["covered"] == []
+    assert not [r for r in out["findings"] if r["verification"] == "fixed"]
+    (gap,) = out["attention"]
+    assert (gap["kind"], gap["reason"]) == ("location_gap", "malformed_result")
+    # The admissible positive still writes.
+    assert [(r["weakness"], r["verification"]) for r in out["findings"]] == [("CWE-22", "present")]
+
+
+def test_an_unknown_rule_of_one_tool_leaves_another_tool_covered() -> None:
+    document = log("codeql-gate-app-fixed.sarif")
+    document["runs"].insert(0, _malformed_run([]))
+    codeql = derive(log("codeql-gate-app-vulnerable.sarif"))["findings"][0]
+    out = derive(document, held=[held_row(codeql, sid="codeql-sqli")])
+    assert out["tainted_tools"] == ["semgrep"]
+    assert out["covered"] == ["codeql-sqli"]
+    assert [r["verification"] for r in out["findings"]] == ["fixed"]
+
+
 def test_a_taint_in_one_run_holds_across_the_scan() -> None:
     """A clean full run of the same rule does not override another run's taint."""
 

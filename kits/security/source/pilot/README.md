@@ -152,7 +152,9 @@ flowchart LR
   or multi-line locus, malformed locations) is a location gap, never a record,
   and it taints its rule: that rule covers nothing in the scan, so none of its
   held findings is fixed or retired. A result that is no record, or names no
-  rule, taints every rule of its run. The header lists the tainted rules. An unreadable SARIF file is refused by the derive, and
+  rule, taints its whole tool for the scan: no held finding that tool reported
+  is fixed or retired, whatever another run of the tool says (a rule catalog
+  can be empty or incomplete). The header lists the tainted rules and tools. An unreadable SARIF file is refused by the derive, and
   nothing is written.
 - **Not yet in core.** Today a record that is no object (or an out-of-bounds
   key part) fails the whole run rather than only itself. The gate holds this as

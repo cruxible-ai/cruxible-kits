@@ -112,7 +112,8 @@ becomes findings, agents judge them, and a full rescan verifies a fix.
   covers nothing, so it never fixes anything. An incomplete read (a refused
   record, a count mismatch) never writes `fixed` or retires anything. Neither
   does a scan with a result of that rule it could not place (a location gap or
-  a malformed result): the rule is tainted for that scan.
+  a malformed result): the rule is tainted for that scan, and a result whose
+  rule is unknown taints every rule of its tool.
 - **Regressions and location gaps go to the inbox.** A second Line,
   `security.sarif-attention.NAME`, runs when the derived document lands. It
   posts `security.sarif-attention` items for two cases. A regression is a

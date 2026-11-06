@@ -54,7 +54,9 @@ stable locator, an unkeyable locus, malformed locations) may be a held
 finding, so its rule is *tainted*: the rule covers nothing in this scan, its
 held findings stay out of ``covered`` and get no ``fixed`` record, and the
 result is a location gap in ``attention``. A result that is no record at all,
-or names no rule, taints every rule of its run. Nothing is skipped silently.
+or names no rule, taints its whole tool for the scan (a run's rule catalog may
+be empty or omit that rule, so no rule list bounds it): no held finding that
+tool reported is covered, whatever another run of the tool says. Nothing is skipped silently.
 The header lists the tainted rules. Coverage is one index of qualified rules
 (covered = run by a full run, minus tainted), built once; each held finding is
 checked against it in O(its rules).
@@ -62,7 +64,7 @@ checked against it in O(its rules).
 Output::
 
     {"repo", "full", "queried": [rule], "covered": [subject_id],
-     "tainted": [rule], "count",
+     "tainted": [rule], "tainted_tools": [tool], "count",
      "findings":  [{repo, weakness, locus, verification, rule?, tool?,
                     severity?, reported_at?, tier?}],
      "attention": [{kind: regression | location_gap, ref, repo, rule, path,
@@ -336,7 +338,8 @@ class Run:
     #: Rules with a result this run could not interpret or key: their absence
     #: says nothing, so no finding of theirs is covered by this scan.
     tainted: set[str] = field(default_factory=set)
-    #: A result whose rule cannot be determined taints every rule of the run.
+    #: A result whose rule cannot be determined taints the run's whole tool for
+    #: the scan (see :func:`coverage_index`).
     tainted_whole: bool = False
 
 
@@ -428,7 +431,7 @@ def _gap(scan: Scan, repo: str, qualified: str, path: str | None, reason: str) -
 
 
 def _malformed(scan: Scan, run: Run, repo: str, reason: str) -> None:
-    """A result that is no result: the whole run is tainted, and an agent is told."""
+    """A result whose rule cannot be established: its tool is tainted for the scan."""
 
     run.tainted_whole = True
     _gap(scan, repo, f"{run.tool}:(unknown)", None, reason)
@@ -549,26 +552,54 @@ class Coverage:
 
     covered: frozenset[str]
     tainted: frozenset[str]
+    #: Tools with a result whose rule could not be established: every rule of
+    #: the tool is suspect in this scan, listed in a catalog or not.
+    tainted_tools: frozenset[str] = frozenset()
+
+
+def _tool_of(rule: str) -> str:
+    return rule.split(":", 1)[0]
 
 
 def coverage_index(scan: Scan) -> Coverage:
     """A rule is covered when a full run ran it and no run of the scan tainted it.
 
     A rule a run could not interpret a result of is tainted everywhere in the
-    scan; a run with a result whose rule is unknown taints every rule it ran.
+    scan. A result whose rule is unknown taints its whole TOOL for the scan: a
+    run's rule catalog may be empty or omit that rule, so no list of rules can
+    bound the doubt, and no other run of the tool re-authorizes a negative.
     """
 
     tainted: set[str] = set()
+    tools: set[str] = set()
     for run in scan.runs:
-        tainted |= run.rules if run.tainted_whole else run.tainted
-    covered = {rule for run in scan.runs if run.full for rule in run.rules} - tainted
-    return Coverage(covered=frozenset(covered), tainted=frozenset(tainted))
+        tainted |= run.tainted
+        if run.tainted_whole:
+            tools.add(run.tool)
+    tainted |= {rule for run in scan.runs if run.tool in tools for rule in run.rules}
+    covered = {
+        rule
+        for run in scan.runs
+        if run.full and run.tool not in tools
+        for rule in run.rules
+        if rule not in tainted
+    }
+    return Coverage(
+        covered=frozenset(covered), tainted=frozenset(tainted), tainted_tools=frozenset(tools)
+    )
 
 
 def is_covered(finding: Held, index: Coverage) -> bool:
-    """One of the finding's rules is covered and none is tainted: O(its rules)."""
+    """One of the finding's rules is covered and none is tainted, nor its tool.
 
-    return not (finding.rules & index.tainted) and bool(finding.rules & index.covered)
+    O(its rules).
+    """
+
+    if finding.rules & index.tainted:
+        return False
+    if index.tainted_tools and any(_tool_of(r) in index.tainted_tools for r in finding.rules):
+        return False
+    return bool(finding.rules & index.covered)
 
 
 def findings(
@@ -640,6 +671,7 @@ def findings(
         "queried": queried,
         "covered": sorted(covered),
         "tainted": sorted(index.tainted),
+        "tainted_tools": sorted(index.tainted_tools),
         "count": len(records),
         "findings": records,
         "attention": attention,

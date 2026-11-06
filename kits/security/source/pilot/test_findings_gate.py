@@ -772,6 +772,32 @@ def test_a_held_finding_the_rescan_cannot_place_is_never_fixed(
     assert (item["kind"], item["reason"]) == ("location_gap", reason)
 
 
+@pytest.mark.parametrize(
+    "catalog",
+    [[], [{"id": "open-joined-path"}]],
+    ids=["empty_catalog", "catalog_omits_the_rule"],
+)
+def test_an_unknown_rule_in_one_run_never_lets_another_run_of_its_tool_fix(
+    tmp_path: Path, catalog: list[dict[str, Any]]
+) -> None:
+    instance = findings_world(tmp_path)
+    scan(instance, tmp_path, sarif("semgrep-gate-app-vulnerable.sarif"))
+    # The clean full rescan (no SQLi) beside a Semgrep run whose one result is a
+    # malformed scalar and whose rule catalog cannot say which rule it was.
+    document = sarif("semgrep-gate-app-fixed.sarif")
+    malformed = copy.deepcopy(document["runs"][0])
+    malformed["tool"]["driver"]["rules"] = catalog
+    malformed["results"] = [42]
+    document["runs"].insert(0, malformed)
+    state = scan(instance, tmp_path, document, minute=1)
+    assert counts(state) == (0, 0, 5, 0, 0)  # the traversal, re-observed
+    assert held(instance)[SQLI]["verification"] == "present"
+    posted = attention(instance, state, minute=2)
+    assert summary(posted, "post_inbox").emitted == 1
+    (item,) = inbox(instance, findings.attention_line_name("semgrep"))
+    assert (item["kind"], item["reason"]) == ("location_gap", "malformed_result")
+
+
 def test_a_count_mismatch_never_retires_or_fixes(tmp_path: Path) -> None:
     instance = findings_world(tmp_path)
     scan(instance, tmp_path, sarif("semgrep-gate-app-vulnerable.sarif"))
