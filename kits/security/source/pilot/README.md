@@ -12,8 +12,10 @@ new form until the generator reads it.
 | `definitions.py` | Every authoring payload, in install order: CaptureKinds, vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates, Triggers), and state (catalog, vulnerabilities, seeds) |
 | `inventory.py` | Batch 1: the SBOM import, the inventory and component kinds, `affected_by`, and the SBOM authoring lint |
 | `osv.py` | **Prepared, not wired.** The OSV Procedure and Line, waiting for core lanes A and B |
+| `findings.py` | Batch 2, code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines |
 | `install.py` | Installs everything into an instance through the served CLI |
-| `test_pilot_gate.py`, `test_inventory_gate.py` | The gate, run on recorded real bytes |
+| `test_pilot_gate.py`, `test_inventory_gate.py`, `test_findings_gate.py` | The gate, run on recorded real bytes |
+| `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure) and its SARIF test data |
 | `../providers/security-osv-provider` | **Prepared, not wired.** The protocol-2 OSV provider (`osv.query` fetch, `osv.match` derive) and its recorded OSV exchanges |
 
 ## The chain
@@ -111,3 +113,44 @@ own-word proposal (`definitions.seed_affected_by`). Its rationale begins
   environment`.
 - `log4j-demo-app.cdx.json`: a **demo app**, not real software. It pins
   log4j-core 2.14.1, which reaches CVE-2021-44228 on KEV.
+
+## Code findings (batch 2)
+
+Two Procedures, each with one terminal, compose through the derived document:
+
+```mermaid
+flowchart LR
+  held["security.sarif_held_findings<br/>(the repository's findings)"] --> derive
+  file["SARIF file (workspace.file)"] --> derive["sarif.findings (derive, pure)"]
+  derive --> doc["security.sarif-findings"]
+  doc -->|"security.sarif-import.NAME: extract /findings/*"| finding["security.finding Claims"]
+  doc -->|"landing: security.sarif-attention.NAME, extract /attention/*"| inbox["Line inbox"]
+```
+
+| ClaimType on `security.finding` | Role | Written by |
+|---|---|---|
+| `repo`, `weakness`, `locus` | key | the import (subject `create: if_absent`) |
+| `rule`, `reported_by` (many) | observation | the import |
+| `severity` | observation, or normative | the import; an agent's judgment holds (`held_disagrees`) |
+| `reported_at` (path:line) | observation, mirrored | the import; it revises when a finding moves and retires when it is fixed |
+| `verification` (present / fixed) | observation; `fixed` needs complete input | the import; `fixed` only for a covered finding |
+| `verdict`, `justification`, `fixed_by` | normative (own words) | agents, never a Mandate |
+
+- **`expect` is the header's `covered`.** These are the held findings a full
+  run's rule set covers. They are the only Subjects whose absence the run
+  judges.
+- **Why the inbox goes through a second Procedure.** A Procedure has one
+  terminal, and neither a regression nor a gap is a core finding kind. So the
+  attention Procedure runs on the landing of the derived Capture (a
+  `capture_landing` Trigger); the Trigger substitutes the Capture for the
+  derive call.
+- **The Line reads its own logical source** (`sarif.NAME`). Absence then
+  retires only what that scanner's file wrote.
+- **Fail-closed rules.** A refused record, a duplicate key or a count
+  mismatch makes the read incomplete, so nothing is fixed or retired. A result
+  that cannot be a key (an over-long or multi-line locus) is a location gap,
+  never a record. An unreadable SARIF file is refused by the derive, and
+  nothing is written.
+- **Not yet in core.** Today a record that is no object (or an out-of-bounds
+  key part) fails the whole run rather than only itself. The gate holds this as
+  a strict xfail with a core owner.

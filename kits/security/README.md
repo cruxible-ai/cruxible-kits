@@ -83,6 +83,48 @@ absence never retires its Claims. A component whose OSV answer was incomplete
 (a failed or truncated query, or an advisory OSV could not serve) reads the
 same way. Language packages (PyPI, npm, Maven, Go, crates.io, ...) are checked.
 
+## Code findings (Claim-authority form, batch 2)
+
+In the Claim-authority form (`source/pilot/findings.py`), a scanner's SARIF file
+becomes findings, agents judge them, and a full rescan verifies a fix.
+
+- **Import.** Each SARIF file has one import Line, `security.sarif-import.NAME`,
+  bound to a repository (`host/owner/repo`) and a workspace path. Core's
+  `workspace.file` reads the file. The pure derive `sarif.findings`
+  (`security-sarif-provider`) reads it with the findings the instance already
+  holds for that repository. The Claims then land on `security.finding`. Runs of
+  any other repository give no records, so the wrong repository writes nothing.
+  Dependency advisories (a CVE or GHSA rule located in a manifest) are left to
+  the SBOM and OSV loop.
+- **The key.** A finding is (repo, weakness, locus). The weakness is the
+  smallest CWE the rule names, else `RULE:tool/ruleId`. The locus is
+  `path#symbol`, else `path#snippet:<hash>`, else the tool's line hash. A line
+  number is never part of the key. A finding that moved keeps its key, and only
+  `reported_at` (path:line) revises. Semgrep and CodeQL locate differently, so
+  each tool's finding has its own key.
+- **What a scan writes.** `rule`, `reported_by`, `severity`, `reported_at`
+  and `verification`. The Line settles these as observations.
+- **Fixed needs a full scan of the rules that found it.** A run is full when
+  it declares `properties["cruxible.coverage"] = "full"` and every invocation
+  succeeded. A held finding is covered when one of its rules ran in a full run.
+  If the scan no longer reports a covered finding, it is `fixed`, and its last
+  `reported_at` retires, with the complete read as its witness. A partial scan
+  covers nothing, so it never fixes anything. An incomplete read (a refused
+  record, a count mismatch) never writes `fixed` or retires anything.
+- **Regressions and location gaps go to the inbox.** A second Line,
+  `security.sarif-attention.NAME`, runs when the derived document lands. It
+  posts `security.sarif-attention` items for two cases. A regression is a
+  finding verified fixed that a scan reports again; `verification` also goes
+  back to `present`. A location gap is a result with no repository path or no
+  stable locator; it is never a finding.
+- **Agents judge.** `verdict` (confirmed, false_positive, not_exploitable),
+  `justification` and `fixed_by` are normative Claims in the agent's own
+  words, and no Mandate settles them. An agent may also judge `severity`.
+  A later scan that disagrees never overrides it: the run records
+  `held_disagrees` and posts it to the import Line's inbox.
+  `security.finding_verdicts` lists each finding with its judgments and
+  verification.
+
 ## How it models your world
 
 Four words carry the rest of the kit's docs. A **Subject** is one thing the kit
