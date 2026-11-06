@@ -361,12 +361,9 @@ def synthetic(size: int) -> dict[str, Any]:
     return document
 
 
-@pytest.mark.parametrize("held_fraction", [0, 1])
-def test_derive_work_is_linear_in_results_and_held_rows(
-    monkeypatch: pytest.MonkeyPatch, held_fraction: int
-) -> None:
+def _counted(monkeypatch: pytest.MonkeyPatch, *names: str) -> dict[str, int]:
     calls: dict[str, int] = {}
-    for name in ("locator", "weakness", "severity", "_covers"):
+    for name in names:
         original = getattr(sarif, name)
 
         def counted(*args: Any, _name: str = name, _original: Any = original, **kw: Any) -> Any:
@@ -374,9 +371,16 @@ def test_derive_work_is_linear_in_results_and_held_rows(
             return _original(*args, **kw)
 
         monkeypatch.setattr(sarif, name, counted)
+    return calls
+
+
+@pytest.mark.parametrize("held_fraction", [0, 1])
+def test_derive_work_is_linear_in_results_and_held_rows(
+    monkeypatch: pytest.MonkeyPatch, held_fraction: int
+) -> None:
+    calls = _counted(monkeypatch, "locator", "weakness", "severity", "is_covered", "coverage_index")
     measured = {}
     for size in (10, 40):
-        calls.clear()
         document = synthetic(size)
         held = (
             [held_row(r, sid=f"f{i}") for i, r in enumerate(derive(document)["findings"])]
@@ -387,11 +391,125 @@ def test_derive_work_is_linear_in_results_and_held_rows(
         out = derive(document, held=held)
         assert out["count"] == size
         measured[size] = dict(calls)
-        # Constant per item: one locator, weakness and severity read per result, and
-        # one coverage check per held finding per run (one run here).
+        # Constant per item: one locator, weakness and severity read per result,
+        # one coverage index per scan and one index check per held finding.
         assert calls["locator"] == calls["weakness"] == calls["severity"] == size
-        assert calls.get("_covers", 0) == len(held)
+        assert calls["coverage_index"] == 1
+        assert calls.get("is_covered", 0) == len(held)
     assert measured[40]["locator"] == 4 * measured[10]["locator"]
+
+
+def multi_run(runs: int) -> dict[str, Any]:
+    """One log of ``runs`` full runs, each its own tool's rule and one result."""
+
+    document = log("semgrep-gate-app-vulnerable.sarif")
+    template = document["runs"][0]
+    out = []
+    for index in range(runs):
+        run_ = copy.deepcopy(template)
+        run_["tool"]["driver"]["name"] = f"tool{index}"
+        run_["tool"]["driver"]["rules"] = [{"id": f"rule{index}"}]
+        run_["results"] = [_result(f"rule{index}", f"app/r{index}.py", snippet=f"call(x{index})")]
+        out.append(run_)
+    document["runs"] = out
+    return document
+
+
+def test_coverage_work_is_linear_over_many_runs_and_held_findings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """10 runs / 10 held vs 40 / 40: one index, one O(rules) check per held finding."""
+
+    rule_checks = 0
+    original = sarif.is_covered
+
+    def counted(finding: Any, index: Any) -> bool:
+        nonlocal rule_checks
+        rule_checks += len(finding.rules)  # the frozenset intersections it does
+        return original(finding, index)
+
+    monkeypatch.setattr(sarif, "is_covered", counted)
+    measured = {}
+    for size in (10, 40):
+        document = multi_run(size)
+        held = [held_row(r, sid=f"f{i}") for i, r in enumerate(derive(document)["findings"])]
+        rule_checks = 0
+        # The rescan reports nothing: every held finding is covered and fixed.
+        for run_ in document["runs"]:
+            run_["results"] = []
+        out = derive(document, held=held)
+        assert len(out["covered"]) == size
+        assert [r["verification"] for r in out["findings"]] == ["fixed"] * size
+        measured[size] = rule_checks
+    assert measured == {10: 10, 40: 40}  # linear: never held x runs
+
+
+# -- taint: a result the scan cannot place never lets its rule fix anything -----------------
+
+
+def _sqli_held() -> list[dict[str, Any]]:
+    vulnerable = derive(log("semgrep-gate-app-vulnerable.sarif"))
+    return [held_row(r, sid=f"f-{r['weakness']}") for r in vulnerable["findings"]]
+
+
+def _sqli(document: dict[str, Any]) -> dict[str, Any]:
+    return next(r for r in document["runs"][0]["results"] if r["ruleId"] == "sqli-fstring-execute")
+
+
+def _unlocated(document: dict[str, Any]) -> None:
+    del _sqli(document)["locations"][0]["physicalLocation"]["region"]["snippet"]
+
+
+def _scalar(document: dict[str, Any]) -> None:
+    results = document["runs"][0]["results"]
+    results[results.index(_sqli(document))] = 42
+
+
+def _no_rule(document: dict[str, Any]) -> None:
+    del _sqli(document)["ruleId"]
+
+
+def _bad_locations(document: dict[str, Any]) -> None:
+    _sqli(document)["locations"] = "app/db.py"
+
+
+@pytest.mark.parametrize(
+    ("edit", "reason", "tainted"),
+    [
+        (_unlocated, "no_stable_location", ["semgrep:sqli-fstring-execute"]),
+        (_bad_locations, "malformed_location", ["semgrep:sqli-fstring-execute"]),
+        (_scalar, "malformed_result", ["semgrep:open-joined-path", "semgrep:sqli-fstring-execute"]),
+        (_no_rule, "no_rule", ["semgrep:open-joined-path", "semgrep:sqli-fstring-execute"]),
+    ],
+    ids=["lost_snippet", "malformed_locations", "malformed_scalar", "no_rule"],
+)
+def test_a_held_finding_whose_result_cannot_be_placed_is_never_fixed(
+    edit: Any, reason: str, tainted: list[str]
+) -> None:
+    document = log("semgrep-gate-app-vulnerable.sarif")
+    edit(document)
+    out = derive(document, held=_sqli_held())
+    assert "f-CWE-89" not in out["covered"]
+    assert all(r["verification"] == "present" for r in out["findings"])
+    assert out["tainted"] == tainted
+    (gap,) = out["attention"]
+    assert (gap["kind"], gap["reason"]) == ("location_gap", reason)
+    # The admissible sibling still writes, and is still covered unless its run is tainted.
+    (traversal,) = [r for r in out["findings"] if r["weakness"] == "CWE-22"]
+    assert traversal["verification"] == "present"
+    assert ("f-CWE-22" in out["covered"]) == ("semgrep:open-joined-path" not in tainted)
+
+
+def test_a_taint_in_one_run_holds_across_the_scan() -> None:
+    """A clean full run of the same rule does not override another run's taint."""
+
+    clean = log("semgrep-gate-app-fixed.sarif")["runs"][0]
+    document = log("semgrep-gate-app-vulnerable.sarif")
+    _unlocated(document)
+    document["runs"].append(clean)
+    out = derive(document, held=_sqli_held())
+    assert "f-CWE-89" not in out["covered"]
+    assert not [r for r in out["findings"] if r["verification"] == "fixed"]
 
 
 # -- the package -------------------------------------------------------------------------------

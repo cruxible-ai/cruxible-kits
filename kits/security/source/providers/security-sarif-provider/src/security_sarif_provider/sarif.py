@@ -49,9 +49,20 @@ reported finding is ``present``. A partial scan covers nothing, so it never
 marks anything fixed. A held ``fixed`` finding reported again is also a
 ``regressed`` attention record.
 
+**Taint.** A result the derive cannot interpret or key (no repository path, no
+stable locator, an unkeyable locus, malformed locations) may be a held
+finding, so its rule is *tainted*: the rule covers nothing in this scan, its
+held findings stay out of ``covered`` and get no ``fixed`` record, and the
+result is a location gap in ``attention``. A result that is no record at all,
+or names no rule, taints every rule of its run. Nothing is skipped silently.
+The header lists the tainted rules. Coverage is one index of qualified rules
+(covered = run by a full run, minus tainted), built once; each held finding is
+checked against it in O(its rules).
+
 Output::
 
-    {"repo", "full", "queried": [rule], "covered": [subject_id], "count",
+    {"repo", "full", "queried": [rule], "covered": [subject_id],
+     "tainted": [rule], "count",
      "findings":  [{repo, weakness, locus, verification, rule?, tool?,
                     severity?, reported_at?, tier?}],
      "attention": [{kind: regression | location_gap, ref, repo, rule, path,
@@ -322,6 +333,11 @@ class Run:
     full: bool
     rules: set[str]
     keys: set[tuple[str, str]] = field(default_factory=set)
+    #: Rules with a result this run could not interpret or key: their absence
+    #: says nothing, so no finding of theirs is covered by this scan.
+    tainted: set[str] = field(default_factory=set)
+    #: A result whose rule cannot be determined taints every rule of the run.
+    tainted_whole: bool = False
 
 
 @dataclass
@@ -377,17 +393,45 @@ def read_scan(logs: Sequence[bytes], repo: str) -> Scan:
                 rules={f"{tool}:{rule_id}" for rule_id in by_id},
             )
             scan.runs.append(current)
-            for result in run.get("results") or ():
-                if not isinstance(result, Mapping) or result.get("kind") in (
-                    "pass",
-                    "notApplicable",
-                ):
-                    continue
+            results = run.get("results")
+            if results is not None and not isinstance(results, list):
+                _malformed(scan, current, repo, "results_not_a_list")
+                continue
+            for result in results or ():
                 scan.results += 1
                 if scan.results > MAX_RESULTS:
                     raise InputError(f"the SARIF logs have more than {MAX_RESULTS} results")
+                if not isinstance(result, Mapping):
+                    # Never skipped silently: its rule is unknown, so the run
+                    # judges no absence at all.
+                    _malformed(scan, current, repo, "malformed_result")
+                    continue
+                if result.get("kind") in ("pass", "notApplicable"):
+                    continue
                 _read_result(scan, current, run, result, rules, by_id, repo)
     return scan
+
+
+def _gap(scan: Scan, repo: str, qualified: str, path: str | None, reason: str) -> None:
+    gap_path = _bounded(path or "(none)")
+    scan.gaps.setdefault(
+        (qualified, gap_path),
+        {
+            "kind": "location_gap",
+            "ref": _bounded(f"location_gap:{qualified}:{gap_path}", KEY_MAX * 2),
+            "repo": repo,
+            "rule": _bounded(qualified),
+            "path": gap_path,
+            "reason": reason,
+        },
+    )
+
+
+def _malformed(scan: Scan, run: Run, repo: str, reason: str) -> None:
+    """A result that is no result: the whole run is tainted, and an agent is told."""
+
+    run.tainted_whole = True
+    _gap(scan, repo, f"{run.tool}:(unknown)", None, reason)
 
 
 def _read_result(
@@ -403,11 +447,18 @@ def _read_result(
     index = result.get("ruleIndex")
     if not isinstance(rule_id, str) and isinstance(index, int) and 0 <= index < len(rules):
         rule_id = rules[index].get("id")
-    rule_id = str(rule_id or "")
+    if not isinstance(rule_id, str) or not rule_id.strip():
+        _malformed(scan, run, repo, "no_rule")
+        return
     rule = by_id.get(rule_id, {})
     qualified = f"{run.tool}:{rule_id}"
     run.rules.add(qualified)
-    location = (result.get("locations") or [{}])[0]
+    locations = result.get("locations")
+    if locations is not None and not isinstance(locations, list):
+        run.tainted.add(qualified)
+        _gap(scan, repo, qualified, None, "malformed_location")
+        return
+    location = (locations or [{}])[0]
     physical = location.get("physicalLocation") if isinstance(location, Mapping) else None
     path = repo_path(physical) if isinstance(physical, Mapping) else None
     if (
@@ -436,18 +487,10 @@ def _read_result(
         else "unkeyable_location"
     )
     if path is None or tier is None or key is None or reason is not None:
-        gap_path = _bounded(path or "(none)")
-        scan.gaps.setdefault(
-            (qualified, gap_path),
-            {
-                "kind": "location_gap",
-                "ref": _bounded(f"location_gap:{qualified}:{gap_path}", KEY_MAX * 2),
-                "repo": repo,
-                "rule": _bounded(qualified),
-                "path": gap_path,
-                "reason": reason,
-            },
-        )
+        # The rule reported something this scan cannot place: it may be a held
+        # finding, so the rule's absence proves nothing in this scan.
+        run.tainted.add(qualified)
+        _gap(scan, repo, qualified, path, reason or "unkeyable_location")
         return
     found = scan.reported.setdefault(key, Reported(weakness=key[0], locus=key[1], tier=tier[0]))
     found.rules.add(qualified)
@@ -500,8 +543,32 @@ def held_findings(rows: Sequence[Mapping[str, Any]]) -> dict[tuple[str, str], He
 # -- the derive --------------------------------------------------------------------------
 
 
-def _covers(run: Run, finding: Held) -> bool:
-    return run.full and bool(finding.rules & run.rules)
+@dataclass(frozen=True)
+class Coverage:
+    """Which qualified rules this scan covers: built once, O(rules of all runs)."""
+
+    covered: frozenset[str]
+    tainted: frozenset[str]
+
+
+def coverage_index(scan: Scan) -> Coverage:
+    """A rule is covered when a full run ran it and no run of the scan tainted it.
+
+    A rule a run could not interpret a result of is tainted everywhere in the
+    scan; a run with a result whose rule is unknown taints every rule it ran.
+    """
+
+    tainted: set[str] = set()
+    for run in scan.runs:
+        tainted |= run.rules if run.tainted_whole else run.tainted
+    covered = {rule for run in scan.runs if run.full for rule in run.rules} - tainted
+    return Coverage(covered=frozenset(covered), tainted=frozenset(tainted))
+
+
+def is_covered(finding: Held, index: Coverage) -> bool:
+    """One of the finding's rules is covered and none is tainted: O(its rules)."""
+
+    return not (finding.rules & index.tainted) and bool(finding.rules & index.covered)
 
 
 def findings(
@@ -549,9 +616,10 @@ def findings(
                     "finding": have.subject_id,
                 }
             )
+    index = coverage_index(scan)
     covered: list[str] = []
     for key, finding in sorted(held.items()):
-        if not any(_covers(run, finding) for run in scan.runs):
+        if not is_covered(finding, index):
             continue
         covered.append(finding.subject_id)
         if key not in scan.reported:
@@ -571,6 +639,7 @@ def findings(
         "full": bool(scan.runs) and all(run.full for run in scan.runs),
         "queried": queried,
         "covered": sorted(covered),
+        "tainted": sorted(index.tainted),
         "count": len(records),
         "findings": records,
         "attention": attention,

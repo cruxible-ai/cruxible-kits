@@ -110,7 +110,9 @@ becomes findings, agents judge them, and a full rescan verifies a fix.
   If the scan no longer reports a covered finding, it is `fixed`, and its last
   `reported_at` retires, with the complete read as its witness. A partial scan
   covers nothing, so it never fixes anything. An incomplete read (a refused
-  record, a count mismatch) never writes `fixed` or retires anything.
+  record, a count mismatch) never writes `fixed` or retires anything. Neither
+  does a scan with a result of that rule it could not place (a location gap or
+  a malformed result): the rule is tainted for that scan.
 - **Regressions and location gaps go to the inbox.** A second Line,
   `security.sarif-attention.NAME`, runs when the derived document lands. It
   posts `security.sarif-attention` items for two cases. A regression is a

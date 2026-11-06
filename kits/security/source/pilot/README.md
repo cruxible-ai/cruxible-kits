@@ -148,8 +148,11 @@ flowchart LR
   retires only what that scanner's file wrote.
 - **Fail-closed rules.** A refused record, a duplicate key or a count
   mismatch makes the read incomplete, so nothing is fixed or retired. A result
-  that cannot be a key (an over-long or multi-line locus) is a location gap,
-  never a record. An unreadable SARIF file is refused by the derive, and
+  the derive cannot place (no repository path, no stable locator, an over-long
+  or multi-line locus, malformed locations) is a location gap, never a record,
+  and it taints its rule: that rule covers nothing in the scan, so none of its
+  held findings is fixed or retired. A result that is no record, or names no
+  rule, taints every rule of its run. The header lists the tainted rules. An unreadable SARIF file is refused by the derive, and
   nothing is written.
 - **Not yet in core.** Today a record that is no object (or an out-of-bounds
   key part) fails the whole run rather than only itself. The gate holds this as

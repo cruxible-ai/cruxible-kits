@@ -729,6 +729,49 @@ def test_an_unkeyable_result_is_a_location_gap_and_its_siblings_write(tmp_path: 
     assert summary(posted, "post_inbox").emitted == 1
 
 
+def _lost_location(document: dict[str, Any]) -> dict[str, Any]:
+    """The SQLi's result, still reported, has lost its snippet (and has no fingerprint)."""
+
+    out = copy.deepcopy(document)
+    (result,) = [r for r in out["runs"][0]["results"] if r["ruleId"] == "sqli-fstring-execute"]
+    del result["locations"][0]["physicalLocation"]["region"]["snippet"]
+    result.pop("partialFingerprints", None)
+    return out
+
+
+def _scalar_result(document: dict[str, Any]) -> dict[str, Any]:
+    """The SQLi's result replaced by a malformed scalar."""
+
+    out = copy.deepcopy(document)
+    results = out["runs"][0]["results"]
+    (index,) = [i for i, r in enumerate(results) if r["ruleId"] == "sqli-fstring-execute"]
+    results[index] = 42
+    return out
+
+
+@pytest.mark.parametrize(
+    ("edit", "reason"),
+    [(_lost_location, "no_stable_location"), (_scalar_result, "malformed_result")],
+    ids=["lost_snippet", "malformed_scalar"],
+)
+def test_a_held_finding_the_rescan_cannot_place_is_never_fixed(
+    tmp_path: Path, edit: Any, reason: str
+) -> None:
+    instance = findings_world(tmp_path)
+    vulnerable = sarif("semgrep-gate-app-vulnerable.sarif")
+    scan(instance, tmp_path, vulnerable)
+    # A full rescan that still reports the SQLi, but in a form the derive cannot
+    # place: its rule is tainted, so it covers nothing; no fixed, no retirement.
+    state = scan(instance, tmp_path, edit(vulnerable), minute=1)
+    assert counts(state) == (0, 0, 5, 0, 0)  # the traversal, re-observed
+    assert held(instance)[SQLI]["verification"] == "present"
+    assert summary(state, "extract").complete is True  # the document is honest
+    posted = attention(instance, state, minute=2)
+    assert summary(posted, "post_inbox").emitted == 1
+    (item,) = inbox(instance, findings.attention_line_name("semgrep"))
+    assert (item["kind"], item["reason"]) == ("location_gap", reason)
+
+
 def test_a_count_mismatch_never_retires_or_fixes(tmp_path: Path) -> None:
     instance = findings_world(tmp_path)
     scan(instance, tmp_path, sarif("semgrep-gate-app-vulnerable.sarif"))
