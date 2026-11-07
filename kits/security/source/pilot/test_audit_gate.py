@@ -42,7 +42,6 @@ FINDING = findings.FINDING
 UNIT = findings.UNIT
 DB = "app/db.py"
 NOTES = "security/findings/gate-app/sqli.md"
-SOURCES = ("gate-app.db", "gate-app.notes")
 DB_CODE = b'''import sqlite3
 
 
@@ -75,33 +74,15 @@ entries:
 """
 
 
-def audit_world(tmp_path: Path, *, cited_before: Sequence[str] = SOURCES) -> Any:
-    """The findings world, the gate app's files catalogued, and ``cited_before``
-    already cited once (their foreign-source contracts accepted).
-
-    ``cited_before`` stands in for an earlier citation through the write path:
-    core admits a family rule's Capture only under a contract accepted at the
-    write's base, so the write that first cites a file (and installs its
-    contract) is not admitted (``test_core_d1_a_first_citation_is_admitted``).
-    """
-
-    from cruxible_client.contracts.captures import (
-        capture_contract_path,
-        foreign_source_capture_contract,
-        render_capture_contract,
-    )
-    from tests.core_support._identity_support import accept_tree
+def audit_world(tmp_path: Path) -> Any:
+    """The findings world and the gate app's files catalogued, never cited yet: the
+    write that first cites a file installs its foreign-source contract, and that
+    contract admits the write's own Capture (``test_a_first_citation_is_admitted``)."""
 
     instance = findings_world(tmp_path)
     write_file(tmp_path, ".cruxible/files.yaml", CATALOG.encode())
     write_file(tmp_path, DB, DB_CODE)
     write_file(tmp_path, NOTES, TRACE)
-    if cited_before:
-        contracts = [foreign_source_capture_contract(source) for source in cited_before]
-        tree = {
-            capture_contract_path(c.identity.name): render_capture_contract(c) for c in contracts
-        }
-        accept_tree(instance, tree, name="cited-before")
     return instance
 
 
@@ -380,7 +361,7 @@ def test_a_file_never_cited_through_the_write_path_refuses(tmp_path: Path, field
     contract: a Capture of a file never cited through the workspace write path
     (no accepted contract) refuses, and nothing is written."""
 
-    instance = audit_world(tmp_path, cited_before=())
+    instance = audit_world(tmp_path)
     head = instance.accepted_coordinate()
     evidence = {
         "kind": "capture",
@@ -414,17 +395,11 @@ def test_an_uncatalogued_file_is_never_observed(tmp_path: Path) -> None:
     assert instance.accepted_coordinate() == head
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="core (owner: core D1, evidence admission): a family rule verifies a "
-    "Capture's foreign-source contract against accepted state at the write's base "
-    "(historical_capture_contract), so the write that first cites a catalogued file "
-    "and installs its contract in the same change is not admitted: reported_at refuses "
-    "with cruxible.claim.captured_evidence_required, a checked status lands uncovered. "
-    "Expected: the contract the write itself installs counts.",
-)
-def test_core_d1_a_first_citation_is_admitted(tmp_path: Path) -> None:
-    instance = audit_world(tmp_path, cited_before=())
+def test_a_first_citation_is_admitted(tmp_path: Path) -> None:
+    """The write that first cites a catalogued file installs its foreign-source
+    contract, and that contract admits the write's own Captures (core D1)."""
+
+    instance = audit_world(tmp_path)
     outcome = write(
         instance,
         tmp_path,

@@ -275,10 +275,9 @@ one finding with two reporters. What it checked is state too: a
   `files.yaml` name): the `workspace_file` family (D1), a Capture under an
   accepted foreign-source contract. The catalog is the boundary: the writer's
   side refuses an uncatalogued path, and a Capture of a file never cited through
-  the workspace write path (no accepted contract) is refused. **Core bug:** the
-  write that first cites a file installs its contract but is not admitted by it
-  (reported_at refuses, a status lands uncovered); the gate's strict xfail
-  `test_core_d1_a_first_citation_is_admitted` pins it.
+  the workspace write path (no accepted contract) is refused. The write that
+  first cites a file installs its contract, and that contract admits the
+  write's own Captures (`test_a_first_citation_is_admitted`).
 - **Planning.** `security.coverage_plan` (one repository) lists the units never
   checked, deferred or blocked. A checked unit whose cited passage changed is a
   workspace-aware `cruxible next` `citation_drifted` row naming its status
