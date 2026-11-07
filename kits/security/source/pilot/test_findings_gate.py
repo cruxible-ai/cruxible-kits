@@ -79,7 +79,10 @@ def _sarif_build(instance: Any) -> Any:
 
 
 def findings_world(
-    tmp_path: Path, *, scans: tuple[tuple[str, str, str], ...] = (("semgrep", REPO, SEMGREP),)
+    tmp_path: Path,
+    *,
+    scans: tuple[tuple[str, str, str], ...] = (("semgrep", REPO, SEMGREP),),
+    audit_sources: tuple[str, ...] = (),
 ) -> Any:
     """The whole kit plus the code-findings vocabulary, provider, Procedures and Lines."""
 
@@ -108,7 +111,7 @@ def findings_world(
         for name, record in findings.capture_kinds().items()
     }
     accept_tree(instance, kinds, name="sarif-kinds")
-    submit(instance, findings.vocabulary(), name="findings-vocabulary")
+    submit(instance, findings.vocabulary(audit_sources), name="findings-vocabulary")
     for index, member in enumerate(findings.procedures()["members"]):
         author(instance, ProcedureInput.model_validate(member), name=f"findings-procedure-{index}")
     submit(instance, findings.automation(scans, now=NOW), name="findings-automation")

@@ -75,6 +75,18 @@ PROVIDER_ROOT = (
     / "security_sarif_provider"
 )
 
+#: Security audits (K-CA1..K-CA4): what was checked, and where agents' findings were found.
+UNIT = "security.coverage_unit"
+COVERAGE_STATUSES = ["checked", "deferred", "blocked", "out_of_scope"]
+#: The statuses an audit plan re-opens (K-CA3): a unit never checked, deferred or blocked.
+OPEN_STATUSES = ("deferred", "blocked")
+COVERAGE_PLAN_QUERY = "security.coverage_plan"
+FINDINGS_BY_UNIT_QUERY = "security.findings_by_unit"
+PLAN_ROW = "security.coverage-plan-row"
+UNIT_FINDING_ROW = "security.unit-finding"
+#: ``reported_by`` for a finding an audit agent reports (hunter guidance).
+AUDIT_REPORTER = "audit"
+
 SEVERITIES = ["low", "medium", "high", "critical"]
 VERIFICATIONS = ["present", "fixed"]
 VERDICTS = ["confirmed", "false_positive", "not_exploitable"]
@@ -94,6 +106,9 @@ _ATTENTION_KINDS = 'enum["location_gap", "regression"]'
 _WEAKNESS_PATTERN = "^(CWE-[0-9]{1,6}|RULE:\\S{1,240})$"
 _TOOL_PATTERN = "^[0-9a-z][0-9a-z._-]{0,63}$"
 _TOOL = f'string{{max_len: 64, pattern: "{_TOOL_PATTERN}"}}'
+#: A canonical code reference: ``path#symbol`` or ``path#<route>`` (one line).
+_SURFACE_PATTERN = "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}#[^\\r\\n]{1,240}$"
+_CONCERN_PATTERN = "^[^\\r\\n]{1,128}$"
 
 
 # -- 1. CaptureKinds ------------------------------------------------------------------
@@ -151,8 +166,54 @@ def _rule(rule_id: str, roles: Sequence[str], kind: str) -> dict[str, Any]:
 _MANY = {"cardinality": "many", "eligible_verdicts": ["supported"], "selector": "all"}
 
 
-def _scanned(predicate: str, value: dict[str, Any], description: str, **more: Any) -> dict:
-    """A scanner's observation, cited by the derived findings document."""
+def file_contracts(sources: Sequence[str]) -> list[str]:
+    """The CaptureContracts file evidence from these catalogued workspace files is under.
+
+    Core governs each catalogued file (``files.yaml`` name) as its own foreign
+    source with its own contract, so a rule admits named files, never "any
+    file". The audit names the files it cites (``audit_sources``).
+    """
+
+    from cruxible_client.contracts.captures import foreign_source_capture_contract
+
+    names = {foreign_source_capture_contract(source).identity.name for source in sources}
+    return sorted(names, key=lambda name: name.encode("utf-8"))
+
+
+def _file_rule(roles: Sequence[str], sources: Sequence[str]) -> list[dict[str, Any]]:
+    """A workspace-file/section receipt rule (``file``), or none when no file is named."""
+
+    if not sources:
+        return []
+    return [
+        {
+            "rule_id": "file",
+            "claim_roles": list(roles),
+            "capture_contracts": file_contracts(sources),
+            "admission": "direct",
+            "subject_binding": "exact_claim_subject",
+        }
+    ]
+
+
+def _rules(*rules: Any) -> dict[str, Any]:
+    flat = [rule for item in rules for rule in (item if isinstance(item, list) else [item])]
+    return {"rules": sorted(flat, key=lambda rule: rule["rule_id"].encode("utf-8"))}
+
+
+def _scanned(
+    predicate: str,
+    value: dict[str, Any],
+    description: str,
+    *,
+    audit_sources: Sequence[str] = (),
+    **more: Any,
+) -> dict:
+    """A scanner's observation, cited by the derived findings document.
+
+    With ``audit_sources`` an agent's observation is admitted too: a
+    workspace-file receipt of the code at the location (hunter guidance).
+    """
 
     return {
         "predicate": FINDING + "." + predicate,
@@ -164,7 +225,10 @@ def _scanned(predicate: str, value: dict[str, Any], description: str, **more: An
         "default_role": "observation",
         "evidence_requirement": "captured",
         "revision_evidence": "replace",
-        "evidence_admission_policy": {"rules": [_rule("sarif", ["observation"], FINDINGS_KIND)]},
+        "evidence_admission_policy": _rules(
+            _rule("sarif", ["observation"], FINDINGS_KIND),
+            _file_rule(["observation"], audit_sources),
+        ),
         **more,
     }
 
@@ -186,8 +250,12 @@ def _judged(predicate: str, value: dict[str, Any], description: str) -> dict:
     }
 
 
-def claim_type_records() -> list[dict[str, Any]]:
+def claim_type_records(audit_sources: Sequence[str] = ()) -> list[dict[str, Any]]:
+    """Every code-findings ClaimType; ``audit_sources`` names the catalogued files
+    whose receipts back an agent's findings and coverage (see ``file_contracts``)."""
+
     bounded = {"kind": "string", "max_len": 256}
+    audit = {"audit_sources": audit_sources}
     return [
         {
             "predicate": FINDING + ".repo",
@@ -217,23 +285,28 @@ def claim_type_records() -> list[dict[str, Any]]:
         _scanned(
             "rule",
             bounded,
-            "A tool rule that reported the finding, as tool:ruleId, from a SARIF scan.",
+            "A rule that reported the finding: tool:ruleId from a SARIF scan, or the concern "
+            "an audit agent was checking.",
             cardinality="many",
             resolution_policy=_MANY,
+            **audit,
         ),
         _scanned(
             "reported_by",
             {"kind": "string", "max_len": 64, "pattern": _TOOL_PATTERN},
-            "A finder that reported the finding: a tool (semgrep, codeql) or an agent's "
-            "principal, from a SARIF scan.",
+            "A finder that reported the finding: a tool (semgrep, codeql) from a SARIF scan, "
+            "or audit for an audit agent citing the code.",
             cardinality="many",
             resolution_policy=_MANY,
+            **audit,
         ),
         _scanned(
             "reported_at",
             bounded,
-            "Where the latest scan reported the finding, as path:line. A moved finding keeps "
-            "its key and this revises; a full scan that no longer reports it retires it.",
+            "Where the finding was reported, as path:line: by the latest scan, or by an "
+            "audit agent citing the code there. A moved finding keeps its key and this "
+            "revises; a full scan that no longer reports it retires the scan's.",
+            **audit,
         ),
         _scanned(
             "verification",
@@ -275,13 +348,89 @@ def claim_type_records() -> list[dict[str, Any]]:
             {"kind": "string", "max_len": 40, "pattern": "^[0-9a-f]{40}$"},
             "The commit (40-hex SHA) that fixes the finding, as an agent states it.",
         ),
+        {
+            **_judged(
+                "found_in",
+                {"kind": "subject", "subject_kinds": [UNIT]},
+                "The coverage unit an audit agent was working when it found the finding. "
+                "Never settled by a Mandate.",
+            ),
+            "cardinality": "many",
+            "resolution_policy": _MANY,
+        },
+        *coverage_claim_type_records(audit_sources),
     ]
 
 
-def claim_types() -> list[Any]:
+def coverage_claim_type_records(audit_sources: Sequence[str] = ()) -> list[dict[str, Any]]:
+    """The coverage unit's key parts and its status (K-CA3)."""
+
+    return [
+        {
+            "predicate": UNIT + ".repo",
+            "allowed_subject_kinds": [UNIT],
+            "cardinality": "one",
+            "value": {"kind": "string", "max_len": 256, "pattern": _REPO_PATTERN},
+            "description": "The repository as host/owner/repo, casefolded (as a finding's "
+            "repo); with surface and concern, the unit's key.",
+        },
+        {
+            "predicate": UNIT + ".surface",
+            "allowed_subject_kinds": [UNIT],
+            "cardinality": "one",
+            "value": {"kind": "string", "max_len": 256, "pattern": _SURFACE_PATTERN},
+            "description": "The entry point or boundary checked, as a canonical code "
+            "reference: path#symbol, or a route (src/router.ts#POST /users/:id). Spelled the "
+            "same every run; with repo and concern, the unit's key.",
+        },
+        {
+            "predicate": UNIT + ".concern",
+            "allowed_subject_kinds": [UNIT],
+            "cardinality": "one",
+            "value": {"kind": "string", "max_len": 128, "pattern": _CONCERN_PATTERN},
+            "description": "What the surface was checked for, in the auditor's words or a "
+            "reference attack class (access-control, injection, ssrf, a named state "
+            "machine); with repo and surface, the unit's key.",
+        },
+        {
+            "predicate": UNIT + ".status",
+            "allowed_subject_kinds": [UNIT],
+            "cardinality": "one",
+            "value": {"kind": "enum", "members": COVERAGE_STATUSES},
+            "description": "What an audit agent did with the unit, in its own words or citing "
+            "the examined passage. Never settled by a Mandate.",
+            "member_descriptions": [
+                {
+                    "member": "checked",
+                    "description": "Examined; the Claim cites the exact passage (path#anchor).",
+                },
+                {"member": "deferred", "description": "Not reached this run."},
+                {
+                    "member": "blocked",
+                    "description": "Stopped: a missing sandbox capability or a fact outside "
+                    "source, named in the rationale.",
+                },
+                {
+                    "member": "out_of_scope",
+                    "description": "Deliberately excluded, with the reason.",
+                },
+            ],
+            "permitted_roles": ["normative"],
+            "default_role": "normative",
+            "evidence_requirement": "self",
+            "revision_evidence": "replace",
+            "evidence_admission_policy": _rules(
+                _rule("self", ["normative"], SELF_SOURCE),
+                _file_rule(["normative"], audit_sources),
+            ),
+        },
+    ]
+
+
+def claim_types(audit_sources: Sequence[str] = ()) -> list[Any]:
     return [
         lower_claim_type_input(ClaimTypeInputRecord.model_validate(record), tree={})
-        for record in claim_type_records()
+        for record in claim_type_records(audit_sources)
     ]
 
 
@@ -309,8 +458,9 @@ def provider_contract_members(root: Path = PROVIDER_ROOT) -> list[dict[str, Any]
     return sorted(out, key=lambda item: 1 if "@" in json.dumps(item["fields"]) else 0)
 
 
-def vocabulary() -> dict[str, Any]:
-    """Row and inbox Contracts, the ClaimTypes, the finding SubjectKind and its Queries."""
+def vocabulary(audit_sources: Sequence[str] = ()) -> dict[str, Any]:
+    """Row and inbox Contracts, the ClaimTypes, the finding and coverage-unit
+    SubjectKinds and their Queries."""
 
     members: list[dict[str, Any]] = [
         {
@@ -379,15 +529,51 @@ def vocabulary() -> dict[str, Any]:
                 "reported_by": "list<string{max_len: 64}>{max_items: 64}?",
             },
         },
+        {
+            "kind": "contract",
+            "name": PLAN_ROW,
+            "version": 1,
+            "description": "One coverage unit an audit should take up: never checked, "
+            "deferred or blocked.",
+            "fields": {
+                "subject_kind": "string",
+                "subject_id": "string",
+                "surface": "string",
+                "concern": "string",
+                "status": "string?",
+            },
+        },
+        {
+            "kind": "contract",
+            "name": UNIT_FINDING_ROW,
+            "version": 1,
+            "description": "One finding found in a coverage unit (finding: its Subject id), "
+            "with its judgments.",
+            "fields": {
+                "finding": "string",
+                "weakness": "string",
+                "locus": "string",
+                "verdict": "string?",
+                "severity": "string?",
+                "reported_by": "list<string{max_len: 64}>{max_items: 64}?",
+            },
+        },
         *(
             {"kind": "claim_type", "claim_type": t.model_dump(mode="json", by_alias=True)}
-            for t in claim_types()
+            for t in claim_types(audit_sources)
         ),
         {
             "kind": "subject_kind",
             "name": FINDING,
             "description": "One weakness of one kind at one place in one repository's code.",
             "keys": [FINDING + ".repo", FINDING + ".weakness", FINDING + ".locus"],
+        },
+        {
+            "kind": "subject_kind",
+            "name": UNIT,
+            "description": "One audit coverage unit: one surface of one repository checked "
+            "for one concern.",
+            "keys": [UNIT + ".repo", UNIT + ".surface", UNIT + ".concern"],
         },
         {
             "kind": "query_definition",
@@ -431,11 +617,56 @@ def vocabulary() -> dict[str, Any]:
                 ],
             },
         },
+        {
+            "kind": "query_definition",
+            "query_definition": {
+                "query": COVERAGE_PLAN_QUERY,
+                "description": "The coverage units of one repository an audit should take "
+                "up: never checked (no status), deferred or blocked. Units whose checked "
+                "passage changed are next's citation_drifted rows.",
+                "params": {"repo": "string"},
+                "from": {"u": UNIT},
+                "where": "u.repo == $repo and (not exists u.status or u.status in ("
+                + ", ".join(f'"{status}"' for status in OPEN_STATUSES)
+                + "))",
+                "row": f"{PLAN_ROW}@1",
+                "fields": [
+                    "u.subject_kind",
+                    "u.subject_id",
+                    "u.surface",
+                    "u.concern",
+                    "u.status",
+                ],
+            },
+        },
+        {
+            "kind": "query_definition",
+            "query_definition": {
+                "query": FINDINGS_BY_UNIT_QUERY,
+                "description": "The findings found in one coverage unit (found_in), with "
+                "their verdicts.",
+                "params": {"unit": "subject"},
+                "from": {"u": f"{UNIT} = $unit"},
+                "hops": [{"f": f"<u.{FINDING}.found_in!: {FINDING}"}],
+                "row": f"{UNIT_FINDING_ROW}@1",
+                # A row's subject and subject_id name the entry (the unit), so
+                # the finding's id is its own column.
+                "fields": [
+                    {"finding": "f.subject_id"},
+                    "f.weakness",
+                    "f.locus",
+                    "f.verdict",
+                    "f.severity",
+                    "f.reported_by",
+                ],
+            },
+        },
     ]
     return {
         "kind": "change_set",
-        "rationale": "Security kit code findings: the finding Subject, scan observations, "
-        "agent judgments and the held-findings Query the import reads.",
+        "rationale": "Security kit code findings: the finding and coverage-unit Subjects, "
+        "scan and audit observations, agent judgments, the held-findings Query the import "
+        "reads and the audit Queries.",
         "members": members,
     }
 
@@ -824,7 +1055,13 @@ def judgment(
 # -- payloads ---------------------------------------------------------------------------
 
 
-def write_all(out: Path, *, scans: Sequence[tuple[str, str, str]], now: datetime) -> list[Path]:
+def write_all(
+    out: Path,
+    *,
+    scans: Sequence[tuple[str, str, str]],
+    now: datetime,
+    audit_sources: Sequence[str] = (),
+) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     contracts = out / "sarif-contracts.json"
@@ -845,7 +1082,7 @@ def write_all(out: Path, *, scans: Sequence[tuple[str, str, str]], now: datetime
         path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
         written.append(path)
     for name, payload in (
-        ("findings-vocabulary", vocabulary()),
+        ("findings-vocabulary", vocabulary(audit_sources)),
         ("findings-procedures", procedures()),
         ("findings-automation", automation(scans, now=now)),
     ):
@@ -866,10 +1103,22 @@ def main() -> None:
         help="NAME=host/owner/repo=RELATIVE_PATH: two Lines per SARIF file",
     )
     parser.add_argument("--now", default=None, help="ISO-8601 instant Mandates start from")
+    parser.add_argument(
+        "--audit-source",
+        nargs="*",
+        default=[],
+        help="catalogued workspace files (files.yaml names) whose receipts back audit "
+        "findings and coverage",
+    )
     args = parser.parse_args()
     now = datetime.fromisoformat(args.now) if args.now else datetime.now(UTC)
     scans = [tuple(item.split("=", 2)) for item in args.scan]
-    for path in write_all(args.out, scans=scans, now=now.replace(microsecond=0)):  # type: ignore[arg-type]
+    for path in write_all(
+        args.out,
+        scans=scans,  # type: ignore[arg-type]
+        now=now.replace(microsecond=0),
+        audit_sources=args.audit_source,
+    ):
         print(path)
 
 
