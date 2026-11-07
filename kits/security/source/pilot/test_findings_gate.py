@@ -650,34 +650,9 @@ def _long_key(document: dict[str, Any]) -> dict[str, Any]:
 
 
 @pytest.mark.parametrize("doctor", [_garbled, _long_key], ids=["garbled", "long_key"])
-def test_an_unparseable_record_fails_closed(tmp_path: Path, doctor: Any) -> None:
-    """Today an unparseable record fails the whole run: nothing is written, fixed or retired."""
+def test_an_unparseable_record_is_inadmissible_per_record(tmp_path: Path, doctor: Any) -> None:
+    """D-R40: that record refused, the read incomplete (nothing fixed or retired)."""
 
-    instance = findings_world(tmp_path)
-    scan(instance, tmp_path, sarif("semgrep-gate-app-vulnerable.sarif"))
-    head = instance.accepted_coordinate()
-    write_file(tmp_path, SEMGREP, encode(sarif("semgrep-gate-app-fixed.sarif")))
-    state = run(
-        instance, findings.import_line_name("semgrep"), scanner=Scanner(doctor=doctor), minute=1
-    )
-    assert state.status != "succeeded"
-    assert instance.accepted_coordinate() == head
-    assert held(instance)[SQLI]["verification"] == "present"
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="core (owner: core): an unparseable record fails the run instead of being "
-    "inadmissible. A record that is no object, or a key part outside its key ClaimType "
-    "under a plain type, reaches the claims terminal, which resolves $item.key.<part> on "
-    "it and fails internal_failed (claims_terminal.expand_claims: the subject key is "
-    "resolved before any invalid-record check); under key_part<K:p> an over-long part "
-    "passes the extract and the whole run refuses at publication (value_invalid). "
-    "Expected: that record refused (extract_refused), the read incomplete, siblings "
-    "written.",
-)
-@pytest.mark.parametrize("doctor", [_garbled, _long_key], ids=["garbled", "long_key"])
-def test_core_an_unparseable_record_is_inadmissible_per_record(tmp_path: Path, doctor: Any) -> None:
     instance = findings_world(tmp_path)
     scan(instance, tmp_path, sarif("semgrep-gate-app-vulnerable.sarif"))
     state = scan(

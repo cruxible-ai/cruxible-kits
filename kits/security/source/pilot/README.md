@@ -238,9 +238,9 @@ flowchart LR
   is fixed or retired, whatever another run of the tool says (a rule catalog
   can be empty or incomplete). The header lists the tainted rules and tools. An unreadable SARIF file is refused by the derive, and
   nothing is written.
-- **Not yet in core.** Today a record that is no object (or an out-of-bounds
-  key part) fails the whole run rather than only itself. The gate holds this as
-  a strict xfail with a core owner.
+- **A record that is no object** (or an out-of-bounds key part) is refused on
+  its own (D-R40): its siblings write, and the read is incomplete, so nothing
+  is fixed or retired.
 
 ## Security audits
 
