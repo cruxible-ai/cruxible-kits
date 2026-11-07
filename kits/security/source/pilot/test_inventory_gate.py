@@ -395,6 +395,10 @@ def test_a_fixed_sbom_imports_in_constant_work_beside_growing_unrelated_inventor
     occurrences: work is flat while an unrelated inventory grows 10 -> 40."""
 
     counted = _counted_demo_import if route == "first" else _counted_demo_reimport
+    # One warm-up world first: process-wide caches fill once, on whichever
+    # world runs first in this worker, so neither measured size pays for them.
+    (tmp_path / "warm").mkdir()
+    counted(tmp_path / "warm", 10)
     measured = {}
     for unrelated in (10, 40):
         root = tmp_path / f"u{unrelated}"

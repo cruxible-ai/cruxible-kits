@@ -895,6 +895,10 @@ def test_triage_reads_are_flat_in_unrelated_inventories(tmp_path: Path) -> None:
     the pair index, so an unrelated inventory growing 10 -> 40 costs them nothing;
     the investigation mark is one Claim read per pair."""
 
+    # One warm-up world first: process-wide caches fill once, on whichever world
+    # runs first in this worker, so neither measured size pays for them.
+    (tmp_path / "warm").mkdir()
+    counted_triage_reads(tmp_path / "warm", 10)
     measured = {}
     for unrelated in (10, 40):
         root = tmp_path / f"u{unrelated}"
