@@ -4,7 +4,8 @@ An audit agent writes through the ordinary write verbs (``service_playbill_write
 the daemon side of ``cruxible write``), citing catalogued workspace files as the
 CLI's ``--evidence-file PATH#ANCHOR`` does: the client observes the bytes, the
 daemon captures them under the file's foreign-source contract. The kit's
-``file`` rule admits the files the audit names (``audit_sources``).
+``file`` rule admits any catalogued workspace file (the ``workspace_file``
+family, D1): a Capture under an accepted foreign-source contract.
 
     PYTHONPATH=$CORE/src:$CORE/packages/cruxible-client/src:$RUNTIME/src:$CORE \\
     CRUXIBLE_PROVIDERS_CHECKOUT=$PROVIDERS python -m pytest test_audit_gate.py
@@ -74,16 +75,43 @@ entries:
 """
 
 
-def audit_world(tmp_path: Path, *, audit_sources: Sequence[str] = SOURCES) -> Any:
-    instance = findings_world(tmp_path, audit_sources=tuple(audit_sources))
+def audit_world(tmp_path: Path, *, cited_before: Sequence[str] = SOURCES) -> Any:
+    """The findings world, the gate app's files catalogued, and ``cited_before``
+    already cited once (their foreign-source contracts accepted).
+
+    ``cited_before`` stands in for an earlier citation through the write path:
+    core admits a family rule's Capture only under a contract accepted at the
+    write's base, so the write that first cites a file (and installs its
+    contract) is not admitted (``test_core_d1_a_first_citation_is_admitted``).
+    """
+
+    from cruxible_client.contracts.captures import (
+        capture_contract_path,
+        foreign_source_capture_contract,
+        render_capture_contract,
+    )
+    from tests.core_support._identity_support import accept_tree
+
+    instance = findings_world(tmp_path)
     write_file(tmp_path, ".cruxible/files.yaml", CATALOG.encode())
     write_file(tmp_path, DB, DB_CODE)
     write_file(tmp_path, NOTES, TRACE)
+    if cited_before:
+        contracts = [foreign_source_capture_contract(source) for source in cited_before]
+        tree = {
+            capture_contract_path(c.identity.name): render_capture_contract(c) for c in contracts
+        }
+        accept_tree(instance, tree, name="cited-before")
     return instance
 
 
 def write(
-    instance: Any, tmp_path: Path, changes: Sequence[Mapping[str, Any]], *, because: str
+    instance: Any,
+    tmp_path: Path,
+    changes: Sequence[Mapping[str, Any]],
+    *,
+    because: str,
+    accept: str = "if_allowed",
 ) -> Any:
     """One write, its file evidence observed from the workspace as the CLI does."""
 
@@ -92,7 +120,9 @@ def write(
     from cruxible_core.service.authoring.write_verbs import service_playbill_write
     from tests.core_support._write_support import caller
 
-    request = WriteRequest.model_validate({"because": because, "changes": list(changes)})
+    request = WriteRequest.model_validate(
+        {"because": because, "changes": list(changes), "accept": accept}
+    )
     observed = request.model_copy(
         update={"changes": observe_changes(request.changes, workspace=workspace(tmp_path))}
     )
@@ -231,6 +261,30 @@ def test_an_agent_finding_and_a_sarif_result_converge_on_one_subject(tmp_path: P
     assert sorted(scanned["rules"]) == ["audit:injection", "semgrep:sqli-fstring-execute"]
 
 
+def test_the_file_rule_admits_the_workspace_file_family() -> None:
+    """reported_at, rule, reported_by and coverage_unit.status admit any
+    catalogued workspace file (D1); no ClaimType names a file."""
+
+    file_rules = {
+        record["predicate"]: rule
+        for record in findings.claim_type_records()
+        for rule in record.get("evidence_admission_policy", {}).get("rules", [])
+        if rule["rule_id"] == "file"
+    }
+    assert sorted(file_rules) == sorted(
+        [f"{FINDING}.{name}" for name in ("reported_at", "reported_by", "rule")]
+        + [f"{UNIT}.status"]
+    )
+    for rule in file_rules.values():
+        assert rule["capture_contract_families"] == ["workspace_file"]
+        assert "capture_contracts" not in rule
+    for claim_type in findings.claim_types():
+        for rule in claim_type.evidence_admission_policy.rules:
+            assert not any(
+                "foreign-source" in item.target.qualified for item in rule.capture_contracts
+            ), claim_type.predicate
+
+
 # -- coverage units ---------------------------------------------------------------------
 
 
@@ -273,21 +327,6 @@ def test_a_unit_checked_with_a_file_receipt_and_found_in_resolve(tmp_path: Path)
     )
 
 
-def test_an_unbacked_checked_stays_in_the_plan(tmp_path: Path) -> None:
-    """A checked status citing a file the audit did not name lands uncovered and
-    never hides its unit: the plan reads only a supported status."""
-
-    instance = audit_world(tmp_path, audit_sources=("gate-app.notes",))
-    outcome = accepted_write(
-        instance,
-        tmp_path,
-        unit_changes("u", "app/db.py#find_by_name", "injection", "checked", evidence=code()),
-        because="looked at it",
-    )
-    assert [c.verdict for c in outcome.changes if c.field == "status"] == ["uncovered"]
-    assert plan(instance) == [("app/db.py#find_by_name", "injection", None)]
-
-
 # -- fail closed -------------------------------------------------------------------------
 
 
@@ -305,15 +344,101 @@ def test_a_status_outside_the_enum_refuses(tmp_path: Path) -> None:
     assert instance.accepted_coordinate() == head
 
 
-def test_an_agent_location_citing_an_unnamed_file_refuses(tmp_path: Path) -> None:
-    instance = audit_world(tmp_path, audit_sources=("gate-app.notes",))
-    head = instance.accepted_coordinate()
-    outcome = write(
-        instance, tmp_path, agent_finding("f", unit=None)[:2], because="formats name into SQL"
+def _never_cited_capture(instance: Any, source: str, text: bytes) -> str:
+    """A foreign-source Capture of a catalogued file, built outside the write path:
+    its contract was never accepted."""
+
+    from datetime import UTC, datetime
+
+    from cruxible_client.contracts.captures import (
+        DirectForeignSourceSelection,
+        build_foreign_source_capture,
     )
+    from cruxible_client.contracts.semantic import ContentSpan
+    from cruxible_core.indexes.projection import AcceptedCoordinate
+
+    store = instance.body_store()
+    stored = store.store(text)
+    built = build_foreign_source_capture(
+        store=store,
+        actor_id="owner",
+        claim_id="CLM-" + "a" * 32,
+        rationale=f"read {source} outside the write path",
+        observed_at=datetime(2026, 8, 20, 12, tzinfo=UTC),
+        accepted_coordinate=AcceptedCoordinate.from_internal(instance.accepted_coordinate()),
+        selection=DirectForeignSourceSelection(
+            logical_source_identity=source,
+            span=ContentSpan(content_digest=stored.digest, start_byte=0, end_byte=len(text)),
+        ),
+    )
+    return built.capture_digest
+
+
+@pytest.mark.parametrize("field", ["reported_at", "status"])
+def test_a_file_never_cited_through_the_write_path_refuses(tmp_path: Path, field: str) -> None:
+    """The family admits a catalogued file's Capture only under an accepted
+    contract: a Capture of a file never cited through the workspace write path
+    (no accepted contract) refuses, and nothing is written."""
+
+    instance = audit_world(tmp_path, cited_before=())
+    head = instance.accepted_coordinate()
+    evidence = {
+        "kind": "capture",
+        "capture": _never_cited_capture(instance, "gate-app.db", DB_CODE),
+    }
+    if field == "status":
+        changes = unit_changes("u", "app/db.py#find_by_name", "injection", "checked")
+        changes[-1]["evidence"] = evidence
+    else:
+        changes = agent_finding("f", unit=None)[:2]
+        changes[-1]["evidence"] = evidence
+    outcome = write(instance, tmp_path, changes, because="read it elsewhere")
     assert outcome.status == "refused"
-    assert outcome.refusal.code == "cruxible.claim.captured_evidence_required", outcome.refusal
+    assert outcome.refusal.code == "cruxible.authoring.capture_contract_unresolved", outcome.refusal
     assert instance.accepted_coordinate() == head
+
+
+def test_an_uncatalogued_file_is_never_observed(tmp_path: Path) -> None:
+    """The workspace catalog is the boundary: the writer's side refuses a path
+    no catalog entry names before anything reaches the daemon."""
+
+    from cruxible_client.authoring.sdk_types import SourceSelectionError
+
+    instance = audit_world(tmp_path)
+    write_file(tmp_path, "app/other.py", DB_CODE)
+    head = instance.accepted_coordinate()
+    changes = agent_finding("f", unit=None, locus="app/other.py#find_by_name")[:2]
+    changes[-1]["evidence"] = {"kind": "file", "file": f"app/other.py#{SINK}"}
+    with pytest.raises(SourceSelectionError, match="0 catalogued files"):
+        write(instance, tmp_path, changes, because="formats name into SQL")
+    assert instance.accepted_coordinate() == head
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="core (owner: core D1, evidence admission): a family rule verifies a "
+    "Capture's foreign-source contract against accepted state at the write's base "
+    "(historical_capture_contract), so the write that first cites a catalogued file "
+    "and installs its contract in the same change is not admitted: reported_at refuses "
+    "with cruxible.claim.captured_evidence_required, a checked status lands uncovered. "
+    "Expected: the contract the write itself installs counts.",
+)
+def test_core_d1_a_first_citation_is_admitted(tmp_path: Path) -> None:
+    instance = audit_world(tmp_path, cited_before=())
+    outcome = write(
+        instance,
+        tmp_path,
+        [
+            *unit_changes("u", "app/db.py#find_by_name", "injection", "checked", evidence=code()),
+            *agent_finding("f", unit={"created": "u"}),
+        ],
+        because="find_by_name formats name into the SQL text",
+    )
+    assert outcome.status == "accepted", outcome.model_dump(mode="json")
+    verdicts = {c.field: c.verdict for c in outcome.changes if c.field is not None}
+    assert verdicts == dict.fromkeys(
+        ("status", "reported_at", "reported_by", "rule", "found_in"), "supported"
+    )
 
 
 PROBE = "security.probe-judgment"
@@ -463,9 +588,10 @@ def _findings_in(unit: Any, repo: str, size: int, prefix: str) -> list[dict[str,
     return changes
 
 
-def _audit_state(tmp_path: Path, *, output: int, unrelated: int) -> tuple[Any, str]:
-    """``output`` open units and findings in the hub unit, beside ``unrelated``
-    checked units, other-repository units and findings in other units."""
+def _audit_state(tmp_path: Path, *, output: int, checked: int, other: int) -> tuple[Any, str]:
+    """``output`` open units and findings in the hub unit, beside ``checked``
+    checked units of the same repository (the plan's own scope) and ``other``
+    other-repository units and findings in another unit (outside both reads)."""
 
     instance = audit_world(tmp_path)
     hub = accepted_write(
@@ -483,22 +609,24 @@ def _audit_state(tmp_path: Path, *, output: int, unrelated: int) -> tuple[Any, s
         instance,
         tmp_path,
         [
-            *_units(REPO, unrelated, "c", "checked"),
-            *_units(OTHER, unrelated, "o"),
+            *_units(REPO, checked, "c", "checked"),
+            *_units(OTHER, other, "o"),
             *unit_changes("side", "app/side.py#side", "ssrf", "checked"),
-            *_findings_in({"created": "side"}, REPO, unrelated, "g"),
+            *_findings_in({"created": "side"}, REPO, other, "g"),
         ],
         because="unrelated coverage",
     )
     return instance, hub_unit
 
 
-def _measured(tmp_path: Path, *, output: int, unrelated: int) -> dict[str, dict[str, float]]:
+def _measured(
+    tmp_path: Path, *, output: int, checked: int, other: int
+) -> dict[str, dict[str, float]]:
     from tests.test_scale._counters import counting, trace_sqlite
 
     out: dict[str, dict[str, float]] = {}
     with trace_sqlite(tmp_path):
-        instance, hub = _audit_state(tmp_path, output=output, unrelated=unrelated)
+        instance, hub = _audit_state(tmp_path, output=output, checked=checked, other=other)
         reads = {
             "coverage_plan": lambda: query_rows(instance, findings.COVERAGE_PLAN_QUERY, repo=REPO),
             "findings_by_unit": lambda: query_rows(
@@ -515,17 +643,19 @@ def _measured(tmp_path: Path, *, output: int, unrelated: int) -> dict[str, dict[
     return out
 
 
-def _sized(tmp_path: Path, sizes: Sequence[tuple[int, int]]) -> list[dict[str, dict[str, float]]]:
+def _sized(
+    tmp_path: Path, sizes: Sequence[tuple[int, int, int]]
+) -> list[dict[str, dict[str, float]]]:
     measured = []
-    for output, unrelated in sizes:
-        root = tmp_path / f"o{output}-u{unrelated}"
+    for output, checked, other in sizes:
+        root = tmp_path / f"o{output}-c{checked}-u{other}"
         root.mkdir()
-        measured.append(_measured(root, output=output, unrelated=unrelated))
+        measured.append(_measured(root, output=output, checked=checked, other=other))
     return measured
 
 
 def test_audit_reads_are_linear_in_their_output(tmp_path: Path) -> None:
-    small, large = _sized(tmp_path, [(size, _SIZES[0]) for size in _SIZES])
+    small, large = _sized(tmp_path, [(size, _SIZES[0], _SIZES[0]) for size in _SIZES])
     for found, size in ((small, _SIZES[0]), (large, _SIZES[1])):
         assert found["coverage_plan"]["rows"] == size
         assert found["findings_by_unit"]["rows"] == size
@@ -539,17 +669,12 @@ def test_audit_reads_are_linear_in_their_output(tmp_path: Path) -> None:
         Path(report).write_text(json.dumps({"small": small, "large": large}, indent=1) + "\n")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="core (owner: core, query pushdown): both audit reads load every coverage unit "
-    "and finding. service/discovery/query_pushdown.py returns the full load for a "
-    "conjunction with any unsupported conjunct (coverage_plan's `not exists u.status`; "
-    "its seekable `u.repo == $repo` could narrow alone, the selection being a superset), "
-    "for any traversal (findings_by_unit's reverse found_in hop) and for a Subject-valued "
-    "value (`f.found_in == $unit`). Expected: constant work as unrelated units grow.",
-)
 def test_core_audit_reads_are_constant_in_unrelated_units(tmp_path: Path) -> None:
-    few, many = _sized(tmp_path, [(_SIZES[0], size) for size in _SIZES])
+    """Units of other repositories and findings in other units cost neither read
+    anything. coverage_plan is O(units in the queried repository), its own scope
+    (the same-repository checked units stay fixed here)."""
+
+    few, many = _sized(tmp_path, [(_SIZES[0], _SIZES[0], size) for size in _SIZES])
     for read in ("coverage_plan", "findings_by_unit"):
         assert few[read]["rows"] == many[read]["rows"] == _SIZES[0]
         for counter in ("sql_statements", "sql_vm_steps", "claim_parses"):
@@ -559,41 +684,190 @@ def test_core_audit_reads_are_constant_in_unrelated_units(tmp_path: Path) -> Non
 # -- guidance (K-CA4) --------------------------------------------------------------------
 
 
+GUIDES_VERDICT = f"ClaimType:{FINDING}.verdict"
+VERIFIER = "document:security.guidance.verifier"
+
+
 def test_guidance_guides_only_kit_claim_types() -> None:
+    from cruxible_client.contracts.documents import DocumentShell
+
     import install
 
-    declared = {record["predicate"] for record in findings.claim_type_records(SOURCES)}
-    members = install.guidance_members()
-    assert [m["document_id"] for m in members[:3]] == [
-        "security.guidance.hunter",
-        "security.guidance.verifier",
-        "security.guidance.coverage",
+    declared = {record["predicate"] for record in findings.claim_type_records()}
+    documents = [
+        DocumentShell.model_validate(item)
+        for item in install.guidance_documents(lambda path: "sha256:" + "0" * 64)
     ]
-    for member in members:
-        targets = {link["target_identity"].removeprefix("ClaimType:") for link in member["links"]}
-        assert targets <= declared, (member["document_id"], targets - declared)
-        assert bool(targets) is (member["document_kind"] == "security.guidance"), member
-    assert len(members) == 3 + 12
+    assert [d.identity for d in documents[:3]] == [
+        "document:security.guidance.hunter",
+        VERIFIER,
+        "document:security.guidance.coverage",
+    ]
+    for document in documents:
+        targets = {link.target_identity.removeprefix("ClaimType:") for link in document.links}
+        assert targets <= declared, (document.identity, targets - declared)
+        assert {link.relation for link in document.links} <= {"guides"}
+        assert bool(targets) is (document.document_kind == "security.guidance"), document
+    assert sum(d.document_kind == "security.reference" for d in documents) == 12
+    assert len(documents) == 3 + 12
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="core-surface item 11 (owner: core-surface item 11): kits ship Documents. Until "
-    "then a change set has no Document member, so the guidance and reference Documents "
-    "(install.guidance_members, a TODO) cannot be installed.",
-)
-def test_core_surface_item_11_guidance_installs_as_governed_documents() -> None:
-    from cruxible_client.contracts.authoring.inputs import ChangeSetInput
+def install_guidance(instance: Any) -> list[str]:
+    """What ``install.install_guidance`` does through the CLI (``body store``, then
+    ``document propose``): each body stored, each Document proposed and landed."""
+
+    from cruxible_client.contracts.documents import DocumentShell
+    from cruxible_core.service.authoring.documents import service_propose_playbill_document
+    from cruxible_core.service.authoring.landing import land_direct_proposal
 
     import install
 
-    ChangeSetInput.model_validate(
-        {
-            "kind": "change_set",
-            "rationale": "Security audit guidance",
-            "members": install.guidance_members(),
-        }
+    store = instance.body_store()
+    landed = []
+    for item in install.guidance_documents(lambda path: store.store(path.read_bytes()).digest):
+        shell = DocumentShell.model_validate(item)
+        inspection = service_propose_playbill_document(
+            instance,
+            shell=shell,
+            actor_id="owner",
+            proposal_name=shell.identity.removeprefix("document:"),
+            timestamp="2026-10-09T11:59:00.000000Z",
+        )
+        inspection = land_direct_proposal(
+            instance, inspection, actor_id="owner", accept="if_allowed", may_activate=True
+        )
+        assert inspection.outcome is not None and inspection.outcome.status == "landed", (
+            inspection.outcome
+        )
+        landed.append(shell.identity)
+    return landed
+
+
+def _documents(instance: Any) -> dict[str, Any]:
+    from cruxible_client.contracts.documents import parse_document
+
+    tree = instance.tree_at(instance.accepted_coordinate().git_oid)
+    return {
+        path: parse_document(raw, path=path)
+        for path, raw in tree.items()
+        if path.startswith("documents/security.")
+    }
+
+
+def _guides(instance: Any, ref: str) -> list[tuple[str, str | None]]:
+    """The ``guides`` links ``get REF detail=backlinks`` serves."""
+
+    from cruxible_client.contracts.cas_contracts import BodyAccessContext
+    from cruxible_client.contracts.get_reads import GetRequest
+    from cruxible_core.service.discovery.get import service_playbill_get
+
+    access = BodyAccessContext(principal_id="kit-audit-gate", can_read_body=True)
+    result = service_playbill_get(
+        instance, request=GetRequest(ref=ref, detail="backlinks"), access=access
     )
+    return [
+        (link.source, link.title) for link in result.backlinks.links if link.relation == "guides"
+    ]
+
+
+def test_guidance_installs_as_governed_documents(tmp_path: Path) -> None:
+    from cruxible_client.contracts.cas_contracts import BodyAccessContext
+    from cruxible_core.service.discovery.orient import service_playbill_orient
+    from cruxible_core.service.proposals.review import service_review_playbill_proposal
+
+    instance = audit_world(tmp_path)
+    landed = install_guidance(instance)
+    documents = _documents(instance)
+    assert sorted(f"document:{d.document_id}" for d in documents.values()) == sorted(landed)
+    assert len(documents) == 15
+    store = instance.body_store()
+    for document in documents.values():
+        assert store.verify(document.body_digest), document.identity
+
+    # The verdict ClaimType's card serves the verifier guidance, and only that.
+    assert _guides(instance, GUIDES_VERDICT) == [(VERIFIER, "Judging a security finding")]
+    assert [source for source, _ in _guides(instance, f"ClaimType:{UNIT}.status")] == [
+        "document:security.guidance.coverage",
+        "document:security.guidance.hunter",
+    ]
+
+    # A verifier's verdict, proposed (accept: never), shows the verifier guidance.
+    outcome = accepted_write(
+        instance, tmp_path, agent_finding("f", unit=None)[:2], because="formats name into SQL"
+    )
+    (finding,) = created(outcome, FINDING)
+    proposed = write(
+        instance,
+        tmp_path,
+        [{"op": "set", "subject": finding, "field": "verdict", "value": "confirmed"}],
+        because="q reaches find_by_name unauthenticated; any users row is readable",
+        accept="never",
+    )
+    assert proposed.status == "awaiting_approval", proposed.model_dump(mode="json")
+    access = BodyAccessContext(principal_id="kit-audit-gate", can_read_body=True)
+    for detail in (True, False):
+        review = service_review_playbill_proposal(
+            instance, proposal_id=proposed.proposal.proposal_id, access=access, detail=detail
+        )
+        assert [(g.definition, g.document) for g in review.guidance] == [
+            (GUIDES_VERDICT, VERIFIER)
+        ], detail
+
+    # Reference Documents guide nothing; they are found by their document_kind.
+    assert _guides(instance, f"ClaimType:{FINDING}.locus") == []
+    listed = service_playbill_orient(instance, section="documents", limit=50)
+    rows = {row.name: row.document_kind for row in listed.documents}
+    reference = sorted(name for name, kind in rows.items() if kind == "security.reference")
+    assert reference == sorted(
+        f"security.reference.{path.stem}"
+        for path in (Path(__file__).parent.parent / "reference").glob("*.md")
+    )
+
+
+def test_the_kit_ships_the_guidance_as_documents(tmp_path: Path) -> None:
+    """``kit build`` ships the installed Documents as ``documents/`` artifacts with
+    their bodies; ``kit add`` lands them in a consumer and their guides resolve."""
+
+    import base64
+
+    from cruxible_client.contracts.kits import KitAddRequest, KitBuildRequest
+    from cruxible_core.service.kits import service_add_kit, service_build_kit
+
+    (tmp_path / "publisher").mkdir()
+    (tmp_path / "consumer").mkdir()
+    publisher = audit_world(tmp_path / "publisher")
+    install_guidance(publisher)
+    bundle = service_build_kit(
+        publisher,
+        KitBuildRequest(
+            kit_id="security-audit",
+            version="1.0.0",
+            owns=("security.guidance.", "security.reference."),
+        ),
+    ).bundle
+    shipped = sorted(path for path in bundle.contents() if path.startswith("documents/"))
+    assert shipped == sorted(_documents(publisher)), shipped
+    assert {b.digest for b in bundle.document_bodies} == set(
+        bundle.document_body_digests().values()
+    )
+
+    consumer = audit_world(tmp_path / "consumer")
+    store = consumer.body_store()
+    for body in bundle.document_bodies:
+        assert store.store(base64.b64decode(body.content_base64)).digest == body.digest
+    staged = bundle.model_copy(update={"document_bodies": ()})
+    result = service_add_kit(
+        consumer,
+        KitAddRequest(bundle=staged, source="test", dry_run=False),
+        actor_id="owner",
+        timestamp="2026-10-09T12:00:00.000000Z",
+    )
+    assert result.status == "accepted", result
+    assert {
+        item.path: item.action for item in result.plan if item.path in shipped
+    } == dict.fromkeys(shipped, "add")
+    assert sorted(_documents(consumer)) == shipped
+    assert _guides(consumer, GUIDES_VERDICT) == [(VERIFIER, "Judging a security finding")]
 
 
 # -- helpers on accepted state -------------------------------------------------------------

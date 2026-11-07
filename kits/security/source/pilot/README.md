@@ -257,26 +257,32 @@ one finding with two reporters. What it checked is state too: a
 | `finding.found_in` (many, → coverage unit) | normative, never a Mandate | own words |
 | `finding.reported_at`, `.rule`, `.reported_by` (`audit`) | observation | a SARIF scan, or a file receipt of the code at the location |
 
-- **File receipts.** Core governs each catalogued workspace file (a `files.yaml`
-  name) as its own foreign source, so the `file` rule admits the files the audit
-  names: `findings.py OUT_DIR --audit-source NAME ...`. An agent location that
-  cites another file is refused; a status citing one lands uncovered and its
-  unit stays in the plan.
+- **File receipts.** The `file` rule admits any catalogued workspace file (a
+  `files.yaml` name): the `workspace_file` family (D1), a Capture under an
+  accepted foreign-source contract. The catalog is the boundary: the writer's
+  side refuses an uncatalogued path, and a Capture of a file never cited through
+  the workspace write path (no accepted contract) is refused. **Core bug:** the
+  write that first cites a file installs its contract but is not admitted by it
+  (reported_at refuses, a status lands uncovered); the gate's strict xfail
+  `test_core_d1_a_first_citation_is_admitted` pins it.
 - **Planning.** `security.coverage_plan` (one repository) lists the units never
   checked, deferred or blocked. A checked unit whose cited passage changed is a
   workspace-aware `cruxible next` `citation_drifted` row naming its status
-  Claim. `security.findings_by_unit` lists one unit's findings. **Blocked on
-  core:** both reads load every coverage unit and finding (query pushdown does
-  not narrow a conjunction with `not exists`, a traversal or a Subject-valued
-  value); the gate's strict xfail
-  `test_core_audit_reads_are_constant_in_unrelated_units` pins it.
+  Claim. `security.findings_by_unit` lists one unit's findings. The plan costs
+  O(units in the queried repository), its own scope; other repositories' units
+  and findings in other units cost neither read anything
+  (`test_core_audit_reads_are_constant_in_unrelated_units`).
 - **Guidance** (`../guidance/`): `hunter.md` (reporting a finding and keeping
   coverage), `verifier.md` (judging one: verdict, severity, justification) and
   `coverage.md` (the units and their status), each naming the ClaimTypes it
   guides; `../reference/` holds optional hunting strategy (the attack classes,
   ten domain companions and implicit state machines). They install as governed
-  Documents once kits ship Documents (core-surface item 11;
-  `install.guidance_members()` is the member list, a TODO until then).
+  Documents (`install.install_guidance`: `body store`, then `document propose`,
+  after the findings vocabulary), so `kit build` ships them as `documents/` kit
+  artifacts and `kit add` installs them. A guidance Document `guides` the
+  ClaimTypes its `Guides:` header names: `get ClaimType:<p> detail=backlinks`
+  and a proposal's `guidance` show it. Reference Documents guide nothing; they
+  are `document_kind: security.reference` in `orient --section documents`.
 - **Review is on the honor system.** The verifier writes its verdict with
   `accept: never`, and a different agent approves it after reading the
   guidance; the author never approves its own verdict.
