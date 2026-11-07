@@ -495,19 +495,79 @@ def test_an_app_judgment_refuses_as_a_whole(tmp_path: Path) -> None:
         triage.app_judgment("x", LOG4SHELL, reason=PACKAGE_REASON, because="x")
 
 
-def test_a_judgment_written_for_review_changes_nothing_until_approved(tmp_path: Path) -> None:
-    """K-CF2a: the author writes with accept: never; nothing lands until another
-    agent approves."""
+DEPENDENCY_GUIDANCE = "document:security.guidance.dependency"
+
+
+def install_dependency_guidance(instance: Any) -> list[str]:
+    """What ``install.main`` does for the dependency guidance (``body store``, then
+    ``document propose``), landed."""
+
+    from cruxible_client.contracts.documents import DocumentShell
+    from cruxible_core.service.authoring.documents import service_propose_playbill_document
+    from cruxible_core.service.authoring.landing import land_direct_proposal
+
+    import install
+
+    store = instance.body_store()
+    landed = []
+    for item in install.guidance_documents(
+        lambda path: store.store(path.read_bytes()).digest,
+        install.DEPENDENCY_GUIDANCE,
+        references=False,
+    ):
+        shell = DocumentShell.model_validate(item)
+        inspection = service_propose_playbill_document(
+            instance,
+            shell=shell,
+            actor_id="owner",
+            proposal_name=shell.identity.removeprefix("document:"),
+            timestamp="2026-10-29T11:59:00.000000Z",
+        )
+        inspection = land_direct_proposal(
+            instance, inspection, actor_id="owner", accept="if_allowed", may_activate=True
+        )
+        assert inspection.outcome is not None and inspection.outcome.status == "landed"
+        landed.append(shell.identity)
+    return landed
+
+
+def guides(instance: Any, ref: str) -> list[str]:
+    """The ``guides`` links ``get REF detail=backlinks`` serves."""
+
+    result = get(instance, ref, detail="backlinks")
+    return [link.source for link in result.backlinks.links if link.relation == "guides"]
+
+
+def test_a_judgment_written_for_review_shows_the_guidance_and_changes_nothing(
+    tmp_path: Path,
+) -> None:
+    """K-CF2a: the dependency guidance guides both justifications; the author writes
+    with accept: never, and the proposal a reviewer reads carries the guidance."""
+
+    from cruxible_core.service.proposals.review import service_review_playbill_proposal
+    from cruxible_core.storage.cas import BodyAccessContext
 
     instance = world(tmp_path)
+    assert install_dependency_guidance(instance) == [DEPENDENCY_GUIDANCE]
+    for pair in (inventory.EXPOSURE, inventory.APP_EXPOSURE):
+        assert guides(instance, f"ClaimType:{pair}.justification") == [DEPENDENCY_GUIDANCE]
     run_osv(instance)
     before = instance.accepted_coordinate().git_oid
     request = package_judgment(instance, CORE, LOG4SHELL)
     request["accept"] = "never"
     outcome = write(instance, request)
-    assert outcome.status != "accepted" and outcome.status != "refused", outcome
+    assert outcome.status == "awaiting_approval", outcome
     assert instance.accepted_coordinate().git_oid == before
     assert (DEMO_APP, CORE, LOG4SHELL) in exposures(instance)
+    review = service_review_playbill_proposal(
+        instance,
+        proposal_id=outcome.proposal.proposal_id,
+        access=BodyAccessContext(principal_id="reviewer", can_read_body=True),
+        detail=False,
+    )
+    assert [(g.definition, g.document) for g in review.guidance] == [
+        (f"ClaimType:{inventory.EXPOSURE}.justification", DEPENDENCY_GUIDANCE)
+    ]
 
 
 def test_osv_reobserving_a_judged_pair_records_held_disagrees_and_the_judgment_stays(

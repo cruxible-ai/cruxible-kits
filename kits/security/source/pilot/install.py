@@ -10,7 +10,9 @@ Every step is an ordinary governed write the instance's approval policy admits
 4. the CaptureKinds (``capture-contract propose``);
 5. vocabulary, Procedures, vulnerability Subjects and the Lines/Mandates/Triggers
    (``authoring submit`` of the change sets ``definitions.py`` writes);
-6. with ``--sarif-wheel``, code findings and the audit guidance and reference
+6. the dependency-judgment guidance Document (``../guidance/dependency.md``,
+   K-CF2a), which guides the two justification ClaimTypes;
+7. with ``--sarif-wheel``, code findings and the audit guidance and reference
    Documents (see the blocks at the end).
 
 A ``seed.json`` (own-word affected_by, labelled seed) is NOT installed here: it is
@@ -30,7 +32,7 @@ import argparse
 import json
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -130,6 +132,7 @@ def main() -> None:
         print(f"capture kind {name}: accepted")
     for name in ("vocabulary", "procedures", "watch", "automation"):
         submit(args.payloads / f"{name}.json")
+    install_guidance(args.payloads, names=DEPENDENCY_GUIDANCE, references=False)
     if args.sarif_wheel is not None:
         install_findings(args.payloads, args.sarif_wheel, args.sarif_lock, runtime)
 
@@ -178,16 +181,21 @@ def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Pa
     install_guidance(payloads)
 
 
-# -- Audit guidance (K-CA4): governed Documents ----------------------------------------
+# -- Guidance (K-CA4, K-CF2a): governed Documents ---------------------------------------
 #
 # ``../guidance/*.md`` and ``../reference/*.md`` install as governed Documents
-# after the findings vocabulary, so ``kit build`` ships them as ``documents/``
+# after the vocabulary they guide, so ``kit build`` ships them as ``documents/``
 # kit artifacts (bodies under ``bodies/``) and ``kit add`` installs them. A
 # guidance Document ``guides`` the ClaimTypes its reader writes, read off its own
 # ``Guides:`` header; a reference Document (optional hunting strategy) guides
-# nothing and is found by its document_kind (``security.reference``).
+# nothing and is found by its document_kind (``security.reference``). The
+# dependency guidance installs with the dependency vocabulary; the audit
+# guidance and the references with the findings vocabulary.
 
 SOURCE = HERE.parent
+#: Judging a dependency exposure: the two justification ClaimTypes (K-CF2a).
+DEPENDENCY_GUIDANCE = ("dependency",)
+#: Security audits (K-CA4).
 GUIDANCE = ("hunter", "verifier", "coverage")
 GUIDANCE_KIND = "security.guidance"
 REFERENCE_KIND = "security.reference"
@@ -208,23 +216,31 @@ def guided_claim_types(path: Path) -> list[str]:
     return [name.strip() for name in text.removesuffix(".").split(",")]
 
 
-def guidance_sources() -> list[tuple[Path, str, list[str]]]:
+def guidance_sources(
+    names: Sequence[str] = GUIDANCE, *, references: bool = True
+) -> list[tuple[Path, str, list[str]]]:
     """(path, document_kind, guided ClaimTypes): the guidance, then the references."""
 
     out = [
         (path, GUIDANCE_KIND, guided_claim_types(path))
-        for path in (SOURCE / "guidance" / f"{name}.md" for name in GUIDANCE)
+        for path in (SOURCE / "guidance" / f"{name}.md" for name in names)
     ]
-    out += [(path, REFERENCE_KIND, []) for path in sorted((SOURCE / "reference").glob("*.md"))]
+    if references:
+        out += [(path, REFERENCE_KIND, []) for path in sorted((SOURCE / "reference").glob("*.md"))]
     return out
 
 
-def guidance_documents(store_body: Callable[[Path], str]) -> list[dict[str, Any]]:
+def guidance_documents(
+    store_body: Callable[[Path], str],
+    names: Sequence[str] = GUIDANCE,
+    *,
+    references: bool = True,
+) -> list[dict[str, Any]]:
     """Each Document's envelope (a ``DocumentShell``); ``store_body`` stores a
     file's bytes in the instance's body store and returns their digest."""
 
     documents = []
-    for path, document_kind, guides in guidance_sources():
+    for path, document_kind, guides in guidance_sources(names, references=references):
         title = path.read_text(encoding="utf-8").splitlines()[0].removeprefix("# ")
         links = sorted(
             ({"relation": "guides", "target_identity": f"ClaimType:{name}"} for name in guides),
@@ -246,13 +262,15 @@ def guidance_documents(store_body: Callable[[Path], str]) -> list[dict[str, Any]
     return documents
 
 
-def install_guidance(payloads: Path) -> None:
+def install_guidance(
+    payloads: Path, names: Sequence[str] = GUIDANCE, *, references: bool = True
+) -> None:
     """Store each body, then propose its Document (``cruxible document propose``)."""
 
     def store_body(path: Path) -> str:
         return json.loads(cruxible("body", "store", str(path), "--json"))["digest"]
 
-    for document in guidance_documents(store_body):
+    for document in guidance_documents(store_body, names, references=references):
         name = document["identity"].removeprefix("document:")
         path = payloads / f"document.{name}.json"
         path.write_text(json.dumps(document, indent=1, sort_keys=True) + "\n")
