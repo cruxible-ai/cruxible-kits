@@ -140,10 +140,8 @@ def main() -> None:
 # (``uv lock`` then ``uv build`` in source/providers/security-sarif-provider).
 #
 # Security audits (K-CA1..K-CA4) ride on the same vocabulary: the coverage unit,
-# found_in and the ``file`` evidence rule. ``--audit-source NAME ...`` (files.yaml
-# names) lists the catalogued files whose receipts the rule admits; core governs
-# each file as its own foreign source, so a file the audit did not name is not
-# admitted (an agent's reported_at citing it is refused; a status lands uncovered).
+# found_in and the ``file`` evidence rule, which admits any catalogued workspace
+# file (the ``workspace_file`` family, D1).
 
 
 def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Path) -> None:

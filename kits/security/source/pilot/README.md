@@ -257,11 +257,14 @@ one finding with two reporters. What it checked is state too: a
 | `finding.found_in` (many, → coverage unit) | normative, never a Mandate | own words |
 | `finding.reported_at`, `.rule`, `.reported_by` (`audit`) | observation | a SARIF scan, or a file receipt of the code at the location |
 
-- **File receipts.** Core governs each catalogued workspace file (a `files.yaml`
-  name) as its own foreign source, so the `file` rule admits the files the audit
-  names: `findings.py OUT_DIR --audit-source NAME ...`. An agent location that
-  cites another file is refused; a status citing one lands uncovered and its
-  unit stays in the plan.
+- **File receipts.** The `file` rule admits any catalogued workspace file (a
+  `files.yaml` name): the `workspace_file` family (D1), a Capture under an
+  accepted foreign-source contract. The catalog is the boundary: the writer's
+  side refuses an uncatalogued path, and a Capture of a file never cited through
+  the workspace write path (no accepted contract) is refused. **Core bug:** the
+  write that first cites a file installs its contract but is not admitted by it
+  (reported_at refuses, a status lands uncovered); the gate's strict xfail
+  `test_core_d1_a_first_citation_is_admitted` pins it.
 - **Planning.** `security.coverage_plan` (one repository) lists the units never
   checked, deferred or blocked. A checked unit whose cited passage changed is a
   workspace-aware `cruxible next` `citation_drifted` row naming its status

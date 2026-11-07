@@ -4,7 +4,8 @@ An audit agent writes through the ordinary write verbs (``service_playbill_write
 the daemon side of ``cruxible write``), citing catalogued workspace files as the
 CLI's ``--evidence-file PATH#ANCHOR`` does: the client observes the bytes, the
 daemon captures them under the file's foreign-source contract. The kit's
-``file`` rule admits the files the audit names (``audit_sources``).
+``file`` rule admits any catalogued workspace file (the ``workspace_file``
+family, D1): a Capture under an accepted foreign-source contract.
 
     PYTHONPATH=$CORE/src:$CORE/packages/cruxible-client/src:$RUNTIME/src:$CORE \\
     CRUXIBLE_PROVIDERS_CHECKOUT=$PROVIDERS python -m pytest test_audit_gate.py
@@ -74,11 +75,33 @@ entries:
 """
 
 
-def audit_world(tmp_path: Path, *, audit_sources: Sequence[str] = SOURCES) -> Any:
-    instance = findings_world(tmp_path, audit_sources=tuple(audit_sources))
+def audit_world(tmp_path: Path, *, cited_before: Sequence[str] = SOURCES) -> Any:
+    """The findings world, the gate app's files catalogued, and ``cited_before``
+    already cited once (their foreign-source contracts accepted).
+
+    ``cited_before`` stands in for an earlier citation through the write path:
+    core admits a family rule's Capture only under a contract accepted at the
+    write's base, so the write that first cites a file (and installs its
+    contract) is not admitted (``test_core_d1_a_first_citation_is_admitted``).
+    """
+
+    from cruxible_client.contracts.captures import (
+        capture_contract_path,
+        foreign_source_capture_contract,
+        render_capture_contract,
+    )
+    from tests.core_support._identity_support import accept_tree
+
+    instance = findings_world(tmp_path)
     write_file(tmp_path, ".cruxible/files.yaml", CATALOG.encode())
     write_file(tmp_path, DB, DB_CODE)
     write_file(tmp_path, NOTES, TRACE)
+    if cited_before:
+        contracts = [foreign_source_capture_contract(source) for source in cited_before]
+        tree = {
+            capture_contract_path(c.identity.name): render_capture_contract(c) for c in contracts
+        }
+        accept_tree(instance, tree, name="cited-before")
     return instance
 
 
@@ -231,6 +254,30 @@ def test_an_agent_finding_and_a_sarif_result_converge_on_one_subject(tmp_path: P
     assert sorted(scanned["rules"]) == ["audit:injection", "semgrep:sqli-fstring-execute"]
 
 
+def test_the_file_rule_admits_the_workspace_file_family() -> None:
+    """reported_at, rule, reported_by and coverage_unit.status admit any
+    catalogued workspace file (D1); no ClaimType names a file."""
+
+    file_rules = {
+        record["predicate"]: rule
+        for record in findings.claim_type_records()
+        for rule in record.get("evidence_admission_policy", {}).get("rules", [])
+        if rule["rule_id"] == "file"
+    }
+    assert sorted(file_rules) == sorted(
+        [f"{FINDING}.{name}" for name in ("reported_at", "reported_by", "rule")]
+        + [f"{UNIT}.status"]
+    )
+    for rule in file_rules.values():
+        assert rule["capture_contract_families"] == ["workspace_file"]
+        assert "capture_contracts" not in rule
+    for claim_type in findings.claim_types():
+        for rule in claim_type.evidence_admission_policy.rules:
+            assert not any(
+                "foreign-source" in item.target.qualified for item in rule.capture_contracts
+            ), claim_type.predicate
+
+
 # -- coverage units ---------------------------------------------------------------------
 
 
@@ -273,21 +320,6 @@ def test_a_unit_checked_with_a_file_receipt_and_found_in_resolve(tmp_path: Path)
     )
 
 
-def test_an_unbacked_checked_stays_in_the_plan(tmp_path: Path) -> None:
-    """A checked status citing a file the audit did not name lands uncovered and
-    never hides its unit: the plan reads only a supported status."""
-
-    instance = audit_world(tmp_path, audit_sources=("gate-app.notes",))
-    outcome = accepted_write(
-        instance,
-        tmp_path,
-        unit_changes("u", "app/db.py#find_by_name", "injection", "checked", evidence=code()),
-        because="looked at it",
-    )
-    assert [c.verdict for c in outcome.changes if c.field == "status"] == ["uncovered"]
-    assert plan(instance) == [("app/db.py#find_by_name", "injection", None)]
-
-
 # -- fail closed -------------------------------------------------------------------------
 
 
@@ -305,15 +337,101 @@ def test_a_status_outside_the_enum_refuses(tmp_path: Path) -> None:
     assert instance.accepted_coordinate() == head
 
 
-def test_an_agent_location_citing_an_unnamed_file_refuses(tmp_path: Path) -> None:
-    instance = audit_world(tmp_path, audit_sources=("gate-app.notes",))
-    head = instance.accepted_coordinate()
-    outcome = write(
-        instance, tmp_path, agent_finding("f", unit=None)[:2], because="formats name into SQL"
+def _never_cited_capture(instance: Any, source: str, text: bytes) -> str:
+    """A foreign-source Capture of a catalogued file, built outside the write path:
+    its contract was never accepted."""
+
+    from datetime import UTC, datetime
+
+    from cruxible_client.contracts.captures import (
+        DirectForeignSourceSelection,
+        build_foreign_source_capture,
     )
+    from cruxible_client.contracts.semantic import ContentSpan
+    from cruxible_core.indexes.projection import AcceptedCoordinate
+
+    store = instance.body_store()
+    stored = store.store(text)
+    built = build_foreign_source_capture(
+        store=store,
+        actor_id="owner",
+        claim_id="CLM-" + "a" * 32,
+        rationale=f"read {source} outside the write path",
+        observed_at=datetime(2026, 8, 20, 12, tzinfo=UTC),
+        accepted_coordinate=AcceptedCoordinate.from_internal(instance.accepted_coordinate()),
+        selection=DirectForeignSourceSelection(
+            logical_source_identity=source,
+            span=ContentSpan(content_digest=stored.digest, start_byte=0, end_byte=len(text)),
+        ),
+    )
+    return built.capture_digest
+
+
+@pytest.mark.parametrize("field", ["reported_at", "status"])
+def test_a_file_never_cited_through_the_write_path_refuses(tmp_path: Path, field: str) -> None:
+    """The family admits a catalogued file's Capture only under an accepted
+    contract: a Capture of a file never cited through the workspace write path
+    (no accepted contract) refuses, and nothing is written."""
+
+    instance = audit_world(tmp_path, cited_before=())
+    head = instance.accepted_coordinate()
+    evidence = {
+        "kind": "capture",
+        "capture": _never_cited_capture(instance, "gate-app.db", DB_CODE),
+    }
+    if field == "status":
+        changes = unit_changes("u", "app/db.py#find_by_name", "injection", "checked")
+        changes[-1]["evidence"] = evidence
+    else:
+        changes = agent_finding("f", unit=None)[:2]
+        changes[-1]["evidence"] = evidence
+    outcome = write(instance, tmp_path, changes, because="read it elsewhere")
     assert outcome.status == "refused"
-    assert outcome.refusal.code == "cruxible.claim.captured_evidence_required", outcome.refusal
+    assert outcome.refusal.code == "cruxible.authoring.capture_contract_unresolved", outcome.refusal
     assert instance.accepted_coordinate() == head
+
+
+def test_an_uncatalogued_file_is_never_observed(tmp_path: Path) -> None:
+    """The workspace catalog is the boundary: the writer's side refuses a path
+    no catalog entry names before anything reaches the daemon."""
+
+    from cruxible_client.authoring.sdk_types import SourceSelectionError
+
+    instance = audit_world(tmp_path)
+    write_file(tmp_path, "app/other.py", DB_CODE)
+    head = instance.accepted_coordinate()
+    changes = agent_finding("f", unit=None, locus="app/other.py#find_by_name")[:2]
+    changes[-1]["evidence"] = {"kind": "file", "file": f"app/other.py#{SINK}"}
+    with pytest.raises(SourceSelectionError, match="0 catalogued files"):
+        write(instance, tmp_path, changes, because="formats name into SQL")
+    assert instance.accepted_coordinate() == head
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="core (owner: core D1, evidence admission): a family rule verifies a "
+    "Capture's foreign-source contract against accepted state at the write's base "
+    "(historical_capture_contract), so the write that first cites a catalogued file "
+    "and installs its contract in the same change is not admitted: reported_at refuses "
+    "with cruxible.claim.captured_evidence_required, a checked status lands uncovered. "
+    "Expected: the contract the write itself installs counts.",
+)
+def test_core_d1_a_first_citation_is_admitted(tmp_path: Path) -> None:
+    instance = audit_world(tmp_path, cited_before=())
+    outcome = write(
+        instance,
+        tmp_path,
+        [
+            *unit_changes("u", "app/db.py#find_by_name", "injection", "checked", evidence=code()),
+            *agent_finding("f", unit={"created": "u"}),
+        ],
+        because="find_by_name formats name into the SQL text",
+    )
+    assert outcome.status == "accepted", outcome.model_dump(mode="json")
+    verdicts = {c.field: c.verdict for c in outcome.changes if c.field is not None}
+    assert verdicts == dict.fromkeys(
+        ("status", "reported_at", "reported_by", "rule", "found_in"), "supported"
+    )
 
 
 PROBE = "security.probe-judgment"
@@ -562,7 +680,7 @@ def test_core_audit_reads_are_constant_in_unrelated_units(tmp_path: Path) -> Non
 def test_guidance_guides_only_kit_claim_types() -> None:
     import install
 
-    declared = {record["predicate"] for record in findings.claim_type_records(SOURCES)}
+    declared = {record["predicate"] for record in findings.claim_type_records()}
     members = install.guidance_members()
     assert [m["document_id"] for m in members[:3]] == [
         "security.guidance.hunter",

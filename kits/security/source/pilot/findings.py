@@ -166,34 +166,22 @@ def _rule(rule_id: str, roles: Sequence[str], kind: str) -> dict[str, Any]:
 _MANY = {"cardinality": "many", "eligible_verdicts": ["supported"], "selector": "all"}
 
 
-def file_contracts(sources: Sequence[str]) -> list[str]:
-    """The CaptureContracts file evidence from these catalogued workspace files is under.
+def _file_rule(roles: Sequence[str]) -> dict[str, Any]:
+    """A workspace-file/section receipt rule (``file``): any catalogued workspace file.
 
-    Core governs each catalogued file (``files.yaml`` name) as its own foreign
-    source with its own contract, so a rule admits named files, never "any
-    file". The audit names the files it cites (``audit_sources``).
+    The family selector (D1) admits a Capture under any accepted foreign-source
+    contract of a catalogued file; the workspace catalog is the boundary. A file
+    never cited through the workspace write path has no accepted contract and
+    is refused.
     """
 
-    from cruxible_client.contracts.captures import foreign_source_capture_contract
-
-    names = {foreign_source_capture_contract(source).identity.name for source in sources}
-    return sorted(names, key=lambda name: name.encode("utf-8"))
-
-
-def _file_rule(roles: Sequence[str], sources: Sequence[str]) -> list[dict[str, Any]]:
-    """A workspace-file/section receipt rule (``file``), or none when no file is named."""
-
-    if not sources:
-        return []
-    return [
-        {
-            "rule_id": "file",
-            "claim_roles": list(roles),
-            "capture_contracts": file_contracts(sources),
-            "admission": "direct",
-            "subject_binding": "exact_claim_subject",
-        }
-    ]
+    return {
+        "rule_id": "file",
+        "claim_roles": list(roles),
+        "capture_contract_families": ["workspace_file"],
+        "admission": "direct",
+        "subject_binding": "exact_claim_subject",
+    }
 
 
 def _rules(*rules: Any) -> dict[str, Any]:
@@ -206,12 +194,12 @@ def _scanned(
     value: dict[str, Any],
     description: str,
     *,
-    audit_sources: Sequence[str] = (),
+    agent: bool = False,
     **more: Any,
 ) -> dict:
     """A scanner's observation, cited by the derived findings document.
 
-    With ``audit_sources`` an agent's observation is admitted too: a
+    With ``agent`` an audit agent's observation is admitted too: a
     workspace-file receipt of the code at the location (hunter guidance).
     """
 
@@ -227,7 +215,7 @@ def _scanned(
         "revision_evidence": "replace",
         "evidence_admission_policy": _rules(
             _rule("sarif", ["observation"], FINDINGS_KIND),
-            _file_rule(["observation"], audit_sources),
+            *([_file_rule(["observation"])] if agent else []),
         ),
         **more,
     }
@@ -250,12 +238,12 @@ def _judged(predicate: str, value: dict[str, Any], description: str) -> dict:
     }
 
 
-def claim_type_records(audit_sources: Sequence[str] = ()) -> list[dict[str, Any]]:
-    """Every code-findings ClaimType; ``audit_sources`` names the catalogued files
-    whose receipts back an agent's findings and coverage (see ``file_contracts``)."""
+def claim_type_records() -> list[dict[str, Any]]:
+    """Every code-findings ClaimType; an agent's findings and coverage cite any
+    catalogued workspace file (``_file_rule``)."""
 
     bounded = {"kind": "string", "max_len": 256}
-    audit = {"audit_sources": audit_sources}
+    audit = {"agent": True}
     return [
         {
             "predicate": FINDING + ".repo",
@@ -358,11 +346,11 @@ def claim_type_records(audit_sources: Sequence[str] = ()) -> list[dict[str, Any]
             "cardinality": "many",
             "resolution_policy": _MANY,
         },
-        *coverage_claim_type_records(audit_sources),
+        *coverage_claim_type_records(),
     ]
 
 
-def coverage_claim_type_records(audit_sources: Sequence[str] = ()) -> list[dict[str, Any]]:
+def coverage_claim_type_records() -> list[dict[str, Any]]:
     """The coverage unit's key parts and its status (K-CA3)."""
 
     return [
@@ -421,16 +409,16 @@ def coverage_claim_type_records(audit_sources: Sequence[str] = ()) -> list[dict[
             "revision_evidence": "replace",
             "evidence_admission_policy": _rules(
                 _rule("self", ["normative"], SELF_SOURCE),
-                _file_rule(["normative"], audit_sources),
+                _file_rule(["normative"]),
             ),
         },
     ]
 
 
-def claim_types(audit_sources: Sequence[str] = ()) -> list[Any]:
+def claim_types() -> list[Any]:
     return [
         lower_claim_type_input(ClaimTypeInputRecord.model_validate(record), tree={})
-        for record in claim_type_records(audit_sources)
+        for record in claim_type_records()
     ]
 
 
@@ -458,7 +446,7 @@ def provider_contract_members(root: Path = PROVIDER_ROOT) -> list[dict[str, Any]
     return sorted(out, key=lambda item: 1 if "@" in json.dumps(item["fields"]) else 0)
 
 
-def vocabulary(audit_sources: Sequence[str] = ()) -> dict[str, Any]:
+def vocabulary() -> dict[str, Any]:
     """Row and inbox Contracts, the ClaimTypes, the finding and coverage-unit
     SubjectKinds and their Queries."""
 
@@ -560,7 +548,7 @@ def vocabulary(audit_sources: Sequence[str] = ()) -> dict[str, Any]:
         },
         *(
             {"kind": "claim_type", "claim_type": t.model_dump(mode="json", by_alias=True)}
-            for t in claim_types(audit_sources)
+            for t in claim_types()
         ),
         {
             "kind": "subject_kind",
@@ -1060,7 +1048,6 @@ def write_all(
     *,
     scans: Sequence[tuple[str, str, str]],
     now: datetime,
-    audit_sources: Sequence[str] = (),
 ) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
@@ -1082,7 +1069,7 @@ def write_all(
         path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
         written.append(path)
     for name, payload in (
-        ("findings-vocabulary", vocabulary(audit_sources)),
+        ("findings-vocabulary", vocabulary()),
         ("findings-procedures", procedures()),
         ("findings-automation", automation(scans, now=now)),
     ):
@@ -1103,13 +1090,6 @@ def main() -> None:
         help="NAME=host/owner/repo=RELATIVE_PATH: two Lines per SARIF file",
     )
     parser.add_argument("--now", default=None, help="ISO-8601 instant Mandates start from")
-    parser.add_argument(
-        "--audit-source",
-        nargs="*",
-        default=[],
-        help="catalogued workspace files (files.yaml names) whose receipts back audit "
-        "findings and coverage",
-    )
     args = parser.parse_args()
     now = datetime.fromisoformat(args.now) if args.now else datetime.now(UTC)
     scans = [tuple(item.split("=", 2)) for item in args.scan]
@@ -1117,7 +1097,6 @@ def main() -> None:
         args.out,
         scans=scans,  # type: ignore[arg-type]
         now=now.replace(microsecond=0),
-        audit_sources=args.audit_source,
     ):
         print(path)
 
