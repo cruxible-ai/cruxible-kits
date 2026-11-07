@@ -10,7 +10,8 @@ Every step is an ordinary governed write the instance's approval policy admits
 4. the CaptureKinds (``capture-contract propose``);
 5. vocabulary, Procedures, vulnerability Subjects and the Lines/Mandates/Triggers
    (``authoring submit`` of the change sets ``definitions.py`` writes);
-6. with ``--sarif-wheel``, code findings (see the block at the end).
+6. with ``--sarif-wheel``, code findings and the audit guidance and reference
+   Documents (see the blocks at the end).
 
 A ``seed.json`` (own-word affected_by, labelled seed) is NOT installed here: it is
 state an agent states, submitted by hand after the SBOM import Lines have run
@@ -29,7 +30,9 @@ import argparse
 import json
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -172,19 +175,23 @@ def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Pa
         print(f"capture kind {name}: accepted")
     for name in ("findings-vocabulary", "findings-procedures", "findings-automation"):
         submit(payloads / f"{name}.json")
+    install_guidance(payloads)
 
 
-# -- Audit guidance (K-CA4) ---------------------------------------------------------------
+# -- Audit guidance (K-CA4): governed Documents ----------------------------------------
 #
-# TODO(core-surface item 11: kits ship Documents): install these as governed
-# Documents through ``kit add``. Until core ships Documents in a kit, nothing here
-# is installed; ``test_audit_gate`` pins the member list with a strict xfail
-# (owner: core-surface item 11). Guidance attaches to the ClaimTypes its reader
-# writes (``guides``, read off each Document's own ``Guides:`` header); reference
-# Documents are optional strategy and guide nothing.
+# ``../guidance/*.md`` and ``../reference/*.md`` install as governed Documents
+# after the findings vocabulary, so ``kit build`` ships them as ``documents/``
+# kit artifacts (bodies under ``bodies/``) and ``kit add`` installs them. A
+# guidance Document ``guides`` the ClaimTypes its reader writes, read off its own
+# ``Guides:`` header; a reference Document (optional hunting strategy) guides
+# nothing and is found by its document_kind (``security.reference``).
 
 SOURCE = HERE.parent
 GUIDANCE = ("hunter", "verifier", "coverage")
+GUIDANCE_KIND = "security.guidance"
+REFERENCE_KIND = "security.reference"
+SCOPE = ("security",)
 
 
 def guided_claim_types(path: Path) -> list[str]:
@@ -201,30 +208,60 @@ def guided_claim_types(path: Path) -> list[str]:
     return [name.strip() for name in text.removesuffix(".").split(",")]
 
 
-def guidance_members() -> list[dict[str, object]]:
-    """The planned Document members: three guidance Documents, then the references."""
+def guidance_sources() -> list[tuple[Path, str, list[str]]]:
+    """(path, document_kind, guided ClaimTypes): the guidance, then the references."""
 
-    def member(path: Path, document_kind: str, guides: list[str]) -> dict[str, object]:
+    out = [
+        (path, GUIDANCE_KIND, guided_claim_types(path))
+        for path in (SOURCE / "guidance" / f"{name}.md" for name in GUIDANCE)
+    ]
+    out += [(path, REFERENCE_KIND, []) for path in sorted((SOURCE / "reference").glob("*.md"))]
+    return out
+
+
+def guidance_documents(store_body: Callable[[Path], str]) -> list[dict[str, Any]]:
+    """Each Document's envelope (a ``DocumentShell``); ``store_body`` stores a
+    file's bytes in the instance's body store and returns their digest."""
+
+    documents = []
+    for path, document_kind, guides in guidance_sources():
         title = path.read_text(encoding="utf-8").splitlines()[0].removeprefix("# ")
-        return {
-            "kind": "document",
-            "document_id": f"security.{document_kind}.{path.stem}",
-            "document_kind": f"security.{document_kind}",
-            "title": title,
-            "media_type": "text/markdown",
-            "path": path.relative_to(SOURCE).as_posix(),
-            "links": [
-                {"relation": "guides", "target_identity": f"ClaimType:{name}"} for name in guides
-            ],
-        }
+        links = sorted(
+            ({"relation": "guides", "target_identity": f"ClaimType:{name}"} for name in guides),
+            key=lambda link: link["target_identity"].encode("utf-8"),
+        )
+        documents.append(
+            {
+                "kind": "document",
+                "identity": f"document:{document_kind}.{path.stem}",
+                "document_kind": document_kind,
+                "title": title,
+                "media_type": "text/markdown",
+                "body_digest": store_body(path),
+                "links": links,
+                "governance_scope": list(SCOPE),
+                "lifecycle": {"revision": 1},
+            }
+        )
+    return documents
 
-    members = []
-    for name in GUIDANCE:
-        path = SOURCE / "guidance" / f"{name}.md"
-        members.append(member(path, "guidance", guided_claim_types(path)))
-    for path in sorted((SOURCE / "reference").glob("*.md")):
-        members.append(member(path, "reference", []))
-    return members
+
+def install_guidance(payloads: Path) -> None:
+    """Store each body, then propose its Document (``cruxible document propose``)."""
+
+    def store_body(path: Path) -> str:
+        return json.loads(cruxible("body", "store", str(path), "--json"))["digest"]
+
+    for document in guidance_documents(store_body):
+        name = document["identity"].removeprefix("document:")
+        path = payloads / f"document.{name}.json"
+        path.write_text(json.dumps(document, indent=1, sort_keys=True) + "\n")
+        out = json.loads(
+            cruxible("document", "propose", "--envelope", str(path), "--name", name, "--json")
+        )
+        if (out.get("outcome") or {}).get("status") != "landed":
+            raise SystemExit(f"Document {name} did not land:\n{json.dumps(out, indent=1)}")
+        print(f"document {name}: accepted")
 
 
 if __name__ == "__main__":

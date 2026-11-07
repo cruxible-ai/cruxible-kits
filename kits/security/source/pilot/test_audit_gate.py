@@ -106,7 +106,12 @@ def audit_world(tmp_path: Path, *, cited_before: Sequence[str] = SOURCES) -> Any
 
 
 def write(
-    instance: Any, tmp_path: Path, changes: Sequence[Mapping[str, Any]], *, because: str
+    instance: Any,
+    tmp_path: Path,
+    changes: Sequence[Mapping[str, Any]],
+    *,
+    because: str,
+    accept: str = "if_allowed",
 ) -> Any:
     """One write, its file evidence observed from the workspace as the CLI does."""
 
@@ -115,7 +120,9 @@ def write(
     from cruxible_core.service.authoring.write_verbs import service_playbill_write
     from tests.core_support._write_support import caller
 
-    request = WriteRequest.model_validate({"because": because, "changes": list(changes)})
+    request = WriteRequest.model_validate(
+        {"because": because, "changes": list(changes), "accept": accept}
+    )
     observed = request.model_copy(
         update={"changes": observe_changes(request.changes, workspace=workspace(tmp_path))}
     )
@@ -677,41 +684,190 @@ def test_core_audit_reads_are_constant_in_unrelated_units(tmp_path: Path) -> Non
 # -- guidance (K-CA4) --------------------------------------------------------------------
 
 
+GUIDES_VERDICT = f"ClaimType:{FINDING}.verdict"
+VERIFIER = "document:security.guidance.verifier"
+
+
 def test_guidance_guides_only_kit_claim_types() -> None:
+    from cruxible_client.contracts.documents import DocumentShell
+
     import install
 
     declared = {record["predicate"] for record in findings.claim_type_records()}
-    members = install.guidance_members()
-    assert [m["document_id"] for m in members[:3]] == [
-        "security.guidance.hunter",
-        "security.guidance.verifier",
-        "security.guidance.coverage",
+    documents = [
+        DocumentShell.model_validate(item)
+        for item in install.guidance_documents(lambda path: "sha256:" + "0" * 64)
     ]
-    for member in members:
-        targets = {link["target_identity"].removeprefix("ClaimType:") for link in member["links"]}
-        assert targets <= declared, (member["document_id"], targets - declared)
-        assert bool(targets) is (member["document_kind"] == "security.guidance"), member
-    assert len(members) == 3 + 12
+    assert [d.identity for d in documents[:3]] == [
+        "document:security.guidance.hunter",
+        VERIFIER,
+        "document:security.guidance.coverage",
+    ]
+    for document in documents:
+        targets = {link.target_identity.removeprefix("ClaimType:") for link in document.links}
+        assert targets <= declared, (document.identity, targets - declared)
+        assert {link.relation for link in document.links} <= {"guides"}
+        assert bool(targets) is (document.document_kind == "security.guidance"), document
+    assert sum(d.document_kind == "security.reference" for d in documents) == 12
+    assert len(documents) == 3 + 12
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="core-surface item 11 (owner: core-surface item 11): kits ship Documents. Until "
-    "then a change set has no Document member, so the guidance and reference Documents "
-    "(install.guidance_members, a TODO) cannot be installed.",
-)
-def test_core_surface_item_11_guidance_installs_as_governed_documents() -> None:
-    from cruxible_client.contracts.authoring.inputs import ChangeSetInput
+def install_guidance(instance: Any) -> list[str]:
+    """What ``install.install_guidance`` does through the CLI (``body store``, then
+    ``document propose``): each body stored, each Document proposed and landed."""
+
+    from cruxible_client.contracts.documents import DocumentShell
+    from cruxible_core.service.authoring.documents import service_propose_playbill_document
+    from cruxible_core.service.authoring.landing import land_direct_proposal
 
     import install
 
-    ChangeSetInput.model_validate(
-        {
-            "kind": "change_set",
-            "rationale": "Security audit guidance",
-            "members": install.guidance_members(),
-        }
+    store = instance.body_store()
+    landed = []
+    for item in install.guidance_documents(lambda path: store.store(path.read_bytes()).digest):
+        shell = DocumentShell.model_validate(item)
+        inspection = service_propose_playbill_document(
+            instance,
+            shell=shell,
+            actor_id="owner",
+            proposal_name=shell.identity.removeprefix("document:"),
+            timestamp="2026-10-09T11:59:00.000000Z",
+        )
+        inspection = land_direct_proposal(
+            instance, inspection, actor_id="owner", accept="if_allowed", may_activate=True
+        )
+        assert inspection.outcome is not None and inspection.outcome.status == "landed", (
+            inspection.outcome
+        )
+        landed.append(shell.identity)
+    return landed
+
+
+def _documents(instance: Any) -> dict[str, Any]:
+    from cruxible_client.contracts.documents import parse_document
+
+    tree = instance.tree_at(instance.accepted_coordinate().git_oid)
+    return {
+        path: parse_document(raw, path=path)
+        for path, raw in tree.items()
+        if path.startswith("documents/security.")
+    }
+
+
+def _guides(instance: Any, ref: str) -> list[tuple[str, str | None]]:
+    """The ``guides`` links ``get REF detail=backlinks`` serves."""
+
+    from cruxible_client.contracts.cas_contracts import BodyAccessContext
+    from cruxible_client.contracts.get_reads import GetRequest
+    from cruxible_core.service.discovery.get import service_playbill_get
+
+    access = BodyAccessContext(principal_id="kit-audit-gate", can_read_body=True)
+    result = service_playbill_get(
+        instance, request=GetRequest(ref=ref, detail="backlinks"), access=access
     )
+    return [
+        (link.source, link.title) for link in result.backlinks.links if link.relation == "guides"
+    ]
+
+
+def test_guidance_installs_as_governed_documents(tmp_path: Path) -> None:
+    from cruxible_client.contracts.cas_contracts import BodyAccessContext
+    from cruxible_core.service.discovery.orient import service_playbill_orient
+    from cruxible_core.service.proposals.review import service_review_playbill_proposal
+
+    instance = audit_world(tmp_path)
+    landed = install_guidance(instance)
+    documents = _documents(instance)
+    assert sorted(f"document:{d.document_id}" for d in documents.values()) == sorted(landed)
+    assert len(documents) == 15
+    store = instance.body_store()
+    for document in documents.values():
+        assert store.verify(document.body_digest), document.identity
+
+    # The verdict ClaimType's card serves the verifier guidance, and only that.
+    assert _guides(instance, GUIDES_VERDICT) == [(VERIFIER, "Judging a security finding")]
+    assert [source for source, _ in _guides(instance, f"ClaimType:{UNIT}.status")] == [
+        "document:security.guidance.coverage",
+        "document:security.guidance.hunter",
+    ]
+
+    # A verifier's verdict, proposed (accept: never), shows the verifier guidance.
+    outcome = accepted_write(
+        instance, tmp_path, agent_finding("f", unit=None)[:2], because="formats name into SQL"
+    )
+    (finding,) = created(outcome, FINDING)
+    proposed = write(
+        instance,
+        tmp_path,
+        [{"op": "set", "subject": finding, "field": "verdict", "value": "confirmed"}],
+        because="q reaches find_by_name unauthenticated; any users row is readable",
+        accept="never",
+    )
+    assert proposed.status == "awaiting_approval", proposed.model_dump(mode="json")
+    access = BodyAccessContext(principal_id="kit-audit-gate", can_read_body=True)
+    for detail in (True, False):
+        review = service_review_playbill_proposal(
+            instance, proposal_id=proposed.proposal.proposal_id, access=access, detail=detail
+        )
+        assert [(g.definition, g.document) for g in review.guidance] == [
+            (GUIDES_VERDICT, VERIFIER)
+        ], detail
+
+    # Reference Documents guide nothing; they are found by their document_kind.
+    assert _guides(instance, f"ClaimType:{FINDING}.locus") == []
+    listed = service_playbill_orient(instance, section="documents", limit=50)
+    rows = {row.name: row.document_kind for row in listed.documents}
+    reference = sorted(name for name, kind in rows.items() if kind == "security.reference")
+    assert reference == sorted(
+        f"security.reference.{path.stem}"
+        for path in (Path(__file__).parent.parent / "reference").glob("*.md")
+    )
+
+
+def test_the_kit_ships_the_guidance_as_documents(tmp_path: Path) -> None:
+    """``kit build`` ships the installed Documents as ``documents/`` artifacts with
+    their bodies; ``kit add`` lands them in a consumer and their guides resolve."""
+
+    import base64
+
+    from cruxible_client.contracts.kits import KitAddRequest, KitBuildRequest
+    from cruxible_core.service.kits import service_add_kit, service_build_kit
+
+    (tmp_path / "publisher").mkdir()
+    (tmp_path / "consumer").mkdir()
+    publisher = audit_world(tmp_path / "publisher")
+    install_guidance(publisher)
+    bundle = service_build_kit(
+        publisher,
+        KitBuildRequest(
+            kit_id="security-audit",
+            version="1.0.0",
+            owns=("security.guidance.", "security.reference."),
+        ),
+    ).bundle
+    shipped = sorted(path for path in bundle.contents() if path.startswith("documents/"))
+    assert shipped == sorted(_documents(publisher)), shipped
+    assert {b.digest for b in bundle.document_bodies} == set(
+        bundle.document_body_digests().values()
+    )
+
+    consumer = audit_world(tmp_path / "consumer")
+    store = consumer.body_store()
+    for body in bundle.document_bodies:
+        assert store.store(base64.b64decode(body.content_base64)).digest == body.digest
+    staged = bundle.model_copy(update={"document_bodies": ()})
+    result = service_add_kit(
+        consumer,
+        KitAddRequest(bundle=staged, source="test", dry_run=False),
+        actor_id="owner",
+        timestamp="2026-10-09T12:00:00.000000Z",
+    )
+    assert result.status == "accepted", result
+    assert {
+        item.path: item.action for item in result.plan if item.path in shipped
+    } == dict.fromkeys(shipped, "add")
+    assert sorted(_documents(consumer)) == shipped
+    assert _guides(consumer, GUIDES_VERDICT) == [(VERIFIER, "Judging a security finding")]
 
 
 # -- helpers on accepted state -------------------------------------------------------------

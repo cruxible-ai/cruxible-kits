@@ -277,8 +277,12 @@ one finding with two reporters. What it checked is state too: a
   `coverage.md` (the units and their status), each naming the ClaimTypes it
   guides; `../reference/` holds optional hunting strategy (the attack classes,
   ten domain companions and implicit state machines). They install as governed
-  Documents once kits ship Documents (core-surface item 11;
-  `install.guidance_members()` is the member list, a TODO until then).
+  Documents (`install.install_guidance`: `body store`, then `document propose`,
+  after the findings vocabulary), so `kit build` ships them as `documents/` kit
+  artifacts and `kit add` installs them. A guidance Document `guides` the
+  ClaimTypes its `Guides:` header names: `get ClaimType:<p> detail=backlinks`
+  and a proposal's `guidance` show it. Reference Documents guide nothing; they
+  are `document_kind: security.reference` in `orient --section documents`.
 - **Review is on the honor system.** The verifier writes its verdict with
   `accept: never`, and a different agent approves it after reading the
   guidance; the author never approves its own verdict.
