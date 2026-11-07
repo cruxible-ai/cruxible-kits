@@ -138,6 +138,12 @@ def main() -> None:
 # (``sarif-contracts.json``), its two CaptureKinds, and the findings vocabulary,
 # Procedures and Lines. The provider wheel and its lock come from the package
 # (``uv lock`` then ``uv build`` in source/providers/security-sarif-provider).
+#
+# Security audits (K-CA1..K-CA4) ride on the same vocabulary: the coverage unit,
+# found_in and the ``file`` evidence rule. ``--audit-source NAME ...`` (files.yaml
+# names) lists the catalogued files whose receipts the rule admits; core governs
+# each file as its own foreign source, so a file the audit did not name is not
+# admitted (an agent's reported_at citing it is refused; a status lands uncovered).
 
 
 def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Path) -> None:
@@ -168,6 +174,59 @@ def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Pa
         print(f"capture kind {name}: accepted")
     for name in ("findings-vocabulary", "findings-procedures", "findings-automation"):
         submit(payloads / f"{name}.json")
+
+
+# -- Audit guidance (K-CA4) ---------------------------------------------------------------
+#
+# TODO(core-surface item 11: kits ship Documents): install these as governed
+# Documents through ``kit add``. Until core ships Documents in a kit, nothing here
+# is installed; ``test_audit_gate`` pins the member list with a strict xfail
+# (owner: core-surface item 11). Guidance attaches to the ClaimTypes its reader
+# writes (``guides``, read off each Document's own ``Guides:`` header); reference
+# Documents are optional strategy and guide nothing.
+
+SOURCE = HERE.parent
+GUIDANCE = ("hunter", "verifier", "coverage")
+
+
+def guided_claim_types(path: Path) -> list[str]:
+    """The ClaimTypes a guidance Document's ``Guides:`` header names, in order."""
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    (start,) = [index for index, line in enumerate(lines) if line.startswith("Guides:")]
+    # The list may wrap; it ends at its full stop.
+    text = lines[start].removeprefix("Guides:").strip()
+    for line in lines[start + 1 :]:
+        if text.endswith("."):
+            break
+        text += " " + line.strip()
+    return [name.strip() for name in text.removesuffix(".").split(",")]
+
+
+def guidance_members() -> list[dict[str, object]]:
+    """The planned Document members: three guidance Documents, then the references."""
+
+    def member(path: Path, document_kind: str, guides: list[str]) -> dict[str, object]:
+        title = path.read_text(encoding="utf-8").splitlines()[0].removeprefix("# ")
+        return {
+            "kind": "document",
+            "document_id": f"security.{document_kind}.{path.stem}",
+            "document_kind": f"security.{document_kind}",
+            "title": title,
+            "media_type": "text/markdown",
+            "path": path.relative_to(SOURCE).as_posix(),
+            "links": [
+                {"relation": "guides", "target_identity": f"ClaimType:{name}"} for name in guides
+            ],
+        }
+
+    members = []
+    for name in GUIDANCE:
+        path = SOURCE / "guidance" / f"{name}.md"
+        members.append(member(path, "guidance", guided_claim_types(path)))
+    for path in sorted((SOURCE / "reference").glob("*.md")):
+        members.append(member(path, "reference", []))
+    return members
 
 
 if __name__ == "__main__":

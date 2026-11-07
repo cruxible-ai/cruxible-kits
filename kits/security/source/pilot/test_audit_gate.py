@@ -556,6 +556,46 @@ def test_core_audit_reads_are_constant_in_unrelated_units(tmp_path: Path) -> Non
             assert many[read][counter] <= few[read][counter] * 1.05 + 2, (read, counter, few, many)
 
 
+# -- guidance (K-CA4) --------------------------------------------------------------------
+
+
+def test_guidance_guides_only_kit_claim_types() -> None:
+    import install
+
+    declared = {record["predicate"] for record in findings.claim_type_records(SOURCES)}
+    members = install.guidance_members()
+    assert [m["document_id"] for m in members[:3]] == [
+        "security.guidance.hunter",
+        "security.guidance.verifier",
+        "security.guidance.coverage",
+    ]
+    for member in members:
+        targets = {link["target_identity"].removeprefix("ClaimType:") for link in member["links"]}
+        assert targets <= declared, (member["document_id"], targets - declared)
+        assert bool(targets) is (member["document_kind"] == "security.guidance"), member
+    assert len(members) == 3 + 12
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="core-surface item 11 (owner: core-surface item 11): kits ship Documents. Until "
+    "then a change set has no Document member, so the guidance and reference Documents "
+    "(install.guidance_members, a TODO) cannot be installed.",
+)
+def test_core_surface_item_11_guidance_installs_as_governed_documents() -> None:
+    from cruxible_client.contracts.authoring.inputs import ChangeSetInput
+
+    import install
+
+    ChangeSetInput.model_validate(
+        {
+            "kind": "change_set",
+            "rationale": "Security audit guidance",
+            "members": install.guidance_members(),
+        }
+    )
+
+
 # -- helpers on accepted state -------------------------------------------------------------
 
 
