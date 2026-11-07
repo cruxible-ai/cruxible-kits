@@ -1061,26 +1061,42 @@
       "path": "subject-kinds/security.workflow.json"
     }
   ],
+  "automation_template": "automation.json",
   "files": [
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:ee249dcb4c18745f9c8200fceeba8585d37dba1865bc51c73bc8bc89b3985bc6"
+      "sha256": "sha256:26aa319271c38356fb42f7da5ffa9ba82f89ceb1d1f39bdee2e6a0297e75fa0b"
+    },
+    {
+      "path": "automation.json",
+      "role": "reference",
+      "sha256": "sha256:6b7b062558643792af1c3497f2651db052b5330eaefb4db20de7e0d80c73a4fc"
     },
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:e573b69a8afc6c200e0e9fb6672c6032856f6564caf087b63c052359e6d41c05"
-    },
-    {
-      "path": "examples/automation.json",
-      "role": "example",
-      "sha256": "sha256:53a7e88858b2fc970e3616fae966bad4a54c3b07902be37f2bdc96d0d1b792ea"
+      "sha256": "sha256:95517798bfa46b6738c080077493c69bf17947cb1941e87b81bfade76755d2d1"
     },
     {
       "path": "examples/incident-status.md",
       "role": "example",
       "sha256": "sha256:6df4908a06866debcefac16f1292be03e5654a6a030b526f7396aae428a99a11"
+    },
+    {
+      "path": "examples/sboms/cruxible-env.cdx.json",
+      "role": "example",
+      "sha256": "sha256:e7c38a9d41d355b3fdb96ad2357fb2300e326ffa97b24c7e1d3f6c502674a512"
+    },
+    {
+      "path": "examples/sboms/env_sbom.py",
+      "role": "example",
+      "sha256": "sha256:c9e42c706c03492e48fcb6d30a8b2f37a84bcab57f631bbe7eb81b7796a532eb"
+    },
+    {
+      "path": "examples/sboms/log4j-demo-app.cdx.json",
+      "role": "example",
+      "sha256": "sha256:c3b27bcff76ed582f4d2da67cf13fbe462fac3f823b2e28a9cef2ec04a730fed"
     },
     {
       "path": "in-depth.md",
@@ -1110,7 +1126,7 @@
     {
       "path": "walkthroughs.md",
       "role": "reference",
-      "sha256": "sha256:7c34ba5769b92c3eb0943c20f9c1dcf14d8cbab3c253626f3d30a8efba0f8520"
+      "sha256": "sha256:72db6c3051d6806b61000390d26b5254dafb3efee048e82cc2e5294cc9d704e4"
     }
   ],
   "kit_id": "security",

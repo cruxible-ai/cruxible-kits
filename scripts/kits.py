@@ -7,7 +7,8 @@
     python scripts/kits.py publish [--dry-run]  # push versions the registry lacks
 
 A kit's inert files are its top-level Markdown (README.md, reference.md), everything
-under ``examples/`` and every agent skill under ``skills/<name>/``. They travel in the
+under ``examples/``, every agent skill under ``skills/<name>/`` and the automation
+template its manifest names (``automation_template``, D-R48). They travel in the
 bundle for the kit's reader (``cruxible kit pull`` / ``kit docs``) but stay out of the
 release's content digest, so a docs fix keeps every definition digest; the image digest
 still changes, so a published version needs a patch bump for one.
@@ -61,10 +62,26 @@ _INERT_DIRECTORIES = ("examples", "skills")
 _LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 
 
+def _automation_template(directory: Path) -> str | None:
+    """The automation template the manifest names (D-R48), a kit file at that path."""
+
+    manifest = directory / KIT_MANIFEST_FILE
+    if not manifest.is_file():
+        return None
+    named = json.loads(manifest.read_bytes()).get("automation_template")
+    return named if isinstance(named, str) else None
+
+
 def _inert_paths(directory: Path) -> list[str]:
-    """The kit's inert files: top-level Markdown, ``examples/`` and ``skills/``."""
+    """The kit's inert files: top-level Markdown, ``examples/``, ``skills/`` and the
+    automation template the manifest names."""
 
     paths = [path.name for path in directory.glob("*.md") if path.is_file()]
+    template = _automation_template(directory)
+    if template is not None:
+        if not (directory / template).is_file():
+            raise ValueError(f"the manifest names automation template {template}, which is missing")
+        paths.append(template)
     for name in _INERT_DIRECTORIES:
         root = directory / name
         if not root.is_dir():
@@ -77,7 +94,7 @@ def _inert_paths(directory: Path) -> list[str]:
                 raise ValueError(f"{relative.as_posix()} is a symbolic link")
             if path.is_file():
                 paths.append(relative.as_posix())
-    return sorted(paths)
+    return sorted(set(paths))
 
 
 def _inert_files(directory: Path) -> tuple[KitFile, ...]:
