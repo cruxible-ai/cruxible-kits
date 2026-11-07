@@ -15,16 +15,16 @@ accepts, in order:
 
 Batch 1 (``inventory.py``) adds the SBOM import and redefines the watch list:
 ``security.watched_vulnerabilities`` is the applicability join (K-B1-2),
-vulnerability <- component.affected_by <- component.in_inventory -> inventory,
-one row per vulnerability with the same row Contract, so kev-triage reads it
-unchanged. Every Procedure is in the template form (D-R37): epss-triage reads
-its key list from ``security.watched_cve_keys`` instead of shaping it.
+vulnerability <- component.affected_by <- an occurrence of the component holding
+a scope (the pair hop, S4), one row per vulnerability with the same row
+Contract, so kev-triage reads it unchanged. Every Procedure is in the template
+form (D-R37): epss-triage reads its key list from ``security.watched_cve_keys``
+instead of shaping it.
 
 Batch 2, the dependency loop (``inventory.py``, ``osv.py``, ``triage.py``): one
-SBOM import Procedure whose inventory comes from the ``sbom.components`` derive,
-the OSV Line (``affected_by`` + ``fixed_in``), not_affected judgments as the
-``affected_by`` inverse with a VEX reason, and the triage and track-record
-Queries.
+SBOM import Procedure writing occurrences (inventory, component) and their
+scope, the OSV Line (``affected_by``), package-level and app-level not_affected
+judgments on the exposure pairs, and the triage and track-record Queries.
 
 No provider computes a Claim. ``web.fetch`` (cruxible-provider-web, bound by
 the Line) returns the catalog bytes; core extracts typed records under the
@@ -297,18 +297,7 @@ def vocabulary() -> dict[str, Any]:
             {"kind": "claim_type", "claim_type": t.model_dump(mode="json", by_alias=True)}
             for t in claim_types
         ),
-        {
-            "kind": "subject_kind",
-            "name": VULN,
-            "description": "A CVE, named by its id.",
-            "keys": [VULN + ".cve_id"],
-        },
-        {
-            "kind": "subject_kind",
-            "name": CATALOG,
-            "description": "A published vulnerability catalog (e.g. cisa-kev), named by its id.",
-            "keys": [CATALOG + ".catalog_id"],
-        },
+        *subject_kind_members()[:2],
         {
             "kind": "contract",
             "name": WATCH_KEY_ROW,
@@ -332,23 +321,27 @@ def vocabulary() -> dict[str, Any]:
     members += triage.vocabulary_members()
     return {
         "kind": "change_set",
-        "rationale": "Security kit vocabulary: SBOM inventory, KEV and EPSS facts, and the "
-        "watch list that joins them.",
+        "rationale": "Security kit vocabulary: SBOM inventory (occurrences), KEV and EPSS "
+        "facts, the judgment pairs, and the watch list and worklists that join them.",
         "members": members,
     }
 
 
 #: The watch list (K-B1-2): a vulnerability is watched when OSV (or, until the OSV
 #: Line is wired, an agent's seed) says it affects a component an imported SBOM
-#: lists. One row per vulnerability (Subject dedupe), the same row Contract the
-#: KEV and EPSS Procedures already read.
+#: lists: an occurrence of it holding a visible scope. One row per vulnerability
+#: (Subject dedupe), the same row Contract the KEV and EPSS Procedures already
+#: read. A package-level judgment removes the link, so it drops V here too; an
+#: app-level one does not (a Subject-shaped query takes no optional hop), so the
+#: watch list may keep V for an occurrence only an app judgment silenced: KEV and
+#: EPSS then keep its facts current, which is harmless.
 WATCHED_SPEC: dict[str, Any] = {
     "query": WATCHED_QUERY,
     "description": "Every vulnerability that affects a component of an imported inventory.",
     "from": {"v": VULN},
     "hops": [
         {"c": "<v.security.component.affected_by!"},
-        {"i": "c.security.component.in_inventory!: security.inventory"},
+        {"o": "security.occurrence{component: c}! with scope"},
     ],
     "row": f"{WATCH_ROW}@1",
     "fields": ["v.subject_kind", "v.subject_id", "v.cve_id"],
@@ -379,6 +372,7 @@ def subject_shaped(spec: Mapping[str, Any], claim_types: Sequence[Any]) -> dict[
     )
 
     tree = {claim_type_path(t.predicate): render_claim_type(t) for t in claim_types}
+    tree.update(subject_kind_tree())
     resolver = AuthoredQueryResolver(candidate_query_vocabulary(tree))
     lowered = lower_query_spec(QuerySpecInput.model_validate(spec), resolver)
     wire = lowered.model_dump(mode="json", by_alias=True)
@@ -386,6 +380,57 @@ def subject_shaped(spec: Mapping[str, Any], claim_types: Sequence[Any]) -> dict[
         wire[budget] = {**wire[budget], "max_paths": None, "max_paths_per_result": None}
     shaped = lowered.model_validate({**wire, "result_shape": "subject", "dedupe": "subject"})
     return shaped.model_dump(mode="json", by_alias=True)
+
+
+def subject_kind_members() -> list[dict[str, Any]]:
+    """Every SubjectKind the kit declares, as authoring members."""
+
+    from inventory import subject_kind_members as inventory_kinds
+
+    return [
+        {
+            "kind": "subject_kind",
+            "name": VULN,
+            "description": "A CVE, named by its id.",
+            "keys": [VULN + ".cve_id"],
+        },
+        {
+            "kind": "subject_kind",
+            "name": CATALOG,
+            "description": "A published vulnerability catalog (e.g. cisa-kev), named by its id.",
+            "keys": [CATALOG + ".catalog_id"],
+        },
+        *inventory_kinds(),
+    ]
+
+
+def subject_kind_tree() -> dict[str, bytes]:
+    """The SubjectKinds as a candidate tree holds them: a pair hop resolves its parts
+    against its kind's key."""
+
+    from cruxible_client.contracts.artifacts import ArtifactIdentity
+    from cruxible_client.contracts.authoring.models import SubjectKindAuthoringPayload
+    from cruxible_client.contracts.subject_kinds import (
+        SubjectKind,
+        SubjectKindKeys,
+        render_subject_kind,
+        subject_kind_path,
+    )
+
+    tree: dict[str, bytes] = {}
+    for member in subject_kind_members():
+        payload = SubjectKindAuthoringPayload.model_validate(
+            {key: value for key, value in member.items() if key != "kind"}
+        )
+        declared = SubjectKind(
+            identity=ArtifactIdentity(kind="SubjectKind", name=payload.name),
+            description=payload.description,
+            identity_rule=SubjectKindKeys(
+                parts=payload.key_rules(), uniqueness=payload.uniqueness or "unique"
+            ),
+        )
+        tree[subject_kind_path(payload.name)] = render_subject_kind(declared)
+    return tree
 
 
 def watch_queries(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
