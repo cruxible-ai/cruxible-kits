@@ -14,10 +14,10 @@ generator reads it.
 | `inventory.py` | The SBOM import, the inventory and component kinds, `affected_by` (with its inverse), `fixed_in` and `not_affected_reason` |
 | `osv.py` | The OSV Procedure and Line, the OSV response kind and the provider's Contracts as an authoring change set |
 | `triage.py` | The triage and track-record Queries, and `judgment()`: the two writes of a not_affected judgment |
-| `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines |
+| `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines; security audits: the coverage unit, `found_in` and the audit Queries |
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
-| `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py` | The gate, run on recorded real bytes |
+| `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py`, `test_audit_gate.py` | The gate, run on recorded real bytes |
 | `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive), with its recorded OSV exchanges |
 | `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure) and its SARIF test data |
 
@@ -238,9 +238,48 @@ flowchart LR
   is fixed or retired, whatever another run of the tool says (a rule catalog
   can be empty or incomplete). The header lists the tainted rules and tools. An unreadable SARIF file is refused by the derive, and
   nothing is written.
-- **Not yet in core.** Today a record that is no object (or an out-of-bounds
-  key part) fails the whole run rather than only itself. The gate holds this as
-  a strict xfail with a core owner.
+- **A record that is no object** (or an out-of-bounds key part) is refused on
+  its own (D-R40): its siblings write, and the read is incomplete, so nothing
+  is fixed or retired.
+
+## Security audits
+
+An audit agent hunts for vulnerabilities in a repository and reports them as
+ordinary `security.finding`s, keyed exactly as SARIF results are (K-CA1), so a
+scanner and an agent that find the same weakness at the same place converge on
+one finding with two reporters. What it checked is state too: a
+`security.coverage_unit` per (repo, surface, concern) (K-CA3).
+
+| ClaimType | Role | Evidence |
+|---|---|---|
+| `coverage_unit.repo`, `.surface`, `.concern` | key | the unit's create (own words) |
+| `coverage_unit.status` (checked / deferred / blocked / out_of_scope) | normative, never a Mandate | own words, or a file receipt of the examined passage |
+| `finding.found_in` (many, → coverage unit) | normative, never a Mandate | own words |
+| `finding.reported_at`, `.rule`, `.reported_by` (`audit`) | observation | a SARIF scan, or a file receipt of the code at the location |
+
+- **File receipts.** Core governs each catalogued workspace file (a `files.yaml`
+  name) as its own foreign source, so the `file` rule admits the files the audit
+  names: `findings.py OUT_DIR --audit-source NAME ...`. An agent location that
+  cites another file is refused; a status citing one lands uncovered and its
+  unit stays in the plan.
+- **Planning.** `security.coverage_plan` (one repository) lists the units never
+  checked, deferred or blocked. A checked unit whose cited passage changed is a
+  workspace-aware `cruxible next` `citation_drifted` row naming its status
+  Claim. `security.findings_by_unit` lists one unit's findings. **Blocked on
+  core:** both reads load every coverage unit and finding (query pushdown does
+  not narrow a conjunction with `not exists`, a traversal or a Subject-valued
+  value); the gate's strict xfail
+  `test_core_audit_reads_are_constant_in_unrelated_units` pins it.
+- **Guidance** (`../guidance/`): `hunter.md` (reporting a finding and keeping
+  coverage), `verifier.md` (judging one: verdict, severity, justification) and
+  `coverage.md` (the units and their status), each naming the ClaimTypes it
+  guides; `../reference/` holds optional hunting strategy (the attack classes,
+  ten domain companions and implicit state machines). They install as governed
+  Documents once kits ship Documents (core-surface item 11;
+  `install.guidance_members()` is the member list, a TODO until then).
+- **Review is on the honor system.** The verifier writes its verdict with
+  `accept: never`, and a different agent approves it after reading the
+  guidance; the author never approves its own verdict.
 
 ## Known limits
 
