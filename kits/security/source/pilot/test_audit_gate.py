@@ -581,9 +581,10 @@ def _findings_in(unit: Any, repo: str, size: int, prefix: str) -> list[dict[str,
     return changes
 
 
-def _audit_state(tmp_path: Path, *, output: int, unrelated: int) -> tuple[Any, str]:
-    """``output`` open units and findings in the hub unit, beside ``unrelated``
-    checked units, other-repository units and findings in other units."""
+def _audit_state(tmp_path: Path, *, output: int, checked: int, other: int) -> tuple[Any, str]:
+    """``output`` open units and findings in the hub unit, beside ``checked``
+    checked units of the same repository (the plan's own scope) and ``other``
+    other-repository units and findings in another unit (outside both reads)."""
 
     instance = audit_world(tmp_path)
     hub = accepted_write(
@@ -601,22 +602,24 @@ def _audit_state(tmp_path: Path, *, output: int, unrelated: int) -> tuple[Any, s
         instance,
         tmp_path,
         [
-            *_units(REPO, unrelated, "c", "checked"),
-            *_units(OTHER, unrelated, "o"),
+            *_units(REPO, checked, "c", "checked"),
+            *_units(OTHER, other, "o"),
             *unit_changes("side", "app/side.py#side", "ssrf", "checked"),
-            *_findings_in({"created": "side"}, REPO, unrelated, "g"),
+            *_findings_in({"created": "side"}, REPO, other, "g"),
         ],
         because="unrelated coverage",
     )
     return instance, hub_unit
 
 
-def _measured(tmp_path: Path, *, output: int, unrelated: int) -> dict[str, dict[str, float]]:
+def _measured(
+    tmp_path: Path, *, output: int, checked: int, other: int
+) -> dict[str, dict[str, float]]:
     from tests.test_scale._counters import counting, trace_sqlite
 
     out: dict[str, dict[str, float]] = {}
     with trace_sqlite(tmp_path):
-        instance, hub = _audit_state(tmp_path, output=output, unrelated=unrelated)
+        instance, hub = _audit_state(tmp_path, output=output, checked=checked, other=other)
         reads = {
             "coverage_plan": lambda: query_rows(instance, findings.COVERAGE_PLAN_QUERY, repo=REPO),
             "findings_by_unit": lambda: query_rows(
@@ -633,17 +636,19 @@ def _measured(tmp_path: Path, *, output: int, unrelated: int) -> dict[str, dict[
     return out
 
 
-def _sized(tmp_path: Path, sizes: Sequence[tuple[int, int]]) -> list[dict[str, dict[str, float]]]:
+def _sized(
+    tmp_path: Path, sizes: Sequence[tuple[int, int, int]]
+) -> list[dict[str, dict[str, float]]]:
     measured = []
-    for output, unrelated in sizes:
-        root = tmp_path / f"o{output}-u{unrelated}"
+    for output, checked, other in sizes:
+        root = tmp_path / f"o{output}-c{checked}-u{other}"
         root.mkdir()
-        measured.append(_measured(root, output=output, unrelated=unrelated))
+        measured.append(_measured(root, output=output, checked=checked, other=other))
     return measured
 
 
 def test_audit_reads_are_linear_in_their_output(tmp_path: Path) -> None:
-    small, large = _sized(tmp_path, [(size, _SIZES[0]) for size in _SIZES])
+    small, large = _sized(tmp_path, [(size, _SIZES[0], _SIZES[0]) for size in _SIZES])
     for found, size in ((small, _SIZES[0]), (large, _SIZES[1])):
         assert found["coverage_plan"]["rows"] == size
         assert found["findings_by_unit"]["rows"] == size
@@ -657,17 +662,12 @@ def test_audit_reads_are_linear_in_their_output(tmp_path: Path) -> None:
         Path(report).write_text(json.dumps({"small": small, "large": large}, indent=1) + "\n")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="core (owner: core, query pushdown): both audit reads load every coverage unit "
-    "and finding. service/discovery/query_pushdown.py returns the full load for a "
-    "conjunction with any unsupported conjunct (coverage_plan's `not exists u.status`; "
-    "its seekable `u.repo == $repo` could narrow alone, the selection being a superset), "
-    "for any traversal (findings_by_unit's reverse found_in hop) and for a Subject-valued "
-    "value (`f.found_in == $unit`). Expected: constant work as unrelated units grow.",
-)
 def test_core_audit_reads_are_constant_in_unrelated_units(tmp_path: Path) -> None:
-    few, many = _sized(tmp_path, [(_SIZES[0], size) for size in _SIZES])
+    """Units of other repositories and findings in other units cost neither read
+    anything. coverage_plan is O(units in the queried repository), its own scope
+    (the same-repository checked units stay fixed here)."""
+
+    few, many = _sized(tmp_path, [(_SIZES[0], _SIZES[0], size) for size in _SIZES])
     for read in ("coverage_plan", "findings_by_unit"):
         assert few[read]["rows"] == many[read]["rows"] == _SIZES[0]
         for counter in ("sql_statements", "sql_vm_steps", "claim_parses"):

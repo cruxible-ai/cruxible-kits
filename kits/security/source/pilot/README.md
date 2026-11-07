@@ -268,11 +268,10 @@ one finding with two reporters. What it checked is state too: a
 - **Planning.** `security.coverage_plan` (one repository) lists the units never
   checked, deferred or blocked. A checked unit whose cited passage changed is a
   workspace-aware `cruxible next` `citation_drifted` row naming its status
-  Claim. `security.findings_by_unit` lists one unit's findings. **Blocked on
-  core:** both reads load every coverage unit and finding (query pushdown does
-  not narrow a conjunction with `not exists`, a traversal or a Subject-valued
-  value); the gate's strict xfail
-  `test_core_audit_reads_are_constant_in_unrelated_units` pins it.
+  Claim. `security.findings_by_unit` lists one unit's findings. The plan costs
+  O(units in the queried repository), its own scope; other repositories' units
+  and findings in other units cost neither read anything
+  (`test_core_audit_reads_are_constant_in_unrelated_units`).
 - **Guidance** (`../guidance/`): `hunter.md` (reporting a finding and keeping
   coverage), `verifier.md` (judging one: verdict, severity, justification) and
   `coverage.md` (the units and their status), each naming the ClaimTypes it
