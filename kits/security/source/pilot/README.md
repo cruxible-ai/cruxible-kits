@@ -2,8 +2,8 @@
 
 This directory is the security kit re-authored for the Procedure template
 (D-R37): `read -> fetch -> derive* -> extract -> claims`. It holds the
-dependency loop: SBOM import, OSV, KEV and EPSS, agents' not_affected
-judgments, the triage worklists and the track record. The 1.3.0 artifacts beside
+dependency loop: SBOM import, OSV, KEV and EPSS, agents' package-level and
+app-level not_affected judgments, the triage worklists and the track record. The 1.3.0 artifacts beside
 it (`artifacts/`, `reference.md`) are the old form, and `reference.md` is
 generated from those, so this page is the reference for the new form until the
 generator reads it.
@@ -11,28 +11,30 @@ generator reads it.
 | File | What |
 |---|---|
 | `definitions.py` | Every authoring payload, in install order: CaptureKinds, the provider Contracts, vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates, Triggers), and state (catalog, vulnerabilities, seeds) |
-| `inventory.py` | The SBOM import, the inventory and component kinds, `affected_by` (with its inverse), `fixed_in` and `not_affected_reason` |
+| `inventory.py` | The SBOM import, the inventory and component kinds, the pair kinds (occurrence, exposure, app_exposure) and their ClaimTypes, and `affected_by` (with its inverse) |
 | `osv.py` | The OSV Procedure and Line, the OSV response kind and the provider's Contracts as an authoring change set |
-| `triage.py` | The triage and track-record Queries, and `judgment()`: the two writes of a not_affected judgment |
+| `triage.py` | The triage and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
 | `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines; security audits: the coverage unit, `found_in` and the audit Queries |
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
 | `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py`, `test_audit_gate.py` | The gate, run on recorded real bytes |
 | `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive), with its recorded OSV exchanges |
 | `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure) and its SARIF test data |
+| `../guidance/dependency.md` | Judging a dependency exposure: the review guidance the two justifications point to |
 
 ## The chain
 
 ```mermaid
 flowchart LR
-  sbom["SBOM file (workspace)"] -->|security.sbom-import.NAME| comp["security.component in_inventory<br/>(inventory created by value)"]
-  comp --> osvq["security.osv-query<br/>(osv.query + osv.match)"]
-  osvq --> aff["component.affected_by<br/>component.fixed_in"]
-  comp --> watch["security.watched_vulnerabilities<br/>(Query join)"]
+  sbom["SBOM file (workspace)"] -->|security.sbom-import.NAME| occ["security.occurrence (inventory, component)<br/>scope"]
+  occ --> osvq["security.osv-query<br/>(osv.query + osv.match)"]
+  osvq --> aff["component.affected_by"]
+  occ --> watch["security.watched_vulnerabilities<br/>(Query join)"]
   aff --> watch
   watch --> kev["security.kev-triage"]
   watch --> epss["security.epss-triage"]
-  agent["agent judgment<br/>affected_by none of V<br/>+ not_affected_reason"] --> aff
+  pkg["package judgment (one write)<br/>affected_by none of V<br/>+ exposure.justification"] --> aff
+  app["app judgment (one write)<br/>app_exposure.justification"] --> occ
 ```
 
 Lines depend on each other only through state (D-R35). Run the SBOM import
@@ -40,71 +42,77 @@ Lines, then OSV, then KEV and EPSS.
 
 ## Kinds and fields
 
+A plain relationship is a link; a relationship with facts of its own is a pair
+Subject keyed by its ends (D-R43). Every pair kind is `unique`, and its ends
+never change (a new identity is a new pair).
+
 | Kind | Key | Fields |
 |---|---|---|
-| `security.inventory` | `inventory_id`: the SBOM's `metadata.component` purl, or its workspace path when it has none | (none; created by value) |
-| `security.component` | `purl`: purl@version, with qualifiers dropped by the `purl-type` package normalizer | `in_inventory` (many, Subject-valued → inventory, observation from the SBOM's derived components, mirrored on absence); `affected_by` (many, Subject-valued → vulnerability: OSV's observation; its inverse "none of V" is an agent's not_affected judgment); `fixed_in` (qualified by a CVE id: the versions OSV lists as fixed); `not_affected_reason` (qualified by a CVE id: the VEX justification) |
+| `security.inventory` | `inventory_id`: the SBOM's `metadata.component` purl, or its workspace path when it has none | (none; created by the import) |
+| `security.component` | `purl`: purl@version, with qualifiers dropped by the `purl-type` package normalizer: one package release, the same in every inventory | `affected_by` (many, Subject-valued → vulnerability: OSV's observation; its inverse "none of V" is an agent's package-level not_affected judgment) |
+| `security.occurrence` | (`inventory`, `component`) | `scope`: the CycloneDX scope (`required`, `optional`, `excluded`; `required` when the SBOM states none). The membership fact (R3): live while the SBOM lists the component, retired when it no longer does |
+| `security.exposure` | (`component`, `vulnerability`) | `justification`: `vulnerable_code_not_present` only (package level, normative, own words) |
+| `security.app_exposure` | (`occurrence`, `vulnerability`) | `justification`: `component_not_present`, `vulnerable_code_not_in_execute_path`, `vulnerable_code_cannot_be_controlled_by_adversary` or `inline_mitigations_already_exist` (one inventory, normative, own words) |
 | `security.vulnerability` | `cve_id` | KEV and EPSS fields (see `definitions.py`); created by value when OSV first names it |
 
-## SBOM import: one Procedure (K-B1-G1)
+`security.inventory_components` lists one inventory's current components
+(`--param inventory=security.inventory/<id>`): its occurrences holding a scope.
 
-`security.sbom-import`: read every held membership → fetch the SBOM through
-core's builtin `workspace.file` → derive `sbom.components` → extract
-`/components/*` → claims.
+## SBOM import: one Procedure (K-B1-G1, D-R46 R3)
+
+`security.sbom-import`: fetch the SBOM through core's builtin `workspace.file`
+→ derive `sbom.components` → extract `/components/*` → claims. It reads no
+state.
 
 - **The inventory's name (K-B1-5).** `sbom.components` names the inventory by
-  the SBOM's own `metadata.component` purl, on every record. An SBOM without one
-  is named by its workspace path, and the derived document and every record
-  carry `warning: sbom_unnamed`, because moving that file starts a new
-  inventory. The claims create the inventory by value (`create: if_absent`).
+  the SBOM's own `metadata.component` purl, in the derived document's header.
+  An SBOM without one is named by its workspace path, and the derived document
+  and every record carry `warning: sbom_unnamed`, because moving that file
+  starts a new inventory.
+- **The row is the occurrence.** Its two ends are nested templates, both
+  created if absent: the inventory (from the header) and the component (from
+  the record's purl). One run creates the inventory, its components and their
+  occurrences, ends first, and writes each occurrence's `scope`. The Mandate
+  creates all three kinds and settles `scope`.
 - **One Line per SBOM file.** A Line names only the file's path and its logical
-  source (`cyclonedx.sbom.<name>`). `workspace.file` reads one path, and a Line
-  run takes no per-run input before R-ON5, so one Line serves one file.
-- **Removal.** A component the SBOM no longer lists has its membership retired
-  (`when_absent: mirror`), and the complete read is the witness. `expect` is the
-  derived document's `held` header: the components this inventory held before
-  the run. Core refuses a read parameterized by a runtime value ("admission
-  selectors cannot depend on runtime output"), so the import reads every held
-  membership and the derive selects the inventory's own. **Blocked on core:**
-  that read grows with every other inventory in the instance, and past the
-  Procedure's 20,000-row read ceiling it stops even a small SBOM importing. A
-  read keyed by the derive's inventory (queued in the core batch) makes it
-  constant; the gate's strict xfail
-  `test_a_fixed_sbom_imports_in_constant_work_beside_growing_unrelated_inventories`
-  pins it.
-- **Absence never crosses inventories.** Each SBOM's Line reads under its own
-  logical source, and absence only retires Claims from the same source. A
-  component two SBOMs list has a membership from each; importing one surfaces
-  the other's as `claim_not_in_source` in the run report. The SBOM Lines do not
-  route that finding to their inbox (it would fire for every shared component on
-  every run).
+  source (`cyclonedx.sbom.<name>`).
+- **Removal.** `expect: {by: inventory, ends: [header]}`: absence is judged by
+  the inventory alone. Core finds that inventory's current occurrences from its
+  pair index, so an import costs its own inventory's occurrences, never
+  another inventory's or history (`test_a_fixed_sbom_imports_in_constant_work_beside_growing_unrelated_inventories`).
+  A component the complete SBOM no longer lists has its occurrence's `scope`
+  retired (`when_absent: mirror`), with the complete read as the witness. The
+  occurrence stays as history; listed again, the component lands on it.
+- **Absence never crosses inventories.** Another inventory's occurrence of a
+  shared component is never a candidate, so nothing about it even surfaces.
 - **Fail closed.** A purl core's normalizer cannot key is inadmissible and makes
-  the read incomplete, so nothing retires (blocked today by a core bug: the run
-  fails instead; see the gate's strict xfail). Two spellings that fold to one key
-  are a duplicate: nothing is written for that key. A component with no purl is
-  counted in `unidentified` and is never a record, but it is in the derive's
-  `count`, so the extract's `complete_when` count check reads that SBOM as
-  incomplete: its keyed components write and nothing retires. A held component
-  whose purl went missing never reads as removed.
+  the read incomplete, so nothing retires. Two spellings that fold to one key
+  are a duplicate: nothing is written for that key; so is one purl listed with
+  two scopes. A component with no purl is counted in `unidentified` and is
+  never a record, but it is in the derive's `count`, so the extract's
+  `complete_when` count check reads that SBOM as incomplete: its keyed
+  components write and nothing retires. A held component whose purl went
+  missing never reads as removed. A scope outside CycloneDX's three is refused
+  on its own: the component is still listed, so its occurrence keeps the scope
+  it held.
 - **Nested components** are flattened by the derive.
 
 ## OSV: one Procedure (K-B1-3, K-B1-4)
 
-`security.osv-query`: read every inventoried component → fetch `osv.query` (a
-list of Captures: one `POST /v1/querybatch` per 1000 components, then one
-`GET /v1/vulns/{id}` per advisory named) → derive `osv.match` → extract
-`/affected/*` → claims.
+`security.osv-query`: read every inventoried component (a component some
+occurrence holds a scope for) → fetch `osv.query` (a list of Captures: one
+`POST /v1/querybatch` per 1000 components, then one `GET /v1/vulns/{id}` per
+advisory named) → derive `osv.match` → extract `/affected/*` → claims.
 
 - **`affected_by`** creates each vulnerability OSV names by value
   (`create: if_absent`). OSV's own version matching decides; the kit has no
-  version-range code.
-- **`fixed_in`**, qualified by the CVE id, is a list: every version OSV's
-  advisories for that CVE list as a `fixed` range event of the component's own
-  package (matched by the advisory's `package.purl`, version and qualifiers
-  dropped; PyPI names under PEP 503), sorted as text. One version per release
-  line OSV knows (log4j-core 2.14.1 × CVE-2021-44228: `2.12.2, 2.15.0, 2.3.1`).
-  The kit compares no versions, so it does not pick the one above the
-  component's own; agents read the list.
+  version-range code. OSV writes no pair Subjects.
+- **Fixed versions are no Claim** (D-R44). Each `osv.match` record lists every
+  version OSV's advisories for that CVE list as a `fixed` range event of the
+  component's own package (matched by the advisory's `package.purl`, version
+  and qualifiers dropped; PyPI names under PEP 503), sorted as text (log4j-core
+  2.14.1 × CVE-2021-44228: `2.12.2, 2.15.0, 2.3.1`). Every `affected_by` cites
+  that document, where agents read them; the kit compares no versions.
 - **`expect` is the derived document's `queried` header**: only components OSV
   answered in full are judged. A vulnerability OSV no longer lists for one of
   them retires on the complete read (`mirror`), and settles (K-B2-G4).
@@ -112,9 +120,9 @@ list of Captures: one `POST /v1/querybatch` per 1000 components, then one
   the list and `osv.query` names `responses` in `incomplete_captures` (R-ON2):
   positives still write, absence never retires. A response with an error status
   is a member; the derive leaves the components it concerns out of `queried`.
-- **The Line** settles `affected_by` and `fixed_in` on the extracted record and
-  their retirement on absence, may create `security.vulnerability` Subjects, and
-  routes `held_disagrees` to its inbox.
+- **The Line** settles `affected_by` on the extracted record and its retirement
+  on absence, may create `security.vulnerability` Subjects, and routes
+  `held_disagrees` to its inbox.
 
 ## Distro coverage and "not checked" (K-B1-6)
 
@@ -137,53 +145,59 @@ names will map to source names, from SBOM source-name metadata (syft
 `security-osv-provider/tests/recordings` show the gap: `libc6@2.36-9+deb12u7`
 gets no answer, while `glibc` at the same version gets 33 advisories.
 
-## Judgments: not_affected (K-B2-J1, J1b)
+## Judgments: not_affected (K-B2-J1, D-R46 R4)
 
-A not_affected judgment is the inverse on the `affected_by` unit: "component
-`affected_by` none of V", normative, in the agent's own words. `affected_by`
-declares `inverse: {key: object, evidence_rules: [self]}`, and a self-sourced
-normative none satisfies `self`. It is two writes, **in this order**
-(`triage.judgment()` builds both, as `.reason` and `.verdict`):
+A vulnerability affects an occurrence unless a judgment holds. Each judgment
+is ONE `cruxible write`: it lands or refuses as a whole.
 
-1. `cruxible authoring submit FILE`: the Claim
-   `security.component.not_affected_reason` (one of `component_not_present`,
-   `vulnerable_code_not_present`, `vulnerable_code_not_in_execute_path`,
-   `vulnerable_code_cannot_be_controlled_by_adversary`,
-   `inline_mitigations_already_exist`), qualified by the CVE id. Free-text
-   specifics stay in the rationale. (The write verbs carry no qualifier, so the
-   reason is a separate submit.)
-2. `cruxible write FILE`: retire OSV's observation of V on that component
-   (`reason: superseded`; a none beside the live value of its unit is refused)
-   and add `{"none": "security.vulnerability/<cve>"}` with `role: normative`.
+- **Package level** (`triage.judgment()`): the vulnerable code is not in this
+  package release (`vulnerable_code_not_present`), so it holds for every
+  inventory. The write retires OSV's observation of V on the component
+  (`reason: superseded`; a none beside the live value of its unit is refused),
+  adds `{"none": "security.vulnerability/<cve>"}` with `role: normative`
+  (`affected_by` declares `inverse: {key: object, evidence_rules: [self]}`),
+  creates the pair `security.exposure` (component, V), landing on it when it
+  exists, and sets its `justification`.
+- **App level** (`triage.app_judgment()`): one of the four app-level reasons,
+  for one inventory. The write creates `security.app_exposure` (the row's
+  `occurrence`, V) and sets its `justification`. It never states the global
+  none: OSV's observation, the watch list and every other inventory's row
+  stay.
+- **Reversal** (`triage.reverse_judgment()`): one write retiring the
+  justification and, at package level, the none. The pairs stay as history;
+  OSV's next run re-observes V.
+- **Under investigation** (K-CF1, `triage.investigation()`): no judgment. Attest
+  `--unsure` on OSV's `affected_by` Claim, with the reason (`--because` or a
+  cited section) and `--valid-until` capped at the end of the KEV due date (a
+  due date already past refuses: judge the pair instead). The pair stays in
+  the worklists and the KEV backlog; `triage.under_investigation()` over that
+  one Claim's `get --detail evidence` attestations marks it.
 
-Only the none hides the pair: the exposure, the backlog and the watch list all
-key on it. A judgment that stops after the first write leaves the pair exposed,
-and `triage.judgment_status()` reads it **judgment incomplete** (a reason with
-no none); making the second write finishes it. The two are not one atomic
-change: core has no single change that states a none and a qualified Claim
-together (surface gap G4).
+OSV's next run cannot override a package-level judgment's normative none; it
+records a `held_disagrees` finding (held: none of V, incoming: V), which the
+OSV Line routes to its inbox.
 
-Queries skip nones, so V leaves the watch list for that component only: a
-vulnerability another component still has stays watched. OSV's next run cannot
-override the normative holder; it records a `held_disagrees` finding (held: none
-of V, incoming: V), which the OSV Line routes to its inbox.
+**Review is on the honor system (K-CF2a).** The helpers write with
+`accept: never`; a different agent approves after reading
+`../guidance/dependency.md` (a governed Document that `guides` both
+justification ClaimTypes, so a proposal's `guidance` shows it). No Mandate
+settles a justification or creates a judgment pair.
 
 ## Triage worklists and the track record (K-B2-TR)
 
 | Query | Rows |
 |---|---|
-| `security.urgent_exposures` | One per (inventory, component, vulnerability): KEV-listed first (by `kev_date_added`), then by EPSS score; with KEV dates, ransomware use and EPSS |
-| `security.kev_triage_backlog` | The KEV-listed exposures nobody has judged (a judged pair is no exposure) |
-| `security.not_affected_judgments` | Every component with a not_affected reason: its VEX reasons and `affected_by` values (candidates; each pair's status is `triage.judgment_status()`) |
-| `security.watched_vulnerabilities` | One per vulnerability some inventoried component is affected by (K-B1-2) |
+| `security.urgent_exposures` | One per (inventory, component, vulnerability) occurrence with no package-level or app-level justification: KEV-listed first (by `kev_date_added`), then by EPSS score; with the occurrence id, its scope, KEV dates, ransomware use and EPSS |
+| `security.kev_triage_backlog` | The KEV-listed rows of the above (pairs under investigation stay) |
+| `security.not_affected_judgments` | Every package-level judgment: exposure, component, CVE, justification |
+| `security.app_not_affected_judgments` | Every app-level judgment: app_exposure, inventory, component, CVE, justification |
+| `security.watched_vulnerabilities` | One per vulnerability some inventoried component is affected by (K-B1-2); a package-level judgment drops it, an app-level one does not (a Subject-shaped query takes no optional hop) |
 
-Which pairs are judged, and who judged them when: the compact query
-`cruxible query security.component --select purl,not_affected_reason,affected_by --claims`
-gives each reason's CVE qualifier and Claim id and each none's Claim id;
-`triage.judgment_status(row)` pairs them per CVE (`judged`, or `judgment
-incomplete` when only the reason exists), and `cruxible get CLM-… --detail
-history` gives the actor and the accepted time. (A named Query cannot pair a
-reason's qualifier with a none's value, so the per-pair status is this view.)
+The worklists walk vulnerability ← `affected_by` ← component → its occurrences
+holding a scope (the pair index) → inventory, then the two judgment pairs by
+whole key: an unrelated inventory costs them nothing
+(`test_triage_reads_are_flat_in_unrelated_inventories`). Who judged and when:
+`cruxible get CLM-… --detail history` on the justification (and the none).
 A source that later disagrees is the OSV Line's `held_disagrees` inbox item.
 
 ## Demo SBOMs (K-B1-7)
@@ -261,10 +275,9 @@ one finding with two reporters. What it checked is state too: a
   `files.yaml` name): the `workspace_file` family (D1), a Capture under an
   accepted foreign-source contract. The catalog is the boundary: the writer's
   side refuses an uncatalogued path, and a Capture of a file never cited through
-  the workspace write path (no accepted contract) is refused. **Core bug:** the
-  write that first cites a file installs its contract but is not admitted by it
-  (reported_at refuses, a status lands uncovered); the gate's strict xfail
-  `test_core_d1_a_first_citation_is_admitted` pins it.
+  the workspace write path (no accepted contract) is refused. The write that
+  first cites a file installs its contract, and that contract admits the
+  write's own Captures (`test_a_first_citation_is_admitted`).
 - **Planning.** `security.coverage_plan` (one repository) lists the units never
   checked, deferred or blocked. A checked unit whose cited passage changed is a
   workspace-aware `cruxible next` `citation_drifted` row naming its status
@@ -289,6 +302,9 @@ one finding with two reporters. What it checked is state too: a
 
 ## Known limits
 
+- **Fresh install only (D-R46 R9).** This model replaces `component.in_inventory`,
+  `component.fixed_in` and `component.not_affected_reason`; no instance holding
+  them is carried over.
 - **EPSS URL (D-R34).** The EPSS Line's URL still carries the watched CVEs, so a
   CVE OSV adds needs a Line change. cruxible-provider-web 0.5.0's `web.fetch`
   has the typed `query` map; the EPSS re-author is queued with the rest of the

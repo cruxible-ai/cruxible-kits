@@ -273,6 +273,10 @@ def write_file(tmp_path: Path, relative: str, content: bytes) -> None:
     path.write_bytes(content)
 
 
+#: Each world's owner key material, by instance root (an attestation signs with it).
+OWNERS: dict[Path, Any] = {}
+
+
 def kit_world(
     tmp_path: Path,
     *,
@@ -292,7 +296,8 @@ def kit_world(
     from web_contracts import members as web_contract_members
 
     checkout = require_provider_checkout()
-    instance, _owner = initialize_local(tmp_path)
+    instance, owner = initialize_local(tmp_path)
+    OWNERS[instance.root] = owner
     workspace(tmp_path)
     submit(
         instance,

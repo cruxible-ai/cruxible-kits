@@ -2,22 +2,25 @@
 
     read (inventoried components) -> fetch osv.query (OSV's responses, a list of
     Captures) -> derive osv.match (one derived JSON document) -> extract ->
-    claims (component.affected_by + component.fixed_in)
+    claims (component.affected_by)
 
 One Procedure and one Line. ``affected_by`` creates each vulnerability OSV
 names by value (``create: if_absent``, V1); ``expect`` is the derived
 document's ``queried`` header (V4), so a component OSV did not answer in full
 (a distro package, K-B1-6, or a failed request) is never retired. The Line
-settles both ClaimTypes on the extracted record and retires them on a complete
-read's absence (K-B1-4, K-B2-G4).
+settles ``affected_by`` on the extracted record and retires it on a complete
+read's absence (K-B1-4, K-B2-G4). A component is asked about while some
+inventory holds it: an occurrence of it with a live ``scope``.
 
-An agent's not_affected judgment is "affected_by none of V", normative, on V's
-own unit (K-B2-J1): OSV's next observation of V cannot override it and is
-reported as ``held_disagrees``, which this Line routes to its inbox.
+An agent's package-level not_affected judgment is "affected_by none of V",
+normative, on V's own unit (K-B2-J1): OSV's next observation of V cannot
+override it and is reported as ``held_disagrees``, which this Line routes to
+its inbox.
 
-``fixed_in`` (qualified by the CVE id) is the list of versions OSV's advisories
-list as fixed for the component's package, sorted as text; see
-``security_osv_provider.osv``.
+OSV writes no pair Subjects (D-R43). The versions OSV lists as fixed are no
+Claim: they stay in the derived ``osv.match`` document every ``affected_by``
+cites (each record's ``fixed``; see ``security_osv_provider.osv``), where an
+agent reads them (D-R44: nothing reacts to their change).
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from definitions import VULN, refs
-from inventory import COMPONENT, DEPENDENCY_PROVIDER, INVENTORY, OSV_MATCH_KIND, OSV_SOURCE
+from inventory import COMPONENT, DEPENDENCY_PROVIDER, OCCURRENCE, OSV_MATCH_KIND, OSV_SOURCE
 
 OSV_PROCEDURE = "security.osv-query"
 OSV_LINE = "security.osv-query"
@@ -40,7 +43,6 @@ OSV_ROW = "security.osv-affected"
 OSV_RESPONSE_KIND = "security.osv-response"
 OSV_ORIGIN = "https://api.osv.dev"
 AFFECTED_BY = COMPONENT + ".affected_by"
-FIXED_IN = COMPONENT + ".fixed_in"
 #: The provider package's source tree (its Contracts ship with the kit).
 PROVIDER_ROOT = (
     Path(__file__).resolve().parents[1]
@@ -120,12 +122,14 @@ def provider_contracts() -> dict[str, Any]:
 # -- Vocabulary -------------------------------------------------------------------------
 
 
-#: Every inventoried component, one row each: what the OSV Line asks about.
+#: Every inventoried component, one row each: what the OSV Line asks about. A
+#: component is inventoried while an occurrence of it holds a visible scope (R3).
 COMPONENTS_SPEC: dict[str, Any] = {
     "query": OSV_COMPONENTS,
-    "description": "Every component some inventory holds, one row each: what OSV is asked.",
+    "description": "Every component some inventory holds (an occurrence with a scope), one "
+    "row each: what OSV is asked.",
     "from": {"c": COMPONENT},
-    "hops": [{"i": f"c.{COMPONENT}.in_inventory!: {INVENTORY}"}],
+    "hops": [{"o": f"{OCCURRENCE}{{component: c}}! with scope"}],
     "row": f"{OSV_COMPONENT_ROW}@1",
     "fields": ["c.purl"],
 }
@@ -146,12 +150,9 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "kind": "contract",
             "name": OSV_ROW,
             "version": 1,
-            "description": "One (component, CVE) pair osv.match found, with its advisory and "
-            "the versions OSV lists as fixed.",
-            "fields": {
-                "osv_id": "string{max_len: 128}",
-                "fixed": "list<string{max_len: 64}>{max_items: 32}?",
-            },
+            "description": "One (component, CVE) pair osv.match found, with its advisory (the "
+            "versions OSV lists as fixed stay in the cited document).",
+            "fields": {"osv_id": "string{max_len: 128}"},
         },
         {
             "kind": "query_definition",
@@ -168,9 +169,8 @@ def osv_spec() -> dict[str, Any]:
         {
             "procedure": OSV_PROCEDURE,
             "description": "Ask OSV about every inventoried component and write which "
-            "vulnerabilities OSV lists for its exact purl@version, with the versions OSV "
-            "lists as fixed; a vulnerability OSV no longer lists for a component it "
-            "answered in full retires.",
+            "vulnerabilities OSV lists for its exact purl@version; a vulnerability OSV no "
+            "longer lists for a component it answered in full retires.",
             "input": {},
             "output": {},
             "params": {"logical_source": 'string{pattern: "^[a-z][a-z0-9_.-]{0,255}$"}'},
@@ -226,10 +226,7 @@ def osv_spec() -> dict[str, Any]:
                     },
                     "duplicates": "refuse_key",
                     "complete_when": {"count_at": "/count"},
-                    "fields": {
-                        "osv_id": {"at": "osv_id"},
-                        "fixed": {"at": "fixed", "presence": "optional"},
-                    },
+                    "fields": {"osv_id": {"at": "osv_id"}},
                     "header": {
                         "queried": {
                             "at": "/queried",
@@ -259,14 +256,6 @@ def osv_spec() -> dict[str, Any]:
                             "rationale": "OSV {$item.fields.osv_id} lists {$item.key.cve_id} "
                             "for {$item.key.purl}.",
                         },
-                        {
-                            "type": FIXED_IN,
-                            "qualifier": "$item.key.cve_id",
-                            "value": "$item.fields.fixed",
-                            "when_absent": "mirror",
-                            "rationale": "OSV {$item.fields.osv_id} lists the fixed versions "
-                            "of {$item.key.purl} for {$item.key.cve_id}.",
-                        },
                     ],
                 },
             ],
@@ -285,16 +274,16 @@ def procedure_members() -> list[dict[str, Any]]:
 
 # -- Automation -------------------------------------------------------------------------
 
-#: K-B1-4 / K-B2-G4: the osv Line settles affected_by and fixed_in create/revise
-#: on the extracted record and retire on a complete read's absence, and may
-#: create security.vulnerability Subjects. Judgments are never in it.
+#: K-B1-4 / K-B2-G4: the osv Line settles affected_by create/revise on the
+#: extracted record and retire on a complete read's absence, and may create
+#: security.vulnerability Subjects. Judgments (the none, the justifications) are
+#: never in it.
 OSV_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
-    predicate: {
+    AFFECTED_BY: {
         "create": {"basis": ["extracted"]},
         "revise": {"basis": ["extracted"]},
         "retire": {"basis": ["absence"]},
     }
-    for predicate in (AFFECTED_BY, FIXED_IN)
 }
 
 

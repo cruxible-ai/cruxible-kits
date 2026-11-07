@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-contract-v1",
-  "description": "One derived JSON document: inventory (the SBOM's metadata.component purl, or its path with warning sbom_unnamed), named_by, components (one record per distinct purl, nested components flattened, each carrying inventory and named_by), held (the inventory's prior components), unidentified (components with no purl, never records) and count (every component the SBOM lists, unidentified included: a count above the records marks the read incomplete, so absence retires nothing).",
+  "description": "One derived JSON document: inventory (the SBOM's metadata.component purl, or its path with warning sbom_unnamed), named_by, components (one record per distinct purl, nested components flattened, each carrying inventory, named_by and scope: the CycloneDX scope as stated, required when the SBOM states none), unidentified (components with no purl, never records) and count (every component the SBOM lists, unidentified included: a count above the records marks the read incomplete, so absence retires nothing).",
   "fields": {
     "document": {
       "type": {
