@@ -476,9 +476,10 @@ that changed is a new item. A gap that closed is simply not posted again: the
 inbox never resolves an item on its own (dispositions are yours), so after a
 respond run acknowledge each of its items whose latest sighting (`inbox list`,
 `LAST_POSTED`) is older than that run. The log import's propose Mandate
-(`security.log-import-propose`) is in [the example automation](examples/automation.json),
-beside `security.inventory-import.prod` (one Line per inventory scope) and
-`security.credential-import`. No Mandate covers `audit.result`, `audit.window_end`,
+(`security.log-import-propose`), `security.inventory-import.prod` (one Line per
+inventory scope) and `security.credential-import` are authored with the incident
+response: the kit's [automation template](automation.json) carries the dependency
+loop only. No Mandate covers `audit.result`, `audit.window_end`,
 `audit.log_source`, `work.verification`, `remediation.*`, `credential.*` or any
 incident field.
 

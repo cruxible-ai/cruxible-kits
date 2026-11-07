@@ -19,10 +19,20 @@ wheels, runs `source/authoring/security_definitions.py definitions` and
 same instance and builds those, then copies 1.3.0 over `cruxible-kit.json`,
 `artifacts/` and `providers/` in the kit directory and 1.3.1 over `source/variants/1.3.1-gate`,
 and regenerates `reference.md` and the README's counts table from the copied
-release (`python source/reference.py` does only that step; after editing
-`examples/automation.json` run it too, and `--check` also refuses a concept map
-that names a kind or field the kit does not define). The same sources build the same kit
-digest. After changing a provider, bump its
+release (`python source/reference.py` does only that step, and `--check` also
+refuses a concept map that names a kind or field the kit does not define). The same
+sources build the same kit digest.
+
+The automation template, `automation.json` at the kit root (D-R48), is written by
+`python source/pilot/template.py` (`--check` fails when it is stale) from the pilot's
+automation, plus the `security.start` Runbook; `source/pilot/test_start_gate.py`
+authors it on the kit's own definitions and previews `security.start`. Build the
+release with `kit build ... --automation-template automation.json`: the build
+refuses (`cruxible.kit.automation_template_invalid`) unless the template authors
+cleanly against the building instance's definitions, and names it in the manifest
+(`automation_template`). `reference.py` and the `gate/` recipe still read the 1.3.0
+example ChangeSet, which the template replaced; they are rebuilt with the 0.5.0
+release. After changing a provider, bump its
 version. `source/providers/cruxible-provider-web` holds the published 0.2.2
 wheel, the lock it embeds and the runtime wheel that lock names by path, so
 `kit build` can record the default's hashes; none of those files ship.
