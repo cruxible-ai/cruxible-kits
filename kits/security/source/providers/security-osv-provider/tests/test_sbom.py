@@ -126,15 +126,36 @@ def test_a_document_that_is_not_a_cyclonedx_sbom_is_refused(content: bytes) -> N
     assert result.status == "refused" and result.refusal.code == sbom.PROVIDER_DECLINED
 
 
-def test_held_is_the_inventorys_own_held_components() -> None:
-    from security_osv_provider.sbom import components_document
+def test_each_record_carries_its_scope_and_required_when_unstated() -> None:
+    """The occurrence's membership fact (D-R46 R3): CycloneDX's scope, default required."""
 
-    held = [
-        {"purl": "pkg:maven/x/a@1", "inventory_id": "pkg:maven/com.example/log4j-demo-app@1.0.0"},
-        {"purl": "pkg:maven/x/b@1", "inventory_id": "pkg:generic/other"},
-    ]
-    out = components_document(DEMO.read_bytes(), "sboms/demo.cdx.json", held)
-    assert out["held"] == ["pkg:maven/x/a@1"]
+    doc = json.loads(DEMO.read_bytes())
+    doc["components"][0]["scope"] = "optional"
+    doc["components"][1]["scope"] = "excluded"
+    out = document(json.dumps(doc).encode())
+    assert [c["scope"] for c in out["components"]] == ["optional", "excluded", "required"]
+    assert {c["scope"] for c in document(DEMO.read_bytes())["components"]} == {"required"}
+    assert "held" not in out
+
+
+def test_an_unknown_scope_is_passed_through_for_the_extract_to_refuse() -> None:
+    doc = json.loads(DEMO.read_bytes())
+    doc["components"][0]["scope"] = "sometimes"
+    out = document(json.dumps(doc).encode())
+    assert out["components"][0]["scope"] == "sometimes" and out["count"] == 3
+
+
+def test_one_purl_listed_with_two_scopes_stays_two_records() -> None:
+    """Fail closed: core's refuse_key writes nothing for a key whose scope is ambiguous."""
+
+    doc = json.loads(DEMO.read_bytes())
+    twin = dict(doc["components"][0], scope="optional")
+    doc["components"].append(twin)
+    doc["components"].append(dict(doc["components"][1]))  # same purl, same scope: one record
+    out = document(json.dumps(doc).encode())
+    purls = [c["purl"] for c in out["components"]]
+    assert purls.count(twin["purl"]) == 2 and len(purls) == 4
+    assert out["count"] == 4
 
 
 def test_pure_byte_identical_twice_with_the_network_blocked(

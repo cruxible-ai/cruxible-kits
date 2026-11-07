@@ -2,16 +2,13 @@
 
 The SBOM import Procedure reads the SBOM file through core's builtin
 ``workspace.file`` (one Capture, the file's bytes verbatim). This derive reads
-those bytes (passed by core) and the instance's held memberships (a state read,
-``held``: purl and inventory id per membership), and emits ONE derived JSON
-document::
+those bytes (passed by core) and emits ONE derived JSON document::
 
     {"inventory":    "<metadata.component purl, or the file path>",
      "named_by":     "metadata_component" | "file_path",
      "warning":      "sbom_unnamed"                  # only when named by path
-     "components":   [{"purl", "name", "inventory", "named_by", "warning"?}, ...],
+     "components":   [{"purl", "name"?, "inventory", "named_by", "scope", "warning"?}, ...],
      "count":        len(components) + unidentified,  # what the SBOM lists
-     "held":         [purl, ...],    # what this inventory held before: the expect list
      "unidentified": N}                              # components with no purl
 
 The inventory key is the SBOM's own ``metadata.component`` purl (K-B1-5,
@@ -19,30 +16,38 @@ K-B1-G1): one import Procedure serves every SBOM, and a new product needs only
 its SBOM. An SBOM without one is named by its workspace path, and every record
 carries ``warning: sbom_unnamed``: moving the file starts a new inventory.
 
+The import's row is the occurrence (inventory, component) (D-R46 R3): the
+header's ``inventory`` names one end, each record's purl the other, and the
+record's ``scope`` is the occurrence's membership fact. ``scope`` is the
+component's CycloneDX scope as the SBOM states it, or ``required`` (the
+specification's default) when the SBOM states none. A value that is not one
+of CycloneDX's three is passed through as stated, so the import's typed
+extract refuses that field: the component is still listed, its occurrence keeps
+the scope it held, and its siblings write.
+
 Nested components (``components[*].components``) are flattened, depth first.
-Two entries with the same purl text are one record (the same identifier
-listed twice). Two spellings that core's purl normalizer folds to one key stay
-two records, so core's ``duplicates: refuse_key`` writes nothing for that key
-(fail closed). A component with no purl cannot be keyed: it is counted in
+Two entries with the same purl text and scope are one record (the same
+identifier listed twice); with different scopes they stay two records, so
+core's ``duplicates: refuse_key`` writes nothing for that key (fail closed).
+Two spellings that core's purl normalizer folds to one key also stay two
+records. A component with no purl cannot be keyed: it is counted in
 ``unidentified`` and is never a record, but it is still in ``count`` (every
 component the SBOM lists). The import declares ``complete_when: {count_at:
 /count}``, so an SBOM with any unidentified component is an incomplete read:
 its keyed components still write, and absence retires nothing. A held
 component whose purl went missing therefore never reads as removed.
 
-``held`` is the import's absence scope: the components the inventory this SBOM
-names held before the run. Core cannot parameterize a read by a value only the
-derive knows (a read's parameters may not depend on runtime output), so the
-import reads every membership and this derive selects the inventory's own.
+Absence is judged by the inventory (``expect: {by: inventory}``): core finds
+that inventory's current occurrences itself, so the derive reads no state.
 
-Pure: the output is a function of the SBOM bytes, the path and the held rows;
-the result's observation time is the SBOM Capture's own, never the clock.
+Pure: the output is a function of the SBOM bytes and the path; the result's
+observation time is the SBOM Capture's own, never the clock.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterator, Mapping
 from typing import Any
 
 from cruxible_provider_runtime.acquisition import (
@@ -64,6 +69,8 @@ MAX_COMPONENTS = 20_000
 #: The deepest component nesting the derive walks.
 MAX_DEPTH = 16
 UNNAMED = "sbom_unnamed"
+#: CycloneDX's default scope, when a component states none.
+DEFAULT_SCOPE = "required"
 
 
 class SbomRefused(ValueError):
@@ -84,9 +91,7 @@ def _walk(components: object, depth: int = 0) -> Iterator[Mapping[str, Any]]:
         yield from _walk(component.get("components"), depth + 1)
 
 
-def components_document(
-    content: bytes, relative_path: str, held: Iterable[Mapping[str, Any]] = ()
-) -> dict[str, Any]:
+def components_document(content: bytes, relative_path: str) -> dict[str, Any]:
     """The derived document for one SBOM's bytes (pure: same input, same output)."""
 
     try:
@@ -102,7 +107,9 @@ def components_document(
         inventory, named_by, warning = purl.strip(), "metadata_component", None
     else:
         inventory, named_by, warning = relative_path, "file_path", UNNAMED
-    records: dict[str, dict[str, Any]] = {}
+    # One record per (purl text, scope): a purl listed twice with one scope is
+    # one record; with two scopes it is two, a duplicate key core refuses.
+    records: dict[tuple[str, str], dict[str, Any]] = {}
     unidentified = 0
     for component in _walk(document.get("components")):
         text = component.get("purl")
@@ -110,15 +117,23 @@ def components_document(
             unidentified += 1
             continue
         text = text.strip()
-        if text in records:
+        stated = component.get("scope")
+        scope = DEFAULT_SCOPE if stated is None else stated
+        marker = (text, json.dumps(scope, sort_keys=True))
+        if marker in records:
             continue
-        record: dict[str, Any] = {"purl": text, "inventory": inventory, "named_by": named_by}
+        record: dict[str, Any] = {
+            "purl": text,
+            "inventory": inventory,
+            "named_by": named_by,
+            "scope": scope,
+        }
         name = component.get("name")
         if isinstance(name, str) and name:
             record["name"] = name[:256]
         if warning is not None:
             record["warning"] = warning
-        records[text] = record
+        records[marker] = record
         if len(records) > MAX_COMPONENTS:
             raise SbomRefused(f"the SBOM lists more than {MAX_COMPONENTS} components")
     out: dict[str, Any] = {
@@ -128,15 +143,6 @@ def components_document(
         # Every component the SBOM lists, keyed or not: core's complete_when
         # count check makes a read with an unidentified component incomplete.
         "count": len(records) + unidentified,
-        "held": sorted(
-            {
-                str(row.get("purl"))
-                for row in held
-                if isinstance(row, Mapping)
-                and row.get("inventory_id") == inventory
-                and isinstance(row.get("purl"), str)
-            }
-        ),
         "unidentified": unidentified,
     }
     if warning is not None:
@@ -152,16 +158,13 @@ class SbomComponents:
     def __call__(self, context: ProviderRunContext) -> ProviderResult:
         view = context.input.get("sbom")
         path = context.input.get("relative_path")
-        held = context.input.get("held") or []
         source = str(context.input.get("logical_source") or "cyclonedx.sbom")
-        if not isinstance(path, str) or not path or not isinstance(held, list):
-            return ProviderResult.refused(
-                PROVIDER_DECLINED, "sbom.components needs the SBOM path and the held memberships"
-            )
+        if not isinstance(path, str) or not path:
+            return ProviderResult.refused(PROVIDER_DECLINED, "sbom.components needs the SBOM path")
         try:
             sbom = capture_input(view)
             observed_at = capture_observed_at(view)
-            document = components_document(sbom.content, path, held)
+            document = components_document(sbom.content, path)
         except (CaptureInputError, SbomRefused) as error:
             return ProviderResult.refused(PROVIDER_DECLINED, str(error))
         content = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
