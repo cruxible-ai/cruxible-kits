@@ -282,9 +282,11 @@ def kit_world(
     *,
     watch: tuple[str, ...] = (),
     sboms: tuple[tuple[str, str], ...] = (),
+    automation: bool = True,
 ) -> Any:
     """A fresh instance holding every kit definition, the catalog and ``watch``'s
-    vulnerability Subjects, and the Lines (one SBOM import Line per ``sboms``)."""
+    vulnerability Subjects, and (``automation``) the Lines (one SBOM import Line
+    per ``sboms``)."""
 
     from cruxible_client.contracts.capture_contract_inputs import (
         CaptureContractInputRecord,
@@ -328,7 +330,8 @@ def kit_world(
     for index, member in enumerate(kit.procedures()["members"]):
         author(instance, ProcedureInput.model_validate(member), name=f"procedure-{index}")
     submit(instance, kit.watch_subjects(watch), name="watch")
-    submit(instance, kit.automation(watch, now=NOW, sboms=sboms), name="automation")
+    if automation:
+        submit(instance, kit.automation(watch, now=NOW, sboms=sboms), name="automation")
     return instance
 
 

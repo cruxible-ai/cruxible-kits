@@ -1,0 +1,432 @@
+{
+ "kind": "change_set",
+ "rationale": "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS Lines, their Mandates and daily Triggers, and the security.start Runbook. Tailor the Line names, the SBOM path, the cron times and the Mandate dates before submitting.",
+ "members": [
+  {
+   "kind": "line",
+   "name": "security.kev-triage",
+   "procedure_name": "security.kev-triage",
+   "bindings": {
+    "fetch": "cruxible-provider-web#web.fetch"
+   },
+   "parameters": {
+    "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+    "logical_source": "cisa.kev.catalog",
+    "max_bytes": 4194304
+   },
+   "acquisition": {
+    "catalog.capture": {
+     "origins": [
+      "https://www.cisa.gov"
+     ]
+    }
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested",
+     "claim_not_in_source"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.kev-triage-propose",
+   "line_name": "security.kev-triage",
+   "grants": "propose",
+   "namespace": [
+    "claims"
+   ],
+   "valid_from": "2026-11-06T00:00:00Z",
+   "expires_at": "2027-02-05T00:00:00Z"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.kev-triage-settle",
+   "line_name": "security.kev-triage",
+   "grants": "settle",
+   "namespace": [
+    "claims"
+   ],
+   "valid_from": "2026-11-06T00:00:00Z",
+   "expires_at": "2027-02-05T00:00:00Z",
+   "subjects": "expected",
+   "scope": [
+    {
+     "claim_type": "security.vulnerability.listed_in",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted",
+        "absence"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted",
+        "absence"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.vulnerability.kev_date_added",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "retire": {
+       "basis": [
+        "absence"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.vulnerability.kev_due_date",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "retire": {
+       "basis": [
+        "absence"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.vulnerability.kev_ransomware_use",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "kind": "line",
+   "name": "security.epss-triage",
+   "procedure_name": "security.epss-triage",
+   "bindings": {
+    "fetch": "cruxible-provider-web#web.fetch"
+   },
+   "parameters": {
+    "url": "https://api.first.org/data/v1/epss?cve=",
+    "logical_source": "first.epss.api",
+    "max_bytes": 4194304
+   },
+   "acquisition": {
+    "scores_api.capture": {
+     "origins": [
+      "https://api.first.org"
+     ]
+    }
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested",
+     "claim_not_in_source"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.epss-triage-propose",
+   "line_name": "security.epss-triage",
+   "grants": "propose",
+   "namespace": [
+    "claims"
+   ],
+   "valid_from": "2026-11-06T00:00:00Z",
+   "expires_at": "2027-02-05T00:00:00Z"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.epss-triage-settle",
+   "line_name": "security.epss-triage",
+   "grants": "settle",
+   "namespace": [
+    "claims"
+   ],
+   "valid_from": "2026-11-06T00:00:00Z",
+   "expires_at": "2027-02-05T00:00:00Z",
+   "subjects": "expected",
+   "scope": [
+    {
+     "claim_type": "security.vulnerability.epss_score",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.vulnerability.epss_percentile",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.vulnerability.epss_score_date",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "kind": "line",
+   "name": "security.sbom-import.app",
+   "procedure_name": "security.sbom-import",
+   "bindings": {
+    "read": "cruxible-builtin#workspace.file",
+    "derive": "security-osv-provider#sbom.components"
+   },
+   "parameters": {
+    "relative_path": "sbom.cdx.json",
+    "logical_source": "cyclonedx.sbom.app"
+   },
+   "acquisition": {},
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "slot_contested"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.sbom-import.app-propose",
+   "line_name": "security.sbom-import.app",
+   "grants": "propose",
+   "namespace": [
+    "claims",
+    "subjects"
+   ],
+   "valid_from": "2026-11-06T00:00:00Z",
+   "expires_at": "2027-02-05T00:00:00Z"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.sbom-import.app-settle",
+   "line_name": "security.sbom-import.app",
+   "grants": "settle",
+   "namespace": [
+    "claims"
+   ],
+   "valid_from": "2026-11-06T00:00:00Z",
+   "expires_at": "2027-02-05T00:00:00Z",
+   "subject_creation": [
+    "security.component",
+    "security.inventory",
+    "security.occurrence"
+   ],
+   "scope": [
+    {
+     "claim_type": "security.occurrence.scope",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "retire": {
+       "basis": [
+        "absence"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "kind": "line",
+   "name": "security.osv-query",
+   "procedure_name": "security.osv-query",
+   "bindings": {
+    "query": "security-osv-provider#osv.query",
+    "match": "security-osv-provider#osv.match"
+   },
+   "parameters": {
+    "logical_source": "osv.dev.query"
+   },
+   "acquisition": {
+    "osv.responses": {
+     "origins": [
+      "https://api.osv.dev"
+     ]
+    }
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested",
+     "claim_not_in_source"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.osv-query-propose",
+   "line_name": "security.osv-query",
+   "grants": "propose",
+   "namespace": [
+    "claims",
+    "subjects"
+   ],
+   "valid_from": "2026-11-06T00:00:00Z",
+   "expires_at": "2027-02-05T00:00:00Z"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.osv-query-settle",
+   "line_name": "security.osv-query",
+   "grants": "settle",
+   "namespace": [
+    "claims"
+   ],
+   "valid_from": "2026-11-06T00:00:00Z",
+   "expires_at": "2027-02-05T00:00:00Z",
+   "subject_creation": [
+    "security.vulnerability"
+   ],
+   "scope": [
+    {
+     "claim_type": "security.component.affected_by",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "retire": {
+       "basis": [
+        "absence"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "kind": "trigger",
+   "name": "security.osv-daily",
+   "line_name": "security.osv-query",
+   "schedule": {
+    "kind": "cron",
+    "expression": "0 14 * * *"
+   }
+  },
+  {
+   "kind": "trigger",
+   "name": "security.kev-daily",
+   "line_name": "security.kev-triage",
+   "schedule": {
+    "kind": "cron",
+    "expression": "15 18 * * *"
+   }
+  },
+  {
+   "kind": "trigger",
+   "name": "security.epss-daily",
+   "line_name": "security.epss-triage",
+   "schedule": {
+    "kind": "cron",
+    "expression": "30 14 * * *"
+   }
+  },
+  {
+   "kind": "runbook",
+   "name": "security.start",
+   "description": "Seed a fresh instance: import the SBOM, ask OSV what affects it, then read KEV and EPSS for what it found.",
+   "steps": [
+    {
+     "line": "security.sbom-import.app"
+    },
+    {
+     "line": "security.osv-query"
+    },
+    {
+     "line": "security.kev-triage"
+    },
+    {
+     "line": "security.epss-triage"
+    }
+   ]
+  }
+ ]
+}

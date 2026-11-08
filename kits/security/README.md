@@ -309,14 +309,20 @@ where evidence comes from and what starts what, in [reference.md](reference.md)
 
 ## How it runs on its own
 
-The kit carries definitions only; the
-[example ChangeSet](examples/automation.json) is an inert starting point,
-explained in [examples/README.md](examples/README.md). Installing the kit
-starts nothing: you adapt the example, submit it and approve it like any other
-change ([Install and first answers](#install-and-first-answers), steps 2 to 4).
-It names none of your repositories or PyPI projects: their Lines come from
-[intake.md](intake.md#add-a-repository)'s recipe, for the list you give. It
-authors three kinds of member:
+The kit carries definitions only. What runs, when and with how much authority is
+yours: the kit's **automation template**, [automation.json](automation.json)
+(named by `automation_template` in `cruxible-kit.json`, checked against the
+kit's definitions when the kit is built), is one change set you tailor and
+submit as your own reviewed change. Installing the kit never submits it
+([Install and first answers](#install-and-first-answers), steps 2 to 5). In the
+Claim-authority form it carries the dependency loop: the SBOM import, OSV, KEV
+and EPSS Lines, their Mandates and daily Triggers, and the `security.start`
+Runbook that seeds a fresh instance in order (SBOM import, then OSV, then KEV
+and EPSS: each reads what the one before writes). `source/pilot/template.py`
+writes it. It names none of your repositories or PyPI projects: their Lines come
+from [intake.md](intake.md#add-a-repository)'s recipe, for the list you give.
+The tables below describe the 1.3.0 release's Lines. Its members are of these
+kinds:
 
 - **Lines**, authored disabled. Each runs one Procedure with its inputs, and its
   max authority caps what a run may do: `observe` (retain a Capture, or post
@@ -324,9 +330,12 @@ authors three kinds of member:
 - **Triggers**, which start a Line: a cron schedule (UTC), or a Capture landing,
   named by its contract and logical source. An incident adds window-close
   Triggers that re-ask a day after a landing.
-- **Mandates**. A Mandate grants a Procedure the right to propose or settle
-  within a scope. The example's are propose-only, so everything its Lines find
-  is reviewed until you graduate them.
+- **Mandates**. A Mandate grants a Line the right to propose or settle within a
+  scope. The template's say exactly what each Line settles (OSV's matches, an
+  SBOM's membership, KEV's and EPSS's own fields) and send everything else to
+  review; `cruxible runbook preview security.start` shows it per step.
+- **A Runbook**, `security.start`: its Lines in seeding order, run once by
+  command. A run stops at a step that fails or whose writes go to review.
 
 | For | Lines (example names) | Started by | Max authority |
 |---|---|---|---|
@@ -486,56 +495,40 @@ and what unknown answers mean.
    `security-sources-provider` (OSV.dev, EPSS, GitHub repository, PyPI and
    release-asset reads), and `cruxible-provider-web` 0.2.2 by name from PyPI,
    verified against the recorded hashes.
-2. **Adapt the automation**, the [example ChangeSet](examples/automation.json)
-   ([How it runs on its own](#how-it-runs-on-its-own)). Choose Line names;
-   Provider slots bind by fit with one installed build per interface, so the
-   example needs no explicit bindings; cron times; and Mandate expiry. Leave out
-   the Lines you won't enable (a submitted Line you never enable is a
-   `line_not_enabled` row in every `cruxible next`). Your repositories and PyPI
-   projects are not in it: add their Lines from [intake.md](intake.md#add-a-repository)
-   when you want the hardening questions.
+2. **Tailor the automation template**, [automation.json](automation.json)
+   (`cruxible kit pull security:1.3.0 --out security-kit` writes it with the
+   kit's other files). Choose the Line names; set the SBOM Line's
+   `relative_path` and logical source (one `security.sbom-import.<name>` Line per
+   SBOM file); the cron times (UTC); and each Mandate's `valid_from` and
+   `expires_at`. Provider slots bind by fit with one installed build per
+   interface. Rename the Lines in `security.start`'s steps with them.
 3. **Submit it**: `cruxible authoring submit automation.json`, then review and
-   activate it under your approval policy. It authors eleven disabled Lines,
-   thirteen Triggers and eleven propose-only Mandates.
-4. **Enable the vulnerability Lines**: `for l in kev-daily kev-triage
-   kev-attention epss-daily epss-triage sbom-import osv-applicability
-   cve-applicability; do cruxible line enable security.$l; done`. Changing a
-   Line, or a Trigger aimed at it, disables it again; `cruxible next` names the
-   `line enable` that restarts it.
-5. **Import an SBOM.** Put a CycloneDX JSON SBOM in the attached workspace (its
-   `metadata.component` names the product and version) and read it:
-
-   ```sh
-   echo '{"relative_path": "sboms/app.cdx.json"}' > sbom.json
-   cruxible procedure run security.sbom-acquire sbom.json
-   ```
-
-   Its landing runs `security.sbom-import`, which proposes the product, release,
-   supplier and one `security.release.component` per component purl; review and
-   activate it (`cruxible proposal list`, `review`, `activate`). Re-reading an
-   SBOM proposes only what is new: a new `metadata.component` version is a new
-   release of the same product, a changed SBOM adds its new components, and a
-   changed supplier revises the held one. Superseded releases and components an
-   SBOM no longer lists are kept; retire them yourself.
-6. **Ask OSV**: `cruxible line run security.osv-applicability`, then review and
-   activate its proposal: one assessment per (release, CVE) OSV relates, and
-   each release's `osv_coverage` (`partial` names the purl types OSV never
-   indexes, `pkg:brew` and `pkg:generic` among them). An acquire returns before
-   its import proposes (`Next: done` means the Capture landed), and OSV answers
-   only the releases and CVEs it holds when it runs: **run it again** after an
-   SBOM or inventory scan adds releases, and after an incident or a watch adds a
-   CVE, or those pairs stay unknown until the daily run.
-7. **KEV and EPSS**: `cruxible line run security.kev-daily` and `cruxible line
-   run security.epss-daily`, then activate the two triage proposals. From here
-   the cron Triggers repeat steps 6 and 7 daily.
+   approve it under your approval policy. It authors four Lines, their Mandates,
+   three daily Triggers and the `security.start` Runbook.
+4. **Preview the start**: put your CycloneDX JSON SBOM at the SBOM Line's
+   `relative_path` in the attached workspace, then `cruxible runbook preview
+   security.start`. Per step it shows what the step reads and writes, which
+   provider calls it makes, what its Mandates settle and what would go to review
+   (and so stop the run), and any order problem (there are none in the template).
+5. **Run the start**: `cruxible runbook run security.start`. It runs the SBOM
+   import, OSV, KEV and EPSS once each, in order. A step whose writes go to review
+   stops the run there: review and approve that proposal (`cruxible proposal
+   list`, `review`, `approve`), then run it again; a step with nothing new to
+   write passes through.
+6. **Keep it current**: `cruxible line enable NAME` for each Line, and the daily
+   Triggers take over. Changing a Line, or a Trigger aimed at it, disables it
+   again; `cruxible next` names the `line enable` that restarts it.
+7. **A new or changed SBOM**: add its Line (or update the file) and run
+   `cruxible line run security.sbom-import.<name>`, then `security.osv-query`;
+   KEV and EPSS follow on their daily runs, or run them too.
 8. **The answer**: `cruxible query --name security.urgent_exposures`: every
    exposure, KEV-listed first (`kev_listed`), then by EPSS. "Exploited
    vulnerabilities we run" is its KEV-listed rows; the rest are affected releases
    nobody has seen exploited.
 
-What stays yours: approving the automation, enabling Lines, providing SBOMs and
-CVE record requests, reviewing applicability proposals, renewing Mandates before
-they expire, and reviewing a Procedure revision an upgrade changes.
+What stays yours: tailoring and approving the automation, enabling Lines,
+providing SBOMs, reviewing what goes to review, renewing Mandates before they
+expire, and reviewing a Procedure revision an upgrade changes.
 
 ## Upgrading
 
@@ -615,8 +608,9 @@ changing the acquisition age bound inherited by these Procedures.
   predictions.
 - [reference.md](reference.md): every kind, field, contract, Line, Procedure and
   query, generated from this release's definitions.
-- [examples/README.md](examples/README.md): the example automation, member by
-  member.
+- [automation.json](automation.json): the automation template you tailor and
+  submit; [examples/README.md](examples/README.md): the example SBOMs and status
+  page.
 - The [security intake](skills/security-intake/SKILL.md) and [security
   analyst](skills/security-analyst/SKILL.md) skills, for an agent doing the work.
 - [source/README.md](source/README.md): for maintainers, building a release, the
