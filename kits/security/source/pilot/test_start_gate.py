@@ -52,7 +52,9 @@ def _inspected_package(root: Path, *, wheel_sha: str, lock_sha: str) -> Any:
         package=distribution.name,
         version=distribution.version,
         wheel=KitProviderFile(
-            filename=f"{distribution.name.replace('-', '_')}-{distribution.version}-py3-none-any.whl",
+            filename=(
+                f"{distribution.name.replace('-', '_')}-{distribution.version}-py3-none-any.whl"
+            ),
             sha256="sha256:" + wheel_sha * (64 // len(wheel_sha)),
         ),
         lock=KitProviderFile(
@@ -72,11 +74,12 @@ def _inspected_package(root: Path, *, wheel_sha: str, lock_sha: str) -> Any:
 def test_the_template_authors_and_the_start_runbook_has_no_order_problems(
     tmp_path: Path,
 ) -> None:
+    from tests.support.provider_checkout import require_provider_checkout
+
     from cruxible_client.contracts.kits import KitAutomationTemplate, KitBuildRequest
     from cruxible_core.service.kit_template import check_automation_template
     from cruxible_core.service.kits import build_kit
     from cruxible_core.service.runbook_preview import service_preview_runbook
-    from tests.support.provider_checkout import require_provider_checkout
 
     instance = kit_world(tmp_path, automation=False)
     content = template.TEMPLATE.read_text()
@@ -115,7 +118,7 @@ def test_the_template_authors_and_the_start_runbook_has_no_order_problems(
     # (``bundle.contents()``) plus the bundled providers' own builds and
     # operations, pinned against those same exported Contracts -- never this
     # publisher instance's other local definitions. A Provider is never a kit
-    # artifact (``kit add`` installs it before the definitions), so it is
+    # artifact (``kit add`` registers its build separately), so it is
     # seeded this way instead of read off the publisher's tree.
     check_automation_template(
         bundle.contents(),
@@ -288,10 +291,11 @@ def test_the_real_security_kit_builds_through_production_service_build_kit(
     --provider DIR`` stages them.
     """
 
+    from tests.support.provider_checkout import _build_wheels, require_provider_checkout
+
     from cruxible_client.contracts.kits import KitAutomationTemplate, KitBuildRequest
     from cruxible_core.service.kits import service_build_kit
     from cruxible_core.service.runbook_preview import service_preview_runbook
-    from tests.support.provider_checkout import _build_wheels, require_provider_checkout
 
     instance = kit_world(tmp_path, automation=False)
     content = template.TEMPLATE.read_text()
@@ -339,40 +343,18 @@ def test_the_real_security_kit_builds_through_production_service_build_kit(
     assert preview.order_problems == (), preview.order_problems
 
 
-def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_hits_the_known_sequencing_gap(
+def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     tmp_path: Path,
 ) -> None:
-    """D-R48 review fix round 3: the manifest's own declaration (``owns:
-    ["security."]``), the real built bundle, against a SECOND instance that
-    has never accepted anything -- not even the operation Contracts the
-    bundled providers pin. Documents plainly what a production ``kit add``
-    does: it refuses, and exactly where, because of a separate, pre-existing
-    gap this fix round does not touch.
+    """The real bundle installs without pre-accepting any operation Contracts.
 
-    This is NOT the same claim as F1 (the export is complete: every
-    Contract a bundled operation needs, in/out and refusal, is in
-    ``bundle.contents()`` -- proved by the build test above and by core's
-    own ``test_a_bundled_providers_refusal_contract_outside_owns_builds_and_installs``
-    regression, which pre-accepts those Contracts on the consumer first,
-    exactly as every other bundled-provider test in the core suite does).
-    This test asks the stronger, separate question: can a ``kit add`` that
-    pre-accepts *nothing* still succeed, given a kit's bundled provider
-    installs before the kit's own definitions land (``_add_kit``/
-    ``_install_providers`` in core's ``service/kits.py``, which installs a
-    bundled provider through the ordinary single-package install path --
-    ``service_install_provider`` -- strictly before diffing and proposing the
-    kit's own definitions). It refuses with
-    ``cruxible.provider.operation_contract_unresolved`` on the FIRST
-    not-yet-accepted Contract a bundled operation pins -- here
-    ``search.web.request@1`` (``cruxible-provider-web``'s own operation,
-    not even an osv/sbom one) -- because the kit's own copy of that Contract
-    (now correctly exported, thanks to F1) lands only after the provider
-    install this refusal happens inside. Pinning F1 does not and cannot fix
-    this: the Contract genuinely is not accepted yet at the moment the
-    provider tries to install.
+    Kit add governs the providers' Contract closure before registering either
+    build, then accepts the remaining definitions and names the template.
     """
 
-    import pytest
+    from tests.core_support._support import initialize_local
+    from tests.support.provider_checkout import _build_wheels, require_provider_checkout
+
     from cruxible_client.contracts.candidates import canonical_candidate_timestamp
     from cruxible_client.contracts.kits import (
         KitAddRequest,
@@ -381,7 +363,6 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_hits_the_known_
     )
     from cruxible_client.contracts.provider_installation import ProviderInstallRequest
     from cruxible_client.contracts.temporal import utc_now
-    from cruxible_core.errors import RequestRefusedError
     from cruxible_core.runtime.provider_runtime import (
         PROVIDER_RUNTIME_CONFIG_PATH,
         ProviderRuntimeOperator,
@@ -390,8 +371,6 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_hits_the_known_
     from cruxible_core.service.procedures.provider_installation import (
         service_install_provider,
     )
-    from tests.core_support._support import initialize_local
-    from tests.support.provider_checkout import _build_wheels, require_provider_checkout
 
     (tmp_path / "publisher").mkdir()
     instance = kit_world(tmp_path / "publisher", automation=False)
@@ -458,19 +437,29 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_hits_the_known_
             expected_build=expected_build,
         )
 
-    # The known, pre-existing, separate gap: a bundled provider installs
-    # through the ordinary single-package path, strictly before the kit's
-    # own definitions (now including every Contract its operations pin,
-    # thanks to F1) are diffed and proposed. So the FIRST not-yet-accepted
-    # Contract any bundled operation pins refuses the install outright, not
-    # a graceful "blocked"/"awaiting_providers" KitChangeResult.
-    with pytest.raises(RequestRefusedError) as refused:
-        service_add_kit(
-            consumer,
-            KitAddRequest(bundle=staged, source="test", dry_run=False),
-            actor_id="owner",
-            timestamp=canonical_candidate_timestamp(utc_now()),
-            install_provider=install,
-        )
-    print("FRESH KIT ADD REFUSAL:", refused.value.error_code, str(refused.value))
-    assert refused.value.error_code == "cruxible.provider.operation_contract_unresolved"
+    before = consumer.accepted_coordinate()
+    before_tree = consumer.immutable_tree_at(before.git_oid)
+    assert not any(path in before_tree for path in bundle.contents())
+    with consumer.accepted_history_reader() as history:
+        before_generation = int(history.sequence)
+    added = service_add_kit(
+        consumer,
+        KitAddRequest(bundle=staged, source="test", dry_run=False),
+        actor_id="owner",
+        timestamp=canonical_candidate_timestamp(utc_now()),
+        install_provider=install,
+    )
+    assert added.status == "accepted", added
+    assert added.automation_template == "automation.json"
+    assert added.automation_template in bundle.file_contents()
+    assert [step.action for step in added.providers] == ["install", "install"]
+    tree = consumer.immutable_tree_at(consumer.accepted_coordinate().git_oid)
+    assert all(tree[path] == value for path, value in bundle.contents().items())
+    from cruxible_client.contracts.providers import provider_path
+
+    assert all(
+        provider_path(provider.build) in tree for provider in bundle.manifest.providers
+    )
+    with consumer.accepted_history_reader() as history:
+        # One Contract change, one registration per provider, one kit change.
+        assert int(history.sequence) - before_generation == 4
