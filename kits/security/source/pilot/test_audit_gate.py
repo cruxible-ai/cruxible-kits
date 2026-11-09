@@ -460,7 +460,9 @@ def verifier_world(tmp_path: Path) -> tuple[Any, str]:
 
     instance = audit_world(tmp_path)
     write_file(
-        tmp_path, ".cruxible/files.yaml", (CATALOG + f"  - name: gate-app.run\n    locator: {RUN}\n").encode()
+        tmp_path,
+        ".cruxible/files.yaml",
+        (CATALOG + f"  - name: gate-app.run\n    locator: {RUN}\n").encode(),
     )
     write_file(tmp_path, RUN, RUN_LOG)
     changes = agent_finding("f", unit=None)[:-1]  # no unit: found_in left out
@@ -488,7 +490,9 @@ def test_the_hunter_cites_its_trace_section_on_rule(tmp_path: Path) -> None:
     assert outcome.status == "accepted", outcome.model_dump(mode="json")
     verdicts = {c.field: c.verdict for c in outcome.changes if c.field is not None}
     assert verdicts == dict.fromkeys(("reported_at", "reported_by", "rule"), "supported")
-    (claim,) = [c for c in changed_claims(instance, outcome) if c.statement.predicate == FINDING + ".rule"]
+    (claim,) = [
+        c for c in changed_claims(instance, outcome) if c.statement.predicate == FINDING + ".rule"
+    ]
     assert _cited_sources(instance, claim) == {"gate-app.notes"}
 
 
