@@ -1,0 +1,72 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "The CVE id of every watched vulnerability: EPSS's key list.",
+  "entry": {
+    "binding": "v",
+    "subject_kinds": [
+      "security.vulnerability"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.watched_cve_keys"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "cve_id",
+        "value": {
+          "binding": "v",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.cve_id"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "row_contract": {
+    "digest": "sha256:6d00e52f2f26679e63f6fd84b4ea0eeb0665909ebaf82cdaba2f5505b2b69de5",
+    "name": "security.watched-cve-key",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "c",
+      "direction": "reverse",
+      "from_binding": "v",
+      "predicate": "security.component.affected_by",
+      "target_subject_kinds": [
+        "security.component"
+      ]
+    },
+    {
+      "binding": "o",
+      "fact": "security.occurrence.scope",
+      "parts": [
+        {
+          "binding": "c",
+          "part": "security.occurrence.component"
+        }
+      ],
+      "subject_kind": "security.occurrence"
+    }
+  ]
+}

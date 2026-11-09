@@ -1,0 +1,112 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "One inventory's current components: each occurrence holding a scope, with the component's purl and its scope.",
+  "entry": {
+    "binding": "i",
+    "subject_id": {
+      "kind": "parameter",
+      "parameter": "inventory"
+    },
+    "subject_kinds": [
+      "security.inventory"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.inventory_components"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "orderings": [
+    {
+      "key": {
+        "binding": "c",
+        "kind": "claim_value",
+        "predicate": "security.component.purl"
+      },
+      "value_type": "string"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "inventory",
+      "value_type": "subject_reference"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "occurrence",
+        "value": {
+          "binding": "o",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "purl",
+        "value": {
+          "binding": "c",
+          "kind": "claim_value",
+          "predicate": "security.component.purl"
+        }
+      },
+      {
+        "name": "scope",
+        "value": {
+          "binding": "o",
+          "kind": "claim_value",
+          "predicate": "security.occurrence.scope"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:5d98dad30ee6667f156ca2e8c76e29709eba93d28c3aa17213831aac35bb4ea6",
+    "name": "security.inventory-component",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "o",
+      "fact": "security.occurrence.scope",
+      "parts": [
+        {
+          "binding": "i",
+          "part": "security.occurrence.inventory"
+        }
+      ],
+      "subject_kind": "security.occurrence"
+    },
+    {
+      "binding": "c",
+      "direction": "forward",
+      "from_binding": "o",
+      "predicate": "security.occurrence.component",
+      "target_subject_kinds": [
+        "security.component"
+      ]
+    }
+  ]
+}

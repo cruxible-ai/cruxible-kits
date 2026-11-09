@@ -1,9 +1,0 @@
-{
-  "cruxible-ai/cruxible": {
-    "main": [
-      "9eb531a473eb2fcb9e31098fca33b72a10f275aa",
-      "e848cbb6787262db349912c48d9c008d8068ede8"
-    ],
-    "v0.3.2": "e848cbb6787262db349912c48d9c008d8068ede8"
-  }
-}

@@ -1,31 +1,25 @@
 {
-  "activation_policy": "drain",
-  "artifact_format": "cruxible-procedure-v3",
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
   "definition": {
-    "budget": {
-      "max_capture_bytes": 33554432,
-      "max_provider_calls": 2,
-      "wall_clock": {
-        "microseconds": 120000000
-      }
-    },
     "contract_in": {
       "target": {
         "kind": "Contract",
-        "name": "security-empty-input"
+        "name": "security.epss-triage.input/v1"
       }
     },
     "contract_out": {
       "target": {
         "kind": "Contract",
-        "name": "security-epss-summary"
+        "name": "security.epss-triage.output/v1"
       }
     },
-    "description": "Read the EPSS daily file Capture that triggered the Line (security.fetched-v1) and the watched vulnerabilities, and settle epss_score and epss_percentile for each watched CVE whose scores changed, exactly as the file states them (or propose them under a propose cap). Halts no_change when nothing changed. Runs as a Line with trigger_input epss.",
+    "description": "Read FIRST's EPSS API answer for the watched CVEs and write each one's score, percentile and score date.",
     "hard_caps": {
-      "max_capture_bytes": 33554432,
-      "max_items": 5000,
-      "max_provider_calls": 2,
+      "max_capture_bytes": 16777216,
+      "max_items": 20000,
+      "max_provider_calls": 1,
+      "max_read_rows": 50000,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
         "microseconds": 300000000
@@ -34,28 +28,27 @@
     "name": "security.epss-triage",
     "nodes": [
       {
-        "capture_contract": {
-          "target": {
-            "kind": "CaptureContract",
-            "name": "security.fetched-v1"
+        "captures": {
+          "capture": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.epss-scores"
+            }
           }
         },
-        "id": "epss",
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "security.epss-daily/v2"
-          }
+        "id": "scores_api",
+        "input": {
+          "expected_format": "json",
+          "logical_source": "$params.logical_source",
+          "max_bytes": "$params.max_bytes",
+          "url": "$params.url"
         },
-        "kind": "source",
-        "provider": {
-          "slot_name": "epss"
-        },
-        "request": {}
+        "kind": "call",
+        "slot": "fetch"
       },
       {
         "id": "watched",
-        "kind": "state_tap",
+        "kind": "read",
         "query": {
           "target": {
             "kind": "QueryDefinition",
@@ -64,133 +57,121 @@
         }
       },
       {
-        "id": "parse",
-        "input": {
-          "daily_base64": "$steps.epss.retrieved.body_base64",
-          "watched": "$steps.watched.result.rows"
-        },
-        "interface": {
+        "id": "watch_keys",
+        "kind": "read",
+        "query": {
           "target": {
-            "kind": "ProviderInterface",
-            "name": "security.epss-scores/v1"
+            "kind": "QueryDefinition",
+            "name": "security.watched_cve_keys"
           }
-        },
-        "kind": "call",
-        "provider": {
-          "slot_name": "parse"
         }
       },
       {
-        "contract_out": {
-          "target": {
-            "kind": "Contract",
-            "name": "security-epss-summary"
-          }
+        "capture": "$steps.scores_api.capture",
+        "complete_when": {
+          "count_at": "/total"
         },
         "fields": {
-          "changed": "$steps.parse.changed",
-          "model_version": "$steps.parse.model_version",
-          "score_date": "$steps.parse.score_date",
-          "scored": "$steps.parse.scored",
-          "watched": "$steps.parse.watched"
-        },
-        "id": "summary",
-        "kind": "project"
-      },
-      {
-        "id": "changed",
-        "kind": "guard",
-        "message": "The EPSS file changes no watched Claim.",
-        "on_false": "nochange",
-        "predicate": {
-          "left": {
-            "alias": "parse",
-            "kind": "step",
-            "path": [
-              "changed"
-            ]
+          "date": {
+            "at": "date",
+            "parse": "date"
           },
-          "operator": "gt",
-          "right": 0
-        },
-        "refusal_code": "no_change"
-      },
-      {
-        "candidate_templates": {
-          "items": "$steps.parse.items"
-        },
-        "id": "settle",
-        "kind": "settle_change_set",
-        "result": "$steps.summary"
-      },
-      {
-        "id": "nochange",
-        "kind": "halt",
-        "reason": "no_change"
-      }
-    ],
-    "pin_slots": [
-      {
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "security.epss-daily/v2"
+          "percentile": {
+            "at": "percentile",
+            "parse": "decimal"
+          },
+          "score": {
+            "at": "epss",
+            "parse": "decimal"
           }
         },
-        "slot_name": "epss"
-      },
-      {
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "security.epss-scores/v1"
+        "id": "scores",
+        "key": {
+          "cve_id": {
+            "at": "cve",
+            "type": "key_part<security.vulnerability:cve_id>"
           }
         },
-        "slot_name": "parse"
+        "kind": "extract",
+        "only_keys": "$steps.watch_keys.rows",
+        "records": "/data/*",
+        "row": {
+          "digest": "sha256:c87071597d8c0acb652d8bed03018de5134311ee844347548fa38939be0a2782",
+          "name": "security.epss-row",
+          "version": 1
+        }
+      },
+      {
+        "claims": [
+          {
+            "rationale": "FIRST EPSS on {$item.fields.date}: epss {$item.fields.score}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.vulnerability.epss_score"
+              }
+            },
+            "value": "$item.fields.score"
+          },
+          {
+            "rationale": "FIRST EPSS on {$item.fields.date}: percentile {$item.fields.percentile}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.vulnerability.epss_percentile"
+              }
+            },
+            "value": "$item.fields.percentile"
+          },
+          {
+            "rationale": "FIRST EPSS scored this CVE on {$item.fields.date}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.vulnerability.epss_score_date"
+              }
+            },
+            "value": "$item.fields.date"
+          }
+        ],
+        "for_each": "$steps.scores.records",
+        "id": "write",
+        "kind": "claims",
+        "subject": {
+          "key": {
+            "cve_id": "$item.key.cve_id"
+          },
+          "kind": "security.vulnerability",
+          "within": "$steps.watched.rows"
+        }
       }
     ],
-    "returns": "summary",
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.epss-triage.params/v1"
+      }
+    },
+    "slots": {
+      "fetch": {
+        "effect": "external_read",
+        "in": {
+          "digest": "sha256:1f4eefbeef292080ab075e22d068a4e45f6b01170802f2ca470daa2329444137",
+          "name": "web.fetch.request",
+          "version": 1
+        },
+        "out": {
+          "digest": "sha256:94f256cdc9f9dfb45d8ac2a55e5aaf40bdb64757cbbf21703baeb8bd8d03062f",
+          "name": "web.fetch.result",
+          "version": 1
+        }
+      }
+    },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:d105ad7bc7ea80199cedf4a1d2a017e7e3ca450e1e80cf5b27d010c67b855c03",
+  "definition_digest": "sha256:ef594b40778fc417016ad1eb89f1a759e5e1dfddc22220b660dcde28c13c9dff",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
-  },
-  "owned_contracts": [
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-empty-input"
-      },
-      "schema": {
-        "fields": {}
-      }
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-epss-summary"
-      },
-      "schema": {
-        "fields": {
-          "changed": {
-            "type": "integer"
-          },
-          "model_version": {
-            "type": "string"
-          },
-          "score_date": {
-            "type": "string"
-          },
-          "scored": {
-            "type": "integer"
-          },
-          "watched": {
-            "type": "integer"
-          }
-        }
-      }
-    }
-  ]
+  }
 }

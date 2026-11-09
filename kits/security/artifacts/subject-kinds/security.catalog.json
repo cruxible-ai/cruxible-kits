@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A published vulnerability catalog (e.g. cisa-kev), named by its id.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.catalog"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "security.catalog.catalog_id",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

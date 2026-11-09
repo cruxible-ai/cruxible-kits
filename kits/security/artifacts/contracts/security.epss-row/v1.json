@@ -1,0 +1,27 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One EPSS API record, typed in the extract (D-R23).",
+  "fields": {
+    "date": {
+      "type": {
+        "kind": "date"
+      }
+    },
+    "percentile": {
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    },
+    "score": {
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    }
+  },
+  "name": "security.epss-row",
+  "version": 1
+}

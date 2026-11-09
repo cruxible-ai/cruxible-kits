@@ -1,15 +1,13 @@
 {
   "artifact_format": "cruxible-query-definition-v3",
-  "dedupe": "path",
+  "dedupe": "subject",
   "default_budgets": {
-    "max_paths": 20000,
-    "max_paths_per_result": 100,
-    "max_results": 2000,
+    "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "Every watched vulnerability (a watch_reason, an affected or inconclusive assessment of a release in inventory, or an incident responding to it) with its current KEV and EPSS Claims, its record's title and the packages OSV says it affects. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Every vulnerability that affects a component of an imported inventory.",
   "entry": {
-    "binding": "vulnerability",
+    "binding": "v",
     "subject_kinds": [
       "security.vulnerability"
     ]
@@ -27,29 +25,7 @@
     "kind": "QueryDefinition",
     "name": "security.watched_vulnerabilities"
   },
-  "includes": [
-    {
-      "binding": "included_affected_product",
-      "direction": "forward",
-      "from_binding": "vulnerability",
-      "many": true,
-      "max_items": 500,
-      "name": "affected_product",
-      "predicate": "security.vulnerability.affected_product"
-    },
-    {
-      "binding": "included_package",
-      "direction": "forward",
-      "from_binding": "vulnerability",
-      "many": true,
-      "max_items": 500,
-      "name": "package",
-      "predicate": "security.vulnerability.package"
-    }
-  ],
   "maximum_budgets": {
-    "max_paths": 20000,
-    "max_paths_per_result": 1000,
     "max_results": 2000,
     "max_traversal_depth": 10
   },
@@ -58,164 +34,55 @@
       {
         "name": "cve_id",
         "value": {
-          "binding": "vulnerability",
+          "binding": "v",
           "kind": "claim_value",
           "predicate": "security.vulnerability.cve_id"
         }
       },
       {
-        "name": "epss_percentile",
+        "name": "subject_id",
         "value": {
-          "binding": "vulnerability",
-          "kind": "claim_value",
-          "predicate": "security.vulnerability.epss_percentile"
-        }
-      },
-      {
-        "name": "epss_score",
-        "value": {
-          "binding": "vulnerability",
-          "kind": "claim_value",
-          "predicate": "security.vulnerability.epss_score"
-        }
-      },
-      {
-        "name": "kev_date_added",
-        "value": {
-          "binding": "vulnerability",
-          "kind": "claim_value",
-          "predicate": "security.vulnerability.kev_date_added"
-        }
-      },
-      {
-        "name": "kev_due_date",
-        "value": {
-          "binding": "vulnerability",
-          "kind": "claim_value",
-          "predicate": "security.vulnerability.kev_due_date"
-        }
-      },
-      {
-        "name": "kev_listed",
-        "value": {
-          "binding": "vulnerability",
-          "kind": "claim_value",
-          "predicate": "security.vulnerability.kev_listed"
-        }
-      },
-      {
-        "name": "kev_ransomware_use",
-        "value": {
-          "binding": "vulnerability",
-          "kind": "claim_value",
-          "predicate": "security.vulnerability.kev_ransomware_use"
-        }
-      },
-      {
-        "name": "title",
-        "value": {
-          "binding": "vulnerability",
-          "kind": "claim_value",
-          "predicate": "security.vulnerability.title"
-        }
-      },
-      {
-        "name": "vulnerability",
-        "value": {
-          "binding": "vulnerability",
+          "binding": "v",
           "field": "subject_id",
           "kind": "subject_field"
         }
       },
       {
-        "name": "watch_reason",
+        "name": "subject_kind",
         "value": {
-          "binding": "vulnerability",
-          "kind": "claim_value",
-          "predicate": "security.vulnerability.watch_reason"
+          "binding": "v",
+          "field": "subject_kind",
+          "kind": "subject_field"
         }
       }
     ]
   },
-  "result_shape": "path",
+  "result_shape": "subject",
+  "row_contract": {
+    "digest": "sha256:8b5aef9127f1cc9b01285ef01b49417b0734d995c82f24858798152461cf21fe",
+    "name": "security.watched-vulnerability",
+    "version": 1
+  },
   "traversal": [
     {
-      "binding": "assessment",
+      "binding": "c",
       "direction": "reverse",
-      "from_binding": "vulnerability",
-      "predicate": "security.assessment.vulnerability",
-      "required": false,
+      "from_binding": "v",
+      "predicate": "security.component.affected_by",
       "target_subject_kinds": [
-        "security.assessment"
+        "security.component"
       ]
     },
     {
-      "binding": "incident",
-      "direction": "reverse",
-      "from_binding": "vulnerability",
-      "predicate": "security.incident.vulnerability",
-      "required": false,
-      "target_subject_kinds": [
-        "security.incident"
-      ]
+      "binding": "o",
+      "fact": "security.occurrence.scope",
+      "parts": [
+        {
+          "binding": "c",
+          "part": "security.occurrence.component"
+        }
+      ],
+      "subject_kind": "security.occurrence"
     }
-  ],
-  "where": {
-    "filters": [
-      {
-        "binding": "incident",
-        "kind": "claim_presence",
-        "predicate": "security.incident.name"
-      },
-      {
-        "binding": "vulnerability",
-        "kind": "claim_presence",
-        "predicate": "security.vulnerability.watch_reason"
-      },
-      {
-        "filters": [
-          {
-            "binding": "assessment",
-            "kind": "claim_presence",
-            "predicate": "security.assessment.release"
-          },
-          {
-            "filters": [
-              {
-                "kind": "comparison",
-                "left": {
-                  "binding": "assessment",
-                  "kind": "claim_value",
-                  "predicate": "security.assessment.status"
-                },
-                "operator": "eq",
-                "right": {
-                  "kind": "literal",
-                  "value": "affected"
-                },
-                "value_type": "string"
-              },
-              {
-                "kind": "comparison",
-                "left": {
-                  "binding": "assessment",
-                  "kind": "claim_value",
-                  "predicate": "security.assessment.status"
-                },
-                "operator": "eq",
-                "right": {
-                  "kind": "literal",
-                  "value": "inconclusive"
-                },
-                "value_type": "string"
-              }
-            ],
-            "kind": "any_of"
-          }
-        ],
-        "kind": "all_of"
-      }
-    ],
-    "kind": "any_of"
-  }
+  ]
 }

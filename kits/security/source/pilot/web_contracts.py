@@ -23,7 +23,14 @@ def _spelling(field_type: object) -> str:
 
 
 def members(checkout: Path) -> list[dict[str, object]]:
-    root = checkout / "packages/cruxible-provider-web/src/cruxible_provider_web/contracts"
+    return package_members(
+        checkout / "packages/cruxible-provider-web/src/cruxible_provider_web"
+    )
+
+
+def package_members(package: Path) -> list[dict[str, object]]:
+    """Read the Contracts of the exact web package being bundled."""
+    root = package / "contracts"
     out = []
     for path in sorted(root.rglob("*.json")):
         member = "contracts/" + path.relative_to(root).as_posix()

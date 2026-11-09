@@ -1,36 +1,28 @@
-# Examples
+# Example SBOMs
 
-The kit's automation template is not here: it is [../automation.json](../automation.json),
-the one change set you tailor and submit as your own (the kit's
-[README](../README.md#install-and-first-answers), steps 2 to 5). This directory holds:
+These are inputs for the Cruxible 0.5 dependency kit:
 
-- `sboms/`: CycloneDX SBOMs to import (`log4j-demo-app.cdx.json`, the dependency
-  loop's demo application; `cruxible-env.cdx.json` and the `env_sbom.py` that
-  writes one for a Python environment);
-- `incident-status.md`: an example status page with a projection block the
-  incident's status query renders.
+| File | Meaning |
+|---|---|
+| `sboms/log4j-demo-app.cdx.json` | Demo application containing log4j-core 2.14.1; a useful live OSV/KEV example, not real deployed software |
+| `sboms/cruxible-env.cdx.json` | A recorded Python environment inventory, not a statement of your current environment |
+| `sboms/env_sbom.py` | Write an inventory from the Python environment running it |
 
-For an observation window anchored on a landing, author a window-close Trigger
-by contract name too (choose the Line/action and duration for your workflow). From
-the Python SDK (`cruxible-client`, which `cruxible` installs):
+Install the local kit directory first, then copy the template and example into
+your attached Git workspace:
 
-```python
-from cruxible_client import Cruxible
-from cruxible_client.contracts.authoring.models import (
-    CaptureEventByNameWindow,
-    WindowCloseAuthoringSchedule,
-)
-
-cx = Cruxible.connect()
-draft = cx.changes(rationale="Re-ask KEV triage a day after each KEV catalog lands.")
-draft.trigger(
-    name="consumer.kev-window-close", line="security.kev-triage",
-    schedule=WindowCloseAuthoringSchedule(window=CaptureEventByNameWindow(
-        capture_contract="security.fetched-v1", logical_sources=("cisa.kev.catalog",),
-        duration_seconds=86400)))
-intent = draft.submit()
-intent.outcome.status   # 'landed'
+```sh
+cp /path/to/cruxible-kits/kits/security/automation.json automation.json
+cp /path/to/cruxible-kits/kits/security/examples/sboms/log4j-demo-app.cdx.json sbom.cdx.json
 ```
 
-Prepare resolves the current CaptureContract; retained Triggers and windows
-retain their source filters; execution records resolved exact digests.
+Tailor the Line names and references, UTC cron times and Mandate dates. The
+SBOM Line must read `sbom.cdx.json` (or the workspace-relative path you choose).
+Submit with `cruxible authoring submit automation.json --no-accept`, have a
+second actor review and approve it, activate the proposal, then run
+`cruxible runbook preview security.start`. Review its availability, order and
+settlement scopes before `cruxible runbook run security.start`.
+
+The Runbook makes real OSV, CISA and FIRST network calls. Refusals or incomplete
+answers remain gaps. No recorded responses are substituted by this example.
+See [the installation instructions](../README.md#install-and-first-answers).
