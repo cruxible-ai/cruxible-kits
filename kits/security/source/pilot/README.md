@@ -3,7 +3,8 @@
 This directory is the security kit re-authored for the Procedure template
 (D-R37): `read -> fetch -> derive* -> extract -> claims`. It holds the
 dependency loop: SBOM import, OSV, KEV and EPSS, agents' package-level and
-app-level not_affected judgments, the triage worklists and the track record.
+app-level not_affected judgments and app-level affected verdicts, the triage
+worklists, the confirmed list and the track record.
 `../build_release.py` builds the committed kit from these definitions through
 the public CLI; see [the release recipe](../README.md). The code-findings and
 audit modules (`findings.py`) are bundled too: the vocabulary, Procedures,
@@ -14,14 +15,14 @@ Queries, provider and guidance, never their Lines.
 | `definitions.py` | Every authoring payload, in install order: CaptureKinds, the provider Contracts, vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates, Triggers), and state (catalog, vulnerabilities, seeds) |
 | `inventory.py` | The SBOM import, the inventory and component kinds, the pair kinds (occurrence, exposure, app_exposure) and their ClaimTypes, and `affected_by` (with its inverse) |
 | `osv.py` | The OSV Procedure and Line, the OSV response kind and the provider's Contracts as an authoring change set |
-| `triage.py` | The triage and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
+| `triage.py` | The triage, confirmed and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `affected_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
 | `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines; security audits: the coverage unit, `found_in` and the audit Queries |
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
 | `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py`, `test_audit_gate.py` | The gate, run on recorded real bytes |
 | `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive), with its recorded OSV exchanges |
 | `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure) and its SARIF test data |
-| `../guidance/dependency.md` | Judging a dependency exposure: the review guidance the two justifications point to |
+| `../guidance/dependency.md` | Judging a dependency exposure: the review guidance the two justifications and the app-level verdict point to |
 
 ## The chain
 
@@ -35,7 +36,7 @@ flowchart LR
   watch --> kev["security.kev-triage"]
   watch --> epss["security.epss-triage"]
   pkg["package judgment (one write)<br/>affected_by none of V<br/>+ exposure.justification"] --> aff
-  app["app judgment (one write)<br/>app_exposure.justification"] --> occ
+  app["app judgment (one write)<br/>app_exposure.justification<br/>or verdict = affected"] --> occ
 ```
 
 Lines depend on each other only through state (D-R35). Run the SBOM import
@@ -53,7 +54,7 @@ never change (a new identity is a new pair).
 | `security.component` | `purl`: purl@version, with qualifiers dropped by the `purl-type` package normalizer: one package release, the same in every inventory | `affected_by` (many, Subject-valued → vulnerability: OSV's observation; its inverse "none of V" is an agent's package-level not_affected judgment) |
 | `security.occurrence` | (`inventory`, `component`) | `scope`: the CycloneDX scope (`required`, `optional`, `excluded`; `required` when the SBOM states none). The membership fact (R3): live while the SBOM lists the component, retired when it no longer does |
 | `security.exposure` | (`component`, `vulnerability`) | `justification`: `vulnerable_code_not_present` only (package level, normative; cites the code read or own words) |
-| `security.app_exposure` | (`occurrence`, `vulnerability`) | `justification`: `component_not_present`, `vulnerable_code_not_in_execute_path`, `vulnerable_code_cannot_be_controlled_by_adversary` or `inline_mitigations_already_exist` (one inventory, normative; cites the code read or own words) |
+| `security.app_exposure` | (`occurrence`, `vulnerability`) | `justification`: `component_not_present`, `vulnerable_code_not_in_execute_path`, `vulnerable_code_cannot_be_controlled_by_adversary` or `inline_mitigations_already_exist` (one inventory, normative; cites the code read or own words). `verdict`: `affected` (alone: reachable here, citing the code on the call path) or `not_affected` (optional beside a justification) |
 | `security.vulnerability` | `cve_id` | KEV and EPSS fields (see `definitions.py`); created by value when OSV first names it |
 
 `security.inventory_components` lists one inventory's current components
@@ -146,10 +147,11 @@ names will map to source names, from SBOM source-name metadata (syft
 `security-osv-provider/tests/recordings` show the gap: `libc6@2.36-9+deb12u7`
 gets no answer, while `glibc` at the same version gets 33 advisories.
 
-## Judgments: not_affected (K-B2-J1, D-R46 R4)
+## Judgments: not_affected and affected (K-B2-J1, D-R46 R4)
 
-A vulnerability affects an occurrence unless a judgment holds. Each judgment
-is ONE `cruxible write`: it lands or refuses as a whole.
+A vulnerability affects an occurrence unless a judgment holds, and the row
+stays in the worklists until an agent judges it. Each judgment is ONE
+`cruxible write`: it lands or refuses as a whole.
 
 - **Package level** (`triage.judgment()`): the vulnerable code is not in this
   package release (`vulnerable_code_not_present`), so it holds for every
@@ -164,9 +166,29 @@ is ONE `cruxible write`: it lands or refuses as a whole.
   `occurrence`, V) and sets its `justification`. It never states the global
   none: OSV's observation, the watch list and every other inventory's row
   stay.
+- **Affected** (`triage.affected_judgment()`): the vulnerable code is
+  reachable here. The write creates `security.app_exposure` (the row's
+  `occurrence`, V) and sets `verdict = affected`, citing the code on the call
+  path (or own words), with no justification. The row moves to
+  `security.confirmed_exposures`; every other inventory's row stays.
+  Confirmed-affected is always app level.
+- **One rule reads the app-level pair** (`triage._APP_NOT_AFFECTED`,
+  `_APP_AFFECTED`): a justification is not_affected (a `not_affected` verdict
+  beside it is optional), `verdict = affected` with no justification is
+  affected, and anything else (both, or a bare `not_affected` verdict) is no
+  judgment: the row stays in the worklists and in neither list. Core has no
+  cross-Claim refusal, so a write setting both lands; the guidance tells the
+  reviewer to reject it, and the read keeps the row visible meanwhile.
 - **Reversal** (`triage.reverse_judgment()`): one write retiring the
-  justification and, at package level, the none. The pairs stay as history;
-  OSV's next run re-observes V.
+  justification (or the affected verdict) and, at package level, the none.
+  The pairs stay as history; OSV's next run re-observes V. Affected to
+  not_affected is `triage.app_judgment(..., verdict=True)`: one write that
+  revises the verdict Claim to `not_affected` and sets the justification.
+- **A confirmed exposure clears** when the SBOM no longer lists the
+  component: the occurrence's `scope` retires, the row leaves
+  `security.confirmed_exposures`, and core resurfaces the verdict (a Claim on
+  a pair whose end lost its last observation) as `claim_dependency_stale` in
+  `next`.
 - **Under investigation** (K-CF1, `triage.investigation()`): no judgment. Attest
   `--unsure` on OSV's `affected_by` Claim, with the reason (`--because` or a
   cited section) and `--valid-until` capped at the end of the KEV due date (a
@@ -181,22 +203,25 @@ OSV Line routes to its inbox.
 **Review is on the honor system (K-CF2a).** The helpers write with
 `accept: never`; a different agent approves after reading
 `../guidance/dependency.md` (a governed Document that `guides` both
-justification ClaimTypes, so a proposal's `guidance` shows it). No Mandate
-settles a justification or creates a judgment pair.
+justification ClaimTypes and the app-level verdict, so a proposal's
+`guidance` shows it). No Mandate settles a justification or a verdict, or
+creates a judgment pair.
 
 ## Triage worklists and the track record (K-B2-TR)
 
 | Query | Rows |
 |---|---|
-| `security.urgent_exposures` | One per (inventory, component, vulnerability) occurrence with no package-level or app-level justification: KEV-listed first (by `kev_date_added`), then by EPSS score; with the occurrence id, its scope, KEV dates, ransomware use and EPSS |
+| `security.urgent_exposures` | One per (inventory, component, vulnerability) occurrence nobody has judged (no package-level justification, no app-level judgment): KEV-listed first (by `kev_date_added`), then by EPSS score; with the occurrence id, its scope, KEV dates, ransomware use and EPSS |
 | `security.kev_triage_backlog` | The KEV-listed rows of the above (pairs under investigation stay) |
+| `security.confirmed_exposures` | One per occurrence judged `affected` whose SBOM still lists the component, with its app_exposure id and the same fields, KEV first then EPSS; the fixed versions are in the `osv.match` document the component's `affected_by` Claim cites |
 | `security.not_affected_judgments` | Every package-level judgment: exposure, component, CVE, justification |
 | `security.app_not_affected_judgments` | Every app-level judgment: app_exposure, inventory, component, CVE, justification |
 | `security.watched_vulnerabilities` | One per vulnerability some inventoried component is affected by (K-B1-2); a package-level judgment drops it, an app-level one does not (a Subject-shaped query takes no optional hop) |
 
 The worklists walk vulnerability ← `affected_by` ← component → its occurrences
 holding a scope (the pair index) → inventory, then the two judgment pairs by
-whole key: an unrelated inventory costs them nothing
+whole key; the confirmed list starts from the judgment pairs. An unrelated
+inventory costs them nothing
 (`test_triage_reads_are_flat_in_unrelated_inventories`). Who judged and when:
 `cruxible get CLM-… --detail history` on the justification (and the none).
 A source that later disagrees is the OSV Line's `held_disagrees` inbox item.

@@ -9,7 +9,8 @@ opens a socket.
 The pair-Subject model (D-R43, D-R46): worklist rows are occurrences
 (inventory, component); a package-level judgment is one write (retire OSV's
 observation, "none of V", the exposure pair and its justification); an
-app-level judgment is one write on the app_exposure pair of one occurrence.
+app-level judgment (a not_affected justification, or an affected verdict) is
+one write on the app_exposure pair of one occurrence.
 
     PYTHONPATH=$CORE/src:$CORE/packages/cruxible-client/src:$CORE \\
     CRUXIBLE_PROVIDERS_CHECKOUT=$PROVIDERS python -m pytest test_dependency_gate.py
@@ -193,11 +194,15 @@ def none_claim(instance: Any, purl: str, cve_id: str) -> str:
     return none.claim
 
 
-def justification_claim(instance: Any, ref: str) -> str:
+def justification_claim(instance: Any, ref: str, field: str = "justification") -> str:
     card = get(instance, ref).card
-    (row,) = [r for r in card.claims if r.predicate == "justification"]
+    (row,) = [r for r in card.claims if r.predicate == field]
     claim = row.claim
     return claim[0] if isinstance(claim, list | tuple) else claim
+
+
+def verdict_claim(instance: Any, ref: str) -> str:
+    return justification_claim(instance, ref, "verdict")
 
 
 def write(instance: Any, request: dict[str, Any]) -> Any:
@@ -259,6 +264,21 @@ def app_judge(instance: Any, inventory_id: str, purl: str, cve_id: str) -> Any:
         reason=APP_REASON,
         because="This app never logs attacker-controlled input.",
         accept="if_allowed",
+    )
+    outcome = write(instance, request)
+    assert outcome.status == "accepted", outcome
+    return outcome
+
+
+def confirm(instance: Any, inventory_id: str, purl: str, cve_id: str, **extra: Any) -> Any:
+    """An agent's affected verdict for one occurrence (own words): one write."""
+
+    request = triage.affected_judgment(
+        occurrence_of(instance, inventory_id, purl),
+        cve_id,
+        because="The app logs the User-Agent header through log4j-core's message lookup.",
+        accept="if_allowed",
+        **extra,
     )
     outcome = write(instance, request)
     assert outcome.status == "accepted", outcome
@@ -658,6 +678,7 @@ def test_a_judgment_written_for_review_shows_the_guidance_and_changes_nothing(
     assert install_dependency_guidance(instance) == [DEPENDENCY_GUIDANCE]
     for pair in (inventory.EXPOSURE, inventory.APP_EXPOSURE):
         assert guides(instance, f"ClaimType:{pair}.justification") == [DEPENDENCY_GUIDANCE]
+    assert guides(instance, f"ClaimType:{inventory.APP_EXPOSURE}.verdict") == [DEPENDENCY_GUIDANCE]
     run_osv(instance)
     before = instance.accepted_coordinate().git_oid
     request = package_judgment(instance, CORE, LOG4SHELL)
@@ -674,6 +695,25 @@ def test_a_judgment_written_for_review_shows_the_guidance_and_changes_nothing(
     )
     assert [(g.definition, g.document) for g in review.guidance] == [
         (f"ClaimType:{inventory.EXPOSURE}.justification", DEPENDENCY_GUIDANCE)
+    ]
+    # An affected verdict goes to review the same way, and changes nothing until approved.
+    request = triage.affected_judgment(
+        occurrence_of(instance, DEMO_APP, CORE), LOG4SHELL, because="Reachable."
+    )
+    assert request["accept"] == "never"
+    outcome = write(instance, request)
+    assert outcome.status == "awaiting_approval", outcome
+    assert instance.accepted_coordinate().git_oid == before
+    assert (DEMO_APP, CORE, LOG4SHELL) in exposures(instance)
+    assert query_rows(instance, triage.CONFIRMED) == []
+    review = service_review_playbill_proposal(
+        instance,
+        proposal_id=outcome.proposal.proposal_id,
+        access=BodyAccessContext(principal_id="reviewer", can_read_body=True),
+        detail=False,
+    )
+    assert [(g.definition, g.document) for g in review.guidance] == [
+        (f"ClaimType:{inventory.APP_EXPOSURE}.verdict", DEPENDENCY_GUIDANCE)
     ]
 
 
@@ -756,6 +796,216 @@ def test_reversing_a_judgment_retires_its_none_and_justification_together(
     rows = exposures(instance)
     assert {(DEMO_APP, CORE, LOG4SHELL), (OTHER_APP, CORE, LOG4SHELL)} <= rows
     assert (DEMO_APP, API, API_CVE) in rows
+
+
+# -- affected verdicts: confirmed, fix pending ------------------------------------------
+
+
+def test_an_affected_verdict_moves_only_its_own_occurrence_to_confirmed(
+    tmp_path: Path,
+) -> None:
+    """The worklists list pairs with no judgment; an affected verdict moves its one
+    occurrence to ``confirmed_exposures`` and leaves every other inventory's row."""
+
+    instance = world(tmp_path, other=True)
+    run_osv(instance)
+    kev(instance, fixture_bytes("kev-catalog"), minute=1)
+    pair_demo, pair_other = (DEMO_APP, CORE, LOG4SHELL), (OTHER_APP, CORE, LOG4SHELL)
+    for query in (triage.URGENT, triage.BACKLOG):
+        assert {pair_demo, pair_other} <= exposures(instance, query)
+    assert query_rows(instance, triage.CONFIRMED) == []
+
+    outcome = confirm(instance, DEMO_APP, CORE, LOG4SHELL)
+    # One write: the pair and its verdict, nothing else (no justification, no none).
+    assert [(c.op, c.field) for c in outcome.changes] == [("create", None), ("set", "verdict")]
+    assert outcome.changes[1].verdict == "supported"
+    for query in (triage.URGENT, triage.BACKLOG):
+        rows = exposures(instance, query)
+        assert pair_demo not in rows and pair_other in rows
+    (row,) = query_rows(instance, triage.CONFIRMED)
+    assert (row["inventory"], row["component"], row["cve_id"]) == pair_demo
+    assert row["occurrence"] == occurrence_of(instance, DEMO_APP, CORE)
+    assert row["app_exposure"] == outcome.changes[0].subject.rsplit("/", 1)[-1]
+    assert row["scope"] == "required" and row["kev_date_added"] and row["kev_due_date"]
+    # It is no not_affected judgment, and it never touches OSV's observation.
+    assert query_rows(instance, triage.APP_JUDGMENTS) == []
+    assert LOG4SHELL in affected(instance)[CORE] and LOG4SHELL in watched(instance)
+    again = run_osv(instance, minute=2)
+    assert not [f for f in again.findings if f.kind == "held_disagrees"]
+    assert exposures(instance, triage.CONFIRMED) == {pair_demo}
+
+
+JAVA_HANDLER = "app/src/main/java/com/example/RequestLogger.java"
+JAVA_HANDLER_V1 = b"""package com.example;
+
+final class RequestLogger {
+    void log(Request request) {
+        LOG.info("agent {}", request.header("User-Agent"));
+    }
+}
+"""
+#: The passage the verdict cites: the attacker-controlled header reaching log4j.
+REACHES = 'LOG.info("agent {}", request.header("User-Agent"));'
+HANDLER_CATALOG = f"""\
+tag: playbill-source-catalog-v1
+catalog_kind: portable
+entries:
+  - name: demo-app.request-logger
+    locator: {JAVA_HANDLER}
+"""
+
+
+def test_an_affected_verdict_citing_code_is_supported_and_drifts_when_the_code_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The affected verdict admits the same evidence as a justification: the code
+    that reaches the vulnerable function, cited by passage, so ``next`` reports
+    ``citation_drifted`` once that code changes."""
+
+    from cruxible_client.authoring.write_evidence import observe_changes
+    from cruxible_client.contracts.write import WriteRequest
+    from cruxible_core.service.authoring.write_verbs import service_playbill_write
+    from test_pilot_gate import workspace
+    from tests.core_support._write_support import caller
+
+    monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
+    instance = world(tmp_path)
+    run_osv(instance)
+    write_file(tmp_path, ".cruxible/files.yaml", HANDLER_CATALOG.encode())
+    write_file(tmp_path, JAVA_HANDLER, JAVA_HANDLER_V1)
+    request = triage.affected_judgment(
+        occurrence_of(instance, DEMO_APP, CORE),
+        LOG4SHELL,
+        because="The User-Agent header reaches LOG.info, which expands ${jndi:...} lookups.",
+        evidence={"kind": "file", "file": f"{JAVA_HANDLER}#{REACHES}"},
+        accept="if_allowed",
+    )
+    sent = WriteRequest.model_validate(request)
+    sent = sent.model_copy(
+        update={"changes": observe_changes(sent.changes, workspace=workspace(tmp_path))}
+    )
+    outcome = service_playbill_write(instance, request=sent, caller=caller())
+    assert outcome.status == "accepted", outcome.model_dump(mode="json")
+    (verdict,) = [c for c in outcome.changes if c.field == "verdict"]
+    assert verdict.verdict == "supported"
+    assert exposures(instance, triage.CONFIRMED) == {(DEMO_APP, CORE, LOG4SHELL)}
+    assert _next_rows(instance, tmp_path, "citation_drifted") == []
+
+    write_file(
+        tmp_path,
+        JAVA_HANDLER,
+        # The cited passage changes: the header is no longer logged.
+        JAVA_HANDLER_V1.replace(REACHES.encode(), b'LOG.info("request");'),
+    )
+    drifted = _next_rows(instance, tmp_path, "citation_drifted")
+    assert drifted, "editing the cited code must surface citation_drifted"
+    claim = verdict_claim(instance, verdict.subject)
+    assert any(claim in json.dumps(row.model_dump(mode="json")) for row in drifted), drifted
+
+
+def test_reversing_an_affected_verdict_to_not_affected_is_one_write(tmp_path: Path) -> None:
+    """``app_judgment(verdict=True)`` revises the affected verdict to not_affected and
+    states the justification in the same write; the pair moves to the track record."""
+
+    instance = world(tmp_path)
+    run_osv(instance)
+    confirm(instance, DEMO_APP, CORE, LOG4SHELL)
+    (row,) = query_rows(instance, triage.CONFIRMED)
+    pair = f"{inventory.APP_EXPOSURE}/{row['app_exposure']}"
+    first = verdict_claim(instance, pair)
+    request = triage.app_judgment(
+        row["occurrence"],
+        LOG4SHELL,
+        reason="inline_mitigations_already_exist",
+        because="log4j2.formatMsgNoLookups=true is set in the launcher.",
+        verdict=True,
+        accept="if_allowed",
+    )
+    outcome = write(instance, request)
+    assert outcome.status == "accepted", outcome
+    assert outcome.changes[0].resolved == "existing"
+    assert query_rows(instance, triage.CONFIRMED) == []
+    (app,) = query_rows(instance, triage.APP_JUDGMENTS)
+    assert (app["app_exposure"], app["justification"]) == (
+        row["app_exposure"],
+        "inline_mitigations_already_exist",
+    )
+    assert (DEMO_APP, CORE, LOG4SHELL) not in exposures(instance)
+    # The same verdict Claim, revised: affected, then not_affected.
+    assert verdict_claim(instance, pair) == first
+    revisions = get(instance, first, detail="history").history.revisions
+    assert len(revisions) == 2
+
+
+def test_an_affected_verdict_beside_a_justification_is_no_judgment(tmp_path: Path) -> None:
+    """Core has no cross-Claim refusal, so the rule is the read: affected beside a
+    justification (in one write, or a justification later landing on an affected
+    pair without revising the verdict) is no judgment. The pair stays in the
+    worklists and in neither list, so a contradictory write never silences a row;
+    the guidance tells the reviewer to reject it."""
+
+    instance = world(tmp_path, other=True)
+    run_osv(instance)
+    both = triage.affected_judgment(
+        occurrence_of(instance, DEMO_APP, CORE), LOG4SHELL, because="x", accept="if_allowed"
+    )
+    both["changes"].append(
+        {
+            "op": "set",
+            "subject": {"created": "app_exposure"},
+            "field": "justification",
+            "value": APP_REASON,
+            "role": "normative",
+        }
+    )
+    assert write(instance, both).status == "accepted"
+    assert (DEMO_APP, CORE, LOG4SHELL) in exposures(instance)
+    assert query_rows(instance, triage.CONFIRMED) == []
+    assert query_rows(instance, triage.APP_JUDGMENTS) == []
+
+    # A reversal that forgets the verdict: the confirmed row goes back to the worklist.
+    confirm(instance, OTHER_APP, CORE, LOG4SHELL)
+    assert exposures(instance, triage.CONFIRMED) == {(OTHER_APP, CORE, LOG4SHELL)}
+    app_judge(instance, OTHER_APP, CORE, LOG4SHELL)  # justification only
+    assert query_rows(instance, triage.CONFIRMED) == []
+    assert query_rows(instance, triage.APP_JUDGMENTS) == []
+    assert (OTHER_APP, CORE, LOG4SHELL) in exposures(instance)
+
+    # A bare not_affected verdict (no justification) is no judgment either.
+    bare = triage.affected_judgment(
+        occurrence_of(instance, DEMO_APP, API), API_CVE, because="x", accept="if_allowed"
+    )
+    bare["changes"][-1]["value"] = "not_affected"
+    assert write(instance, bare).status == "accepted"
+    assert (DEMO_APP, API, API_CVE) in exposures(instance)
+
+
+def test_a_confirmed_exposure_clears_when_the_sbom_drops_the_component_and_next_names_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An SBOM that no longer lists the component retires the occurrence's scope:
+    the row leaves ``confirmed_exposures``, and core resurfaces the verdict on the
+    now-unobserved occurrence as a ``claim_dependency_stale`` row in ``next``."""
+
+    monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
+    instance = world(tmp_path)
+    run_osv(instance)
+    occurrence = occurrence_of(instance, DEMO_APP, CORE)
+    outcome = confirm(instance, DEMO_APP, CORE, LOG4SHELL)
+    claim = verdict_claim(instance, outcome.changes[1].subject)
+    assert exposures(instance, triage.CONFIRMED) == {(DEMO_APP, CORE, LOG4SHELL)}
+    assert _next_rows(instance, tmp_path, "claim_dependency_stale") == []
+
+    document = json.loads(DEMO_SBOM.read_bytes())
+    document["components"] = [c for c in document["components"] if c["name"] != "log4j-core"]
+    write_file(tmp_path, DEMO_PATH, json.dumps(document).encode())
+    import_sbom(instance, "demo", minute=2)
+    assert query_rows(instance, triage.CONFIRMED) == []
+    assert not {r for r in exposures(instance) if r[1] == CORE}
+    stale = _next_rows(instance, tmp_path, "claim_dependency_stale")
+    assert [row.subject_identity for row in stale] == [f"Claim:{claim}"], stale
+    (entry,) = stale[0].detail["stale_inputs"]
+    assert entry["subject_end"] == f"Subject:{inventory.OCCURRENCE}/{occurrence}"
 
 
 # -- triage worklists ---------------------------------------------------------------
@@ -970,9 +1220,11 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
             claim, because="checking", until=NOW + timedelta(days=5), now=NOW
         )
         _attest_unsure(instance, tmp_path, claim, request)
+        confirm(instance, DEMO_APP, API, API_CVE)
         for name, read in (
             ("urgent", lambda: query_rows(instance, triage.URGENT)),
             ("backlog", lambda: query_rows(instance, triage.BACKLOG)),
+            ("confirmed", lambda: query_rows(instance, triage.CONFIRMED)),
             (
                 "investigation",
                 lambda: (
@@ -990,7 +1242,9 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
                 result = read()
             assert not window.unexplained, window.unexplained
             if name == "urgent":
-                assert len(result) == 9
+                assert len(result) == 8  # nine pairs, one confirmed affected
+            if name == "confirmed":
+                assert [r["cve_id"] for r in result] == [API_CVE]
             if name == "investigation":
                 assert triage.under_investigation(result)
             out[name] = {counter: window.counts[counter] for counter in _FLAT}
@@ -999,8 +1253,9 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
 
 def test_triage_reads_are_flat_in_unrelated_inventories(tmp_path: Path) -> None:
     """The worklists start from the vulnerabilities' links and reach occurrences by
-    the pair index, so an unrelated inventory growing 10 -> 40 costs them nothing;
-    the investigation mark is one Claim read per pair."""
+    the pair index, and the confirmed list from the judgment pairs, so an unrelated
+    inventory growing 10 -> 40 costs them nothing; the investigation mark is one
+    Claim read per pair."""
 
     # One warm-up world first: process-wide caches fill once, on whichever world
     # runs first in this worker, so neither measured size pays for them.
@@ -1011,7 +1266,7 @@ def test_triage_reads_are_flat_in_unrelated_inventories(tmp_path: Path) -> None:
         root = tmp_path / f"u{unrelated}"
         root.mkdir()
         measured[unrelated] = counted_triage_reads(root, unrelated)
-    for read in ("urgent", "backlog", "investigation"):
+    for read in ("urgent", "backlog", "confirmed", "investigation"):
         small, large = measured[10][read], measured[40][read]
         for counter in ("sql_statements", "projection_binds", "claim_parses"):
             assert large[counter] == small[counter], (read, counter, measured)
@@ -1075,7 +1330,7 @@ def test_a_cve_osv_adds_gets_an_epss_score_on_the_next_run_with_no_line_change(
 
 def test_judgments_never_settle_under_a_mandate() -> None:
     """Judgments are agents' alone: no Line's settle scope names the none's predicate
-    for normative writes, a justification, or a judgment pair."""
+    for normative writes, a justification, a verdict, or a judgment pair."""
 
     automation = kit.automation([], now=NOW, sboms=(("demo", DEMO_PATH),))
     scoped = {
@@ -1084,7 +1339,10 @@ def test_judgments_never_settle_under_a_mandate() -> None:
         if member["kind"] == "procedure_mandate"
         for entry in member.get("scope", ())
     }
-    assert not {c for c in scoped if c.endswith(".justification")}
+    assert not {c for c in scoped if c.endswith((".justification", ".verdict"))}
+    assert f"{inventory.APP_EXPOSURE}.verdict" in {
+        r["predicate"] for r in inventory.claim_type_records()
+    }
     created = {
         kind
         for member in automation["members"]

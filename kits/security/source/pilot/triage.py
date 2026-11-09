@@ -7,15 +7,20 @@ inventory's component) a vulnerability affects, reached through the pair hops
 visible ``scope`` -> inventory.
 
 - ``security.urgent_exposures``: every (inventory, component, vulnerability)
-  exposure, KEV-listed first (``kev_date_added`` present), then by EPSS score.
+  exposure nobody has judged, KEV-listed first (``kev_date_added`` present),
+  then by EPSS score.
 - ``security.kev_triage_backlog``: the KEV-listed exposures nobody has judged.
+- ``security.confirmed_exposures``: the exposures an agent judged ``affected``
+  whose occurrence is still present (its SBOM still lists the component): the
+  confirmed, fix-pending work, with the same KEV and EPSS facts.
 - ``security.not_affected_judgments`` / ``security.app_not_affected_judgments``:
   the track record: every package-level and app-level judgment with its VEX
   justification. ``get <claim> --detail history`` on its Claims gives who
   stated it and when; a source that later disagrees surfaces as a
   ``held_disagrees`` finding in the OSV Line's inbox.
 
-An exposure is affected unless a judgment holds (D-R46 R4):
+An exposure is affected unless a judgment holds (D-R46 R4), and it stays in
+the worklists until an agent judges it:
 
 - a **package-level** judgment (:func:`judgment`, one write): OSV's
   observation of V on the component retires, "affected_by none of V" is
@@ -26,9 +31,23 @@ An exposure is affected unless a judgment holds (D-R46 R4):
 - an **app-level** judgment (:func:`app_judgment`, one write): the pair
   ``security.app_exposure`` (occurrence, V) gets one of the four app-level
   justifications. It silences that occurrence only and never states the
-  global none.
+  global none;
+- an **affected** verdict (:func:`affected_judgment`, one write): the pair
+  ``security.app_exposure`` (occurrence, V) gets ``verdict = affected``,
+  citing the reachability evidence (the code that reaches the vulnerable
+  function), and NO justification. The pair moves from the worklists to
+  ``security.confirmed_exposures``. Confirmed-affected is always app-level:
+  the package-level pair holds only ``vulnerable_code_not_present``.
 
-Either judgment is one write: it lands or refuses as a whole.
+Each judgment is one write: it lands or refuses as a whole.
+
+The rule that reads the app-level pair is one place (``_APP_NOT_AFFECTED``,
+``_APP_AFFECTED``): a justification is not_affected (a ``verdict`` of
+``not_affected`` beside it is optional; it is how a reversal revises an
+affected verdict in place), and ``verdict = affected`` with no justification
+is affected. Anything else on the pair -- affected beside a justification, or
+not_affected with none -- is no judgment, so the pair stays in the worklists
+and in neither track record: a contradictory write can never silence a row.
 
 **Under investigation** (K-CF1) is no judgment: the agent attests ``unsure``
 on OSV's ``affected_by`` Claim (:func:`investigation`), with its reason
@@ -36,7 +55,7 @@ on OSV's ``affected_by`` Claim (:func:`investigation`), with its reason
 date. The pair stays in the worklists and the KEV backlog; reading that one
 Claim's evidence (:func:`under_investigation`) marks the row.
 
-Judgments are agents' alone: no Mandate settles a justification or the none,
+Judgments are agents' alone: no Mandate settles a justification, a verdict or the none,
 and review is on the honor system (K-CF2a): the author writes with
 ``accept: never`` and a different agent approves after reading the dependency
 guidance (``../guidance/dependency.md``).
@@ -52,6 +71,7 @@ from definitions import VULN
 from inventory import (
     APP_EXPOSURE,
     APP_JUSTIFICATIONS,
+    APP_VERDICTS,
     COMPONENT,
     EXPOSURE,
     INVENTORY,
@@ -64,6 +84,8 @@ URGENT = "security.urgent_exposures"
 BACKLOG = "security.kev_triage_backlog"
 JUDGMENTS = "security.not_affected_judgments"
 APP_JUDGMENTS = "security.app_not_affected_judgments"
+CONFIRMED = "security.confirmed_exposures"
+CONFIRMED_ROW = "security.confirmed-exposure"
 EXPOSURE_ROW = "security.exposure-row"
 JUDGMENT_ROW = "security.judgment"
 APP_JUDGMENT_ROW = "security.app-judgment"
@@ -78,8 +100,14 @@ _HOPS = (
     {"e": f"{EXPOSURE}{{component: c, vulnerability: v}}"},
     {"ae": f"{APP_EXPOSURE}{{occurrence: o, vulnerability: v}}"},
 )
-#: Affected unless a package-level or an app-level justification holds.
-_NOT_JUDGED = "not exists e.justification and not exists ae.justification"
+#: The app-level pair's two judgments, read the same way by every Query: a
+#: justification is not_affected unless the verdict says affected; the verdict
+#: affected counts only with no justification beside it. Both at once (or a bare
+#: not_affected verdict) is no judgment.
+_APP_NOT_AFFECTED = 'exists ae.justification and not ae.verdict == "affected"'
+_APP_AFFECTED = 'ae.verdict == "affected" and not exists ae.justification'
+#: Not judged: no package-level justification and no app-level judgment.
+_NOT_JUDGED = f"not exists e.justification and not ({_APP_NOT_AFFECTED}) and not ({_APP_AFFECTED})"
 _FIELDS = (
     {"inventory": "i.inventory_id"},
     {"component": "c.purl"},
@@ -95,8 +123,9 @@ _FIELDS = (
 
 URGENT_SPEC: dict[str, Any] = {
     "query": URGENT,
-    "description": "Every occurrence (an inventory's component) a vulnerability affects, "
-    "KEV-listed first, then by EPSS score; a package-level or app-level judgment removes it.",
+    "description": "Every occurrence (an inventory's component) a vulnerability affects "
+    "that nobody has judged, KEV-listed first, then by EPSS score; a package-level or "
+    "app-level not_affected judgment or an affected verdict removes it.",
     "from": {"v": VULN},
     "hops": list(_HOPS),
     "where": _NOT_JUDGED,
@@ -135,7 +164,7 @@ APP_JUDGMENTS_SPEC: dict[str, Any] = {
     "description": "Every app-level not_affected judgment: the inventory, the component, "
     "the vulnerability and the VEX justification.",
     "from": {"ae": APP_EXPOSURE},
-    "where": "exists ae.justification",
+    "where": _APP_NOT_AFFECTED,
     "hops": [
         {"o": f"ae.{APP_EXPOSURE}.occurrence!: {OCCURRENCE}"},
         {"v": f"ae.{APP_EXPOSURE}.vulnerability!: {VULN}"},
@@ -151,6 +180,42 @@ APP_JUDGMENTS_SPEC: dict[str, Any] = {
         "ae.justification",
     ],
 }
+#: Confirmed, fix pending: from the judgment pairs (one per judged occurrence), so
+#: OSV later dropping its listing never hides a confirmed exposure; the
+#: occurrence must still hold a scope (its SBOM still lists the component).
+CONFIRMED_SPEC: dict[str, Any] = {
+    "query": CONFIRMED,
+    "description": "Every occurrence an agent judged affected whose SBOM still lists the "
+    "component: the confirmed exposures to remediate or escalate, KEV-listed first, then by "
+    "EPSS score. The fixed versions are in the osv.match document the component's "
+    "affected_by Claim cites.",
+    "from": {"ae": APP_EXPOSURE},
+    "hops": [
+        {"o": f"ae.{APP_EXPOSURE}.occurrence!: {OCCURRENCE}"},
+        {"v": f"ae.{APP_EXPOSURE}.vulnerability!: {VULN}"},
+        {"i": f"o.{OCCURRENCE}.inventory!: {INVENTORY}"},
+        {"c": f"o.{OCCURRENCE}.component!: {COMPONENT}"},
+    ],
+    "where": f"{_APP_AFFECTED} and exists o.scope",
+    "row": f"{CONFIRMED_ROW}@1",
+    "fields": [{"app_exposure": "ae.subject_id"}, *_FIELDS],
+    "order": ["-v.kev_date_added", "-v.epss_score"],
+}
+
+
+#: The exposure row's fields (the worklists and the confirmed list alike).
+_EXPOSURE_FIELDS: dict[str, str] = {
+    "inventory": "string",
+    "component": "string",
+    "occurrence": "string",
+    "scope": f"enum_of {SCOPE}",
+    "cve_id": "string",
+    "kev_date_added": "date?",
+    "kev_due_date": "date?",
+    "kev_ransomware_use": f"enum_of {VULN}.kev_ransomware_use?",
+    "epss_score": "decimal{0..1}?",
+    "epss_percentile": "decimal{0..1}?",
+}
 
 
 def vocabulary_members() -> list[dict[str, Any]]:
@@ -161,17 +226,18 @@ def vocabulary_members() -> list[dict[str, Any]]:
             "version": 1,
             "description": "One exposure: an occurrence (an inventory's component) a "
             "vulnerability affects, with its scope and the vulnerability's KEV and EPSS facts.",
+            "fields": dict(_EXPOSURE_FIELDS),
+        },
+        {
+            "kind": "contract",
+            "name": CONFIRMED_ROW,
+            "version": 1,
+            "description": "One confirmed exposure: the judgment pair, the occurrence (an "
+            "inventory's component) judged affected, its scope and the vulnerability's KEV and "
+            "EPSS facts.",
             "fields": {
-                "inventory": "string",
-                "component": "string",
-                "occurrence": "string",
-                "scope": f"enum_of {SCOPE}",
-                "cve_id": "string",
-                "kev_date_added": "date?",
-                "kev_due_date": "date?",
-                "kev_ransomware_use": f"enum_of {VULN}.kev_ransomware_use?",
-                "epss_score": "decimal{0..1}?",
-                "epss_percentile": "decimal{0..1}?",
+                "app_exposure": "string",
+                **_EXPOSURE_FIELDS,
             },
         },
         {
@@ -202,7 +268,7 @@ def vocabulary_members() -> list[dict[str, Any]]:
             },
         },
     ]
-    for spec in (URGENT_SPEC, BACKLOG_SPEC, JUDGMENTS_SPEC, APP_JUDGMENTS_SPEC):
+    for spec in (URGENT_SPEC, BACKLOG_SPEC, CONFIRMED_SPEC, JUDGMENTS_SPEC, APP_JUDGMENTS_SPEC):
         members.append({"kind": "query_definition", "query_definition": spec})
     return members
 
@@ -277,12 +343,33 @@ def judgment(
     }
 
 
+def _app_pair(occurrence: str, cve_id: str) -> dict[str, Any]:
+    ref = occurrence if occurrence.startswith(OCCURRENCE + "/") else f"{OCCURRENCE}/{occurrence}"
+    return {
+        "op": "create",
+        "label": "app_exposure",
+        "subject_kind": APP_EXPOSURE,
+        "key": _key(APP_EXPOSURE, occurrence=ref, vulnerability=_vulnerability(cve_id)),
+    }
+
+
+def _app_set(field: str, value: str) -> dict[str, Any]:
+    return {
+        "op": "set",
+        "subject": {"created": "app_exposure"},
+        "field": field,
+        "value": value,
+        "role": "normative",
+    }
+
+
 def app_judgment(
     occurrence: str,
     cve_id: str,
     *,
     reason: str,
     because: str,
+    verdict: bool = False,
     accept: Accept = "never",
 ) -> dict[str, Any]:
     """An app-level not_affected judgment for one inventory: ONE ``write`` request.
@@ -292,6 +379,10 @@ def app_judgment(
     ``security.app_exposure`` (occurrence, V) -- or lands on it -- and sets its
     ``justification``. It never states the global none, so OSV's observation
     and every other inventory's exposure stay.
+
+    The justification alone is the not_affected judgment. ``verdict`` also sets
+    ``verdict = not_affected``: required when it reverses an affected verdict
+    (the set revises that Claim in the same write), optional otherwise.
     """
 
     if reason not in APP_JUSTIFICATIONS:
@@ -299,25 +390,43 @@ def app_judgment(
             f"an app-level justification is one of {APP_JUSTIFICATIONS}; "
             f"{reason!r} is package-level: use judgment"
         )
-    ref = occurrence if occurrence.startswith(OCCURRENCE + "/") else f"{OCCURRENCE}/{occurrence}"
     return {
         "because": because,
         "accept": accept,
         "changes": [
-            {
-                "op": "create",
-                "label": "app_exposure",
-                "subject_kind": APP_EXPOSURE,
-                "key": _key(APP_EXPOSURE, occurrence=ref, vulnerability=_vulnerability(cve_id)),
-            },
-            {
-                "op": "set",
-                "subject": {"created": "app_exposure"},
-                "field": "justification",
-                "value": reason,
-                "role": "normative",
-            },
+            _app_pair(occurrence, cve_id),
+            *([_app_set("verdict", APP_VERDICTS[1])] if verdict else []),
+            _app_set("justification", reason),
         ],
+    }
+
+
+def affected_judgment(
+    occurrence: str,
+    cve_id: str,
+    *,
+    because: str,
+    evidence: Mapping[str, Any] | None = None,
+    accept: Accept = "never",
+) -> dict[str, Any]:
+    """An app-level affected verdict for one inventory: ONE ``write`` request.
+
+    It creates the pair ``security.app_exposure`` (occurrence, V) -- or lands on
+    it -- and sets ``verdict = affected`` with no justification. ``evidence`` is
+    the verdict's reachability evidence: cite the code that reaches the
+    vulnerable function (``{"kind": "file", "file": "PATH#ANCHOR"}``), so the
+    verdict drifts when that code changes; without it the write's ``because``
+    is its own-words evidence. The pair leaves the worklists for
+    ``security.confirmed_exposures``; every other inventory's exposure stays.
+    """
+
+    change = _app_set("verdict", APP_VERDICTS[0])
+    if evidence is not None:
+        change["evidence"] = dict(evidence)
+    return {
+        "because": because,
+        "accept": accept,
+        "changes": [_app_pair(occurrence, cve_id), change],
     }
 
 
@@ -329,11 +438,14 @@ def reverse_judgment(
     reason: Literal["was-wrong", "was-rescinded"] = "was-wrong",
     accept: Accept = "never",
 ) -> dict[str, Any]:
-    """Withdraw a judgment: ONE ``write`` retiring its justification Claim and, for a
-    package-level judgment, its none Claim (``none``) together.
+    """Withdraw a judgment: ONE ``write`` retiring its justification Claim (or an
+    affected verdict's Claim) and, for a package-level judgment, its none Claim
+    (``none``) together.
 
     The pair Subject stays as history. OSV's next run re-observes V on the
-    component; an app-level reversal brings that one occurrence back.
+    component; an app-level reversal brings that one occurrence back to the
+    worklists. To turn an affected verdict into not_affected instead, write
+    :func:`app_judgment` with ``verdict=True``.
     """
 
     targets = [justification, *(() if none is None else (none,))]

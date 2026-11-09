@@ -15,8 +15,10 @@ facts of its own is a pair Subject keyed by its ends.
 - ``security.exposure`` (component, vulnerability) holds a package-level VEX
   justification (``vulnerable_code_not_present``), stated beside the global
   "affected_by none of V"; ``security.app_exposure`` (occurrence,
-  vulnerability) holds the four app-level ones, for one inventory only (R4).
-  Both are created only by an agent's judgment write (``triage.py``).
+  vulnerability) holds the four app-level ones, for one inventory only (R4),
+  and the agent's ``verdict``: ``affected`` (the vulnerable code is reachable
+  here) or ``not_affected`` beside a justification. Both pairs are created only
+  by an agent's judgment write (``triage.py``).
 
 - ``security.sbom-import`` reads a CycloneDX JSON SBOM through core's builtin
   ``workspace.file`` (one Capture per file); the pure derive ``sbom.components``
@@ -96,6 +98,9 @@ APP_JUSTIFICATIONS = (
     "vulnerable_code_cannot_be_controlled_by_adversary",
     "inline_mitigations_already_exist",
 )
+#: An agent's app-level verdict: ``affected`` alone (reachable here), or
+#: ``not_affected`` with one of the app-level justifications.
+APP_VERDICTS = ("affected", "not_affected")
 #: Each pair kind's parts, in key order: (part, end kind).
 PAIR_PARTS: dict[str, tuple[tuple[str, str], ...]] = {
     OCCURRENCE: (("inventory", INVENTORY), ("component", COMPONENT)),
@@ -222,17 +227,20 @@ def _file_rule(roles: Sequence[str]) -> dict[str, Any]:
     }
 
 
-def _justification(pair: str, members: Sequence[str], description: str) -> dict[str, Any]:
-    """An agent's VEX justification on a judgment pair: normative, never a Mandate's
-    (no Line writes it). It cites the code read (a catalogued workspace file or a
-    section of one) or the agent's own words."""
+def _judgment(
+    pair: str, field: str, members: Sequence[str], description: str, **more: Any
+) -> dict[str, Any]:
+    """An agent's judgment on a judgment pair: normative, never a Mandate's (no Line
+    writes it). It cites the code read (a catalogued workspace file or a section of
+    one) or the agent's own words."""
 
     return {
-        "predicate": f"{pair}.justification",
+        "predicate": f"{pair}.{field}",
         "allowed_subject_kinds": [pair],
         "cardinality": "one",
         "value": {"kind": "enum", "members": list(members)},
         "description": description,
+        **more,
         "permitted_roles": ["normative"],
         "default_role": "normative",
         "evidence_requirement": "self",
@@ -301,19 +309,44 @@ def claim_type_records() -> list[dict[str, Any]]:
                 "rules": [_rule("sbom", ["observation"], SBOM_COMPONENTS_KIND)]
             },
         },
-        _justification(
+        _judgment(
             EXPOSURE,
+            "justification",
             PACKAGE_JUSTIFICATIONS,
             "The VEX justification of an agent's package-level not_affected judgment, stated "
             "with affected_by none of the vulnerability on the component: the vulnerable code "
             "is not in this package release, for every inventory.",
         ),
-        _justification(
+        _judgment(
             APP_EXPOSURE,
+            "justification",
             APP_JUSTIFICATIONS,
             "The VEX justification of an agent's app-level not_affected judgment: why this "
             "inventory's use of the component is not affected. It silences this occurrence "
-            "only and never states the global none.",
+            "only and never states the global none. A justification is the not_affected "
+            "judgment; beside a verdict of affected it is no judgment.",
+        ),
+        _judgment(
+            APP_EXPOSURE,
+            "verdict",
+            APP_VERDICTS,
+            "An agent's verdict on this inventory's exposure. affected stands alone, with no "
+            "justification, and cites the reachability evidence (the code that reaches the "
+            "vulnerable function). not_affected goes with a justification, which alone also "
+            "means not_affected. A verdict of affected beside a justification is no judgment: "
+            "the pair stays in the worklists. Never settled by a Mandate.",
+            member_descriptions=[
+                {
+                    "member": "affected",
+                    "description": "The vulnerable code is reachable here: remediate or "
+                    "escalate. No justification.",
+                },
+                {
+                    "member": "not_affected",
+                    "description": "Not reachable here, for the reason the pair's "
+                    "justification states.",
+                },
+            ],
         ),
     ]
 
