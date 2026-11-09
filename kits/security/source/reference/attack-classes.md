@@ -18,6 +18,38 @@ Pick the companion file for the target:
 - **Data-isolation and lifecycle** (multi-tenant stores, caches/search, object links, analytics, export/backup, migration, deletion, retention, restore): [data-isolation-and-lifecycle.md](data-isolation-and-lifecycle.md).
 - **Desktop, mobile, and local-IPC** (native apps, deep links, webview bridges, exported components, privileged helpers, local daemons, Unix sockets/XPC/Binder/D-Bus): [desktop-mobile-and-local-ipc.md](desktop-mobile-and-local-ipc.md).
 
+Pick a companion because the code has the boundary it describes, not because a language or dependency name appears.
+
+## Mapping the target
+
+Before hunting by class, map from source (no network, no running anything yet):
+- **Principals and authority**: each lower-trust principal and what it may do by design; authentication at each entry; per-resource authorization and tenant scope; privilege changes, revocation, recovery and fallbacks. Note which controls are visible in source and which depend on a deployment fact you can't see.
+- **Entry surfaces to sinks**: every place outside or lower-trust input enters (HTTP, RPC and messages, files and archives, CLI/env/config, plugins and CI, cloud events, model context and tool arguments, deep links, local IPC). Follow each through transformations, stored or derived copies, and security-relevant sinks; note parallel paths to the same effect.
+- **State machines**: see [implicit-state-machines.md](implicit-state-machines.md).
+- **What you can check locally**: existing tests and fixtures, offline builds, and whether the sandbox controls in the hunter guidance can be enforced. Commands that fetch, publish or touch shared state are off limits.
+
+Each surface × concern worth checking becomes a coverage unit.
+
+## Method
+
+Work from a concrete invariant:
+1. Name the lower-trust principal and its starting capability.
+2. Name the accepted value, action, state transition or resource selector.
+3. Find the control that should reject, bind, isolate, limit or revoke it.
+4. Trace the exact source path after that decision.
+5. Stop at the smallest affected dummy record, wrong return value or local effect.
+6. State the source change and regression test that would enforce the invariant.
+
+Read at depth. Follow each input through parsing, identity, authorization, normalization, state, derived copies and the final sink. Read sibling, legacy, batch, retry, cancellation, migration and error paths to the same effect. Compare sibling controls for equivalence, not just presence, and compare what one component guarantees with what the next assumes.
+
+Test sad paths where the interface accepts them: absent, empty, zero, negative, maximum, over-limit, duplicate, mixed encoding, stale, revoked, reordered, concurrent, partially migrated, failed dependency, rollback. Compare canonicalization and units at every parser or policy handoff. In a multi-step issue, treat each step's output as a prerequisite to establish, never assume.
+
+When a serious finding shows a reusable root cause, look for lexical, structural and logical variants in your unit. One root cause is one finding; establish each variant's conditions on its own.
+
+Stop a line of investigation once the invariant is settled either way, and record it on the unit.
+
+Order the work: unauthenticated or lowest-trust surfaces first; then boundaries guarding the most valuable things (credentials, cross-tenant data, code execution, release authority); then changed code and earlier gaps; then classes that tend to yield real findings for this kind of target.
+
 ## Injection
 
 Trace untrusted input from entry point to dangerous sink. What counts as a "dangerous sink" depends on the application:
@@ -118,7 +150,7 @@ Subtle bugs aren't the only kind worth checking. These are basic exposures that 
 - Is there a `/debug`, `/admin`, `/test`, `/status`, `/health`, `/metrics`, `/env`, `/.env`, `/config` endpoint that is unprotected?
 - Are there any `.env`, `.env.local`, `credentials.json`, `*.pem`, `*.key` files checked into the repo?
 - Does the `.gitignore` actually cover secrets, uploads, and local config?
-- Are dependencies pinned? Are there known CVEs in the dependency tree? (check lockfiles)
+- Are dependencies pinned? Known CVEs in the lockfile are the dependency loop's job (SBOM import, OSV), not a finding here, unless you trace the vulnerable code to a boundary this code exposes.
 - Are there any `eval()`, `exec()`, `child_process`, `Function()`, `vm.runInContext`, `import()` with dynamic input?
 - Are CORS headers set to `*` or overly permissive? Is `Access-Control-Allow-Credentials` combined with a wildcard origin?
 - Are cookies missing `HttpOnly`, `Secure`, or `SameSite` attributes?
