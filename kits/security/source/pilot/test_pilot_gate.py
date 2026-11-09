@@ -329,7 +329,8 @@ def kit_world(
 
     for index, member in enumerate(kit.procedures()["members"]):
         author(instance, ProcedureInput.model_validate(member), name=f"procedure-{index}")
-    submit(instance, kit.watch_subjects(watch), name="watch")
+    if watch:
+        submit(instance, kit.watch_subjects(watch), name="watch")
     if automation:
         submit(instance, kit.automation(watch, now=NOW, sboms=sboms), name="automation")
     return instance
@@ -515,6 +516,8 @@ def test_g1_first_run_settles_by_basis_with_dated_membership(tmp_path: Path) -> 
     assert set(claims) == {
         *((cve(c), p) for c in LISTED for p in (LISTED_IN, DATE_ADDED, DUE_DATE, RANSOMWARE)),
         *((cve(c), LISTED_IN) for c in UNLISTED),
+        # A fresh instance holds no catalog Subject: the first run creates it.
+        ("cisa-kev", kit.CATALOG + ".catalog_id"),
     }
     for c in UNLISTED:
         inverse = claims[(cve(c), LISTED_IN)]
@@ -567,7 +570,8 @@ def test_g4_g18_a_count_mismatch_never_writes_absence(tmp_path: Path) -> None:
     first = kev(instance, short)
     claims = changed(instance, first)
     assert not any(c in {cve(u) for u in UNLISTED} for c, _ in claims)
-    assert len(claims) == 32
+    # 32 vulnerability Claims plus the catalog Subject's key the first run creates.
+    assert len(claims) == 33
     assert first.completeness is not None
     assert any(r.kind == "count_mismatch" for r in first.completeness.reasons)
     # Over a complete history, the same mismatch on a delisting retires nothing.
@@ -625,7 +629,7 @@ def test_g6_maybe_is_inadmissible_and_its_siblings_write(tmp_path: Path) -> None
     state = kev(instance, catalog)
     claims = changed(instance, state)
     assert {p for c, p in claims if c == cve(LISTED[0])} == {LISTED_IN, DATE_ADDED, DUE_DATE}
-    assert len(claims) == 33
+    assert len(claims) == 34  # including the created catalog's key
     (refused,) = [f for f in state.findings if f.kind == "extract_refused"]
     assert refused.lexeme == "Maybe"
 
@@ -642,7 +646,7 @@ def test_g7_duplicate_records_write_nothing_for_that_key(tmp_path: Path) -> None
     assert not any(c == cve(LISTED[2]) for c, _ in claims)
     # The refused key makes the read incomplete (D-R19): no inverse is written
     # for the unlisted CVEs either, and the run says why.
-    assert len(claims) == 28
+    assert len(claims) == 29  # including the created catalog's key
     assert [f.kind for f in state.findings if f.kind == "duplicate_key"] == ["duplicate_key"]
     assert summary(state, "extract").duplicates == 2
     assert any(r.kind == "duplicate_key" for r in state.completeness.reasons)

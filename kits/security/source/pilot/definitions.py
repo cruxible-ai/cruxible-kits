@@ -10,8 +10,8 @@ accepts, in order:
 3. ``procedures.json``: ``security.kev-triage`` and ``security.epss-triage``;
 4. ``automation.json``: the consumer's Lines, Mandates and Triggers (a kit
    carries no authority; the instance that adopts it authors these);
-5. ``watch.json``: the ``security.catalog/cisa-kev`` Subject and the
-   vulnerability Subjects (state, not kit).
+5. ``watch.json``: the vulnerability Subjects (state, not kit); the KEV Line
+   creates the ``security.catalog/cisa-kev`` Subject on its first run.
 
 Batch 1 (``inventory.py``) adds the SBOM import and redefines the watch list:
 ``security.watched_vulnerabilities`` is the applicability join (K-B1-2),
@@ -539,7 +539,13 @@ def kev_spec() -> dict[str, Any]:
                 "claims": [
                     {
                         "type": VULN + ".listed_in",
-                        "value": {"kind": CATALOG, "key": {"catalog_id": "cisa-kev"}},
+                        # The catalog Subject is created on the first run that
+                        # names it, so a fresh instance needs no seed.
+                        "value": {
+                            "kind": CATALOG,
+                            "key": {"catalog_id": "cisa-kev"},
+                            "create": "if_absent",
+                        },
                         "effective_from": "$item.fields.listed_from",
                         "when_absent": "inverse",
                         "rationale": f"CISA KEV catalog {version} lists {{$item.key.cve_id}}.",
@@ -736,7 +742,8 @@ def automation(
                 "name": line + "-propose",
                 "line_name": line,
                 "grants": "propose",
-                "namespace": ["claims"],
+                # KEV creates the catalog Subject its listed_in names.
+                "namespace": ["claims", "subjects"] if line == KEV_LINE else ["claims"],
                 "valid_from": valid_from,
                 "expires_at": expires_at,
             }
@@ -752,6 +759,7 @@ def automation(
                     "valid_from": valid_from,
                     "expires_at": expires_at,
                     "subjects": "expected",
+                    **({"subject_creation": [CATALOG]} if line == KEV_LINE else {}),
                     "scope": [
                         {"claim_type": claim_type, "changes": changes}
                         for claim_type, changes in scope.items()
@@ -791,15 +799,8 @@ def automation(
 
 
 def watch_subjects(watch: Sequence[str]) -> dict[str, Any]:
+    # No catalog Subject: the KEV Line creates security.catalog/cisa-kev itself.
     members: list[dict[str, Any]] = [
-        {
-            "kind": "subject",
-            "subject_kind": CATALOG,
-            "key": {CATALOG + ".catalog_id": "cisa-kev"},
-            "rationale": "The CISA Known Exploited Vulnerabilities catalog.",
-        }
-    ]
-    members += [
         {
             "kind": "subject",
             "subject_kind": VULN,
