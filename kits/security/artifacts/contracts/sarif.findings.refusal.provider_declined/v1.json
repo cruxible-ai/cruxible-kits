@@ -1,0 +1,7 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "Detail of a provider_declined refusal (an unreadable SARIF log or held row, too many logs or results).",
+  "fields": {},
+  "name": "sarif.findings.refusal.provider_declined",
+  "version": 1
+}

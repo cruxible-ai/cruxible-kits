@@ -1,72 +1,109 @@
 # Judging a security finding
 
-Guides: security.finding.verdict, security.finding.severity, security.finding.justification.
+Guides: security.finding.verdict, security.finding.severity, security.finding.justification,
+security.finding.fixed_by.
 Adapted from cloudflare/security-audit-skill (MIT).
-Calls recorded: the source's `informational` anchor is dropped (the severity enum is low..critical); a confirmed minimal-impact finding is `low`.
 
-You are judging a finding someone else reported. Your job is to try to refute it.
-You did not write it: if you did, stop and hand it to another agent.
+A verdict is your judgment of a finding someone else reported, on evidence you checked
+yourself. Your job is to try to refute it. If you reported it, stop and hand it to
+another agent. Judge it before reading other agents' verdicts or attestations on it.
 
 ## The bar for `confirmed`
 
-A finding is confirmed only when you can name all six, from source and bounded local evidence:
+Confirmed only when you can name all six, from source and bounded local evidence:
 
 1. the lower-trust principal (who acts);
 2. the input or action they control;
 3. the control that should stop them;
 4. the boundary that control fails to hold;
 5. the principal or resource affected;
-6. the result you observed, or an owner could observe.
+6. the result you observed in a bounded local check (a test, harness, fixture, rendered
+   policy or dummy-tenant call) through the target's own interface: a function call, a
+   CLI command, a message, a file, an HTTP request.
 
-Missing any one: it is not confirmed. A missing best practice, a guess about deployment,
-a generic crash, or an effect on the actor's own data is not a finding.
+Confirmed cites that observed run output: the check's output file or test log, a file in
+the workspace catalog. Source alone shows a path, not a result. If you couldn't run the check (no adequate
+sandbox, a missing toolchain), the finding is blocked, not confirmed. When the finding
+falls in a domain one of the kit's reference pages covers (`reference/`), that page's
+validation hints are part of this bar.
 
 ## How to judge
 
-1. Re-read every cited source location yourself. The first step of the trace must be a
-   real entry point for the lower-trust principal; the last must be the claimed effect.
+1. Re-read every cited location yourself: the code `reported_at` cites and each trace
+   step. The first step must be a real entry point for the lower-trust principal; the
+   last must be the claimed effect.
 2. Reconstruct the strongest controls on the path: validation, identity, authorization,
-   normalization, lifecycle, framework defaults, containment. A finding survives only if
-   it survives the strongest reading of them.
-3. Reproduce the minimum result locally when you safely can (a unit test, a fixture, a
-   dummy tenant), inside a sandbox with no external network. Stop at the first proof.
-   Never probe deployed systems, shared services or real accounts.
-4. Claim no stronger result than you observed.
+   normalization, lifecycle, framework defaults, containment. The finding survives only
+   if it survives the strongest reading. Comparable software sharing the pattern
+   calibrates severity; it never dismisses a demonstrated result.
+3. Reproduce the minimum result in a sandbox with no external network. Stop at the first
+   proof. Never probe deployed systems, shared services or real accounts.
+4. Claim no stronger result than you observed: not a crash as code execution, not
+   ordinary work as a shared outage, not a same-principal action as privilege gain.
 
-## The three outcomes
+## The outcomes
 
-- **Confirmed:** set `verdict = confirmed` and `severity`. Write the root cause, the
-  conditions, and the smallest source fix at the last trusted decision point in a section,
-  and cite it.
-- **Refuted:** set `verdict = false_positive` (the trace is wrong) or `not_exploitable`
-  (the trace is real but no boundary is crossed), with a `justification`. Cite your reasoning.
-- **Blocked on a fact outside source:** don't guess. Attest `--unsure` on the finding's
-  `reported_at`, citing a section that names the exact missing fact (a proxy setting, an
-  IAM policy, a deployment flag) and a safe way for an owner to check it. Set
-  `valid_until`. Never give a blocked finding a severity.
+Write your reasoning as a new section of the finding's notes file
+(`security/findings/<repo>/<finding-key>.md`) in the same write as the verdict, and cite
+that section (`{kind: section, ref: ID}`): a section the write itself appends counts as
+your own words. A one-line `because` is enough only for a plain refutation.
+
+- **Confirmed:** `verdict` cites the observed run output (file evidence
+  `path#<quoted result line>` on the output file or test log); `severity` cites your
+  reasoning section.
+- **Refuted:** `verdict` and `justification` cite your reasoning section.
+
+| Outcome | Write | The section says |
+|---|---|---|
+| Confirmed | `verdict = confirmed`, `severity` | root cause; conditions; the check and its result; likelihood and impact, separately; the smallest source fix at the last trusted decision point, with a regression test |
+| Refuted: the trace is wrong | `verdict = false_positive`, `justification` (`rule_misfire`, `test_or_dead_code`) | where the trace breaks |
+| Refuted: real code, no boundary crossed | `verdict = not_exploitable`, `justification` (`not_attacker_controlled`, `not_reachable`, `sanitized`, `no_boundary_crossed`: the effect stays within the attacker's own authority) | the control or missing prerequisite that stops it |
+| Blocked on a fact outside source | no verdict, no severity: attest `--unsure` on `reported_at`, with `--valid-until` | the exact missing fact, why it decides the outcome, and a safe check (a bounded local step, or what an owner should look at); never live probing |
+
+Blocked is not a parking place. If source refutes the trace, refute it; if the fact can be
+answered locally, answer it. When the fact arrives, judge the finding and let the
+attestation lapse.
+
+An unsure attestation stays on the `reported_at` Claim it examined. When `reported_at` is
+revised (the code moved, or another report), the attestation doesn't follow: the finding
+comes back through drift, and you judge it again.
 
 Deployment controls, proxies, identity policy and topology are real controls. When the
-repository doesn't show them, neither assume they exist nor assume they don't.
+repository doesn't show them, assume neither that they exist nor that they don't.
 
 ## Severity
 
-Only confirmed findings get a severity, and it can't exceed the impact you demonstrated.
+Only confirmed findings get your severity, and it can't exceed the impact you
+demonstrated. A scan's severity on the same finding is the tool's observation; yours,
+normative, replaces it.
 
 | Severity | Anchor |
 |---|---|
 | critical | an unauthenticated actor gains code execution, full data-store access, or takeover of arbitrary accounts |
 | high | an explicit security control is fully defeated with real consequences: auth bypass, cross-tenant read/write, stored script running for other users, authenticated code execution, unauthenticated stop of a shared service |
 | medium | a real boundary violation with limited reach, uncommon preconditions, or a narrow set of resources |
-| low | disclosure of non-secret internals, or an effect needing sustained effort for little gain |
+| low | disclosure of non-secret internals, an effect needing sustained effort for little gain, or a minimal-impact prerequisite of a larger issue |
 
-High or medium? Ask: does the result fully defeat an explicit control for an action with
-real consequences, or only weaken it? If you can't state the concrete damage, it is lower
-than it feels.
+High or medium? Does the result fully defeat an explicit control for an action with real
+consequences, or only weaken it? If you can't state the concrete damage, it is lower than
+it feels.
 
-## Writing the verdict
+## Review
 
-Write it with `accept: never`. A different agent approves it, after reading this guidance
-and trying once more to break your reasoning.
+Write the verdict with `accept: never`. A different agent, under its own principal,
+approves it after reading this guidance and trying once more to break it: re-read the
+cited code, rerun the check, look for the control you missed. Neither the reporter nor the
+verifier approves. A revision that strengthens the verdict or changes the trace, the
+result or the severity is a new judgment and needs an approver who took no part in the
+earlier one. No Mandate settles a verdict.
+
+When the cited code changes (`cruxible next` lists the finding's `reported_at` as
+`citation_drifted`), re-judge it before relying on the verdict.
+
+## Fixed
+
+`fixed_by` cites the change that removes the boundary crossing at the last trusted point,
+plus its regression test. A change that only hides the symptom is not `fixed_by`.
 
 ## Anti-patterns
 

@@ -1,0 +1,63 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One finding with the judgments agents hold on it.",
+  "fields": {
+    "justification": {
+      "optional": true,
+      "type": {
+        "kind": "string"
+      }
+    },
+    "locus": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "reported_by": {
+      "optional": true,
+      "type": {
+        "item": {
+          "kind": "string",
+          "max_len": 64
+        },
+        "kind": "list",
+        "max_items": 64
+      }
+    },
+    "severity": {
+      "optional": true,
+      "type": {
+        "kind": "string"
+      }
+    },
+    "subject_id": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "subject_kind": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "verdict": {
+      "optional": true,
+      "type": {
+        "kind": "string"
+      }
+    },
+    "verification": {
+      "optional": true,
+      "type": {
+        "kind": "string"
+      }
+    },
+    "weakness": {
+      "type": {
+        "kind": "string"
+      }
+    }
+  },
+  "name": "security.finding-verdict",
+  "version": 1
+}

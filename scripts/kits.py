@@ -7,7 +7,7 @@
     python scripts/kits.py publish [--dry-run]  # push versions the registry lacks
 
 A kit's inert files are its top-level Markdown (README.md, reference.md), everything
-under ``examples/``, every agent skill under ``skills/<name>/`` and the automation
+under ``examples/`` and ``reference/``, every agent skill under ``skills/<name>/`` and the automation
 template its manifest names (``automation_template``, D-R48). They travel in the
 bundle for the kit's reader (``cruxible kit pull`` / ``kit docs``) but stay out of the
 release's content digest, so a docs fix keeps every definition digest; the image digest
@@ -58,7 +58,7 @@ def _reference_problems(directory: Path) -> list[str]:
     return list(module.check(directory))
 
 
-_INERT_DIRECTORIES = ("examples", "skills")
+_INERT_DIRECTORIES = ("examples", "reference", "skills")
 _LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 
 
@@ -73,7 +73,7 @@ def _automation_template(directory: Path) -> str | None:
 
 
 def _inert_paths(directory: Path) -> list[str]:
-    """The kit's inert files: top-level Markdown, ``examples/``, ``skills/`` and the
+    """The kit's inert files: top-level Markdown, ``examples/``, ``reference/``, ``skills/`` and the
     automation template the manifest names."""
 
     paths = [path.name for path in directory.glob("*.md") if path.is_file()]

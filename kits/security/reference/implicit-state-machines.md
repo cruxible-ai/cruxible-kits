@@ -20,7 +20,7 @@ For each one found, write down:
 ## Checking them
 
 For each machine:
-- Is every transition enforced at the trust boundary, not just reachable from it? A transition guarded in the normal UI path but reachable through an admin tool, import, batch job, or legacy endpoint without the same check is a finding.
+- Is every transition enforced at the trust boundary, not just reachable from it? A transition guarded in the normal UI path but reachable through an admin tool, import, batch job, or legacy endpoint without the same check is a candidate finding.
 - What does a **concurrent** transition do — two requests racing to move the same record out of the same state? Is the check-then-act atomic?
 - What does a **replayed** transition do — the same request submitted twice (double-click, retry, a captured request replayed)?
 - What does a **retried** transition do after a timeout or partial response — does the client's retry collide with a server-side effect that already happened?

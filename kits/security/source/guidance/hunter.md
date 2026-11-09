@@ -3,46 +3,80 @@
 Guides: security.finding.reported_at, security.finding.rule, security.finding.reported_by,
 security.finding.found_in, security.coverage_unit.status.
 Adapted from cloudflare/security-audit-skill (MIT).
-Calls recorded: agent findings cite a workspace-file receipt of the code at the location
-(kit adds that evidence rule beside the SARIF one); per-finding notes live in
-security/findings/<repo>/<finding-key>.md.
 
-You are looking for vulnerabilities that cross a real trust boundary. Someone else will
-judge what you report, and will try to refute it.
+A `security.finding` you report says: at this place in this repository's code, a
+lower-trust principal can get past a control it should not get past. Another agent will
+judge it and try to refute it. Your Claims are what you saw and where; the verdict is
+not yours.
 
 ## Safety (non-negotiable)
 
-- Read source freely. Run target code only in a sandbox that has no external network, an
-  empty environment with only allowlisted safe values, a read-only target and toolchain,
-  writes confined to a scratch directory, and low CPU, memory, process, disk and time limits.
-  If you can't enforce all of these, don't run target code: record what's missing as the
-  blocker.
+- Read source freely. Run target code only in a sandbox with no external network, an
+  empty environment holding only allowlisted safe values, a read-only target and
+  toolchain, writes confined to a scratch directory, and low CPU, memory, process, disk
+  and time limits. If you can't enforce all of these, don't run target code.
 - Don't install dependencies or let a build fetch them.
 - Use dummy principals, fixtures and secrets only. Never probe deployed endpoints, shared
-  services, production identities, real accounts or other users' data. Stop at the minimum
-  local effect that shows the defect.
+  services, production identities, real accounts or other users' data. Stop at the
+  smallest local effect that shows the defect.
+- What you record becomes shared state. Record the command, the exact input, the limits
+  and only the allowlisted environment names and safe values. Never record the ambient
+  environment, credentials, tokens or unrelated host paths.
 
-## What to report
+## The bar for reporting
 
-A candidate is worth reporting only if you can name the lower-trust principal, the input
-they control, the control that should stop them, the boundary it fails, and what is
-affected. If you can't name them yet, keep hunting or record the coverage as blocked; don't
-report a hunch.
+Report a finding only when the source shows all five:
+
+1. the lower-trust principal and what it can already do;
+2. the input or action it controls;
+3. the control that should stop it, read at its strongest (validation, identity,
+   authorization, normalization, framework defaults);
+4. the source path from that input past the control;
+5. the principal or resource affected.
+
+The observed result is for whoever judges it. If you ran a bounded local check, record
+it. If one fact outside source decides the outcome (a proxy setting, an IAM policy, a
+deployment flag), still report the finding and name that fact under `## Blocker`. If you
+can't name the five from source, it is a hunch: keep reading or mark the unit blocked.
+
+Not a finding: a missing best practice with no affected principal, defense in depth when
+another layer already stops the attack, an effect on the actor's own data, a crash called
+code execution, a guess about deployment. Write those as hardening notes on the coverage
+unit (below). A known-vulnerable dependency is not a finding by itself: it belongs to the
+dependency loop (SBOM, OSV, `security.exposure`) unless you show the path and the
+boundary it crosses.
 
 ## How to report
 
-1. **Key it** so another run (or a scanner) lands on the same finding: `repo`
+1. **Key it** so another run or a scanner lands on the same Subject: `repo`
    (`host/owner/repo`), `weakness` (the most specific CWE, else `RULE:audit/<concern>`),
-   `locus` (`path#symbol`; never a line number).
-2. **Write what you saw:** `reported_at` (`path:line`), `reported_by` (`audit`), `rule` (the
-   concern you were checking). Cite a file receipt of the code at that location.
-3. **Write the trace** in `security/findings/<repo>/<finding-key>.md` under `## Trace`: entry
-   point first, effect last, each step a source location. Cite that section.
-4. **Link it:** `found_in` → the coverage unit you were working.
-5. **Leave the verdict and severity alone.** They belong to whoever judges it.
+   `locus` (`path#symbol`; never a line number). One root cause is one finding, keyed where
+   the fix goes, however many entry points reach it. Independent missing controls are
+   separate findings.
+2. **Look before you write.** If the key already holds a verdict, read it. Report a
+   refuted finding again only when the code or your evidence changed, and say what
+   changed. Don't hunt by imitating earlier confirmed findings.
+3. **Write the trace** in `security/findings/<repo>/<finding-key>.md` (a file in the
+   workspace catalog): `## Trace`, entry point first and effect last, each step a
+   `path#symbol`; `## Local check` if you ran one (command, input, limits, result);
+   `## Blocker` if one outside fact decides it (the fact, and a safe way for an owner to
+   check it).
+4. **Write what you saw**, each Claim with role `observation`:
+   - `reported_at` (`path:line`), citing the code there (file evidence
+     `path#<quoted line>`);
+   - `rule` (the concern you checked, e.g. `audit:injection`), citing the notes file's
+     `Trace` section (`{kind: section, file: <notes file>, section: [<title>, Trace]}`);
+   - `reported_by` = `audit`, citing the code.
+5. **Link it:** `found_in` → the coverage unit you were working.
+6. **Leave `verdict`, `severity` and `justification` alone.**
 
 ## Coverage
 
-Keep the coverage unit you worked honest: `checked` with the code receipt you examined,
-`blocked` with the missing capability or fact, `deferred` if you ran out of budget. A
-partial pass says it is partial.
+Keep the unit you worked honest (see the coverage guidance): `checked` cites the passage
+you examined, `blocked` names what stopped you, `deferred` if you didn't get to it. A
+partial pass says it is partial. A boundary you notice outside your unit is a new unit:
+create it with its key and no status, so the next plan picks it up, instead of following
+it now.
+
+Hardening notes and safe patterns you confirmed go in the unit's notes section, which its
+`status` cites; they are never findings.

@@ -1,10 +1,22 @@
 # Security kit for Cruxible 0.5
 
-Import a CycloneDX SBOM, ask OSV which vulnerabilities affect its components,
-and read CISA KEV and FIRST EPSS for those vulnerabilities. Every observation
-cites retained source bytes. Missing or incomplete input stays unknown; it never
-means unaffected. This local release is kit version **1.3.0**, rebuilt for
-Cruxible **0.5** and provider protocol **2**.
+This kit is a starting point, not a schema you have to adopt. It seeds an
+instance with security vocabulary, guidance Documents, reference pages and an
+automation template you tailor. From there the instance is yours to grow:
+revise the kit's definitions, add your own, and adapt or replace its
+automation, all by ordinary authoring. Facts copied from sources settle
+automatically; judgments always need review.
+
+This local release is kit version **1.3.0**, built for Cruxible **0.5** and
+provider protocol **2**. It covers two loops:
+
+| Loop | What it does |
+|---|---|
+| Dependency | Import a CycloneDX SBOM, ask OSV which vulnerabilities affect its components, read CISA KEV and FIRST EPSS for them, then judge whether each exposure applies |
+| Audit | Agents (and optionally SARIF scanners) report code findings by key, a second agent judges each one, and coverage units record what was checked against which code |
+
+Every observation cites retained source bytes. Missing or incomplete input
+stays unknown; it never means unaffected or clean.
 
 | Installed definitions | Purpose |
 |---|---|
@@ -14,14 +26,24 @@ Cruxible **0.5** and provider protocol **2**.
 | `security.exposure`, `security.app_exposure` | Package-level and app-level judgment pairs |
 | `security.urgent_exposures`, `security.kev_triage_backlog` | Unjustified exposures, with KEV and EPSS context |
 | `security.watched_vulnerabilities` | Vulnerabilities affecting imported components |
-| `security.guidance.dependency` | Governed guidance for reviewing dependency judgments |
+| `security.finding` | One weakness at one place in one repository: `rule`, `reported_by`, `reported_at`, `verification`, `severity`, and the judgments `verdict`, `justification`, `fixed_by`, `found_in` |
+| `security.coverage_unit` | One surface of one repository checked for one concern, with its `status` |
+| `security.finding_verdicts`, `security.coverage_plan`, `security.findings_by_unit` | Audit worklists: findings with their verdicts, units to take up next, findings per unit |
+| `security.sarif-import`, `security.sarif-attention` | Procedures that turn a SARIF file into findings, and post regressions and location gaps to an inbox |
+| `security.guidance.dependency` | Governed guidance for dependency judgments |
+| `security.guidance.hunter`, `.verifier`, `.coverage` | Governed guidance for reporting findings, judging them, and keeping coverage |
+
+The [reference/](reference/) pages are hunting strategy by domain (web and
+auth, client side, cloud, AI and LLM, memory safety and more), starting from
+[reference/attack-classes.md](reference/attack-classes.md). They are plain
+files for the reader; the kit doesn't install them.
 
 The bundled `security-osv-provider` serves `sbom.components`, `osv.query` and
-`osv.match`; bundled `cruxible-provider-web` serves the KEV/EPSS HTTP reads.
-Both carry registration schema 2, frozen locks and their runtime dependency
-wheel. Provider installation can download the registry dependencies pinned by
-those locks. The old analysis/sources providers, system-model and incident
-recipes are not part of this release.
+`osv.match`; bundled `cruxible-provider-web` serves the KEV/EPSS HTTP reads;
+bundled `security-sarif-provider` serves `sarif.findings` (pure: no network,
+no clock). All carry registration schema 2, frozen locks and their runtime
+dependency wheel. Provider installation can download the registry dependencies
+pinned by those locks.
 
 ## Install and first answers
 
@@ -43,10 +65,8 @@ If your approval policy requires review, approve the proposal as a different
 actor and activate it before continuing. `cruxible kit add security:1.3.0` is
 **available only after the registry release**; use the local directory now.
 
-On the pinned core (`07b11ba84`), a first preview of a kit containing governed
-Documents can refuse with `cruxible.kit.document_bodies_not_staged`: the preview
-adapter does not stage their bodies. The explicit `--commit --at OID` path stages
-the bundled bodies before planning. It does not bypass the approval policy.
+`cruxible kit add PATH --json` without `--commit` previews the plan and writes
+nothing.
 
 Copy [automation.json](automation.json) to your workspace and tailor it before
 submitting. It is a template, never installed or submitted by `kit add`:
@@ -83,6 +103,34 @@ After the initial run, enable each Line with `cruxible line enable NAME` to let
 its Trigger run it. Editing a Line or its Trigger disables it again. Renew
 Mandates before expiry, review Procedure upgrades, and supply fresh SBOM bytes.
 
+## The audit loop
+
+The audit loop needs no automation to start. Agents write through ordinary
+`cruxible write` calls, and each field's card links the guidance that governs
+it (`cruxible get Document:security.guidance.hunter`, and so on):
+
+1. A hunter works one coverage unit (`repo`, `surface`, `concern`), writes its
+   trace to a notes file in the workspace catalog, and reports the finding:
+   `reported_at` and `reported_by` cite the code, `rule` cites the notes
+   file's `Trace` section, `found_in` links the unit. It leaves the verdict
+   alone.
+2. A different agent, the verifier, tries to refute it. A `confirmed` verdict
+   cites the observed run output of a bounded local check (a catalogued test
+   log or output file); its reasoning goes in a new section of the notes file
+   in the same write. A refutation cites that section with a `justification`.
+   A third agent approves the verdict; no Mandate settles a judgment.
+3. `security.coverage_plan` lists units never checked, deferred or blocked;
+   `cruxible next` lists findings and units whose cited code changed.
+
+To import a scanner's SARIF file, author a Line for `security.sarif-import`
+yourself (the automation template doesn't include one): bind `read` to
+`cruxible-builtin#workspace.file` and `derive` to
+`security-sarif-provider#sarif.findings`, with parameters `relative_path` (the
+SARIF file), `logical_source` (`sarif.<scanner>`) and `repo`
+(`host/owner/repo`). A full scan that no longer reports a finding marks it
+`fixed`; a partial scan never does. Scanner observations land on the same
+finding Subjects as agents' reports.
+
 ## Automation authority
 
 The committed template retains its existing `max_authority: settle` on all four
@@ -117,5 +165,3 @@ stay unknown. Selecting the watched CVEs dynamically remains a follow-up.
 
 [source/README.md](source/README.md) describes the repeatable release build and
 gates. [examples/README.md](examples/README.md) describes the example inputs.
-The optional SARIF/audit work remains in source and has its own gates; its
-provider and definitions are not bundled by this dependency release recipe.

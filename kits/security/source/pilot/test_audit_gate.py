@@ -253,7 +253,7 @@ def test_the_file_rule_admits_the_workspace_file_family() -> None:
         if rule["rule_id"] == "file"
     }
     assert sorted(file_rules) == sorted(
-        [f"{FINDING}.{name}" for name in ("reported_at", "reported_by", "rule")]
+        [f"{FINDING}.{name}" for name in ("reported_at", "reported_by", "rule", "verdict")]
         + [f"{UNIT}.status"]
     )
     for rule in file_rules.values():
@@ -414,6 +414,190 @@ def test_a_first_citation_is_admitted(tmp_path: Path) -> None:
     assert verdicts == dict.fromkeys(
         ("status", "reported_at", "reported_by", "rule", "found_in"), "supported"
     )
+
+
+# -- the production write path: trace sections, run output, own words ---------------------
+
+RUN = "security/findings/gate-app/sqli-check.log"
+RUN_LOG = b"""$ python -m pytest tests/test_sqli.py -q  (no network, empty env, 30 s, scratch only)
+search?q=' OR '1'='1 returned 3 rows of users (expected 0)
+1 passed in 0.04s
+"""
+TITLE = "SQL injection in find_by_name"
+
+
+def production_write(
+    instance: Any,
+    tmp_path: Path,
+    *,
+    because: str,
+    changes: Sequence[Mapping[str, Any]],
+    docs: Sequence[Mapping[str, Any]] = (),
+    accept: str = "if_allowed",
+) -> Any:
+    """One write exactly as ``cruxible write`` sends it: the client observes the
+    cited files and sections and applies the document changes after admission
+    (``write_workspace``); the daemon admits it (``service_playbill_write``)."""
+
+    from cruxible_client.authoring.doc_writes import write_workspace
+    from cruxible_client.contracts.write import WriteRequest
+    from cruxible_core.service.authoring.write_verbs import service_playbill_write
+    from tests.core_support._write_support import caller
+
+    request = WriteRequest.model_validate(
+        {"because": because, "changes": list(changes), "docs": list(docs), "accept": accept}
+    )
+    return write_workspace(
+        request,
+        workspace=workspace(tmp_path),
+        submit=lambda sent: service_playbill_write(instance, request=sent, caller=caller()),
+    )
+
+
+def verifier_world(tmp_path: Path) -> tuple[Any, str]:
+    """The audit world with the check's output file catalogued, and the hunter's
+    finding written (its rule citing the notes file's Trace section)."""
+
+    instance = audit_world(tmp_path)
+    write_file(
+        tmp_path,
+        ".cruxible/files.yaml",
+        (CATALOG + f"  - name: gate-app.run\n    locator: {RUN}\n").encode(),
+    )
+    write_file(tmp_path, RUN, RUN_LOG)
+    changes = agent_finding("f", unit=None)[:-1]  # no unit: found_in left out
+    (rule,) = [c for c in changes if c.get("field") == "rule"]
+    rule["evidence"] = {"kind": "section", "file": NOTES, "section": [TITLE, "Trace"]}
+    outcome = production_write(
+        instance, tmp_path, because="find_by_name formats name into the SQL text", changes=changes
+    )
+    assert outcome.status == "accepted", outcome.model_dump(mode="json")
+    (finding,) = created(outcome, FINDING)
+    return instance, finding
+
+
+def test_the_hunter_cites_its_trace_section_on_rule(tmp_path: Path) -> None:
+    """Hunter guidance: ``rule`` cites the notes file's ``## Trace`` section, a
+    section of a catalogued workspace file; the ``file`` rule admits it."""
+
+    instance = audit_world(tmp_path)
+    changes = agent_finding("f", unit=None)[:-1]  # no unit: found_in left out
+    (rule,) = [c for c in changes if c.get("field") == "rule"]
+    rule["evidence"] = {"kind": "section", "file": NOTES, "section": [TITLE, "Trace"]}
+    outcome = production_write(
+        instance, tmp_path, because="find_by_name formats name into the SQL text", changes=changes
+    )
+    assert outcome.status == "accepted", outcome.model_dump(mode="json")
+    verdicts = {c.field: c.verdict for c in outcome.changes if c.field is not None}
+    assert verdicts == dict.fromkeys(("reported_at", "reported_by", "rule"), "supported")
+    (claim,) = [
+        c for c in changed_claims(instance, outcome) if c.statement.predicate == FINDING + ".rule"
+    ]
+    assert _cited_sources(instance, claim) == {"gate-app.notes"}
+
+
+def test_a_confirmed_verdict_cites_the_run_output_and_its_reasoning_in_one_write(
+    tmp_path: Path,
+) -> None:
+    """Verifier guidance: the reasoning section is appended in the same write and
+    cited as own words (severity); confirmed cites the observed run output, a
+    Capture of a catalogued file."""
+
+    instance, finding = verifier_world(tmp_path)
+    outcome = production_write(
+        instance,
+        tmp_path,
+        because="q reaches find_by_name unauthenticated; the check read every users row",
+        docs=[
+            {
+                "op": "append",
+                "id": "why",
+                "file": NOTES,
+                "under": [TITLE],
+                "text": "## Verdict\n\nConfirmed. Root cause: name is formatted into the SQL "
+                "text. The bounded check returned 3 rows for a quote payload. Fix: bind name "
+                "as a parameter in find_by_name; regression test tests/test_sqli.py.\n",
+            }
+        ],
+        changes=[
+            {
+                "op": "set",
+                "subject": finding,
+                "field": "verdict",
+                "value": "confirmed",
+                "evidence": {"kind": "file", "file": f"{RUN}#returned 3 rows of users"},
+            },
+            {
+                "op": "set",
+                "subject": finding,
+                "field": "severity",
+                "value": "high",
+                "role": "normative",
+                "evidence": {"kind": "section", "ref": "why"},
+            },
+        ],
+    )
+    assert outcome.status == "accepted", outcome.model_dump(mode="json")
+    assert {c.field: c.verdict for c in outcome.changes if c.field} == {
+        "verdict": "supported",
+        "severity": "supported",
+    }
+    assert [d.written for d in outcome.docs] == [True]
+    claims = {c.statement.predicate: c for c in changed_claims(instance, outcome)}
+    assert _cited_sources(instance, claims[FINDING + ".verdict"]) == {"gate-app.run"}
+    # The observation alone: no own-words (self-source) citation backs confirmed.
+    origins = {c.origin for c in claims[FINDING + ".verdict"].backing.citations}
+    assert origins == {"independent"}, origins
+    assert b"## Verdict" in (workspace(tmp_path) / NOTES).read_bytes()
+
+
+def test_a_refutation_cites_its_own_words_section(tmp_path: Path) -> None:
+    """A refutation's verdict and justification cite the reasoning section the
+    same write appends (own words, the self rule), with no_boundary_crossed."""
+
+    instance, finding = verifier_world(tmp_path)
+    outcome = production_write(
+        instance,
+        tmp_path,
+        because="the query only ever reads the caller's own rows",
+        docs=[
+            {
+                "op": "append",
+                "id": "why",
+                "file": NOTES,
+                "under": [TITLE],
+                "text": "## Verdict\n\nNot exploitable: the connection is the caller's own "
+                "per-user database, so the effect stays within the caller's authority.\n",
+            }
+        ],
+        changes=[
+            {
+                "op": "set",
+                "subject": finding,
+                "field": "verdict",
+                "value": "not_exploitable",
+                "evidence": {"kind": "section", "ref": "why"},
+            },
+            {
+                "op": "set",
+                "subject": finding,
+                "field": "justification",
+                "value": "no_boundary_crossed",
+                "evidence": {"kind": "section", "ref": "why"},
+            },
+        ],
+    )
+    assert outcome.status == "accepted", outcome.model_dump(mode="json")
+    assert {c.field: c.verdict for c in outcome.changes if c.field} == {
+        "verdict": "supported",
+        "justification": "supported",
+    }
+    (row,) = query_rows(instance, findings.VERDICTS_QUERY, repo=REPO)
+    assert (row["verdict"], row["justification"]) == ("not_exploitable", "no_boundary_crossed")
+    claims = {c.statement.predicate: c for c in changed_claims(instance, outcome)}
+    # Own words: the self-source copy, located by a copy of the section it wrote.
+    origins = {c.origin for c in claims[FINDING + ".verdict"].backing.citations}
+    assert origins == {"self_source", "independent"}, origins
 
 
 PROBE = "security.probe-judgment"
@@ -795,7 +979,7 @@ def test_guidance_installs_as_governed_documents(tmp_path: Path) -> None:
     reference = sorted(name for name, kind in rows.items() if kind == "security.reference")
     assert reference == sorted(
         f"security.reference.{path.stem}"
-        for path in (Path(__file__).parent.parent / "reference").glob("*.md")
+        for path in (Path(__file__).parents[2] / "reference").glob("*.md")
     )
 
 

@@ -183,7 +183,7 @@ def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Pa
 
 # -- Guidance (K-CA4, K-CF2a): governed Documents ---------------------------------------
 #
-# ``../guidance/*.md`` and ``../reference/*.md`` install as governed Documents
+# ``../guidance/*.md`` and ``../../reference/*.md`` install as governed Documents
 # after the vocabulary they guide, so ``kit build`` ships them as ``documents/``
 # kit artifacts (bodies under ``bodies/``) and ``kit add`` installs them. A
 # guidance Document ``guides`` the ClaimTypes its reader writes, read off its own
@@ -193,6 +193,9 @@ def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Pa
 # guidance and the references with the findings vocabulary.
 
 SOURCE = HERE.parent
+#: The reference pages: plain kit files in the release (``reference/``); the pilot
+#: can also install them as governed Documents (``references=True``).
+REFERENCES = SOURCE.parent / "reference"
 #: Judging a dependency exposure: the two justification ClaimTypes (K-CF2a).
 DEPENDENCY_GUIDANCE = ("dependency",)
 #: Security audits (K-CA4).
@@ -226,7 +229,7 @@ def guidance_sources(
         for path in (SOURCE / "guidance" / f"{name}.md" for name in names)
     ]
     if references:
-        out += [(path, REFERENCE_KIND, []) for path in sorted((SOURCE / "reference").glob("*.md"))]
+        out += [(path, REFERENCE_KIND, []) for path in sorted(REFERENCES.glob("*.md"))]
     return out
 
 

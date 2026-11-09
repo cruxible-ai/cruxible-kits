@@ -291,7 +291,7 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
 ) -> None:
     """The real bundle installs without pre-accepting any operation Contracts.
 
-    Kit add governs the providers' Contract closure before registering either
+    Kit add governs the providers' Contract closure before registering any
     build, then accepts the remaining definitions and names the template.
     """
 
@@ -316,10 +316,18 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     assert {p.package for p in bundle.manifest.providers} == {
         "security-osv-provider",
         "cruxible-provider-web",
+        "security-sarif-provider",
     }
     assert bundle.document_bodies
     assert "subject-kinds/security.occurrence.json" in bundle.contents()
     assert "procedures/security.osv-query.json" in bundle.contents()
+    # The audit extension: its Procedure, Queries and guidance Documents.
+    assert "procedures/security.sarif-import.json" in bundle.contents()
+    assert "query-definitions/security.coverage_plan.json" in bundle.contents()
+    assert {path for path in bundle.contents() if path.startswith("documents/")} == {
+        f"documents/security.guidance.{name}.json"
+        for name in ("dependency", "hunter", "verifier", "coverage")
+    }
 
     # A second instance that has NEVER accepted anything of this kit's: not
     # the osv/sbom in/out Contracts, not the refusal Contracts, nothing.
@@ -373,7 +381,7 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     assert added.status == "accepted", added
     assert added.automation_template == "automation.json"
     assert added.automation_template in bundle.file_contents()
-    assert [step.action for step in added.providers] == ["install", "install"]
+    assert [step.action for step in added.providers] == ["install"] * 3
     tree = consumer.immutable_tree_at(consumer.accepted_coordinate().git_oid)
     assert all(tree[path] == value for path, value in bundle.contents().items())
     from cruxible_client.contracts.providers import provider_path
@@ -382,8 +390,8 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
         provider_path(provider.build) in tree for provider in bundle.manifest.providers
     )
     with consumer.accepted_history_reader() as history:
-        # One Contract change, one registration per provider, one kit change.
-        assert int(history.sequence) - before_generation == 4
+        # One Contract change, one registration per provider (three), one kit change.
+        assert int(history.sequence) - before_generation == 5
 
     from cruxible_core.service.runbook_preview import service_preview_runbook
 

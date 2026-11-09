@@ -1,0 +1,46 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One finding found in a coverage unit (finding: its Subject id), with its judgments.",
+  "fields": {
+    "finding": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "locus": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "reported_by": {
+      "optional": true,
+      "type": {
+        "item": {
+          "kind": "string",
+          "max_len": 64
+        },
+        "kind": "list",
+        "max_items": 64
+      }
+    },
+    "severity": {
+      "optional": true,
+      "type": {
+        "kind": "string"
+      }
+    },
+    "verdict": {
+      "optional": true,
+      "type": {
+        "kind": "string"
+      }
+    },
+    "weakness": {
+      "type": {
+        "kind": "string"
+      }
+    }
+  },
+  "name": "security.unit-finding",
+  "version": 1
+}

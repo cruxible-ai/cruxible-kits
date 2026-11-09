@@ -5,8 +5,9 @@ This directory is the security kit re-authored for the Procedure template
 dependency loop: SBOM import, OSV, KEV and EPSS, agents' package-level and
 app-level not_affected judgments, the triage worklists and the track record.
 `../build_release.py` builds the committed kit from these definitions through
-the public CLI; see [the release recipe](../README.md). Code findings and audit
-modules are optional extensions tested here, rather than part of that bundle.
+the public CLI; see [the release recipe](../README.md). The code-findings and
+audit modules (`findings.py`) are bundled too: the vocabulary, Procedures,
+Queries, provider and guidance, never their Lines.
 
 | File | What |
 |---|---|
@@ -269,7 +270,8 @@ one finding with two reporters. What it checked is state too: a
 | `coverage_unit.repo`, `.surface`, `.concern` | key | the unit's create (own words) |
 | `coverage_unit.status` (checked / deferred / blocked / out_of_scope) | normative, never a Mandate | own words, or a file receipt of the examined passage |
 | `finding.found_in` (many, → coverage unit) | normative, never a Mandate | own words |
-| `finding.reported_at`, `.rule`, `.reported_by` (`audit`) | observation | a SARIF scan, or a file receipt of the code at the location |
+| `finding.reported_at`, `.rule`, `.reported_by` (`audit`) | observation | a SARIF scan, or a file receipt of the code at the location (`rule`: the notes file's `Trace` section) |
+| `finding.verdict` | normative, never a Mandate | own words (the reasoning section the same write appends), or a file receipt of the observed run output (confirmed) |
 
 - **File receipts.** The `file` rule admits any catalogued workspace file (a
   `files.yaml` name): the `workspace_file` family (D1), a Capture under an
@@ -288,14 +290,15 @@ one finding with two reporters. What it checked is state too: a
 - **Guidance** (`../guidance/`): `hunter.md` (reporting a finding and keeping
   coverage), `verifier.md` (judging one: verdict, severity, justification) and
   `coverage.md` (the units and their status), each naming the ClaimTypes it
-  guides; `../reference/` holds optional hunting strategy (the attack classes,
-  ten domain companions and implicit state machines). They install as governed
-  Documents (`install.install_guidance`: `body store`, then `document propose`,
+  guides; `../../reference/` holds optional hunting strategy (the attack classes,
+  ten domain companions and implicit state machines), shipped in the release as
+  plain kit files. The guidance installs as governed Documents (`install.install_guidance`: `body store`, then `document propose`,
   after the findings vocabulary), so `kit build` ships them as `documents/` kit
   artifacts and `kit add` installs them. A guidance Document `guides` the
   ClaimTypes its `Guides:` header names: `get ClaimType:<p> detail=backlinks`
-  and a proposal's `guidance` show it. Reference Documents guide nothing; they
-  are `document_kind: security.reference` in `orient --section documents`.
+  and a proposal's `guidance` show it. The pilot can also install the
+  references as Documents (`references=True`); those guide nothing and are
+  `document_kind: security.reference` in `orient --section documents`.
 - **Review is on the honor system.** The verifier writes its verdict with
   `accept: never`, and a different agent approves it after reading the
   guidance; the author never approves its own verdict.

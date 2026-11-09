@@ -1,0 +1,134 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 1
+  },
+  "description": "Every finding of one repository with its agents' verdicts and the scans' verification: the code-findings judgment record.",
+  "entry": {
+    "binding": "f",
+    "subject_kinds": [
+      "security.finding"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.finding_verdicts"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 1
+  },
+  "parameters": [
+    {
+      "name": "repo",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "justification",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.justification"
+        }
+      },
+      {
+        "name": "locus",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.locus"
+        }
+      },
+      {
+        "name": "reported_by",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.reported_by"
+        }
+      },
+      {
+        "name": "severity",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.severity"
+        }
+      },
+      {
+        "name": "subject_id",
+        "value": {
+          "binding": "f",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "subject_kind",
+        "value": {
+          "binding": "f",
+          "field": "subject_kind",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "verdict",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.verdict"
+        }
+      },
+      {
+        "name": "verification",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.verification"
+        }
+      },
+      {
+        "name": "weakness",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.weakness"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "row_contract": {
+    "digest": "sha256:b11404da85c9d9b4df31423174b3ec4c313aab49bd3b6b9736185446b5d5958c",
+    "name": "security.finding-verdict",
+    "version": 1
+  },
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "f",
+      "kind": "claim_value",
+      "predicate": "security.finding.repo"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "parameter",
+      "parameter": "repo"
+    },
+    "value_type": "string"
+  }
+}

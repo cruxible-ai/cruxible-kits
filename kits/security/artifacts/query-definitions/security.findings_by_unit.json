@@ -1,0 +1,115 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "The findings found in one coverage unit (found_in), with their verdicts.",
+  "entry": {
+    "binding": "u",
+    "subject_id": {
+      "kind": "parameter",
+      "parameter": "unit"
+    },
+    "subject_kinds": [
+      "security.coverage_unit"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.findings_by_unit"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "parameters": [
+    {
+      "name": "unit",
+      "value_type": "subject_reference"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "finding",
+        "value": {
+          "binding": "f",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "locus",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.locus"
+        }
+      },
+      {
+        "name": "reported_by",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.reported_by"
+        }
+      },
+      {
+        "name": "severity",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.severity"
+        }
+      },
+      {
+        "name": "verdict",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.verdict"
+        }
+      },
+      {
+        "name": "weakness",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.weakness"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:ee38397d2b261a53087088722727aa0b902e1e002f33ebb50017d3b644bb6dde",
+    "name": "security.unit-finding",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "f",
+      "direction": "reverse",
+      "from_binding": "u",
+      "predicate": "security.finding.found_in",
+      "target_subject_kinds": [
+        "security.finding"
+      ]
+    }
+  ]
+}
