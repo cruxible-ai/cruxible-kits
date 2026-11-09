@@ -1,6 +1,7 @@
 # Judging a security finding
 
-Guides: security.finding.verdict, security.finding.severity, security.finding.justification.
+Guides: security.finding.verdict, security.finding.severity, security.finding.justification,
+security.finding.fixed_by.
 Adapted from cloudflare/security-audit-skill (MIT).
 
 A verdict is your judgment of a finding someone else reported, on evidence you checked
@@ -20,7 +21,8 @@ Confirmed only when you can name all six, from source and bounded local evidence
    policy or dummy-tenant call) through the target's own interface: a function call, a
    CLI command, a message, a file, an HTTP request.
 
-Source alone shows a path, not a result. If you couldn't run the check (no adequate
+Confirmed cites that observed run output: the check's output file or test log, a file in
+the workspace catalog. Source alone shows a path, not a result. If you couldn't run the check (no adequate
 sandbox, a missing toolchain), the finding is blocked, not confirmed. When the finding
 falls in a domain a reference Document covers, that reference's validation hints are part
 of this bar.
@@ -41,20 +43,30 @@ of this bar.
 
 ## The outcomes
 
-Write your reasoning in a section of the finding's notes file
-(`security/findings/<repo>/<finding-key>.md`) in the same write, and cite it as your own
-words. A one-line `because` is enough only for a plain refutation.
+Write your reasoning as a new section of the finding's notes file
+(`security/findings/<repo>/<finding-key>.md`) in the same write as the verdict, and cite
+that section (`{kind: section, ref: ID}`): a section the write itself appends counts as
+your own words. A one-line `because` is enough only for a plain refutation.
+
+- **Confirmed:** `verdict` cites the observed run output (file evidence
+  `path#<quoted result line>` on the output file or test log); `severity` cites your
+  reasoning section.
+- **Refuted:** `verdict` and `justification` cite your reasoning section.
 
 | Outcome | Write | The section says |
 |---|---|---|
 | Confirmed | `verdict = confirmed`, `severity` | root cause; conditions; the check and its result; likelihood and impact, separately; the smallest source fix at the last trusted decision point, with a regression test |
 | Refuted: the trace is wrong | `verdict = false_positive`, `justification` (`rule_misfire`, `test_or_dead_code`) | where the trace breaks |
-| Refuted: real code, no boundary crossed | `verdict = not_exploitable`, `justification` (`not_attacker_controlled`, `not_reachable`, `sanitized`) | the control or missing prerequisite that stops it |
+| Refuted: real code, no boundary crossed | `verdict = not_exploitable`, `justification` (`not_attacker_controlled`, `not_reachable`, `sanitized`, `no_boundary_crossed`: the effect stays within the attacker's own authority) | the control or missing prerequisite that stops it |
 | Blocked on a fact outside source | no verdict, no severity: attest `--unsure` on `reported_at`, with `--valid-until` | the exact missing fact, why it decides the outcome, and a safe check (a bounded local step, or what an owner should look at); never live probing |
 
 Blocked is not a parking place. If source refutes the trace, refute it; if the fact can be
 answered locally, answer it. When the fact arrives, judge the finding and let the
 attestation lapse.
+
+An unsure attestation stays on the `reported_at` Claim it examined. When `reported_at` is
+revised (the code moved, or another report), the attestation doesn't follow: the finding
+comes back through drift, and you judge it again.
 
 Deployment controls, proxies, identity policy and topology are real controls. When the
 repository doesn't show them, assume neither that they exist nor that they don't.
@@ -87,6 +99,11 @@ earlier one. No Mandate settles a verdict.
 
 When the cited code changes (`cruxible next` lists the finding's `reported_at` as
 `citation_drifted`), re-judge it before relying on the verdict.
+
+## Fixed
+
+`fixed_by` cites the change that removes the boundary crossing at the last trusted point,
+plus its regression test. A change that only hides the symptom is not `fixed_by`.
 
 ## Anti-patterns
 

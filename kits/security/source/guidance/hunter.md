@@ -65,7 +65,7 @@ boundary it crosses.
    - `reported_at` (`path:line`), citing the code there (file evidence
      `path#<quoted line>`);
    - `rule` (the concern you checked, e.g. `audit:injection`), citing the notes file's
-     `Trace` section;
+     `Trace` section (`{kind: section, file: <notes file>, section: [<title>, Trace]}`);
    - `reported_by` = `audit`, citing the code.
 5. **Link it:** `found_in` → the coverage unit you were working.
 6. **Leave `verdict`, `severity` and `justification` alone.**

@@ -91,6 +91,7 @@ SEVERITIES = ["low", "medium", "high", "critical"]
 VERIFICATIONS = ["present", "fixed"]
 VERDICTS = ["confirmed", "false_positive", "not_exploitable"]
 JUSTIFICATIONS = [
+    "no_boundary_crossed",
     "not_attacker_controlled",
     "not_reachable",
     "rule_misfire",
@@ -319,18 +320,36 @@ def claim_type_records() -> list[dict[str, Any]]:
                 ]
             },
         },
-        _judged(
-            "verdict",
-            {"kind": "enum", "members": VERDICTS},
-            "An agent's verdict: confirmed (real and exploitable), false_positive (no such "
-            "weakness here) or not_exploitable (real, but not exploitable here). Never settled "
-            "by a Mandate.",
-        ),
-        _judged(
-            "justification",
-            {"kind": "enum", "members": JUSTIFICATIONS},
-            "Why a finding is false_positive or not_exploitable, as an agent judged it.",
-        ),
+        {
+            **_judged(
+                "verdict",
+                {"kind": "enum", "members": VERDICTS},
+                "An agent's verdict: confirmed (real and exploitable), false_positive (no "
+                "such weakness here) or not_exploitable (real, but not exploitable here). A "
+                "confirmed verdict cites the observed run output (a catalogued test log or "
+                "output file); a refutation cites the agent's own words. Never settled by a "
+                "Mandate.",
+            ),
+            # Own words (self-source), or the observed run output: a Capture of any
+            # catalogued workspace file (the workspace_file family, D1).
+            "evidence_admission_policy": _rules(
+                _rule("self", ["normative"], SELF_SOURCE),
+                _file_rule(["normative"]),
+            ),
+        },
+        {
+            **_judged(
+                "justification",
+                {"kind": "enum", "members": JUSTIFICATIONS},
+                "Why a finding is false_positive or not_exploitable, as an agent judged it.",
+            ),
+            "member_descriptions": [
+                {
+                    "member": "no_boundary_crossed",
+                    "description": "The effect stays within the attacker's own authority.",
+                },
+            ],
+        },
         _judged(
             "fixed_by",
             {"kind": "string", "max_len": 40, "pattern": "^[0-9a-f]{40}$"},
