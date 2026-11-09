@@ -41,13 +41,16 @@ the worklists until an agent judges it:
 
 Each judgment is one write: it lands or refuses as a whole.
 
-The rule that reads the app-level pair is one place (``_APP_NOT_AFFECTED``,
-``_APP_AFFECTED``): a justification is not_affected (a ``verdict`` of
-``not_affected`` beside it is optional; it is how a reversal revises an
-affected verdict in place), and ``verdict = affected`` with no justification
-is affected. Anything else on the pair -- affected beside a justification, or
-not_affected with none -- is no judgment, so the pair stays in the worklists
-and in neither track record: a contradictory write can never silence a row.
+The rule that reads the judgment pairs is one place (``_PACKAGE_NOT_AFFECTED``,
+``_APP_NOT_AFFECTED``, ``_APP_AFFECTED``), and a judgment counts only when its
+value is RESOLVED (one uncontested, supported value): a resolved justification
+is not_affected when the pair holds no verdict or a resolved ``not_affected``
+verdict (optional; it is how a reversal revises an affected verdict in place),
+and a resolved ``verdict = affected`` with no justification is affected.
+Anything else on the pair -- a contested verdict or justification, affected
+beside a justification, or not_affected with none -- is no judgment, so the
+pair stays in the worklists and in neither track record: a contradictory or
+contested write can never silence a row.
 
 **Under investigation** (K-CF1) is no judgment: the agent attests ``unsure``
 on OSV's ``affected_by`` Claim (:func:`investigation`), with its reason
@@ -63,6 +66,7 @@ guidance (``../guidance/dependency.md``).
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Literal
@@ -100,14 +104,42 @@ _HOPS = (
     {"e": f"{EXPOSURE}{{component: c, vulnerability: v}}"},
     {"ae": f"{APP_EXPOSURE}{{occurrence: o, vulnerability: v}}"},
 )
-#: The app-level pair's two judgments, read the same way by every Query: a
-#: justification is not_affected unless the verdict says affected; the verdict
-#: affected counts only with no justification beside it. Both at once (or a bare
-#: not_affected verdict) is no judgment.
-_APP_NOT_AFFECTED = 'exists ae.justification and not ae.verdict == "affected"'
-_APP_AFFECTED = 'ae.verdict == "affected" and not exists ae.justification'
-#: Not judged: no package-level justification and no app-level judgment.
-_NOT_JUDGED = f"not exists e.justification and not ({_APP_NOT_AFFECTED}) and not ({_APP_AFFECTED})"
+
+
+def _one_of(field: str, members: Sequence[str]) -> str:
+    """``field`` holds ONE resolved value among ``members``.
+
+    A comparison or membership test reads the field's resolved value: an absent
+    field, or a contested one (competing Claims), has none and fails. ``exists``
+    only tests that some visible Claim is there, contested or not, so it is used
+    here only to require that NO Claim is there.
+    """
+
+    return f"{field} in ({', '.join(json.dumps(m) for m in members)})"
+
+
+#: The judgment pairs, read the same way by every Query. A judgment counts only
+#: when its value is resolved (one uncontested, supported value):
+#:
+#: - package level: a resolved justification;
+#: - app level, not_affected: a resolved justification, and either no visible
+#:   verdict at all or a resolved verdict of not_affected;
+#: - app level, affected: a resolved verdict of affected, and no visible
+#:   justification at all.
+#:
+#: Every other combination -- a contested verdict or justification, affected
+#: beside a justification, a bare not_affected verdict -- is no judgment: the
+#: pair stays in the worklists and in neither track record.
+_PACKAGE_NOT_AFFECTED = _one_of("e.justification", PACKAGE_JUSTIFICATIONS)
+_APP_NOT_AFFECTED = (
+    f"{_one_of('ae.justification', APP_JUSTIFICATIONS)} and "
+    f'(not exists ae.verdict or ae.verdict == "{APP_VERDICTS[1]}")'
+)
+_APP_AFFECTED = f'ae.verdict == "{APP_VERDICTS[0]}" and not exists ae.justification'
+#: Not judged: no package-level judgment and no app-level judgment.
+_NOT_JUDGED = (
+    f"not ({_PACKAGE_NOT_AFFECTED}) and not ({_APP_NOT_AFFECTED}) and not ({_APP_AFFECTED})"
+)
 _FIELDS = (
     {"inventory": "i.inventory_id"},
     {"component": "c.purl"},
@@ -146,7 +178,7 @@ JUDGMENTS_SPEC: dict[str, Any] = {
     "description": "Every package-level not_affected judgment: the component, the "
     "vulnerability and the VEX justification.",
     "from": {"e": EXPOSURE},
-    "where": "exists e.justification",
+    "where": _PACKAGE_NOT_AFFECTED,
     "hops": [
         {"c": f"e.{EXPOSURE}.component!: {COMPONENT}"},
         {"v": f"e.{EXPOSURE}.vulnerability!: {VULN}"},

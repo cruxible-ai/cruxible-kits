@@ -164,7 +164,8 @@ the code on the call path, with no justification. It moves from the worklists
 to `security.confirmed_exposures`, and clears when the inventory's SBOM no
 longer lists the vulnerable release; `cruxible next` then lists the verdict
 as `claim_dependency_stale`. A pair holding both a justification and an
-`affected` verdict counts as not judged and stays in the worklists.
+`affected` verdict, or a contested verdict or justification, counts as not
+judged and stays in the worklists.
 
 ## Limits and maintenance
 

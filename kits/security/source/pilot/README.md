@@ -172,11 +172,14 @@ stays in the worklists until an agent judges it. Each judgment is ONE
   path (or own words), with no justification. The row moves to
   `security.confirmed_exposures`; every other inventory's row stays.
   Confirmed-affected is always app level.
-- **One rule reads the app-level pair** (`triage._APP_NOT_AFFECTED`,
-  `_APP_AFFECTED`): a justification is not_affected (a `not_affected` verdict
-  beside it is optional), `verdict = affected` with no justification is
-  affected, and anything else (both, or a bare `not_affected` verdict) is no
-  judgment: the row stays in the worklists and in neither list. Core has no
+- **One rule reads the judgment pairs** (`triage._PACKAGE_NOT_AFFECTED`,
+  `_APP_NOT_AFFECTED`, `_APP_AFFECTED`), and a judgment counts only when its
+  value is resolved (one uncontested, supported value): a resolved
+  justification is not_affected when the pair holds no verdict or a resolved
+  `not_affected` verdict, a resolved `verdict = affected` with no
+  justification is affected, and anything else (a contested verdict or
+  justification, both, or a bare `not_affected` verdict) is no judgment: the
+  row stays in the worklists and in neither list. Core has no
   cross-Claim refusal, so a write setting both lands; the guidance tells the
   reviewer to reject it, and the read keeps the row visible meanwhile.
 - **Reversal** (`triage.reverse_judgment()`): one write retiring the

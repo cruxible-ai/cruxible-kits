@@ -74,8 +74,9 @@ reason.
   escalate to the owner. Never leave it unjudged.
 
 A pair holds one judgment: a justification (not_affected) or the verdict `affected`, never
-both. A pair holding both, or a `not_affected` verdict with no justification, counts as not
-judged: it stays in the worklists and in neither track record.
+both. A pair holding both, a `not_affected` verdict with no justification, or a contested
+verdict or justification (two agents' values standing side by side) counts as not judged: it
+stays in the worklists and in neither track record until one value is settled.
 
 ## Review
 

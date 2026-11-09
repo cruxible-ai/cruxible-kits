@@ -980,6 +980,89 @@ def test_an_affected_verdict_beside_a_justification_is_no_judgment(tmp_path: Pat
     assert (DEMO_APP, API, API_CVE) in exposures(instance)
 
 
+def _contend(pair: str, field: str, value: str) -> dict[str, Any]:
+    return {
+        "op": "set",
+        "subject": pair,
+        "field": field,
+        "value": value,
+        "role": "normative",
+        "contend": True,
+    }
+
+
+def _contested_verdict_with_justification(instance: Any) -> None:
+    """affected, then not_affected written beside it (contend) with a justification."""
+
+    pair = confirm(instance, DEMO_APP, CORE, LOG4SHELL).changes[1].subject
+    outcome = write(
+        instance,
+        {
+            "because": "A second assessment disagrees; both stand for review.",
+            "changes": [
+                _contend(pair, "verdict", "not_affected"),
+                {
+                    "op": "set",
+                    "subject": pair,
+                    "field": "justification",
+                    "value": APP_REASON,
+                    "role": "normative",
+                },
+            ],
+        },
+    )
+    assert outcome.status == "accepted", outcome
+
+
+def _contested_justification(instance: Any) -> None:
+    """Two competing justification values, no verdict."""
+
+    pair = app_judge(instance, DEMO_APP, CORE, LOG4SHELL).changes[0].subject
+    outcome = write(
+        instance,
+        {
+            "because": "A competing reason.",
+            "changes": [_contend(pair, "justification", "inline_mitigations_already_exist")],
+        },
+    )
+    assert outcome.status == "accepted", outcome
+
+
+def _contested_affected_verdict(instance: Any) -> None:
+    """affected, then not_affected written beside it (contend), no justification."""
+
+    pair = confirm(instance, DEMO_APP, CORE, LOG4SHELL).changes[1].subject
+    outcome = write(
+        instance,
+        {"because": "Disputed.", "changes": [_contend(pair, "verdict", "not_affected")]},
+    )
+    assert outcome.status == "accepted", outcome
+
+
+@pytest.mark.parametrize(
+    "contest",
+    [_contested_verdict_with_justification, _contested_justification, _contested_affected_verdict],
+    ids=["verdict-with-justification", "justification", "affected-verdict"],
+)
+def test_a_contested_judgment_is_no_judgment(tmp_path: Path, contest: Any) -> None:
+    """A judgment counts only when its value is resolved: a contested verdict or
+    justification (real ``contend`` writes) leaves the pair in both worklists and in
+    neither the not_affected track record nor the confirmed list."""
+
+    instance = world(tmp_path)
+    run_osv(instance)
+    kev(instance, fixture_bytes("kev-catalog"), minute=1)
+    contest(instance)
+    pair = (DEMO_APP, CORE, LOG4SHELL)
+    (ae,) = live_subjects(instance, inventory.APP_EXPOSURE)
+    flags = [r.flags for r in get(instance, ae).card.claims if r.predicate != "occurrence"]
+    assert any("contested" in f for f in flags), flags  # the write really contested
+    assert pair in exposures(instance, triage.URGENT)
+    assert pair in exposures(instance, triage.BACKLOG)
+    assert query_rows(instance, triage.APP_JUDGMENTS) == []
+    assert query_rows(instance, triage.CONFIRMED) == []
+
+
 def test_a_confirmed_exposure_clears_when_the_sbom_drops_the_component_and_next_names_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
