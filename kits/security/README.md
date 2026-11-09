@@ -12,7 +12,7 @@ provider protocol **2**. It covers two loops:
 
 | Loop | What it does |
 |---|---|
-| Dependency | Import a CycloneDX SBOM, ask OSV which vulnerabilities affect its components, read CISA KEV and FIRST EPSS for them, then judge whether each exposure applies |
+| Dependency | Import a CycloneDX SBOM, ask OSV which vulnerabilities affect its components, read CISA KEV and FIRST EPSS for them, then judge each exposure: a not_affected justification, or an `affected` verdict that keeps it on the confirmed list until fixed |
 | Audit | Agents (and optionally SARIF scanners) report code findings by key, a second agent judges each one, and coverage units record what was checked against which code |
 
 Every observation cites retained source bytes. Missing or incomplete input
@@ -23,8 +23,9 @@ stays unknown; it never means unaffected or clean.
 | `security.inventory`, `security.component` | An application's inventory and exact package releases |
 | `security.occurrence` | The pair (inventory, component), with its scope |
 | `security.vulnerability`, `security.component.affected_by` | OSV's affected packages and vulnerabilities |
-| `security.exposure`, `security.app_exposure` | Package-level and app-level judgment pairs |
-| `security.urgent_exposures`, `security.kev_triage_backlog` | Unjustified exposures, with KEV and EPSS context |
+| `security.exposure`, `security.app_exposure` | Package-level and app-level judgment pairs: a `justification` (not_affected), or on the app-level pair the `verdict` `affected` |
+| `security.urgent_exposures`, `security.kev_triage_backlog` | Exposures nobody has judged, with KEV and EPSS context |
+| `security.confirmed_exposures` | Exposures judged `affected` whose SBOM still lists the component: fix pending, with KEV and EPSS context |
 | `security.watched_vulnerabilities` | Vulnerabilities affecting imported components |
 | `security.finding` | One weakness at one place in one repository: `rule`, `reported_by`, `reported_at`, `verification`, `severity`, and the judgments `verdict`, `justification`, `fixed_by`, `found_in` |
 | `security.coverage_unit` | One surface of one repository checked for one concern, with its `status` |
@@ -150,12 +151,20 @@ observations without another approval after you approve the template:
 | `security.kev-triage` | `security.kev-triage-settle` | Create/revise `listed_in` on extracted/absent records; create/revise KEV dates on extracted records and retire dates on absence; create/revise ransomware use on extracted records |
 | `security.epss-triage` | `security.epss-triage-settle` | Create/revise EPSS score, percentile and date from extracted records |
 
-No Mandate settles `security.exposure.justification` or
-`security.app_exposure.justification`. Read the installed governed dependency
-guidance before proposing either judgment; a different actor should review it.
-An app-level judgment affects one occurrence; a package-level normative none
-applies across inventories. OSV cannot overwrite a held normative none and
-reports disagreement to the Line inbox.
+No Mandate settles `security.exposure.justification`,
+`security.app_exposure.justification` or `security.app_exposure.verdict`. Read
+the installed governed dependency guidance before proposing a judgment; a
+different actor should review it. An app-level judgment affects one
+occurrence; a package-level normative none applies across inventories. OSV
+cannot overwrite a held normative none and reports disagreement to the Line
+inbox.
+
+A proven-reachable exposure gets the app-level `verdict` `affected`, citing
+the code on the call path, with no justification. It moves from the worklists
+to `security.confirmed_exposures`, and clears when the inventory's SBOM no
+longer lists the vulnerable release; `cruxible next` then lists the verdict
+as `claim_dependency_stale`. A pair holding both a justification and an
+`affected` verdict counts as not judged and stays in the worklists.
 
 ## Limits and maintenance
 
