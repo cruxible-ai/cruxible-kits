@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The VEX justification of an agent's app-level not_affected judgment: why this inventory's use of the component is not affected. It silences this occurrence only and never states the global none.",
+  "description": "The VEX justification of an agent's app-level not_affected judgment: why this inventory's use of the component is not affected. It silences this occurrence only and never states the global none. A justification is the not_affected judgment; beside a verdict of affected it is no judgment.",
   "evidence_admission_policy": {
     "rules": [
       {

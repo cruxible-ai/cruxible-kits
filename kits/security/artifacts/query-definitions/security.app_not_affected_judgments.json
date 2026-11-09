@@ -122,8 +122,30 @@
     }
   ],
   "where": {
-    "binding": "ae",
-    "kind": "claim_presence",
-    "predicate": "security.app_exposure.justification"
+    "filters": [
+      {
+        "binding": "ae",
+        "kind": "claim_presence",
+        "predicate": "security.app_exposure.justification"
+      },
+      {
+        "kind": "not",
+        "operand": {
+          "kind": "comparison",
+          "left": {
+            "binding": "ae",
+            "kind": "claim_value",
+            "predicate": "security.app_exposure.verdict"
+          },
+          "operator": "eq",
+          "right": {
+            "kind": "literal",
+            "value": "affected"
+          },
+          "value_type": "string"
+        }
+      }
+    ],
+    "kind": "all_of"
   }
 }

@@ -2,7 +2,7 @@
   "authority": {
     "required_tier": "governed_write"
   },
-  "body_digest": "sha256:4a9bb6071f692d61bfc70d45324c8697ac00333422180ed427b680a42d1afc23",
+  "body_digest": "sha256:aceaba4d4fa30ce6674655996e1ed6bc967d9041077cdf4f806c9e7dfaad1e40",
   "document_kind": "security.guidance",
   "format_version": 1,
   "governance_scope": [
@@ -19,6 +19,10 @@
     {
       "relation": "guides",
       "target_identity": "ClaimType:security.app_exposure.justification"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.app_exposure.verdict"
     },
     {
       "relation": "guides",

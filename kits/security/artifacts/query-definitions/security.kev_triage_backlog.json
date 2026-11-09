@@ -198,12 +198,6 @@
   "where": {
     "filters": [
       {
-        "binding": "ae",
-        "kind": "claim_presence",
-        "negated": true,
-        "predicate": "security.app_exposure.justification"
-      },
-      {
         "binding": "e",
         "kind": "claim_presence",
         "negated": true,
@@ -213,6 +207,64 @@
         "binding": "v",
         "kind": "claim_presence",
         "predicate": "security.vulnerability.kev_date_added"
+      },
+      {
+        "kind": "not",
+        "operand": {
+          "filters": [
+            {
+              "binding": "ae",
+              "kind": "claim_presence",
+              "predicate": "security.app_exposure.justification"
+            },
+            {
+              "kind": "not",
+              "operand": {
+                "kind": "comparison",
+                "left": {
+                  "binding": "ae",
+                  "kind": "claim_value",
+                  "predicate": "security.app_exposure.verdict"
+                },
+                "operator": "eq",
+                "right": {
+                  "kind": "literal",
+                  "value": "affected"
+                },
+                "value_type": "string"
+              }
+            }
+          ],
+          "kind": "all_of"
+        }
+      },
+      {
+        "kind": "not",
+        "operand": {
+          "filters": [
+            {
+              "binding": "ae",
+              "kind": "claim_presence",
+              "negated": true,
+              "predicate": "security.app_exposure.justification"
+            },
+            {
+              "kind": "comparison",
+              "left": {
+                "binding": "ae",
+                "kind": "claim_value",
+                "predicate": "security.app_exposure.verdict"
+              },
+              "operator": "eq",
+              "right": {
+                "kind": "literal",
+                "value": "affected"
+              },
+              "value_type": "string"
+            }
+          ],
+          "kind": "all_of"
+        }
       }
     ],
     "kind": "all_of"

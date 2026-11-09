@@ -37,12 +37,16 @@
       "path": "capture-contracts/security.sbom-components.json"
     },
     {
-      "artifact_digest": "sha256:be7827cb3d689cb310b15e396bf12d6d8b6464d98f214e119880d97090394863",
+      "artifact_digest": "sha256:2a357f76923d25c0035bc151601687655fb877128a8728d811352a00de39e3ee",
       "path": "claim-types/security.app_exposure/justification.json"
     },
     {
       "artifact_digest": "sha256:5d5abcef32a04849ecf3dab7b4cf07c9047b9002dc10f04cf025b7a6c2a3f781",
       "path": "claim-types/security.app_exposure/occurrence.json"
+    },
+    {
+      "artifact_digest": "sha256:cf583e28abcb3cf9c9526985bbab70d12e14c8407a90663a040c04b1d38513ff",
+      "path": "claim-types/security.app_exposure/verdict.json"
     },
     {
       "artifact_digest": "sha256:5e4f29b95a5810d62147779e6dfeb14c85e3b1f876e37d54f862b456af1defbb",
@@ -267,6 +271,10 @@
     {
       "artifact_digest": "sha256:a19ebecb01435e321090212c9feb18c15254d7f1aeca2ac4834d30ccbd5db6ab",
       "path": "contracts/security.app-judgment/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:475be9b8f5b68808174930cb1e2b502c3f8c549d0906c18a5318d17c2bc2f669",
+      "path": "contracts/security.confirmed-exposure/v1.json"
     },
     {
       "artifact_digest": "sha256:e31c8ed3c93cff9f3d7e57ad056d50fa54bfad04dac5e18c5bf2efe913c57318",
@@ -521,7 +529,7 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:1d5b66c5d8ae9a0f11db3e023a8968624e4c179d1905b0cef00de4a0b29ed926",
+      "artifact_digest": "sha256:9ad96c7a7c536bc077d28579185f5291544b759feac78a30c123e5460fffa0b1",
       "path": "documents/security.guidance.dependency.json"
     },
     {
@@ -557,8 +565,12 @@
       "path": "procedures/security.sbom-import.json"
     },
     {
-      "artifact_digest": "sha256:1938673011351b36aa7a0a025f446369e8841f69c7d751d7d6e9fa08ba2de229",
+      "artifact_digest": "sha256:333324b658f44ddda72c88a51855d3e7d1404c26fc69e300f10a3a985ae1e817",
       "path": "query-definitions/security.app_not_affected_judgments.json"
+    },
+    {
+      "artifact_digest": "sha256:2ee7bbbdcf077c1ada8d2dcf802a43a7cacd6c9a6888a245daee8e4a0463d2a2",
+      "path": "query-definitions/security.confirmed_exposures.json"
     },
     {
       "artifact_digest": "sha256:6e1e4525186c53477994b518a25764ce7d2271384e58db0cfb57163e3760017c",
@@ -577,7 +589,7 @@
       "path": "query-definitions/security.inventory_components.json"
     },
     {
-      "artifact_digest": "sha256:c7f255e8281b6790e4075c81b01482c3cabd55f4614043fe0bbb311dc3b58faf",
+      "artifact_digest": "sha256:a29cfd19e8cb1b86325972cf9b008ea853e3fac86ed1b62ff7812fc8f82d8057",
       "path": "query-definitions/security.kev_triage_backlog.json"
     },
     {
@@ -593,7 +605,7 @@
       "path": "query-definitions/security.sarif_held_findings.json"
     },
     {
-      "artifact_digest": "sha256:06e7a007fbd84f1d5508695207571230a24fed390e511d58a4ecfb43bee15def",
+      "artifact_digest": "sha256:952b67fe94d541f6458a09623fabcdd1e8dcedf89192902a2c84c198dd606120",
       "path": "query-definitions/security.urgent_exposures.json"
     },
     {
@@ -646,7 +658,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:f2316d60fdae90601db815848c04714d90ad0b39450e4db0f70abb2f5830ffcd"
+      "sha256": "sha256:04a1de588b9110f48166dfa0bb4fa2af48aa0898196d1e15880372790b7627d6"
     },
     {
       "path": "automation.json",
@@ -741,12 +753,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf",
-      "generation_root": "sha256:f7a7674a65187c0c9cd2b51a53a7a65a9ad70c0b9873cbbdf1a4c41591528825",
-      "git_oid": "53db51ea8f269468532cd593f5bc5bde19d6d3fc",
-      "semantic_root": "sha256:bdac163de0bd1c9b4339a89a020bec42f1892eef076e9a06c1cda20481a4ded7",
+      "generation_root": "sha256:4b0b81af2f993e31edd529cfef2654c337d4f740439ef820911e00a140b84183",
+      "git_oid": "40a7712f9285ab0be51751f1e5019ec448cfa95e",
+      "semantic_root": "sha256:33b5e52d39a41a3de72153bef9b68dd109fc99179b1247527581194d3e3595fe",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_cf262685c90248c7",
+    "instance_id": "inst_d3255f43ed694e76",
     "principal_id": "owner"
   },
   "providers": [

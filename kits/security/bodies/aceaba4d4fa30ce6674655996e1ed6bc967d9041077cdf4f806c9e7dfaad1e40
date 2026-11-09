@@ -1,11 +1,12 @@
 # Judging a dependency exposure
 
-Guides: security.exposure.justification, security.app_exposure.justification.
+Guides: security.exposure.justification, security.app_exposure.justification,
+security.app_exposure.verdict.
 
 A worklist row (`security.urgent_exposures`, `security.kev_triage_backlog`) says: OSV lists
-this vulnerability for this exact package release, and this inventory holds it. That is a
-lead, not a finding. Your job is to decide whether the vulnerable code can actually be
-reached here, and to show why.
+this vulnerability for this exact package release, this inventory holds it, and nobody has
+judged it. That is a lead, not a finding. Your job is to decide whether the vulnerable code
+can actually be reached here, and to show why.
 
 ## What you are judging
 
@@ -19,7 +20,7 @@ cites (each record's `fixed`), then the code that uses the package.
 
 ## The bar
 
-A not_affected judgment shows reachability or the boundary, from source and bounded local
+A judgment either way shows reachability or the boundary, from source and bounded local
 evidence. Name:
 
 1. the vulnerable function, class or option the advisory names;
@@ -27,8 +28,8 @@ evidence. Name:
 3. for an input-driven bug, who controls the input and the boundary in between;
 4. the control or configuration you rely on, and where it lives.
 
-Cite the code you read as the justification's evidence:
-`"evidence": {"kind": "file", "file": "PATH#ANCHOR"}` on the justification change, where
+Cite the code you read as the judgment's evidence:
+`"evidence": {"kind": "file", "file": "PATH#ANCHOR"}` on the justification or verdict change, where
 ANCHOR is the exact passage you relied on, found once in the file. Catalogue the file first
 (`cruxible files add NAME PATH`). When that passage changes, `next` lists the judgment as
 `citation_drifted`, so it gets judged again. A change cites one piece of evidence: put longer
@@ -39,8 +40,14 @@ reason.
 
 ## The outcomes
 
-- **Affected**: leave the row. Remediate (the fixed versions are in the cited document) or
-  escalate. Write nothing.
+- **Affected**: the vulnerable code is reachable here. Record it, then remediate (the fixed
+  versions are in the `osv.match` document OSV's `affected_by` Claim cites) or escalate. One
+  write with two changes: `create` the `security.app_exposure` pair keyed by `occurrence`
+  and `vulnerability`; `set` its `verdict` to `affected`, citing the code that reaches the
+  vulnerable function (the passage on the call path) as its evidence. No justification. The
+  row leaves the worklists for `security.confirmed_exposures`; every other inventory's row
+  stays. A confirmed-affected finding is always app level: the package-level pair holds
+  only `vulnerable_code_not_present`.
 - **Not affected, package level**: only `vulnerable_code_not_present`. The vulnerable code is
   not in this package release at all (OSV's range is wrong for it, the fix was backported, the
   module is not built). It holds for every inventory, so it is one write with four changes:
@@ -53,7 +60,9 @@ reason.
   `vulnerable_code_cannot_be_controlled_by_adversary` or `inline_mitigations_already_exist`.
   It holds for this inventory only: one write with two changes: `create` the
   `security.app_exposure` pair keyed by `occurrence` (the worklist row's occurrence) and
-  `vulnerability`; `set` its `justification`. It never states the global none.
+  `vulnerability`; `set` its `justification`. The justification alone is the not_affected
+  judgment; a `verdict` of `not_affected` beside it is optional. It never states the global
+  none.
 - **Blocked on a fact you can't see**: don't guess. Attest unsure on OSV's `affected_by`
   Claim, naming the missing fact and how an owner can check it:
   `cruxible claim attest CLAIM --unsure --because "..." --valid-until TIME`, with TIME no later
@@ -61,18 +70,31 @@ reason.
   backlog, marked.
 - **A KEV pair whose due date has passed**: it can't be held, since any hold would already
   have ended. Judge it now with what you can see. If one fact you can't see still decides it,
-  treat the pair as affected: remediate, or escalate to the owner naming that fact. Never
-  leave it unjudged.
+  write the `affected` verdict, naming that fact in the write's `because`, then remediate or
+  escalate to the owner. Never leave it unjudged.
+
+A pair holds one judgment: a justification (not_affected) or the verdict `affected`, never
+both. A pair holding both, or a `not_affected` verdict with no justification, counts as not
+judged: it stays in the worklists and in neither track record.
 
 ## Review
 
 Write a judgment with `accept: never`. A different agent, under its own principal, approves it
 after reading this guidance and trying once to break it: re-read the cited code, look for
-another path to the vulnerable code, check the control really applies. Never approve your own
-judgment. No Mandate settles a justification.
+another path to the vulnerable code (or, for `affected`, check the path really reaches it),
+check the control really applies. Reject a write that sets both a verdict of `affected` and a
+justification. Never approve your own judgment. No Mandate settles a justification or a
+verdict.
 
-To withdraw one, retire its justification and, for a package-level one, its none in one write
-(one `retire` change each). The pair Subject stays as history.
+To withdraw one, retire its justification (or its `affected` verdict) and, for a
+package-level one, its none in one write (one `retire` change each). The pair Subject stays
+as history. To turn an `affected` verdict into not_affected, write once: `set` the `verdict`
+to `not_affected` (it revises the affected Claim) and `set` the `justification`.
+
+A confirmed exposure clears when the inventory's SBOM no longer lists the vulnerable
+release: the row leaves `security.confirmed_exposures`, and `next` lists the verdict as
+`claim_dependency_stale` (its occurrence is no longer observed). Check that the new SBOM
+really dropped the release, then retire the verdict to clear that row.
 
 ## Anti-patterns
 
@@ -81,5 +103,7 @@ To withdraw one, retire its justification and, for a package-level one, its none
   `vulnerable_code_not_in_execute_path`, for one inventory.
 - Judging from the advisory summary without reading the code that uses the package.
 - Holding a KEV-listed pair past its due date instead of judging it.
+- Proving a pair reachable and writing nothing: the worklist can't tell it from a pair
+  nobody looked at. Write the `affected` verdict.
 - Treating an exposure as fixed because a newer version exists somewhere: it leaves the
   worklists when the inventory's SBOM no longer lists the vulnerable release.
