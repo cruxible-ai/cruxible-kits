@@ -19,16 +19,18 @@ vulnerability <- component.affected_by <- an occurrence of the component holding
 a scope (the pair hop, S4), one row per vulnerability with the same row
 Contract, so kev-triage reads it unchanged. Every Procedure is in the template
 form (D-R37): epss-triage reads its key list from ``security.watched_cve_keys``
-instead of shaping it.
+and asks FIRST for exactly those CVEs (``web.fetch.pages``, D-R34), so a CVE
+OSV adds is scored on EPSS's next run with no Line change.
 
 Batch 2, the dependency loop (``inventory.py``, ``osv.py``, ``triage.py``): one
 SBOM import Procedure writing occurrences (inventory, component) and their
 scope, the OSV Line (``affected_by``), package-level and app-level not_affected
 judgments on the exposure pairs, and the triage and track-record Queries.
 
-No provider computes a Claim. ``web.fetch`` (cruxible-provider-web, bound by
-the Line) returns the catalog bytes; core extracts typed records under the
-CaptureKind's decoding and the claims template writes them. Membership is
+No provider computes a Claim. ``web.fetch`` and ``web.fetch.pages``
+(cruxible-provider-web, bound by the Lines) return the origins' bytes; core
+extracts typed records under the CaptureKind's decoding and the claims template
+writes them. Membership is
 ``listed_in = security.catalog/cisa-kev`` (D-R4), whose absence over a complete
 catalog read is the declared inverse (D-R11, D-R24); the KEV dates mirror; the
 ransomware field surfaces. EPSS decimals are typed in the extract (D-R23).
@@ -72,6 +74,7 @@ EPSS_PROCEDURE = "security.epss-triage"
 KEV_LINE = "security.kev-triage"
 EPSS_LINE = "security.epss-triage"
 WEB_FETCH = "cruxible-provider-web#web.fetch"
+WEB_FETCH_PAGES = "cruxible-provider-web#web.fetch.pages"
 
 #: The pilot's default watch list: listed in KEV (all but the last two), and
 #: two CVEs the catalog does not list, whose absence the complete read proves.
@@ -456,7 +459,13 @@ def _fetch(alias: str, kind: str) -> dict[str, Any]:
     }
 
 
-def _spec(name: str, description: str, steps: list[dict[str, Any]]) -> dict[str, Any]:
+def _spec(
+    name: str,
+    description: str,
+    steps: list[dict[str, Any]],
+    *,
+    operation: str = "web.fetch",
+) -> dict[str, Any]:
     return refs(
         {
             "procedure": name,
@@ -470,8 +479,8 @@ def _spec(name: str, description: str, steps: list[dict[str, Any]]) -> dict[str,
             },
             "slots": {
                 "fetch": {
-                    "in": "web.fetch.request@1",
-                    "out": "web.fetch.result@1",
+                    "in": f"{operation}.request@1",
+                    "out": f"{operation}.result@1",
                     "effect": "external_read",
                 }
             },
@@ -576,23 +585,60 @@ def kev_spec() -> dict[str, Any]:
     )
 
 
+#: The EPSS query parameter the watched CVE ids go in, comma-joined (``cve=A,B``).
+EPSS_PARAM = "cve"
+#: FIRST answers at most 100 rows per request (its default ``limit``). A list
+#: extract declares no ``complete_when`` (one page's ``/total`` cannot speak for
+#: the merged pages), so no page asks for more than 100 CVEs: 100 of the shortest
+#: CVE ids (13 characters, plus a comma between) fill exactly this many
+#: characters of ``EPSS_API?cve=...``; a 101st needs 14 more. A longer base URL,
+#: or longer ids, only fit fewer.
+EPSS_MAX_URL_CHARS = len(EPSS_API) + len("?cve=") + 13 + 99 * 14
+
+
 def epss_spec() -> dict[str, Any]:
+    """Ask FIRST's EPSS API for exactly the watched CVEs, in as few pages as fit.
+
+    ``web.fetch.pages`` sends the watched CVE ids read from state as the ``cve``
+    parameter, comma-joined, split across pages of at most 100 ids; each page's
+    body is its own Capture. The extract reads every page's records; a page that
+    failed is left out and the call is incomplete, which the run reports.
+    """
+
     within = "$steps.watched.rows"
     return _spec(
         EPSS_PROCEDURE,
-        "Read FIRST's EPSS API answer for the watched CVEs and write each one's score, "
+        "Ask FIRST's EPSS API for the watched CVEs and write each one's score, "
         "percentile and score date.",
         [
-            _fetch("scores_api", EPSS_KIND),
             {"read": "watched", "query": WATCHED_QUERY},
             {"read": "watch_keys", "query": WATCH_KEYS_QUERY},
             {
+                "call": "scores_api",
+                "slot": "fetch",
+                "captures": {"captures": EPSS_KIND},
+                "input": {
+                    "url": "$params.url",
+                    "page_param": EPSS_PARAM,
+                    "query": [
+                        {
+                            "name": EPSS_PARAM,
+                            "values": "$steps.watch_keys.rows.[*].cve_id",
+                            "join": "comma",
+                        }
+                    ],
+                    "max_url_chars": EPSS_MAX_URL_CHARS,
+                    "logical_source": "$params.logical_source",
+                    "expected_format": "json",
+                    "max_bytes": "$params.max_bytes",
+                },
+            },
+            {
                 "extract": "scores",
-                "capture": "$steps.scores_api.capture",
+                "capture": "$steps.scores_api.captures",
                 "records": "/data/*",
                 "row": f"{EPSS_ROW}@1",
                 "key": {"cve_id": {"at": "cve", "type": f"key_part<{VULN}:cve_id>"}},
-                "complete_when": {"count_at": "/total"},
                 "only_keys": "$steps.watch_keys.rows",
                 "fields": {
                     "score": {"at": "epss", "parse": "decimal"},
@@ -630,6 +676,7 @@ def epss_spec() -> dict[str, Any]:
                 ],
             },
         ],
+        operation="web.fetch.pages",
     )
 
 
@@ -693,10 +740,6 @@ EPSS_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
 }
 
 
-def epss_url(watch: Sequence[str]) -> str:
-    return f"{EPSS_API}?cve={','.join(watch)}"
-
-
 def automation(
     watch: Sequence[str],
     *,
@@ -705,33 +748,38 @@ def automation(
     sboms: Sequence[tuple[str, str]] = (),
     osv_line: bool = True,
 ) -> dict[str, Any]:
-    """The consumer's Lines: KEV and EPSS (the EPSS URL carries ``watch``, D-R34
-    pending), one SBOM import Line per (name, workspace path) in ``sboms``, and
-    the OSV Line."""
+    """The consumer's Lines: KEV and EPSS (EPSS asks for the CVEs the watch list
+    holds at run time), one SBOM import Line per (name, workspace path) in
+    ``sboms``, and the OSV Line. ``watch`` is unused: no Line names a CVE."""
     valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
     expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
+    del watch
     lines = (
         (KEV_LINE, KEV_PROCEDURE, KEV_URL, KEV_SOURCE, "https://www.cisa.gov", KEV_SETTLE_SCOPE),
         (
             EPSS_LINE,
             EPSS_PROCEDURE,
-            epss_url(watch),
+            EPSS_API,
             EPSS_SOURCE,
             "https://api.first.org",
             EPSS_SETTLE_SCOPE,
         ),
     )
-    alias = {KEV_LINE: "catalog", EPSS_LINE: "scores_api"}
+    fetch = {
+        KEV_LINE: ("catalog.capture", WEB_FETCH),
+        EPSS_LINE: ("scores_api.captures", WEB_FETCH_PAGES),
+    }
     members: list[dict[str, Any]] = []
     for line, procedure, url, source, origin, scope in lines:
+        output, binding = fetch[line]
         members.append(
             {
                 "kind": "line",
                 "name": line,
                 "procedure_name": procedure,
-                "bindings": {"fetch": WEB_FETCH},
+                "bindings": {"fetch": binding},
                 "parameters": {"url": url, "logical_source": source, "max_bytes": 4 * 1024 * 1024},
-                "acquisition": {f"{alias[line]}.capture": {"origins": [origin]}},
+                "acquisition": {output: {"origins": [origin]}},
                 "findings": {"inbox": FINDINGS},
                 "max_authority": "settle" if settle else "propose",
             }

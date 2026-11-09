@@ -533,7 +533,7 @@
       "path": "documents/security.guidance.verifier.json"
     },
     {
-      "artifact_digest": "sha256:c3fab91633d80ae933a1a2ba9f39e2952f59ae215cfe5bf7bfd0b8cbbc495166",
+      "artifact_digest": "sha256:f5cc00e97e1172e50fd759eb117e4f1e4e8e3049158bdda07c8d09a5649a5718",
       "path": "procedures/security.epss-triage.json"
     },
     {
@@ -646,12 +646,12 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:127688362b046763115a31c1b41828aa08f84552213e003bdc56b50cb481e84a"
+      "sha256": "sha256:f2316d60fdae90601db815848c04714d90ad0b39450e4db0f70abb2f5830ffcd"
     },
     {
       "path": "automation.json",
       "role": "reference",
-      "sha256": "sha256:f5fdc2c56535170062d3489d78224b08e158b03e472c5426699ac644d69fdf50"
+      "sha256": "sha256:a32b96b7cb4821fa40e3b6af10ec9b748376a5ba7b9692e8521391b1581d14e6"
     },
     {
       "path": "examples/README.md",
@@ -741,12 +741,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf",
-      "generation_root": "sha256:9e1ca79e245ce409f274b34edbb5c774748db40901ba0483c3cc3b7b1b9f1bac",
-      "git_oid": "8348edaa70a5b3e0fe173d2c1d56ead0ac5e31a5",
-      "semantic_root": "sha256:07540fda644db609efbdb6b30eb885410c666db37b0393e902c92606352c7c9d",
+      "generation_root": "sha256:f7a7674a65187c0c9cd2b51a53a7a65a9ad70c0b9873cbbdf1a4c41591528825",
+      "git_oid": "53db51ea8f269468532cd593f5bc5bde19d6d3fc",
+      "semantic_root": "sha256:bdac163de0bd1c9b4339a89a020bec42f1892eef076e9a06c1cda20481a4ded7",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_32745ced367d4bce",
+    "instance_id": "inst_cf262685c90248c7",
     "principal_id": "owner"
   },
   "providers": [

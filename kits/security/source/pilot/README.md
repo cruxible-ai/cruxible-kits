@@ -308,10 +308,14 @@ one finding with two reporters. What it checked is state too: a
 - **Fresh install only (D-R46 R9).** This model replaces `component.in_inventory`,
   `component.fixed_in` and `component.not_affected_reason`; no instance holding
   them is carried over.
-- **EPSS URL (D-R34).** The EPSS Line's URL still carries the watched CVEs, so a
-  CVE OSV adds needs a Line change. cruxible-provider-web 0.5.0's `web.fetch`
-  has the typed `query` map; the EPSS re-author is queued with the rest of the
-  kit.
+- **EPSS pages (D-R34).** The EPSS Procedure sends the watched CVE ids as the
+  `cve` parameter through `web.fetch.pages`, at most 100 per page (FIRST's page
+  size). A list extract declares no `complete_when`, so a page's own `/total` is
+  not checked; the 100-id bound keeps every page whole, and a failed page makes
+  the run incomplete. **Open:** with nothing watched, `web.fetch.pages` declines
+  the empty `cve` list (`provider_declined`) before any request, so the EPSS run
+  is refused rather than a quiet no-op (the strict-xfail gate
+  `test_epss_with_nothing_watched_asks_nothing_and_writes_nothing`).
 - **The provider lock.** `security-osv-provider` has no committed `uv.lock`:
   `cruxible-provider-runtime` 0.4.0 is not on PyPI yet. The scratch instance
   locks it against the providers checkout and installs the runtime wheel as a
