@@ -529,7 +529,7 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:9ad96c7a7c536bc077d28579185f5291544b759feac78a30c123e5460fffa0b1",
+      "artifact_digest": "sha256:4366ab0beea6fb8a35b5943161f0c1937d6c5d3cee93ecf71a65938391189f0a",
       "path": "documents/security.guidance.dependency.json"
     },
     {
@@ -565,7 +565,7 @@
       "path": "procedures/security.sbom-import.json"
     },
     {
-      "artifact_digest": "sha256:333324b658f44ddda72c88a51855d3e7d1404c26fc69e300f10a3a985ae1e817",
+      "artifact_digest": "sha256:ab9408f7f512d79f3ecd1b6cf21c7ae0efbc08a6f26b2295e1e3b80663ceb705",
       "path": "query-definitions/security.app_not_affected_judgments.json"
     },
     {
@@ -589,11 +589,11 @@
       "path": "query-definitions/security.inventory_components.json"
     },
     {
-      "artifact_digest": "sha256:a29cfd19e8cb1b86325972cf9b008ea853e3fac86ed1b62ff7812fc8f82d8057",
+      "artifact_digest": "sha256:7c93f73bd703827ed769ea7a197e8684644284bca1410c37455c1d0254422c31",
       "path": "query-definitions/security.kev_triage_backlog.json"
     },
     {
-      "artifact_digest": "sha256:f9173e297df1ac99a61f708f1f0fe8a39a595725d8455d37b9cee938f2e95bc4",
+      "artifact_digest": "sha256:893bbbff3fd4051b3b5d6dfba0e3b39bd1bfd33e6d373e6ede39ba96f4d1f41e",
       "path": "query-definitions/security.not_affected_judgments.json"
     },
     {
@@ -605,7 +605,7 @@
       "path": "query-definitions/security.sarif_held_findings.json"
     },
     {
-      "artifact_digest": "sha256:952b67fe94d541f6458a09623fabcdd1e8dcedf89192902a2c84c198dd606120",
+      "artifact_digest": "sha256:a9febb63459a5444573a7e9ac0d5d20837ed0ca32376c8a3b2b8f9f446fefa9e",
       "path": "query-definitions/security.urgent_exposures.json"
     },
     {
@@ -658,7 +658,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:04a1de588b9110f48166dfa0bb4fa2af48aa0898196d1e15880372790b7627d6"
+      "sha256": "sha256:a1e4bdc3e5c0a85c60b248e76659d499ecebc6e809c88aad63dbd2561e2f0478"
     },
     {
       "path": "automation.json",
@@ -753,12 +753,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf",
-      "generation_root": "sha256:4b0b81af2f993e31edd529cfef2654c337d4f740439ef820911e00a140b84183",
-      "git_oid": "40a7712f9285ab0be51751f1e5019ec448cfa95e",
-      "semantic_root": "sha256:33b5e52d39a41a3de72153bef9b68dd109fc99179b1247527581194d3e3595fe",
+      "generation_root": "sha256:882ae7a64b5cd4071eaa45a4d5aa2b5c9671c5d30a885dee3026a2b3fbfc5055",
+      "git_oid": "c16d952f2db0bedf0cf3f655b760d95825a7b031",
+      "semantic_root": "sha256:7e7332ba4675e2a30fc946ea2c64c0f7790f128f87b1fd71e9915477012dc859",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_d3255f43ed694e76",
+    "instance_id": "inst_01fbd5ae59c94caa",
     "principal_id": "owner"
   },
   "providers": [

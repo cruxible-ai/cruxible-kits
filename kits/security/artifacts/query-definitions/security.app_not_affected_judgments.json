@@ -124,26 +124,56 @@
   "where": {
     "filters": [
       {
-        "binding": "ae",
-        "kind": "claim_presence",
-        "predicate": "security.app_exposure.justification"
-      },
-      {
-        "kind": "not",
-        "operand": {
-          "kind": "comparison",
-          "left": {
+        "filters": [
+          {
             "binding": "ae",
-            "kind": "claim_value",
+            "kind": "claim_presence",
+            "negated": true,
             "predicate": "security.app_exposure.verdict"
           },
-          "operator": "eq",
-          "right": {
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "ae",
+              "kind": "claim_value",
+              "predicate": "security.app_exposure.verdict"
+            },
+            "operator": "eq",
+            "right": {
+              "kind": "literal",
+              "value": "not_affected"
+            },
+            "value_type": "string"
+          }
+        ],
+        "kind": "any_of"
+      },
+      {
+        "kind": "membership",
+        "left": {
+          "binding": "ae",
+          "kind": "claim_value",
+          "predicate": "security.app_exposure.justification"
+        },
+        "value_type": "string",
+        "values": [
+          {
             "kind": "literal",
-            "value": "affected"
+            "value": "component_not_present"
           },
-          "value_type": "string"
-        }
+          {
+            "kind": "literal",
+            "value": "inline_mitigations_already_exist"
+          },
+          {
+            "kind": "literal",
+            "value": "vulnerable_code_cannot_be_controlled_by_adversary"
+          },
+          {
+            "kind": "literal",
+            "value": "vulnerable_code_not_in_execute_path"
+          }
+        ]
       }
     ],
     "kind": "all_of"

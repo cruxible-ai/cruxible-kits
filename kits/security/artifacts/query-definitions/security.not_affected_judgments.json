@@ -96,8 +96,18 @@
     }
   ],
   "where": {
-    "binding": "e",
-    "kind": "claim_presence",
-    "predicate": "security.exposure.justification"
+    "kind": "membership",
+    "left": {
+      "binding": "e",
+      "kind": "claim_value",
+      "predicate": "security.exposure.justification"
+    },
+    "value_type": "string",
+    "values": [
+      {
+        "kind": "literal",
+        "value": "vulnerable_code_not_present"
+      }
+    ]
   }
 }
