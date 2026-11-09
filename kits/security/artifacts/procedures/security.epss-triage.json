@@ -14,7 +14,7 @@
         "name": "security.epss-triage.output/v1"
       }
     },
-    "description": "Read FIRST's EPSS API answer for the watched CVEs and write each one's score, percentile and score date.",
+    "description": "Ask FIRST's EPSS API for the watched CVEs and write each one's score, percentile and score date.",
     "hard_caps": {
       "max_capture_bytes": 16777216,
       "max_items": 20000,
@@ -27,25 +27,6 @@
     },
     "name": "security.epss-triage",
     "nodes": [
-      {
-        "captures": {
-          "capture": {
-            "target": {
-              "kind": "CaptureContract",
-              "name": "security.epss-scores"
-            }
-          }
-        },
-        "id": "scores_api",
-        "input": {
-          "expected_format": "json",
-          "logical_source": "$params.logical_source",
-          "max_bytes": "$params.max_bytes",
-          "url": "$params.url"
-        },
-        "kind": "call",
-        "slot": "fetch"
-      },
       {
         "id": "watched",
         "kind": "read",
@@ -67,10 +48,35 @@
         }
       },
       {
-        "capture": "$steps.scores_api.capture",
-        "complete_when": {
-          "count_at": "/total"
+        "captures": {
+          "captures": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.epss-scores"
+            }
+          }
         },
+        "id": "scores_api",
+        "input": {
+          "expected_format": "json",
+          "logical_source": "$params.logical_source",
+          "max_bytes": "$params.max_bytes",
+          "max_url_chars": 1438,
+          "page_param": "cve",
+          "query": [
+            {
+              "join": "comma",
+              "name": "cve",
+              "values": "$steps.watch_keys.rows.[*].cve_id"
+            }
+          ],
+          "url": "$params.url"
+        },
+        "kind": "call",
+        "slot": "fetch"
+      },
+      {
+        "capture": "$steps.scores_api.captures",
         "fields": {
           "date": {
             "at": "date",
@@ -156,20 +162,20 @@
       "fetch": {
         "effect": "external_read",
         "in": {
-          "digest": "sha256:1f4eefbeef292080ab075e22d068a4e45f6b01170802f2ca470daa2329444137",
-          "name": "web.fetch.request",
+          "digest": "sha256:68c6a684728cf19b150fd9c04e5e1aea22d2f7821b731480bcfc126b706f45a0",
+          "name": "web.fetch.pages.request",
           "version": 1
         },
         "out": {
-          "digest": "sha256:94f256cdc9f9dfb45d8ac2a55e5aaf40bdb64757cbbf21703baeb8bd8d03062f",
-          "name": "web.fetch.result",
+          "digest": "sha256:2f2f11073ba56e5c11b0db62a01d1979f4a288a7a5835ed5958964ca1590e4c1",
+          "name": "web.fetch.pages.result",
           "version": 1
         }
       }
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:ef594b40778fc417016ad1eb89f1a759e5e1dfddc22220b660dcde28c13c9dff",
+  "definition_digest": "sha256:d90df939301f5e38896a5db3441dd6cda8efeae0d7eef30e3eba673b1826f7e1",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
