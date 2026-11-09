@@ -1,0 +1,39 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "One audit coverage unit: one surface of one repository checked for one concern.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.coverage_unit"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "security.coverage_unit.repo",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "security.coverage_unit.surface",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "security.coverage_unit.concern",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "authority": {
+    "required_tier": "governed_write"
+  },
+  "body_digest": "sha256:f7c147f552957c5b8c55e0c9c6b8fdbef9e9cd405679f4763dcd68ef7c6c0aeb",
+  "document_kind": "security.guidance",
+  "format_version": 1,
+  "governance_scope": [
+    "security"
+  ],
+  "identity": "document:security.guidance.coverage",
+  "kind": "document",
+  "lifecycle": {
+    "activation_policy": "snapshot",
+    "revision": 1,
+    "status": "active"
+  },
+  "links": [
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.coverage_unit.status"
+    }
+  ],
+  "media_type": "text/markdown",
+  "pins": [],
+  "predecessor_digest": null,
+  "tag": "playbill-document-v1",
+  "title": "Keeping audit coverage"
+}

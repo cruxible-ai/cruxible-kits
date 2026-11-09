@@ -1,0 +1,137 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 1
+  },
+  "description": "The coverage units of one repository an audit should take up: never checked (no status), deferred or blocked. Units whose checked passage changed are next's citation_drifted rows.",
+  "entry": {
+    "binding": "u",
+    "subject_kinds": [
+      "security.coverage_unit"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.coverage_plan"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 1
+  },
+  "parameters": [
+    {
+      "name": "repo",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "concern",
+        "value": {
+          "binding": "u",
+          "kind": "claim_value",
+          "predicate": "security.coverage_unit.concern"
+        }
+      },
+      {
+        "name": "status",
+        "value": {
+          "binding": "u",
+          "kind": "claim_value",
+          "predicate": "security.coverage_unit.status"
+        }
+      },
+      {
+        "name": "subject_id",
+        "value": {
+          "binding": "u",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "subject_kind",
+        "value": {
+          "binding": "u",
+          "field": "subject_kind",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "surface",
+        "value": {
+          "binding": "u",
+          "kind": "claim_value",
+          "predicate": "security.coverage_unit.surface"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "row_contract": {
+    "digest": "sha256:e31c8ed3c93cff9f3d7e57ad056d50fa54bfad04dac5e18c5bf2efe913c57318",
+    "name": "security.coverage-plan-row",
+    "version": 1
+  },
+  "where": {
+    "filters": [
+      {
+        "filters": [
+          {
+            "binding": "u",
+            "kind": "claim_presence",
+            "negated": true,
+            "predicate": "security.coverage_unit.status"
+          },
+          {
+            "kind": "membership",
+            "left": {
+              "binding": "u",
+              "kind": "claim_value",
+              "predicate": "security.coverage_unit.status"
+            },
+            "value_type": "string",
+            "values": [
+              {
+                "kind": "literal",
+                "value": "blocked"
+              },
+              {
+                "kind": "literal",
+                "value": "deferred"
+              }
+            ]
+          }
+        ],
+        "kind": "any_of"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "u",
+          "kind": "claim_value",
+          "predicate": "security.coverage_unit.repo"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "repo"
+        },
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of"
+  }
+}

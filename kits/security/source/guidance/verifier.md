@@ -24,8 +24,8 @@ Confirmed only when you can name all six, from source and bounded local evidence
 Confirmed cites that observed run output: the check's output file or test log, a file in
 the workspace catalog. Source alone shows a path, not a result. If you couldn't run the check (no adequate
 sandbox, a missing toolchain), the finding is blocked, not confirmed. When the finding
-falls in a domain a reference Document covers, that reference's validation hints are part
-of this bar.
+falls in a domain one of the kit's reference pages covers (`reference/`), that page's
+validation hints are part of this bar.
 
 ## How to judge
 

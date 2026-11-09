@@ -1,0 +1,110 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 1
+  },
+  "description": "Every finding held for one repository: the import's held rows.",
+  "entry": {
+    "binding": "f",
+    "subject_kinds": [
+      "security.finding"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.sarif_held_findings"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 1
+  },
+  "parameters": [
+    {
+      "name": "repo",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "locus",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.locus"
+        }
+      },
+      {
+        "name": "rules",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.rule"
+        }
+      },
+      {
+        "name": "subject_id",
+        "value": {
+          "binding": "f",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "subject_kind",
+        "value": {
+          "binding": "f",
+          "field": "subject_kind",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "verification",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.verification"
+        }
+      },
+      {
+        "name": "weakness",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.finding.weakness"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "row_contract": {
+    "digest": "sha256:20dc02eb3bc2bc9dfcd39d28cea2ad9bff8147b33991c6d0962bd76a31d3eee7",
+    "name": "sarif.held-finding",
+    "version": 1
+  },
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "f",
+      "kind": "claim_value",
+      "predicate": "security.finding.repo"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "parameter",
+      "parameter": "repo"
+    },
+    "value_type": "string"
+  }
+}

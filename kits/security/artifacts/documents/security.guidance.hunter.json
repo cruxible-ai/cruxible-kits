@@ -1,0 +1,45 @@
+{
+  "authority": {
+    "required_tier": "governed_write"
+  },
+  "body_digest": "sha256:ad14b0d185a5dd3b477ab5193c4dd352f98c8ac8f36965f5e74d049ab2134ed4",
+  "document_kind": "security.guidance",
+  "format_version": 1,
+  "governance_scope": [
+    "security"
+  ],
+  "identity": "document:security.guidance.hunter",
+  "kind": "document",
+  "lifecycle": {
+    "activation_policy": "snapshot",
+    "revision": 1,
+    "status": "active"
+  },
+  "links": [
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.coverage_unit.status"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.found_in"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.reported_at"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.reported_by"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.rule"
+    }
+  ],
+  "media_type": "text/markdown",
+  "pins": [],
+  "predecessor_digest": null,
+  "tag": "playbill-document-v1",
+  "title": "Reporting a security finding"
+}

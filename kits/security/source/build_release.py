@@ -1,4 +1,4 @@
-"""Build the security dependency kit for Cruxible 0.5 through the public CLI.
+"""Build the security kit (dependency + audit loops) for Cruxible 0.5 through the public CLI.
 
     python source/build_release.py NEW_SCRATCH --providers-checkout PROVIDERS
 
@@ -8,6 +8,12 @@ download the registry dependencies pinned by those locks. No tests or private
 accept-tree helpers are used. A fresh publisher accepts the definitions and
 guidance, then production kit build validates the unchanged template against
 that exported closure. Only a successful build replaces the committed release.
+
+The release carries both loops: the dependency loop (SBOM, OSV, KEV, EPSS and the
+dependency guidance) and the audit extension (code findings and coverage units,
+the SARIF import Procedures with their provider, the audit Queries and the
+hunter, verifier and coverage guidance). The reference pages under ``reference/``
+ship as plain kit files.
 """
 
 from __future__ import annotations
@@ -27,10 +33,17 @@ SOURCE = Path(__file__).resolve().parent
 KIT = SOURCE.parent
 PROVIDERS = SOURCE / "providers"
 RELEASE = "1.3.0"  # Unpublished kit version; targets Cruxible 0.5.
-PACKAGES = ("security-osv-provider", "cruxible-provider-web")
+PACKAGES = ("security-osv-provider", "cruxible-provider-web", "security-sarif-provider")
+#: The operations each bundled provider must install for the kit's Procedures.
+REQUIRED = {
+    "security-osv-provider": {"sbom.components", "osv.query", "osv.match"},
+    "cruxible-provider-web": {"web.fetch"},
+    "security-sarif-provider": {"sarif.findings"},
+}
 sys.path.insert(0, str(SOURCE / "pilot"))
 
 import definitions as kit  # noqa: E402
+import findings  # noqa: E402
 import install  # noqa: E402
 import osv  # noqa: E402
 import template  # noqa: E402
@@ -244,6 +257,7 @@ def build_release(session: Session, projects: list[Path], out: Path) -> None:
             "members": [
                 *web_contracts.package_members(web),
                 *osv.provider_contract_members(),
+                *findings.provider_contract_members(),
             ],
         },
     )
@@ -266,17 +280,13 @@ def build_release(session: Session, projects: list[Path], out: Path) -> None:
             "--commit",
             "--json",
         )
-        required = (
-            {"web.fetch"}
-            if project.name == "cruxible-provider-web"
-            else {"sbom.components", "osv.query", "osv.match"}
-        )
+        required = REQUIRED[project.name]
         ready = {
             row["operation"] for row in installed["operations"] if row["installed"]
         }
         if not installed.get("registered") or not required <= ready:
             raise RuntimeError(f"Provider not installed: {installed}")
-    for name, record in kit.capture_kinds().items():
+    for name, record in {**kit.capture_kinds(), **findings.capture_kinds()}.items():
         path = session.root / f"capture-kind.{name}.json"
         path.write_text(json.dumps(record, indent=1) + "\n")
         session.command(
@@ -284,12 +294,14 @@ def build_release(session: Session, projects: list[Path], out: Path) -> None:
         )
     session.submit("vocabulary", kit.vocabulary())
     session.submit("procedures", kit.procedures())
+    session.submit("audit-vocabulary", findings.vocabulary())
+    session.submit("audit-procedures", findings.procedures())
 
     def store(path: Path) -> str:
         return str(session.command("body", "store", str(path), "--json")["digest"])
 
     for document in install.guidance_documents(
-        store, names=install.DEPENDENCY_GUIDANCE, references=False
+        store, names=(*install.DEPENDENCY_GUIDANCE, *install.GUIDANCE), references=False
     ):
         path = session.root / "guidance.json"
         path.write_text(json.dumps(document, indent=1) + "\n")

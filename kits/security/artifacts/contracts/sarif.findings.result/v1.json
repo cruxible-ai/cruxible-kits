@@ -1,0 +1,14 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One derived JSON document: findings by (repo, weakness, locus) with their verification (present, or fixed for a held finding a full scan of its rules no longer reports); the header queried (the rule set that ran), full and covered (the held findings a full run's rules cover: the Claims' expect); attention records (regressions, location gaps) and routed dependency advisories.",
+  "fields": {
+    "document": {
+      "type": {
+        "capture_kind": "*",
+        "kind": "capture"
+      }
+    }
+  },
+  "name": "sarif.findings.result",
+  "version": 1
+}

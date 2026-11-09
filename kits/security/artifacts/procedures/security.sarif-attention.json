@@ -1,0 +1,152 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
+  "definition": {
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.sarif-attention.input/v1"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.sarif-attention.output/v1"
+      }
+    },
+    "description": "Post the regressions and location gaps of one derived SARIF findings document to the Line inbox.",
+    "hard_caps": {
+      "max_capture_bytes": 33554432,
+      "max_items": 100000,
+      "max_provider_calls": 1,
+      "max_read_rows": 20000,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000
+      }
+    },
+    "name": "security.sarif-attention",
+    "nodes": [
+      {
+        "fields": {},
+        "id": "summary",
+        "kind": "project"
+      },
+      {
+        "captures": {
+          "document": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.sarif-findings"
+            }
+          }
+        },
+        "id": "findings",
+        "input": {
+          "held": [],
+          "logical_source": "$params.logical_source",
+          "logs": [],
+          "repo": "$params.repo"
+        },
+        "kind": "call",
+        "slot": "derive"
+      },
+      {
+        "capture": "$steps.findings.document",
+        "fields": {
+          "finding": {
+            "at": "finding",
+            "presence": "optional"
+          },
+          "kind": {
+            "at": "kind"
+          },
+          "locus": {
+            "at": "locus",
+            "presence": "optional"
+          },
+          "path": {
+            "at": "path"
+          },
+          "reason": {
+            "at": "reason",
+            "presence": "optional"
+          },
+          "ref": {
+            "at": "ref"
+          },
+          "repo": {
+            "at": "repo"
+          },
+          "rule": {
+            "at": "rule"
+          },
+          "weakness": {
+            "at": "weakness",
+            "presence": "optional"
+          }
+        },
+        "id": "attention",
+        "kind": "extract",
+        "records": "/attention/*",
+        "row": {
+          "digest": "sha256:ab6123ec812fe081ba0c455ba904e0c903efc3f1ebd340707a821de7a9cdf11c",
+          "name": "security.sarif-attention-record",
+          "version": 1
+        }
+      },
+      {
+        "contract": {
+          "digest": "sha256:04958b75f4898e9f00f3363374ba66950695ef7d09a226f28766ebf9c25d8f57",
+          "name": "security.sarif-attention",
+          "version": 1
+        },
+        "dedupe_key": [
+          "ref"
+        ],
+        "fields": {
+          "finding": "$item.fields.finding",
+          "kind": "$item.fields.kind",
+          "locus": "$item.fields.locus",
+          "path": "$item.fields.path",
+          "reason": "$item.fields.reason",
+          "ref": "$item.fields.ref",
+          "repo": "$item.fields.repo",
+          "rule": "$item.fields.rule",
+          "weakness": "$item.fields.weakness"
+        },
+        "for_each": "$steps.attention.records",
+        "id": "post",
+        "kind": "post_inbox"
+      }
+    ],
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.sarif-attention.params/v1"
+      }
+    },
+    "returns": "summary",
+    "slots": {
+      "derive": {
+        "effect": "pure",
+        "in": {
+          "digest": "sha256:62938ed7aeaf7058e926661779c7aa3582a72d93ec1510b22cc0b25933e358ee",
+          "name": "sarif.findings.request",
+          "version": 1
+        },
+        "out": {
+          "digest": "sha256:4ebc62f6842e6c7ff59360554d4a249fd33ae614a8368654eced2a8cd14fd2b9",
+          "name": "sarif.findings.result",
+          "version": 1
+        }
+      }
+    },
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:3b6c126f8cf16e60d75d991ff88abe47d055c291cac1242970b2614a427e2903",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.sarif-attention"
+  }
+}

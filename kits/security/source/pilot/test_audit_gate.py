@@ -975,7 +975,7 @@ def test_guidance_installs_as_governed_documents(tmp_path: Path) -> None:
     reference = sorted(name for name, kind in rows.items() if kind == "security.reference")
     assert reference == sorted(
         f"security.reference.{path.stem}"
-        for path in (Path(__file__).parent.parent / "reference").glob("*.md")
+        for path in (Path(__file__).parents[2] / "reference").glob("*.md")
     )
 
 

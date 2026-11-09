@@ -1,0 +1,50 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One finding the instance holds for a repository: its Subject, key parts, the rules that reported it (tool:ruleId) and its verification.",
+  "fields": {
+    "locus": {
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "rules": {
+      "optional": true,
+      "type": {
+        "item": {
+          "kind": "string",
+          "max_len": 256
+        },
+        "kind": "list",
+        "max_items": 64
+      }
+    },
+    "subject_id": {
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "subject_kind": {
+      "type": {
+        "kind": "string",
+        "max_len": 64
+      }
+    },
+    "verification": {
+      "optional": true,
+      "type": {
+        "kind": "string",
+        "max_len": 16
+      }
+    },
+    "weakness": {
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    }
+  },
+  "name": "sarif.held-finding",
+  "version": 1
+}

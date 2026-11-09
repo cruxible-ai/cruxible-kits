@@ -1,0 +1,39 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "One weakness of one kind at one place in one repository's code.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.finding"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "security.finding.repo",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "security.finding.weakness",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "security.finding.locus",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}
