@@ -27,8 +27,15 @@ evidence. Name:
 3. for an input-driven bug, who controls the input and the boundary in between;
 4. the control or configuration you rely on, and where it lives.
 
-Cite the code you read (file evidence, `path#anchor`) and put longer reasoning in a section
-you cite. A low EPSS score, no KEV listing or a quiet advisory is not a reason.
+Cite the code you read as the justification's evidence:
+`"evidence": {"kind": "file", "file": "PATH#ANCHOR"}` on the justification change, where
+ANCHOR is the exact passage you relied on, found once in the file. Catalogue the file first
+(`cruxible files add NAME PATH`). When that passage changes, `next` lists the judgment as
+`citation_drifted`, so it gets judged again. A change cites one piece of evidence: put longer
+reasoning in the write's `because` or a notes file beside the code. Cite a notes section or
+your own words instead only when no code passage carries the judgment; both are admitted, but
+neither drifts with the code. A low EPSS score, no KEV listing or a quiet advisory is not a
+reason.
 
 ## The outcomes
 
