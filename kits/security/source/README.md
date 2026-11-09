@@ -1,7 +1,11 @@
 # Building the security kit for Cruxible 0.5
 
 The release is the dependency loop in `pilot/`: SBOM import, OSV, KEV, EPSS,
-pair Subjects, triage queries and the governed dependency-judgment guidance.
+pair Subjects, triage queries and the governed dependency-judgment guidance;
+and the audit extension (`pilot/findings.py`): code findings, coverage units,
+the SARIF import Procedures and provider, the audit Queries and the hunter,
+verifier and coverage guidance. The reference pages (`../reference/`) ship as
+plain kit files.
 The former 1.3 release's system-model/incident recipes, gates and upgrade variant
 have been retired. Kit version 1.3.0 is still unpublished; this rebuild uses the
 0.5 artifact format and protocol-2 provider packages. Nothing here publishes it.
@@ -18,16 +22,16 @@ python source/build_release.py /short/new/scratch --providers-checkout /path/to/
 The scratch directory must not exist. Its daemon socket requires a short path.
 Only scratch and this kit directory are written; the core and providers
 checkouts are read-only. `uv` and cached hatchling 1.32.1 are needed: wheels build
-with `uv build --offline`, and the two committed locks are checked, never
+with `uv build --offline`, and the three committed locks are checked, never
 re-resolved. The runtime wheel is built from the explicit providers checkout
 (version 0.4.0 for this release); select its reviewed commit. The web source
 vendored under `providers/cruxible-provider-web` is 0.5.0; OSV retains its own
-0.1.0.dev0 identity. Provider installation can fetch locked registry dependencies
+0.1.0.dev0 identity, as does SARIF (`providers/security-sarif-provider`). Provider installation can fetch locked registry dependencies
 from PyPI. No manual pip install or development environment is created.
 
 The builder uses the public CLI to initialize a fresh publisher, accept provider
-Contracts, install the two provider builds, author CaptureContracts/vocabulary/
-Procedures, and store/author the dependency guidance. It does not author adopter
+Contracts, install the three provider builds, author CaptureContracts/vocabulary/
+Procedures for both loops, and store/author the four guidance Documents. It does not author adopter
 Lines, Mandates, Triggers or Runbooks. Production `kit build` validates the exact
 committed automation template against the exported closure. Only then are the
 manifest, artifacts, provider files and Document bodies copied into the kit.
@@ -46,7 +50,6 @@ Run `pilot/test_*.py` with the same core on `PYTHONPATH` and
 `CRUXIBLE_PROVIDERS_CHECKOUT` set. `test_start_gate.py` exercises production kit
 build and a fresh consumer install of the actual committed directory, including
 its guidance body and exported template. Other pilot gates test the dependency
-loop and the optional SARIF/audit extension using recorded bytes. The SARIF
-source remains for that extension; it is not a bundled provider in this release.
+loop and the SARIF/audit extension using recorded bytes.
 `python pilot/template.py --check` checks the committed template. Changing its
 settlement authority requires a separate maintainer ruling.
