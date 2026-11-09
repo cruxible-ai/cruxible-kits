@@ -205,9 +205,27 @@ def _key_part(pair: str, part: str, end: str) -> dict[str, Any]:
     }
 
 
+def _file_rule(roles: Sequence[str]) -> dict[str, Any]:
+    """A workspace-file/section receipt rule (``file``): any catalogued workspace file.
+
+    The family selector (D1) admits a Capture under any accepted foreign-source
+    contract of a catalogued file, so a judgment citing the code it read drifts
+    when that code changes.
+    """
+
+    return {
+        "rule_id": "file",
+        "claim_roles": list(roles),
+        "capture_contract_families": ["workspace_file"],
+        "admission": "direct",
+        "subject_binding": "exact_claim_subject",
+    }
+
+
 def _justification(pair: str, members: Sequence[str], description: str) -> dict[str, Any]:
-    """An agent's VEX justification on a judgment pair: normative, own words, never a
-    Mandate's (no Line writes it)."""
+    """An agent's VEX justification on a judgment pair: normative, never a Mandate's
+    (no Line writes it). It cites the code read (a catalogued workspace file or a
+    section of one) or the agent's own words."""
 
     return {
         "predicate": f"{pair}.justification",
@@ -219,7 +237,10 @@ def _justification(pair: str, members: Sequence[str], description: str) -> dict[
         "default_role": "normative",
         "evidence_requirement": "self",
         "revision_evidence": "replace",
-        "evidence_admission_policy": {"rules": [_rule("self", ["normative"], SELF_SOURCE)]},
+        # Rules sorted by rule_id: the cited code (file), or own words (self).
+        "evidence_admission_policy": {
+            "rules": [_file_rule(["normative"]), _rule("self", ["normative"], SELF_SOURCE)]
+        },
     }
 
 

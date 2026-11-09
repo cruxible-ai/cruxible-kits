@@ -475,6 +475,110 @@ def test_an_app_judgment_silences_only_its_own_inventory(tmp_path: Path) -> None
     assert (DEMO_APP, CORE, LOG4SHELL) not in exposures(instance)
 
 
+LOG4J_CONFIG = "app/src/main/resources/log4j2.xml"
+LOG4J_CONFIG_V1 = b"""<Configuration>
+  <Appenders><Console name="out"><PatternLayout pattern="%d %p %c - %m%n"/></Console></Appenders>
+  <Loggers><Root level="info"><AppenderRef ref="out"/></Root></Loggers>
+</Configuration>
+"""
+#: The passage the judgment cites: the only appender the configuration declares.
+CITED = '<Console name="out">'
+FILE_CATALOG = f"""\
+tag: playbill-source-catalog-v1
+catalog_kind: portable
+entries:
+  - name: demo-app.log4j-config
+    locator: {LOG4J_CONFIG}
+"""
+
+
+def _next_rows(instance: Any, tmp_path: Path, reason: str) -> list[Any]:
+    """``next``'s rows of one reason, with the workspace observed as the CLI does
+    (the local catalog observation, enriched through the real coverage read)."""
+
+    from cruxible_client.authoring.workspace import (
+        observe_next_workspace,
+        observe_next_workspace_with_coverage,
+    )
+    from cruxible_core.service.discovery.next import (
+        NextRequest,
+        NextWorkspaceObservation,
+        service_playbill_next,
+    )
+    from cruxible_core.indexes.projection import AcceptedCoordinate
+    from test_pilot_gate import workspace
+    from tests.test_authoring.test_block_sync_service import ACCESS_PROFILE, _ServiceClient
+
+    root = workspace(tmp_path)
+    observation, _coordinate = observe_next_workspace_with_coverage(
+        _ServiceClient(instance),  # type: ignore[arg-type]
+        instance.descriptor.instance_id,
+        root,
+        observation=observe_next_workspace(root),
+        access_profile=ACCESS_PROFILE.model_dump(mode="json"),
+    )
+    result = service_playbill_next(
+        instance,
+        request=NextRequest(
+            at=AcceptedCoordinate.from_internal(instance.accepted_coordinate()),
+            evaluation_time=NOW + timedelta(hours=1),
+            access_profile=ACCESS_PROFILE,
+            workspace_observation=NextWorkspaceObservation.model_validate(observation),
+        ),
+    )
+    return [item for item in result.items if item.reason == reason]
+
+
+def test_an_app_judgment_citing_code_is_supported_and_drifts_when_the_code_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The dependency guidance says to cite the code read: the justification admits a
+    catalogued workspace file (the ``file`` rule), so the judgment is supported and
+    ``next`` reports ``citation_drifted`` once that code changes."""
+
+    from cruxible_client.authoring.write_evidence import observe_changes
+    from cruxible_client.contracts.write import WriteRequest
+    from cruxible_core.service.authoring.write_verbs import service_playbill_write
+    from test_pilot_gate import workspace
+    from tests.core_support._write_support import caller
+
+    # next reads the daemon registry under the state root: keep it in scratch.
+    monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
+    instance = world(tmp_path)
+    run_osv(instance)
+    write_file(tmp_path, ".cruxible/files.yaml", FILE_CATALOG.encode())
+    write_file(tmp_path, LOG4J_CONFIG, LOG4J_CONFIG_V1)
+    request = triage.app_judgment(
+        occurrence_of(instance, DEMO_APP, CORE),
+        "CVE-2021-44832",
+        reason=APP_REASON,
+        because="The logging configuration is static and names no JDBC appender.",
+        accept="if_allowed",
+    )
+    request["changes"][-1]["evidence"] = {"kind": "file", "file": f"{LOG4J_CONFIG}#{CITED}"}
+    sent = WriteRequest.model_validate(request)
+    sent = sent.model_copy(
+        update={"changes": observe_changes(sent.changes, workspace=workspace(tmp_path))}
+    )
+    outcome = service_playbill_write(instance, request=sent, caller=caller())
+    assert outcome.status == "accepted", outcome.model_dump(mode="json")
+    (justification,) = [c for c in outcome.changes if c.field == "justification"]
+    assert justification.verdict == "supported"
+    assert (DEMO_APP, CORE, "CVE-2021-44832") not in exposures(instance)
+    assert _next_rows(instance, tmp_path, "citation_drifted") == []
+
+    write_file(
+        tmp_path,
+        LOG4J_CONFIG,
+        # The cited passage itself changes: a JDBC appender replaces the console.
+        LOG4J_CONFIG_V1.replace(CITED.encode(), b'<JDBC name="out">'),
+    )
+    drifted = _next_rows(instance, tmp_path, "citation_drifted")
+    assert drifted, "editing the cited code must surface citation_drifted"
+    claim = justification_claim(instance, justification.subject)
+    assert any(claim in json.dumps(row.model_dump(mode="json")) for row in drifted), drifted
+
+
 def test_an_app_judgment_refuses_as_a_whole(tmp_path: Path) -> None:
     instance = world(tmp_path)
     run_osv(instance)

@@ -115,6 +115,7 @@
               }
             },
             "value": {
+              "create": "if_absent",
               "key": {
                 "catalog_id": "cisa-kev"
               },
@@ -191,7 +192,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:be7191b9bbc7b9b61e187ffb0f3a0609e2027c763f7aaa9aebd5dab7d126a545",
+  "definition_digest": "sha256:1390c0c1877e7b15dde052bf1ae929be6b060ee98f5c57e0176f2804c9550a59",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-triage"

@@ -39,7 +39,8 @@
    "line_name": "security.kev-triage",
    "grants": "propose",
    "namespace": [
-    "claims"
+    "claims",
+    "subjects"
    ],
    "valid_from": "2026-11-06T00:00:00Z",
    "expires_at": "2027-02-05T00:00:00Z"
@@ -55,6 +56,9 @@
    "valid_from": "2026-11-06T00:00:00Z",
    "expires_at": "2027-02-05T00:00:00Z",
    "subjects": "expected",
+   "subject_creation": [
+    "security.catalog"
+   ],
    "scope": [
     {
      "claim_type": "security.vulnerability.listed_in",
