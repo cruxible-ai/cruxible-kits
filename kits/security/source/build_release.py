@@ -37,7 +37,7 @@ PACKAGES = ("security-osv-provider", "cruxible-provider-web", "security-sarif-pr
 #: The operations each bundled provider must install for the kit's Procedures.
 REQUIRED = {
     "security-osv-provider": {"sbom.components", "osv.query", "osv.match"},
-    "cruxible-provider-web": {"web.fetch"},
+    "cruxible-provider-web": {"web.fetch", "web.fetch.pages"},
     "security-sarif-provider": {"sarif.findings"},
 }
 sys.path.insert(0, str(SOURCE / "pilot"))

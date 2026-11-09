@@ -139,15 +139,15 @@
    "name": "security.epss-triage",
    "procedure_name": "security.epss-triage",
    "bindings": {
-    "fetch": "cruxible-provider-web#web.fetch"
+    "fetch": "cruxible-provider-web#web.fetch.pages"
    },
    "parameters": {
-    "url": "https://api.first.org/data/v1/epss?cve=",
+    "url": "https://api.first.org/data/v1/epss",
     "logical_source": "first.epss.api",
     "max_bytes": 4194304
    },
    "acquisition": {
-    "scores_api.capture": {
+    "scores_api.captures": {
      "origins": [
       "https://api.first.org"
      ]

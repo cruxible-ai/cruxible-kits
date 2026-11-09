@@ -31,11 +31,14 @@ from test_inventory_gate import derived_document
 from test_pilot_gate import (
     NOW,
     OWNERS,
+    EpssOrigin,
     Replay,
     accepted,
     changed,
     fixture_bytes,
     import_sbom,
+    epss,
+    epss_answer,
     kev,
     kev_catalog,
     kit,
@@ -1024,6 +1027,50 @@ def test_chain_sbom_osv_kev_without_a_seed(tmp_path: Path) -> None:
     written = {p for (_c, p) in changed(instance, catalog)}
     assert kit.VULN + ".listed_in" in written
     assert catalog.terminal_egress[0].settle_outcome == "settled"
+
+
+def test_a_cve_osv_adds_gets_an_epss_score_on_the_next_run_with_no_line_change(
+    tmp_path: Path,
+) -> None:
+    """EPSS reads the watch list when it runs (D-R34): a CVE OSV newly lists for an
+    inventoried component is asked for, and scored, on EPSS's next run; the Line
+    is the same artifact before and after."""
+
+    instance = world(tmp_path)
+
+    def drop_api(results: list[Any]) -> None:
+        results[BATCH_ORDER.index(API)] = {}
+
+    run_osv(instance, OSV({QUERYBATCH: batch_with(drop_api)}))
+    head = {k: v for k, v in epss_answer().items() if k != "data"}
+    data = [
+        {"cve": c, "epss": "0.100000000", "percentile": "0.900000000", "date": "2026-11-02"}
+        for c in sorted({*CORE_CVES, API_CVE})
+    ]
+    answer = {**head, "total": len(data), "data": data}
+    tree = instance.tree_at(instance.accepted_coordinate().git_oid)
+    line = tree[f"lines/{kit.EPSS_LINE}.json"]
+
+    before = EpssOrigin(answer)
+    first = epss(instance, before, minute=1)
+    (asked,) = before.pages
+    assert sorted(asked) == sorted(CORE_CVES)
+    assert {c for c, _ in changed(instance, first)} == {c.lower() for c in CORE_CVES}
+
+    run_osv(instance, minute=2)  # OSV now lists API_CVE for log4j-api
+    after = EpssOrigin(answer)
+    second = epss(instance, after, minute=3)
+    (asked,) = after.pages
+    assert sorted(asked) == sorted({*CORE_CVES, API_CVE})
+    assert set(changed(instance, second)) == {
+        (API_CVE.lower(), kit.VULN + p)
+        for p in (".epss_score", ".epss_percentile", ".epss_score_date")
+    }
+    assert second.terminal_egress[0].settle_outcome == "settled"
+    assert (
+        instance.tree_at(instance.accepted_coordinate().git_oid)[f"lines/{kit.EPSS_LINE}.json"]
+        == line
+    )
 
 
 def test_judgments_never_settle_under_a_mandate() -> None:

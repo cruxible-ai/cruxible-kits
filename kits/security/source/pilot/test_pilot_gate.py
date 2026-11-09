@@ -4,8 +4,10 @@ The payloads ``definitions.py`` writes (the same files the scratch instance
 installs) are authored into a fresh in-process instance; the real ``web.fetch``
 adapter of the providers checkout answers each Line's call from recordings
 (``fixtures/``: the CISA KEV catalog trimmed to 20 records, FIRST's EPSS API
-answer verbatim), and each gate scenario edits those bytes. Nothing here is a
-copy of a kit definition.
+answer verbatim), and each gate scenario edits those bytes. EPSS goes through
+the real ``web.fetch.pages`` adapter: :class:`EpssOrigin` answers each page's
+``cve=`` list from the recorded answer. Nothing here is a copy of a kit
+definition.
 
 Runs against a core checkout's tests (core test support) and a providers
 checkout::
@@ -20,7 +22,7 @@ import copy
 import importlib.util
 import json
 import sys
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -80,7 +82,7 @@ def fixture_bytes(exchange_id: str) -> bytes:
 # -- the real web.fetch, answering from recordings ------------------------------------
 
 
-def _web_fetch() -> Any:
+def _web_package() -> None:
     checkout = require_provider_checkout()
     package = checkout / "packages/cruxible-provider-web/src/cruxible_provider_web"
     if "cruxible_provider_web" not in sys.modules:
@@ -93,9 +95,87 @@ def _web_fetch() -> Any:
         module = importlib.util.module_from_spec(spec)
         sys.modules["cruxible_provider_web"] = module
         spec.loader.exec_module(module)
+
+
+def _web_fetch() -> Any:
+    _web_package()
     from cruxible_provider_web.fetch import WebFetch
 
     return WebFetch
+
+
+def _web_fetch_pages() -> Any:
+    _web_package()
+    from cruxible_provider_web.pages import WebFetchPages
+
+    return WebFetchPages
+
+
+class EpssOrigin:
+    """FIRST's EPSS API: each page's ``cve=`` list answered from one recorded answer.
+
+    A page asking for exactly the recorded CVEs gets the recorded bytes verbatim;
+    any other page gets the records it asked for that ``answer`` holds, with
+    ``total`` their count, as FIRST answers a ``cve=`` filter. A page asking for
+    a CVE in ``fail``, or the ``fail_page``-th page (0-based, in request order),
+    gets a 500. ``pages`` is every page's CVE list, in order.
+    """
+
+    def __init__(
+        self,
+        answer: Mapping[str, Any] | bytes | None = None,
+        *,
+        fail: Iterable[str] = (),
+        fail_page: int | None = None,
+    ) -> None:
+        self.body = fixture_bytes("epss-api") if answer is None else _bytes(answer)
+        self.records = {item["cve"]: item for item in json.loads(self.body)["data"]}
+        self.recorded = set(EXCHANGES["epss-api"]["url"].split("cve=", 1)[1].split(","))
+        self.fail = set(fail)
+        self.fail_page = fail_page
+        self.pages: list[list[str]] = []
+
+    def respond(self, url: str) -> Any:
+        import httpx
+        from urllib.parse import parse_qs, urlsplit
+
+        (cves,) = parse_qs(urlsplit(url).query)[kit.EPSS_PARAM]
+        asked = cves.split(",")
+        self.pages.append(asked)
+        if self.fail & set(asked) or self.fail_page == len(self.pages) - 1:
+            return httpx.Response(500, headers={"content-type": "text/plain"}, content=b"error")
+        if set(asked) == self.recorded:
+            body = self.body
+        else:
+            data = [self.records[c] for c in asked if c in self.records]
+            head = {k: v for k, v in json.loads(self.body).items() if k != "data"}
+            body = json.dumps({**head, "total": len(data), "data": data}).encode()
+        return httpx.Response(
+            200, headers={"content-type": "application/json; charset=utf-8"}, content=body
+        )
+
+
+class _Refused(Exception):
+    """A provider's own typed refusal, answered as the refused envelope it is."""
+
+    def __init__(self, code: str, detail: dict[str, Any]) -> None:
+        super().__init__(code)
+        self.code, self.detail = code, detail
+
+
+def _answering_invoker() -> Any:
+    from tests.support.operation_world import Invoker
+
+    class Answering(Invoker):
+        def invoke_provider(self, **kwargs: Any) -> Any:  # type: ignore[override]
+            self.refusal = None
+            try:
+                return super().invoke_provider(**kwargs)
+            except _Refused as refused:
+                self.refusal = (refused.code, refused.detail)
+                return super().invoke_provider(**kwargs)
+
+    return Answering()
 
 
 class Replay:
@@ -103,12 +183,16 @@ class Replay:
 
     The kit's dependency-plane operations (sbom.components, osv.query,
     osv.match) run the real security-osv-provider code (``dependency_replay``);
-    ``osv`` is the recorded OSV origin osv.query talks to.
+    ``osv`` is the recorded OSV origin osv.query talks to. ``epss`` answers
+    every request to FIRST's EPSS API (each page of ``web.fetch.pages``).
     """
 
-    def __init__(self, routes: Mapping[str, bytes], *, osv: Any = None) -> None:
+    def __init__(
+        self, routes: Mapping[str, bytes], *, osv: Any = None, epss: EpssOrigin | None = None
+    ) -> None:
         self.routes = dict(routes)
         self.osv = osv
+        self.epss = epss
         self.now: Any = None  # the run's daemon clock (service_run sets it)
         self.requests: list[str] = []
 
@@ -117,11 +201,14 @@ class Replay:
         from cruxible_provider_web.http import RecordingClient
 
         def handle(request: httpx.Request) -> httpx.Response:
-            self.requests.append(str(request.url))
+            url = str(request.url)
+            self.requests.append(url)
+            if self.epss is not None and url.startswith(kit.EPSS_API + "?"):
+                return self.epss.respond(url)
             return httpx.Response(
                 200,
                 headers={"content-type": "application/json"},
-                content=self.routes[str(request.url)],
+                content=self.routes[url],
             )
 
         def factory(recorder: Any, *, url: str, timeout_seconds: float) -> Any:
@@ -136,10 +223,10 @@ class Replay:
         from cruxible_provider_runtime.egress import EgressRecorder
         from cruxible_provider_runtime.protocol import Budgets
         from cruxible_provider_runtime.provider_api import ProviderRunContext
-        from tests.support.operation_world import Invoker
 
         web_fetch = _web_fetch()
-        invoker = Invoker()
+        web_fetch_pages = _web_fetch_pages()
+        invoker = _answering_invoker()
 
         def output(context: Any) -> dict[str, Any]:
             # -- Batch 2, dependency loop: the kit's own provider, in-process.
@@ -163,6 +250,31 @@ class Replay:
                 envelope = WorkspaceFile()(context)
                 assert envelope.status == "ok", envelope
                 return dict(envelope.output or {})
+            if context.operation == "web.fetch.pages":
+                # The real adapter's own result: its pages, failed_pages and
+                # incomplete_captures, never a hand-set flag.
+                paged = web_fetch_pages(client_factory=self.client_factory())(
+                    ProviderRunContext(
+                        run_id=context.run_id,
+                        input=dict(context.input),
+                        operation="web.fetch.pages",
+                        operation_signature_digest="sha256:" + "9" * 64,
+                        build_digest="sha256:" + "b" * 64,
+                        implementation_digest="sha256:" + "a" * 64,
+                        declared_endpoints=("dynamic:target-from-run-input",),
+                        budgets=Budgets(wall_clock_seconds=30, output_bytes=8_000_000),
+                        coordinates={},
+                        capture_contract=None,
+                        secrets={},
+                        egress=EgressRecorder(),
+                    )
+                )
+                if paged.status == "refused":
+                    assert paged.refusal is not None
+                    raise _Refused(paged.refusal.code, dict(paged.refusal.detail or {}))
+                assert paged.status == "ok", paged
+                invoker.incomplete_captures = list(paged.incomplete_captures)
+                return dict(paged.output or {})
             result = web_fetch(client_factory=self.client_factory())(
                 ProviderRunContext(
                     run_id=context.run_id,
@@ -396,8 +508,9 @@ def kev(
     return state
 
 
-def epss(instance: Any, answer: Mapping[str, Any] | bytes, *, minute: int = 0) -> Any:
-    state = run(instance, {kit.epss_url(WATCH): _bytes(answer)}, line=kit.EPSS_LINE, minute=minute)
+def epss(instance: Any, answer: Mapping[str, Any] | bytes | EpssOrigin, *, minute: int = 0) -> Any:
+    origin = answer if isinstance(answer, EpssOrigin) else EpssOrigin(answer)
+    state = service_run(instance, Replay({}, epss=origin), line=kit.EPSS_LINE, minute=minute)
     assert state.status == "succeeded", state.terminal
     return state
 
@@ -488,16 +601,19 @@ def test_baseline_replay_stores_the_fixture_bytes_verbatim(tmp_path: Path, excha
 
     instance = pilot_world(tmp_path)
     origin = fixture_bytes(exchange_id)
-    line, url = (
-        (kit.KEV_LINE, kit.KEV_URL)
-        if exchange_id == "kev-catalog"
-        else (kit.EPSS_LINE, kit.epss_url(WATCH))
-    )
-    assert EXCHANGES[exchange_id]["url"] == url
-    replay = Replay({url: origin})
+    url = EXCHANGES[exchange_id]["url"]
+    if exchange_id == "kev-catalog":
+        line, replay = kit.KEV_LINE, Replay({url: origin})
+    else:
+        # One page asks for exactly the ten watched CVEs, the recorded request.
+        line, replay = kit.EPSS_LINE, Replay({}, epss=EpssOrigin())
     state = service_run(instance, replay, line=line)
     assert state.status == "succeeded", state.terminal
-    assert replay.requests == [url]
+    if exchange_id == "kev-catalog":
+        assert replay.requests == [url]
+    else:
+        (asked,) = replay.epss.pages
+        assert sorted(asked) == sorted(WATCH) and replay.requests[0].startswith(kit.EPSS_API)
     digest, body = stored_capture(instance, state)
     assert body == origin
     assert digest == "sha256:" + hashlib.sha256(origin).hexdigest()
@@ -749,3 +865,108 @@ def test_g11_epss_na_is_inadmissible_and_percentile_writes(tmp_path: Path) -> No
     receipt = claims[(cve(target), PERCENTILE)].backing.procedure_evidence.value
     # Typed in the extract (D-R23): the decimal is the parse, no transform between.
     assert receipt.basis == "extracted" and receipt.transform_node_ids == ()
+
+
+# -- EPSS asks for exactly the watched CVEs (D-R34) ------------------------------------
+
+#: 101 watched CVEs of the shortest id length: 100 fill one page exactly, so the
+#: watch list splits into two pages.
+LONG_WATCH = tuple(f"CVE-2030-{n}" for n in range(1000, 1101))
+#: A watched CVE FIRST has no score for: it is absent from every page's answer.
+NO_SCORE = LONG_WATCH[7]
+
+
+def long_answer() -> dict[str, Any]:
+    head = {k: v for k, v in epss_answer().items() if k != "data"}
+    data = [
+        {"cve": c, "epss": "0.012340000", "percentile": "0.500000000", "date": "2026-11-02"}
+        for c in LONG_WATCH
+        if c != NO_SCORE
+    ]
+    return {**head, "total": len(data), "data": data}
+
+
+def call_captures(state: Any) -> tuple[str, ...]:
+    (call,) = [n for n in state.nodes if n.node == "scores_api"]
+    return tuple(call.summary.capture_digests)
+
+
+def test_epss_pages_a_long_watch_list_and_a_failed_page_is_incomplete(tmp_path: Path) -> None:
+    """101 watched CVEs: two pages, each CVE asked once. A failed second page leaves
+    one Capture and an incomplete run whose first page still writes; the next run
+    with both pages answered is complete and scores the rest. A CVE FIRST does not
+    score gets no Claim, and its absence is not incompleteness."""
+
+    instance = pilot_world(tmp_path, watch=LONG_WATCH)
+    before = instance.accepted_coordinate()
+
+    origin = EpssOrigin(long_answer(), fail_page=1)
+    failed = epss(instance, origin)
+    first_page, second_page = origin.pages
+    assert len(first_page) == 100 and len(second_page) == 1
+    assert sorted(first_page + second_page) == sorted(LONG_WATCH)
+    assert NO_SCORE in first_page
+    assert len(call_captures(failed)) == 1
+    assert failed.completeness is not None and not failed.completeness.complete
+    claims = changed(instance, failed)
+    scored = {c for c, _ in claims}
+    assert scored == {cve(c) for c in first_page if c != NO_SCORE}
+    assert len(claims) == 3 * len(scored)
+    assert failed.terminal_egress[0].settle_outcome == "settled"
+    assert instance.accepted_coordinate() != before
+
+    both = epss(instance, EpssOrigin(long_answer()), minute=1)
+    members = call_captures(both)
+    assert len(members) == 2
+    assert both.completeness is None
+    claims = changed(instance, both)
+    # Only the second page's CVE is new; the first page's re-observe.
+    assert set(claims) == {
+        (cve(c), p) for c in second_page for p in (SCORE, PERCENTILE, SCORE_DATE)
+    }
+    # Each Claim cites the one page its record came from.
+    assert all(
+        claim.backing.procedure_evidence.value.capture_digest == members[1]
+        for claim in claims.values()
+    )
+    written = summary(both, "claims")
+    assert (written.written, written.re_observed) == (3, 3 * (len(first_page) - 1))
+    assert not any(c == cve(NO_SCORE) for c, _ in claims)
+    assert both.terminal_egress[0].settle_outcome == "settled"
+
+
+def test_epss_a_watched_cve_without_a_score_writes_nothing_for_it(tmp_path: Path) -> None:
+    """One page; FIRST's answer lacks one watched CVE: its siblings write and the
+    run is complete (EPSS writes no absence)."""
+
+    instance = pilot_world(tmp_path)
+    answer = epss_answer()
+    missing = answer["data"].pop(0)["cve"]
+    answer["total"] = len(answer["data"])
+    origin = EpssOrigin(answer)
+    state = epss(instance, origin)
+    assert len(origin.pages) == 1 and len(call_captures(state)) == 1
+    claims = changed(instance, state)
+    assert len(claims) == 27 and not any(c == cve(missing) for c, _ in claims)
+    assert state.completeness is None
+    assert not [f for f in state.findings if f.kind == "incomplete_source"]
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="BLOCKED (kit-epss): web.fetch.pages declines an empty paged parameter "
+    "(provider_declined), so the EPSS run is node_refused; no template step can skip "
+    "the call (guard/halt are closed in authoring).",
+)
+def test_epss_with_nothing_watched_asks_nothing_and_writes_nothing(tmp_path: Path) -> None:
+    """An empty watch list: no request, nothing written, nothing needing attention."""
+
+    instance = kit_world(tmp_path)
+    before = instance.accepted_coordinate()
+    replay = Replay({}, epss=EpssOrigin())
+    state = service_run(instance, replay, line=kit.EPSS_LINE)
+    assert replay.requests == []
+    assert instance.accepted_coordinate() == before
+    assert state.status == "succeeded", state.terminal
+    assert state.completeness is None
+    assert not state.findings
