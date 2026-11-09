@@ -3,10 +3,10 @@
 This directory is the security kit re-authored for the Procedure template
 (D-R37): `read -> fetch -> derive* -> extract -> claims`. It holds the
 dependency loop: SBOM import, OSV, KEV and EPSS, agents' package-level and
-app-level not_affected judgments, the triage worklists and the track record. The 1.3.0 artifacts beside
-it (`artifacts/`, `reference.md`) are the old form, and `reference.md` is
-generated from those, so this page is the reference for the new form until the
-generator reads it.
+app-level not_affected judgments, the triage worklists and the track record.
+`../build_release.py` builds the committed kit from these definitions through
+the public CLI; see [the release recipe](../README.md). Code findings and audit
+modules are optional extensions tested here, rather than part of that bundle.
 
 | File | What |
 |---|---|

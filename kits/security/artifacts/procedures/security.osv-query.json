@@ -1,0 +1,183 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
+  "definition": {
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-query.input/v1"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-query.output/v1"
+      }
+    },
+    "description": "Ask OSV about every inventoried component and write which vulnerabilities OSV lists for its exact purl@version; a vulnerability OSV no longer lists for a component it answered in full retires.",
+    "hard_caps": {
+      "max_capture_bytes": 67108864,
+      "max_items": 50000,
+      "max_provider_calls": 2,
+      "max_read_rows": 20000,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000
+      }
+    },
+    "name": "security.osv-query",
+    "nodes": [
+      {
+        "id": "components",
+        "kind": "read",
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.osv_components"
+          }
+        }
+      },
+      {
+        "captures": {
+          "responses": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.osv-response"
+            }
+          }
+        },
+        "id": "osv",
+        "input": {
+          "components": "$steps.components.rows.[*].purl",
+          "logical_source": "$params.logical_source"
+        },
+        "kind": "call",
+        "slot": "query"
+      },
+      {
+        "captures": {
+          "document": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.osv-matches"
+            }
+          }
+        },
+        "id": "matched",
+        "input": {
+          "components": "$steps.components.rows.[*].purl",
+          "logical_source": "$params.logical_source",
+          "responses": "$steps.osv.responses"
+        },
+        "kind": "call",
+        "slot": "match"
+      },
+      {
+        "capture": "$steps.matched.document",
+        "complete_when": {
+          "count_at": "/count"
+        },
+        "fields": {
+          "osv_id": {
+            "at": "osv_id"
+          }
+        },
+        "header": {
+          "queried": {
+            "at": "/queried",
+            "type": "list<string{max_len: 256}>{max_items: 20000}"
+          }
+        },
+        "id": "affected",
+        "key": {
+          "cve_id": {
+            "at": "cve_id",
+            "type": "key_part<security.vulnerability:cve_id>"
+          },
+          "purl": {
+            "at": "purl",
+            "type": "key_part<security.component:purl>"
+          }
+        },
+        "kind": "extract",
+        "records": "/affected/*",
+        "row": {
+          "digest": "sha256:78e3bcd86138b59ec55cdac71ea154aaf3e26bebdaca1896679c46ba9b39bc35",
+          "name": "security.osv-affected",
+          "version": 1
+        }
+      },
+      {
+        "claims": [
+          {
+            "rationale": "OSV {$item.fields.osv_id} lists {$item.key.cve_id} for {$item.key.purl}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.component.affected_by"
+              }
+            },
+            "value": {
+              "create": "if_absent",
+              "key": {
+                "cve_id": "$item.key.cve_id"
+              },
+              "kind": "security.vulnerability"
+            },
+            "when_absent": "mirror"
+          }
+        ],
+        "expect": "$steps.affected.header.queried",
+        "for_each": "$steps.affected.records",
+        "id": "write",
+        "kind": "claims",
+        "subject": {
+          "key": {
+            "purl": "$item.key.purl"
+          },
+          "kind": "security.component"
+        }
+      }
+    ],
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-query.params/v1"
+      }
+    },
+    "slots": {
+      "match": {
+        "effect": "pure",
+        "in": {
+          "digest": "sha256:af7b4623f7d4681722e0a3764152080ffbeadac82f9b643fefd1dbd76b2df8af",
+          "name": "osv.match.request",
+          "version": 1
+        },
+        "out": {
+          "digest": "sha256:8dc8e9b5d54e859ff24e5110ebdb1c3c0327f4e9b13a995aae156c7e9c2858e4",
+          "name": "osv.match.result",
+          "version": 1
+        }
+      },
+      "query": {
+        "effect": "external_read",
+        "in": {
+          "digest": "sha256:6f410ed449bdf9a724f7daf8df15adbd1ccff56fc45f010e6677ef3f77c0dab5",
+          "name": "osv.query.request",
+          "version": 1
+        },
+        "out": {
+          "digest": "sha256:5cba02d44b4ae86b0bfb011df645080051c5399087a3714b15bc8ed240fcec6d",
+          "name": "osv.query.result",
+          "version": 1
+        }
+      }
+    },
+    "terminal_capability": 3
+  },
+  "definition_digest": "sha256:5ec884a3fc9750a45e699b2dac3428b927942f860ad7c3fbbaa6b612e71f983a",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.osv-query"
+  }
+}

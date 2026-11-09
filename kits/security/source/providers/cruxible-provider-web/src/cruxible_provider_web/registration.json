@@ -1,0 +1,141 @@
+{
+  "schema_version": 2,
+  "manifest": {
+    "path": "manifest.yaml",
+    "digest": "sha256:b600c1acf53504b37e0673615faa3d9841cb1729f7f193a8392d11235c66fe77"
+  },
+  "operations": [
+    {
+      "name": "search.web",
+      "in": "search.web.request@1",
+      "out": "search.web.result@1",
+      "effect": "external_read",
+      "refusals": {
+        "cross_origin_credentialed_redirect": {
+          "contract": "search.web.refusal.cross_origin_credentialed_redirect@1",
+          "absorbable": false
+        },
+        "provider_declined": {
+          "contract": "search.web.refusal.provider_declined@1",
+          "absorbable": true
+        },
+        "redirect_limit": {
+          "contract": "search.web.refusal.redirect_limit@1",
+          "absorbable": false
+        },
+        "undeclared_instance": {
+          "contract": "search.web.refusal.undeclared_instance@1",
+          "absorbable": false
+        },
+        "unsupported_redirect_scheme": {
+          "contract": "search.web.refusal.unsupported_redirect_scheme@1",
+          "absorbable": false
+        }
+      },
+      "entrypoint": "cruxible_provider_web.search:SearxngSearch"
+    },
+    {
+      "name": "web.fetch",
+      "in": "web.fetch.request@1",
+      "out": "web.fetch.result@1",
+      "effect": "external_read",
+      "refusals": {
+        "credential_unavailable": {
+          "contract": "web.fetch.refusal.credential_unavailable@1",
+          "absorbable": false
+        },
+        "cross_origin_credentialed_redirect": {
+          "contract": "web.fetch.refusal.cross_origin_credentialed_redirect@1",
+          "absorbable": false
+        },
+        "provider_declined": {
+          "contract": "web.fetch.refusal.provider_declined@1",
+          "absorbable": true
+        },
+        "redirect_limit": {
+          "contract": "web.fetch.refusal.redirect_limit@1",
+          "absorbable": false
+        },
+        "unsupported_redirect_scheme": {
+          "contract": "web.fetch.refusal.unsupported_redirect_scheme@1",
+          "absorbable": false
+        }
+      },
+      "entrypoint": "cruxible_provider_web.fetch:WebFetch"
+    },
+    {
+      "name": "web.fetch.pages",
+      "in": "web.fetch.pages.request@1",
+      "out": "web.fetch.pages.result@1",
+      "effect": "external_read",
+      "refusals": {
+        "credential_unavailable": {
+          "contract": "web.fetch.pages.refusal.credential_unavailable@1",
+          "absorbable": false
+        },
+        "cross_origin_credentialed_redirect": {
+          "contract": "web.fetch.pages.refusal.cross_origin_credentialed_redirect@1",
+          "absorbable": false
+        },
+        "provider_declined": {
+          "contract": "web.fetch.pages.refusal.provider_declined@1",
+          "absorbable": true
+        },
+        "redirect_limit": {
+          "contract": "web.fetch.pages.refusal.redirect_limit@1",
+          "absorbable": false
+        },
+        "unsupported_redirect_scheme": {
+          "contract": "web.fetch.pages.refusal.unsupported_redirect_scheme@1",
+          "absorbable": false
+        }
+      },
+      "entrypoint": "cruxible_provider_web.pages:WebFetchPages"
+    },
+    {
+      "name": "web.render",
+      "in": "web.render.request@1",
+      "out": "web.render.result@1",
+      "effect": "pure",
+      "refusals": {
+        "provider_declined": {
+          "contract": "web.render.refusal.provider_declined@1",
+          "absorbable": true
+        }
+      },
+      "entrypoint": "cruxible_provider_web.render:WebRender"
+    },
+    {
+      "name": "web.render.dom",
+      "in": "web.render.dom.request@1",
+      "out": "web.render.dom.result@1",
+      "effect": "external_read",
+      "refusals": {
+        "engine_unavailable": {
+          "contract": "web.render.dom.refusal.engine_unavailable@1",
+          "absorbable": false
+        },
+        "provider_declined": {
+          "contract": "web.render.dom.refusal.provider_declined@1",
+          "absorbable": true
+        }
+      },
+      "entrypoint": "cruxible_provider_web.dom:WebRenderDom"
+    }
+  ],
+  "runtime_requirements": [
+    {
+      "entrypoint": "cruxible_provider_web.dom:WebRenderDom",
+      "kind": "python_extra",
+      "name": "browser",
+      "description": "Required Python extra for this implementation."
+    },
+    {
+      "entrypoint": "cruxible_provider_web.dom:WebRenderDom",
+      "kind": "runtime_resource",
+      "name": "playwright.chromium",
+      "description": "Dom renders require a Chromium browser matching the installed Playwright version; installing the Python extra alone is insufficient.",
+      "probe_entrypoint": "cruxible_provider_web.resources:chromium_available"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "An (occurrence, vulnerability) pair an agent judged for one inventory, keyed by its ends.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.app_exposure"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "security.app_exposure.occurrence",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "security.app_exposure.vulnerability",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

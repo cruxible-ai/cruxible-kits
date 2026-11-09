@@ -1,5 +1,5 @@
 {
-  "artifact_format": "cruxible-capture-contract-v3",
+  "artifact_format": "cruxible-capture-contract-v4",
   "components": {
     "commitment_canonicalizer": {
       "target": {

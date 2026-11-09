@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "What one SBOM describes (an application, an image, an environment).",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.inventory"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "security.inventory.inventory_id",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

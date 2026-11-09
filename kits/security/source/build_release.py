@@ -1,176 +1,367 @@
-"""Build the security kit release (1.3.0) and its 1.3.1 gate variant from a fresh instance.
+"""Build the security dependency kit for Cruxible 0.5 through the public CLI.
 
-    python source/build_release.py SCRATCH_DIR [--providers]
+    python source/build_release.py NEW_SCRATCH --providers-checkout PROVIDERS
 
-Run with the interpreter of the cruxible build the release targets (its
-``cruxible`` beside it, or ``CRUXIBLE_BIN``). ``SCRATCH_DIR`` gets a fresh HOME,
-state root and workspace; nothing outside it and this kit directory is written.
-``--providers`` first rebuilds both bundled providers (registration, lock check,
-wheel; run provider tests separately). Then: start a daemon, ``init``, install
-``cruxible-provider-web``
-0.2.2 and the bundled wheels, author the release's definitions and Procedures,
-``kit build`` it, install the patched 1.3.1 analysis wheel (the gate-only patch
-adds the changed KEV field to each Claim rationale), author the 1.3.1 successors, ``kit
-build`` 1.3.1, copy the release over this kit's ``cruxible-kit.json``, ``artifacts/``
-and ``providers/`` and 1.3.1 over ``source/variants/1.3.1-gate``, stop the daemon, regenerate
-the release's reference (``source/reference.py``: the README's generated sections
-and ``reference.md``), and list the kit's inert files (the top-level pages, reference, examples,
-skills) in its manifest (``scripts/kits.py files``), outside the release's content digest.
+The kit's own OSV/web sources and frozen locks build offline. The runtime source
+comes from the explicitly selected providers checkout. Provider installation may
+download the registry dependencies pinned by those locks. No tests or private
+accept-tree helpers are used. A fresh publisher accepts the definitions and
+guidance, then production kit build validates the unchanged template against
+that exported closure. Only a successful build replaces the committed release.
 """
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
+from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import reference  # noqa: E402 - the sibling generator, beside this script
-
-KIT = Path(__file__).resolve().parents[1]
-SOURCE = KIT / "source"
+SOURCE = Path(__file__).resolve().parent
+KIT = SOURCE.parent
 PROVIDERS = SOURCE / "providers"
-BUNDLED = ("security-analysis-provider", "security-sources-provider")
-AUTHORING = SOURCE / "authoring" / "security_definitions.py"
-RELEASE = "1.3.0"  # keep in step with security_definitions.RELEASE
-VARIANT = "1.3.1"  # the gate-only upgrade variant (source/variants/1.3.1-gate)
-VARIANT_DIR = SOURCE / "variants" / f"{VARIANT}-gate"
+RELEASE = "1.3.0"  # Unpublished kit version; targets Cruxible 0.5.
+PACKAGES = ("security-osv-provider", "cruxible-provider-web")
+sys.path.insert(0, str(SOURCE / "pilot"))
+
+import definitions as kit  # noqa: E402
+import install  # noqa: E402
+import osv  # noqa: E402
+import template  # noqa: E402
+import web_contracts  # noqa: E402
 
 
-def _bin() -> str:
-    explicit = os.environ.get("CRUXIBLE_BIN")
-    if explicit:
-        return explicit
-    beside = Path(sys.executable).with_name("cruxible")
-    return str(beside) if beside.exists() else "cruxible"
+class Session:
+    """One isolated CLI workspace, daemon, identity and command log."""
 
+    def __init__(self, root: Path) -> None:
+        self.root = root.resolve()
+        self.root.mkdir(parents=True, exist_ok=False, mode=0o700)
+        self.workspace = self.root / "workspace"
+        self.workspace.mkdir()
+        self.state = self.root / "state"
+        self.socket = self.root / "d.sock"
+        if len(os.fsencode(self.socket)) >= 104:
+            raise ValueError("Choose a shorter scratch path for the Unix socket")
+        home = self.root / "home"
+        home.mkdir()
+        self.env = {
+            k: v for k, v in os.environ.items() if not k.startswith("CRUXIBLE_")
+        }
+        self.env.update(
+            UV_CACHE_DIR=os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv")),
+            HOME=str(home),
+            XDG_CONFIG_HOME=str(home / ".config"),
+            XDG_CACHE_HOME=str(home / ".cache"),
+            CRUXIBLE_STATE_ROOT=str(self.state),
+            CRUXIBLE_SERVER_SOCKET=str(self.socket),
+            PYTHONDONTWRITEBYTECODE="1",
+            SOURCE_DATE_EPOCH="1794009600",
+            GIT_AUTHOR_NAME="kit-build",
+            GIT_AUTHOR_EMAIL="kit-build@example.invalid",
+            GIT_COMMITTER_NAME="kit-build",
+            GIT_COMMITTER_EMAIL="kit-build@example.invalid",
+        )
+        self.binary = os.environ.get(
+            "CRUXIBLE_BIN", str(Path(sys.executable).with_name("cruxible"))
+        )
+        self.daemon: subprocess.Popen[bytes] | None = None
 
-def _build_provider(package: Path, env: dict[str, str]) -> None:
-    for command in ([sys.executable, "build_registration.py"], ["uv", "lock", "--check"]):
-        subprocess.run(command, cwd=package, env=env, check=True)
-    shutil.rmtree(package / "dist", ignore_errors=True)
-    subprocess.run(["uv", "build", "--wheel", "--out-dir", "dist"], cwd=package, env=env,
-                   check=True)
-    # uv ignores its out-dir; the built wheel is tracked beside its source.
-    (package / "dist" / ".gitignore").unlink(missing_ok=True)
-
-
-def _variant_provider(scratch: Path, env: dict[str, str]) -> Path:
-    """Build the gate-only real KEV rationale change from the release provider source."""
-    package = scratch / f"analysis-{VARIANT}"
-    shutil.copytree(PROVIDERS / "security-analysis-provider", package,
-                    ignore=shutil.ignore_patterns("dist", "__pycache__", ".venv", ".ruff_cache"))
-    subprocess.run(["git", "apply", str(SOURCE / "variants" / f"analysis-{VARIANT}.patch")],
-                   cwd=package, env=env, check=True)
-    _build_provider(package, env)
-    return package
-
-
-def main() -> None:
-    scratch = Path(sys.argv[1]).resolve()
-    rebuild = "--providers" in sys.argv[2:]
-    if scratch.exists():
-        shutil.rmtree(scratch)
-    home, state, ws, out = (scratch / name for name in ("home", "state", "ws", "out"))
-    for path in (home, state, ws, out):
-        path.mkdir(parents=True)
-    run_dir = Path(tempfile.mkdtemp(prefix="kb-", dir="/tmp"))
-    run_dir.chmod(0o700)
-    env = {k: v for k, v in os.environ.items() if not k.startswith("CRUXIBLE_")}
-    env.update(HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"),
-               XDG_CACHE_HOME=str(home / ".cache"), CRUXIBLE_STATE_ROOT=str(state),
-               CRUXIBLE_SERVER_SOCKET=str(run_dir / "d.sock"),
-               GIT_AUTHOR_NAME="kit-build", GIT_AUTHOR_EMAIL="kit-build@example.invalid",
-               GIT_COMMITTER_NAME="kit-build", GIT_COMMITTER_EMAIL="kit-build@example.invalid")
-    if rebuild:
-        for name in BUNDLED:
-            _build_provider(PROVIDERS / name, env)
-    variant_provider = _variant_provider(scratch, env)
-    cruxible = _bin()
-
-    def cx(*args: str) -> str:
-        result = subprocess.run([cruxible, *args], env=env, cwd=ws, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise SystemExit(f"cruxible {' '.join(args)}: {result.stdout}{result.stderr}")
-        return result.stdout
-
-    subprocess.run(["git", "init", "-q", "-b", "main", "."], cwd=ws, env=env, check=True)
-    subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "init"], cwd=ws, env=env,
-                   check=True)
-    daemon = subprocess.Popen([cruxible, "server", "start", "--socket",
-                               env["CRUXIBLE_SERVER_SOCKET"], "--state-root", str(state)],
-                              env=env, cwd=scratch, stdout=(scratch / "daemon.log").open("ab"),
-                              stderr=subprocess.STDOUT)
-    try:
-        for _ in range(120):
-            if subprocess.run([cruxible, "server", "status"], env=env,
-                              capture_output=True).returncode == 0:
-                break
-            time.sleep(1)
-        cx("init", "--principal-id", "kit-author")
-        # The SDK (security_definitions.py) acts as the owner `init` made, as its settings say.
-        (settings,) = (home / ".config" / "cruxible" / "keys").glob("*/*/cruxible.env")
-        for line in settings.read_text().splitlines():
-            if "=" in line and not line.lstrip().startswith("#"):
-                key, _, value = line.partition("=")
-                env[key.strip().removeprefix("export ").strip()] = value.strip().strip("'\"")
-        cx("provider", "install", "cruxible-provider-web==0.2.2")
-        for name in BUNDLED:
-            (wheel,) = (PROVIDERS / name / "dist").glob("*.whl")
-            cx("provider", "install", str(wheel), "--lock", str(PROVIDERS / name / "uv.lock"))
-        for release in (RELEASE, VARIANT):
-            if release == VARIANT:
-                (wheel,) = (variant_provider / "dist").glob("*.whl")
-                cx("provider", "install", str(wheel), "--lock", str(variant_provider / "uv.lock"))
-            for stage in ("definitions", "procedures"):
-                result = subprocess.run([sys.executable, str(AUTHORING), stage, "--release",
-                                         release], env=env, cwd=ws, capture_output=True,
-                                        text=True)
-                print(result.stdout, end="")
-                if result.returncode != 0:
-                    raise SystemExit(result.stdout + result.stderr)
-            args = ["kit", "build", "--id", "security", "--version", release, "--owns",
-                    "security.", "--out", str(out / release)]
-            for name in BUNDLED:
-                package = (variant_provider if release == VARIANT and
-                           name == "security-analysis-provider" else PROVIDERS / name)
-                args += ["--provider", str(package)]
-            args += ["--default-provider", str(PROVIDERS / "cruxible-provider-web")]
-            print(cx(*args), end="")
-    finally:
-        subprocess.run([cruxible, "server", "stop"], env=env, capture_output=True)
+    def command(self, *args: str, check: bool = True) -> Any:
+        done = subprocess.run(
+            [self.binary, *args],
+            cwd=self.workspace,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=900,
+        )
+        with (self.root / "commands.jsonl").open("a") as log:
+            log.write(
+                json.dumps(
+                    {
+                        "args": args,
+                        "exit": done.returncode,
+                        "stdout": done.stdout,
+                        "stderr": done.stderr,
+                    }
+                )
+                + "\n"
+            )
+        if check and done.returncode:
+            raise RuntimeError(
+                f"cruxible {' '.join(args)}:\n{done.stdout}{done.stderr}"
+            )
         try:
-            daemon.wait(timeout=60)
-        except subprocess.TimeoutExpired:
-            daemon.terminate()
-            daemon.wait(timeout=30)
-        shutil.rmtree(run_dir, ignore_errors=True)
-    for release, target in ((RELEASE, KIT), (VARIANT, VARIANT_DIR)):
-        for name in ("artifacts", "providers"):
-            shutil.rmtree(target / name, ignore_errors=True)
-            shutil.copytree(out / release / name, target / name)
-        shutil.copyfile(out / release / "cruxible-kit.json", target / "cruxible-kit.json")
-    print(f"copied {RELEASE} to {KIT} and {VARIANT} to {VARIANT_DIR}")
-    for path in reference.write(KIT):
-        print(f"wrote {path}")
-    # The README is final only now, so its digest (and every other inert file's)
-    # is listed last.
-    if _kits_script().write_files(KIT):
-        print(f"listed the inert files in {KIT / 'cruxible-kit.json'}")
+            return json.loads(done.stdout)
+        except json.JSONDecodeError:
+            return done.stdout
+
+    def start(self) -> None:
+        subprocess.run(
+            ["git", "init", "-q", "-b", "main"],
+            cwd=self.workspace,
+            env=self.env,
+            check=True,
+        )
+        config = self.state / "daemon/provider-runtime.json"
+        config.parent.mkdir(parents=True)
+        config.write_text(
+            json.dumps(
+                {
+                    "provider_index_urls": [
+                        "https://pypi.org/simple",
+                        "https://files.pythonhosted.org/",
+                    ]
+                }
+            )
+        )
+        with (self.root / "daemon.log").open("wb") as log:
+            self.daemon = subprocess.Popen(
+                [
+                    self.binary,
+                    "server",
+                    "start",
+                    "--socket",
+                    str(self.socket),
+                    "--state-root",
+                    str(self.state),
+                ],
+                env=self.env,
+                cwd=self.workspace,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+            )
+        for _ in range(120):
+            if self.daemon.poll() is not None:
+                raise RuntimeError(f"Daemon exited: read {self.root / 'daemon.log'}")
+            if self.socket.exists():
+                self.command("server", "status", "--json")
+                return
+            time.sleep(0.25)
+        raise TimeoutError("Scratch daemon did not start")
+
+    def stop(self) -> None:
+        if self.daemon is None or self.daemon.poll() is not None:
+            return
+        try:
+            self.command(
+                "server",
+                "stop",
+                "--state-root",
+                str(self.state),
+                "--timeout",
+                "30",
+                "--json",
+            )
+        finally:
+            try:
+                self.daemon.wait(timeout=35)
+            except subprocess.TimeoutExpired:
+                self.daemon.terminate()
+                self.daemon.wait(timeout=30)
+
+    def initialize(self) -> Any:
+        return self.command(
+            "init",
+            "--principal-id",
+            "owner",
+            "--key-dir",
+            str(self.root / "keys/owner"),
+            "--reviewer-key-dir",
+            str(self.root / "keys/reviewer"),
+            "--workspace",
+            str(self.workspace),
+            "--json",
+        )
+
+    def submit(self, name: str, payload: dict[str, Any]) -> Any:
+        path = self.root / f"{name}.json"
+        path.write_text(json.dumps(payload, indent=1) + "\n")
+        result = self.command("authoring", "submit", str(path), "--json")
+        if result.get("outcome", {}).get("status") != "landed":
+            raise RuntimeError(f"{name} did not land: {result}")
+        return result
 
 
-def _kits_script():  # noqa: ANN202 - the repository's scripts/kits.py, loaded by path
-    script = KIT.parents[1] / "scripts" / "kits.py"
-    spec = importlib.util.spec_from_file_location("cruxible_kits_script", script)
+def build_providers(root: Path, checkout: Path, env: dict[str, str]) -> list[Path]:
+    """Build exact locked sources in scratch, never modifying the checkout."""
+    root.mkdir()
+    runtime = root / "cruxible-provider-runtime"
+    shutil.copytree(
+        checkout / "packages/cruxible-provider-runtime",
+        runtime,
+        ignore=shutil.ignore_patterns("dist", ".venv", "__pycache__"),
+    )
+
+    def build(project: Path) -> Path:
+        subprocess.run(
+            [
+                "uv",
+                "build",
+                "--wheel",
+                "--offline",
+                "--out-dir",
+                str(project / "dist"),
+                str(project),
+            ],
+            env=env,
+            check=True,
+        )
+        return next((project / "dist").glob("*.whl"))
+
+    dependency = build(runtime)
+    projects = []
+    for name in PACKAGES:
+        project = root / name
+        shutil.copytree(
+            PROVIDERS / name,
+            project,
+            ignore=shutil.ignore_patterns("dist", ".venv", "__pycache__"),
+        )
+        subprocess.run(
+            ["uv", "lock", "--check", "--offline"], cwd=project, env=env, check=True
+        )
+        build(project)
+        shutil.copyfile(dependency, project / "dist" / dependency.name)
+        projects.append(project)
+    return projects
+
+
+def build_release(session: Session, projects: list[Path], out: Path) -> None:
+    session.initialize()
+    web = PROVIDERS / "cruxible-provider-web/src/cruxible_provider_web"
+    session.submit(
+        "provider-contracts",
+        {
+            "kind": "change_set",
+            "members": [
+                *web_contracts.package_members(web),
+                *osv.provider_contract_members(),
+            ],
+        },
+    )
+    for project in projects:
+        wheels = list((project / "dist").glob("*.whl"))
+        dependency = next(
+            p for p in wheels if p.name.startswith("cruxible_provider_runtime-")
+        )
+        wheel = next(p for p in wheels if p != dependency)
+        installed = session.command(
+            "provider",
+            "install",
+            str(wheel),
+            "--lock",
+            str(project / "uv.lock"),
+            "--dependency",
+            str(dependency),
+            "--control-domain",
+            project.name,
+            "--commit",
+            "--json",
+        )
+        required = (
+            {"web.fetch"}
+            if project.name == "cruxible-provider-web"
+            else {"sbom.components", "osv.query", "osv.match"}
+        )
+        ready = {
+            row["operation"] for row in installed["operations"] if row["installed"]
+        }
+        if not installed.get("registered") or not required <= ready:
+            raise RuntimeError(f"Provider not installed: {installed}")
+    for name, record in kit.capture_kinds().items():
+        path = session.root / f"capture-kind.{name}.json"
+        path.write_text(json.dumps(record, indent=1) + "\n")
+        session.command(
+            "capture-contract", "propose", "--input", str(path), "--commit", "--json"
+        )
+    session.submit("vocabulary", kit.vocabulary())
+    session.submit("procedures", kit.procedures())
+
+    def store(path: Path) -> str:
+        return str(session.command("body", "store", str(path), "--json")["digest"])
+
+    for document in install.guidance_documents(
+        store, names=install.DEPENDENCY_GUIDANCE, references=False
+    ):
+        path = session.root / "guidance.json"
+        path.write_text(json.dumps(document, indent=1) + "\n")
+        result = session.command(
+            "document",
+            "propose",
+            "--envelope",
+            str(path),
+            "--name",
+            document["identity"].removeprefix("document:"),
+            "--json",
+        )
+        if result.get("outcome", {}).get("status") != "landed":
+            raise RuntimeError(f"Guidance did not land: {result}")
+    if template.TEMPLATE.read_text() != template.render():
+        raise RuntimeError("automation.json is stale: run source/pilot/template.py")
+    args = [
+        "kit",
+        "build",
+        "--id",
+        "security",
+        "--version",
+        RELEASE,
+        "--owns",
+        "security.",
+        "--automation-template",
+        str(template.TEMPLATE),
+        "--out",
+        str(out),
+    ]
+    for project in projects:
+        args.extend(("--provider", str(project)))
+    session.command(*args, "--json")
+
+
+def refresh_files() -> None:
+    spec = importlib.util.spec_from_file_location(
+        "kit_files", KIT.parents[1] / "scripts/kits.py"
+    )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module
+    module.write_files(KIT)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "scratch", type=Path, help="new directory; never reused or deleted"
+    )
+    parser.add_argument("--providers-checkout", required=True, type=Path)
+    args = parser.parse_args()
+    session = Session(args.scratch)
+    projects = build_providers(
+        session.root / "providers", args.providers_checkout.resolve(), session.env
+    )
+    out = session.root / "release"
+    try:
+        session.start()
+        build_release(session, projects, out)
+    finally:
+        session.stop()
+    for name in ("artifacts", "providers", "bodies"):
+        target = KIT / name
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.copytree(out / name, target)
+    shutil.copyfile(out / "cruxible-kit.json", KIT / "cruxible-kit.json")
+    refresh_files()
+    print(
+        f"Built security:{RELEASE} for Cruxible 0.5 in {KIT}; transcript: {session.root / 'commands.jsonl'}"
+    )
 
 
 if __name__ == "__main__":

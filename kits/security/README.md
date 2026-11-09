@@ -1,617 +1,121 @@
-# Security kit
+# Security kit for Cruxible 0.5
 
-## What it is
+Import a CycloneDX SBOM, ask OSV which vulnerabilities affect its components,
+and read CISA KEV and FIRST EPSS for those vulnerabilities. Every observation
+cites retained source bytes. Missing or incomplete input stays unknown; it never
+means unaffected. This local release is kit version **1.3.0**, rebuilt for
+Cruxible **0.5** and provider protocol **2**.
 
-The security kit makes Cruxible your organization's security record: a model of
-what you run and what you ship, joined to what the world says about
-vulnerabilities, that your agents keep current and answer from. It models:
-
-- **What you run.** Your hosts and workloads and what each one actually runs,
-  from your inventory and runtime scans; the business services they serve, with
-  each service's owning team, criticality and log sources; and the credentials
-  those services use, by their non-secret key ids.
-- **What you build and ship.** Your repositories and their CI workflows and jobs
-  (triggers, permissions, secrets, actions, publish targets), the registries you
-  publish to and the files they serve, and your releases with their components
-  from your SBOMs.
-- **What others say.** CISA KEV, FIRST EPSS, OSV.dev and CVE records about
-  vulnerabilities, and what your scanners and agent reviewers report about your
-  own code.
-
-On that model it answers the questions a security team asks: which hosts run
-something attackers are exploiting, what can publish around its release gate,
-which weaknesses in your code are still open. In an incident it carries the
-response through: find what is exposed, patch it, audit the logs for
-exploitation, rotate the keys.
-
-Cruxible is what makes those answers trustworthy. Every fact points to the
-retained copy of the source it was read from. Judgments, such as whether a
-release is affected or whether a service was exploited, are proposed by agents
-and settled by your review, or automatically once automation has a measured
-record. Every answer is **found**, **none** or **unknown**, and never "none" for
-something nobody read. Lines keep the model current on a schedule, or whenever
-new evidence lands.
-
-## What it answers
-
-| Question | Where the answer comes from |
+| Installed definitions | Purpose |
 |---|---|
-| Which of my releases are exposed to a vulnerability attackers exploit, and which first? | `security.urgent_exposures`: releases assessed affected (by OSV per SBOM component, or by a CVE record's version ranges), KEV-listed first, then by EPSS score; `component` names the dependency OSV found it in; `asset` is a host that declares installing it (`asset_observed` when a scan also sees it running there) and `observed` a host only a scan sees |
-| Is release X affected by this KEV entry? | `security.triage` for the CVE: each release's assessment, with the CVE's KEV and EPSS facts |
-| Which internet-facing hosts run an affected, KEV-listed release? | `security.kev_exposure`: your inventory of hosts and what they install, joined to the assessments |
-| What can publish outside the target's publish gate (for example without a `v*` tag)? | `security.publish_paths` (HQ1): jobs in your repository's workflows that can publish to the target, whose triggers the target's publish gate does not allow |
-| Which credentialed jobs run mutable third-party code? | `security.mutable_actions` (HQ3): actions not pinned to a commit SHA in jobs that hold a write permission or a secret |
-| Does what PyPI serves match what we built? | `security.served_vs_declared` (HQ5): PyPI's digests and provenance against the workflow and commit that declare them |
-| Which exploited vulnerabilities has nobody triaged yet? | `security.kev_triage_backlog`: assessments of KEV-listed CVEs with no status, or inconclusive |
-| Which weaknesses in our code are still open, and who says so? | `security.open_findings`: every finding of a repository not verified fixed, with its verdict (`conflict` while disputed), severity, location, finders and remediation |
-| Do we serve a release with a confirmed, unfixed weakness? | `security.published_findings` (HQ6): confirmed findings not verified fixed in a release a gated target serves a file of |
-| How often is each scanner or agent right? | `security.finder_record`: every finding with the finders that reported it and its verdict; upheld (confirmed, not_exploitable) against overturned (false_positive) |
-| In an incident: which deployments run an affected release, is each patched, were we exploited, which keys need rotating? | the incident's respond Line (RQ1-RQ5) and `security.incident_exposure`, `security.open_patches`, `security.audit_status`, `security.incident_credentials`, `security.incident_status` ([Respond to an incident](walkthroughs.md#respond-to-an-incident)) |
+| `security.inventory`, `security.component` | An application's inventory and exact package releases |
+| `security.occurrence` | The pair (inventory, component), with its scope |
+| `security.vulnerability`, `security.component.affected_by` | OSV's affected packages and vulnerabilities |
+| `security.exposure`, `security.app_exposure` | Package-level and app-level judgment pairs |
+| `security.urgent_exposures`, `security.kev_triage_backlog` | Unjustified exposures, with KEV and EPSS context |
+| `security.watched_vulnerabilities` | Vulnerabilities affecting imported components |
+| `security.guidance.dependency` | Governed guidance for reviewing dependency judgments |
 
-Ask any of them with `cruxible query --name NAME`. The hardening questions
-(HQ1-HQ6) are also asked for you on a schedule, and each answer is **found**,
-**none** (looked, nothing matches) or **unknown** (not read yet: it names the
-pull that would answer it); never "none" for something nobody read.
-
-An agent doing this work can load two skills. The [security intake
-skill](skills/security-intake/SKILL.md) pulls your state in: an SBOM per
-repository, a runtime inventory per scope, services and their credentials, and
-log sources, then whatever an unknown answer names. The [security analyst
-skill](skills/security-analyst/SKILL.md) gives the order to work these
-questions in, and the rules that keep its judgments reviewable.
-
-**Coming from the Cruxible quickstart?** You've done [Install and first
-answers](#install-and-first-answers), declared an incident and added its respond
-Line. To carry the response through (patches, log audits, key rotations, and
-the log import Line and re-ask Triggers the quickstart left out), continue at
-[Respond to an incident](walkthroughs.md#respond-to-an-incident). For your CI and registries,
-add their Lines ([Add a repository](intake.md#add-a-repository), [Add a PyPI
-project](intake.md#add-a-pypi-project)) and see [Your
-systems](walkthroughs.md#your-systems-the-hardening-questions); for scanner and reviewer
-findings in your own code, [Your code's findings](walkthroughs.md#your-codes-findings).
-
-## Distro packages read "not checked" (Claim-authority form, batch 1)
-
-In the Claim-authority form of the kit (`source/pilot/`, see its
-[README](source/pilot/README.md)), OSV says which vulnerabilities affect each
-SBOM component, for its exact purl@version. OSV's distribution ecosystems
-(Debian, Ubuntu, Alpine, the RPM distributions) are keyed by **source** package
-name, while an SBOM lists **binary** packages (`libc6` is `glibc` to OSV). This
-version cannot map one to the other. So a distro component (purl type `deb`,
-`rpm` or `apk`) is not asked about. It reads **not checked**: never clean, and
-absence never retires its Claims. A component whose OSV answer was incomplete
-(a failed or truncated query, or an advisory OSV could not serve) reads the
-same way. Language packages (PyPI, npm, Maven, Go, crates.io, ...) are checked.
-
-## The dependency loop (Claim-authority form, batch 2)
-
-In the Claim-authority form, the dependency loop runs on four Lines and a few
-Queries ([source/pilot/README.md](source/pilot/README.md) is the reference):
-
-- **SBOM import** (`security.sbom-import.<name>`, one Line per SBOM file): the
-  `sbom.components` derive names the inventory by the SBOM's own
-  `metadata.component` purl (or its path, with a `sbom_unnamed` warning), and
-  each component's membership retires when the SBOM stops listing it.
-- **OSV** (`security.osv-query`): which vulnerabilities affect each inventoried
-  component, by OSV's own version matching, with the versions OSV lists as
-  fixed (`security.component.fixed_in`, qualified by the CVE). It creates the
-  vulnerabilities it names and settles; a CVE OSV stops listing for a component
-  it answered in full retires.
-- **KEV and EPSS** read the watch list, `security.watched_vulnerabilities`.
-- **Judgments.** An agent's not_affected verdict is "affected_by none of V"
-  (normative, own words) plus `security.component.not_affected_reason`, a VEX
-  justification qualified by the CVE. V leaves the watch list for that component
-  only. OSV cannot override it: its next run reports `held_disagrees` to the OSV
-  Line's inbox.
-- **Worklists.** `security.urgent_exposures` (KEV-listed first, then EPSS),
-  `security.kev_triage_backlog` (KEV-listed and nobody has judged) and
-  `security.not_affected_judgments` (the track record).
-
-## Code findings (Claim-authority form, batch 2)
-
-In the Claim-authority form (`source/pilot/findings.py`), a scanner's SARIF file
-becomes findings, agents judge them, and a full rescan verifies a fix.
-
-- **Import.** Each SARIF file has one import Line, `security.sarif-import.NAME`,
-  bound to a repository (`host/owner/repo`) and a workspace path. Core's
-  `workspace.file` reads the file. The pure derive `sarif.findings`
-  (`security-sarif-provider`) reads it with the findings the instance already
-  holds for that repository. The Claims then land on `security.finding`. Runs of
-  any other repository give no records, so the wrong repository writes nothing.
-  Dependency advisories (a CVE or GHSA rule located in a manifest) are left to
-  the SBOM and OSV loop.
-- **The key.** A finding is (repo, weakness, locus). The weakness is the
-  smallest CWE the rule names, else `RULE:tool/ruleId`. The locus is
-  `path#symbol`, else `path#snippet:<hash>`, else the tool's line hash. A line
-  number is never part of the key. A finding that moved keeps its key, and only
-  `reported_at` (path:line) revises. Semgrep and CodeQL locate differently, so
-  each tool's finding has its own key.
-- **What a scan writes.** `rule`, `reported_by`, `severity`, `reported_at`
-  and `verification`. The Line settles these as observations.
-- **Fixed needs a full scan of the rules that found it.** A run is full when
-  it declares `properties["cruxible.coverage"] = "full"` and every invocation
-  succeeded. A held finding is covered when one of its rules ran in a full run.
-  If the scan no longer reports a covered finding, it is `fixed`, and its last
-  `reported_at` retires, with the complete read as its witness. A partial scan
-  covers nothing, so it never fixes anything. An incomplete read (a refused
-  record, a count mismatch) never writes `fixed` or retires anything. Neither
-  does a scan with a result of that rule it could not place (a location gap or
-  a malformed result): the rule is tainted for that scan, and a result whose
-  rule is unknown taints every rule of its tool.
-- **Regressions and location gaps go to the inbox.** A second Line,
-  `security.sarif-attention.NAME`, runs when the derived document lands. It
-  posts `security.sarif-attention` items for two cases. A regression is a
-  finding verified fixed that a scan reports again; `verification` also goes
-  back to `present`. A location gap is a result with no repository path or no
-  stable locator; it is never a finding.
-- **Agents judge.** `verdict` (confirmed, false_positive, not_exploitable),
-  `justification` and `fixed_by` are normative Claims in the agent's own
-  words, and no Mandate settles them. An agent may also judge `severity`.
-  A later scan that disagrees never overrides it: the run records
-  `held_disagrees` and posts it to the import Line's inbox.
-  `security.finding_verdicts` lists each finding with its judgments and
-  verification.
-
-## How it models your world
-
-Four words carry the rest of the kit's docs. A **Subject** is one thing the kit
-models, of one kind: a repository, a job, a release, a vulnerability. A
-**Claim** is one statement about a Subject (a field and its value) with a role,
-either an *observation* (what a source said) or *normative* (what someone
-decided), and the evidence it cites. A **Capture** is the retained copy of what
-a source returned (a KEV catalog, a repository's workflow files at a commit, a
-PyPI answer), kept by content digest so a Claim can point to it. A **Line** is
-standing automation: one deterministic Procedure with its inputs, started by
-Triggers (a schedule, or a Capture landing) and capped at what it may do:
-observe, propose for review, or settle.
-
-<!-- concept-map: checked by source/reference.py -->
-```mermaid
-flowchart LR
-  subgraph systems["Your systems"]
-    direction TB
-    repo["security.repo"]
-    workflow["security.workflow"]
-    job["security.job<br/>permissions, secrets, actions"]
-    target["security.target<br/>PyPI project, GHCR image, ..."]
-    artifact["security.artifact<br/>one published file"]
-    change["security.change<br/>a commit"]
-    product["security.product"]
-    release["security.release<br/>components: purl@version"]
-    asset["security.asset<br/>a host or workload"]
-    service["security.service<br/>its owner, its log sources"]
-    credential["security.credential<br/>a key's non-secret id"]
-    finding["security.finding<br/>a weakness in our code"]
-  end
-  subgraph world["The world's evidence"]
-    direction TB
-    kev(["CISA KEV"])
-    epss(["FIRST EPSS"])
-    osv(["OSV.dev, CVE records"])
-    registry(["PyPI, GitHub releases"])
-    scans(["SARIF scans: Semgrep, CodeQL, agents"])
-    inventory(["Runtime inventory: your scans, Syft"])
-    logs(["Your log tools, your key issuers"])
-    vulnerability["security.vulnerability"]
-  end
-  subgraph judged["Judgments, and what we have read"]
-    direction TB
-    assessment["security.assessment<br/>affected / not_affected / inconclusive"]
-    signal["security.signal<br/>something to explain"]
-    remediation["security.remediation"]
-    exception["security.exception<br/>an accepted risk, until it expires"]
-    coverage["security.coverage<br/>a source read in full, at a revision"]
-    incident["security.incident<br/>one response, its window"]
-    audit["security.audit<br/>exploited in the window?"]
-  end
-  workflow -->|workflow.repo| repo
-  job -->|job.workflow| workflow
-  job -->|job.publishes_to| target
-  target -->|target.source_repo| repo
-  artifact -->|artifact.target| target
-  artifact -->|artifact.published_by| workflow
-  artifact -->|artifact.built_from| change
-  artifact -->|artifact.release| release
-  release -->|release.product| product
-  asset -->|asset.installs| release
-  kev -->|vulnerability.kev_listed| vulnerability
-  epss -->|vulnerability.epss_score| vulnerability
-  osv -->|assessment.status| assessment
-  registry -->|artifact.sha256, artifact.published_by| artifact
-  assessment -->|assessment.vulnerability| vulnerability
-  assessment -->|assessment.release| release
-  signal -->|signal.observed| artifact
-  signal -->|signal.explained_by| job
-  remediation -->|work.job| job
-  scans -->|finding.reported_by, finding.rule| finding
-  finding -->|finding.repo| repo
-  finding -->|finding.affects| release
-  finding -->|finding.fixed_by| change
-  remediation -->|work.finding| finding
-  signal -->|signal.explained_by| finding
-  remediation -->|work.assessment| assessment
-  exception -->|work.asset| asset
-  exception -->|work.assessment| assessment
-  workflow -->|workflow.coverage| coverage
-  coverage -->|coverage.of| repo
-  inventory -->|asset.runs, asset.scanned_in| asset
-  asset -->|asset.runs| release
-  asset -->|asset.serves| service
-  incident -->|incident.vulnerability| vulnerability
-  audit -->|audit.incident| incident
-  audit -->|audit.service| service
-  logs -->|audit.read, credential.key_id| audit
-  credential -->|credential.used_by| service
-  remediation -->|work.asset| asset
-  remediation -->|work.credential| credential
-  remediation -->|work.audit| audit
-```
-
-**Your systems: what you run.** Your hosts and workloads (`security.asset`):
-what each actually runs, from your runtime-inventory scans, and what each
-declares installing, from your own inventory. A scan reads one inventory scope
-in full, so a product's absence from a host is an answer only inside a current
-scan of that scope. Beside them, the business services the hosts serve
-(`security.service`), each with its owning team, criticality and the log
-sources an incident audit starts from, and the credentials those services use
-(`security.credential`), by their non-secret key ids.
-
-**Your systems: what you build and ship.** Pull Lines read your repository's
-workflow files at a ref and your registries' published files; parse Lines turn
-each read into observations: a workflow's triggers, a job's permissions,
-secrets, actions and publish targets, a published file's digest and the workflow
-and commit that built it. Releases and their components come from your
-CycloneDX SBOMs. A finding is one weakness in your own code: what scanners and
-agents report about it cites their SARIF log, and its `verdict` is your
-reviewers' decision.
-
-Nothing in your systems is asserted by the kit: each fact cites the Capture it
-was read from, or is your own statement (a service's criticality, a target's
-`publish_gate`).
-
-**The world's evidence.** What public sources say. KEV and EPSS facts land on a
-vulnerability (`security.vulnerability`, keyed by CVE id), verbatim from the
-catalog or the daily file; OSV.dev and CVE records decide applicability; PyPI and
-GitHub releases say what a registry actually serves. World evidence attaches to
-your systems in two places: a vulnerability meets a release in an
-**assessment**, and what a registry serves meets the workflow and commit that
-declare it on an **artifact**.
-
-**Judgments, and what we have read.** An assessment is one (release, CVE) pair,
-proposed from OSV or a CVE record, or decided by an analyst. A signal is a
-mismatch or event to explain (a served digest that differs from the declared
-one); hypotheses (`explained_by`) compete until a cited change resolves them. A
-remediation (or an exception, or a compensating control) is the work you decide
-on. Coverage is the kit's record of what it has read in full and at which
-revision: absence counts as an answer only inside a current coverage, so a
-stale or missing read makes an answer unknown, not none. An incident groups the
-CVEs of one response; an audit asks, per service, whether you were exploited in
-its window, starting from the log sources the service lists; a credential is a
-key you may need to rotate, by its non-secret id.
-
-<!-- BEGIN GENERATED: glance -->
-<!-- Generated by source/reference.py from the definitions. -->
-
-| `security` 1.3.0 | Count |
-|---|---|
-| [Kinds of thing it models](reference.md#what-it-models) | 23 |
-| [Fields (ClaimTypes) across them](reference.md#what-it-models) | 137 |
-| [Capture contracts (plus core's self-source)](reference.md#where-evidence-comes-from) | 5 + 1 |
-| [Procedures](reference.md#what-runs-on-its-own) | 28 |
-| [Queries](reference.md#what-you-can-ask) | 50 |
-| [Example Lines / Triggers / Mandates](reference.md#what-runs-on-its-own) | 11 / 13 / 11 |
-
-<!-- END GENERATED: glance -->
-
-Full reference: every kind, field, contract, Line and query, with diagrams of
-where evidence comes from and what starts what, in [reference.md](reference.md)
-(generated from this release's definitions).
-
-## How it runs on its own
-
-The kit carries definitions only. What runs, when and with how much authority is
-yours: the kit's **automation template**, [automation.json](automation.json)
-(named by `automation_template` in `cruxible-kit.json`, checked against the
-kit's definitions when the kit is built), is one change set you tailor and
-submit as your own reviewed change. Installing the kit never submits it
-([Install and first answers](#install-and-first-answers), steps 2 to 5). In the
-Claim-authority form it carries the dependency loop: the SBOM import, OSV, KEV
-and EPSS Lines, their Mandates and daily Triggers, and the `security.start`
-Runbook that seeds a fresh instance in order (SBOM import, then OSV, then KEV
-and EPSS: each reads what the one before writes). `source/pilot/template.py`
-writes it. It names none of your repositories or PyPI projects: their Lines come
-from [intake.md](intake.md#add-a-repository)'s recipe, for the list you give.
-The tables below describe the 1.3.0 release's Lines. Its members are of these
-kinds:
-
-- **Lines**, authored disabled. Each runs one Procedure with its inputs, and its
-  max authority caps what a run may do: `observe` (retain a Capture, or post
-  inbox items), `propose` (a ChangeSet that waits for review) or `settle`.
-- **Triggers**, which start a Line: a cron schedule (UTC), or a Capture landing,
-  named by its contract and logical source. An incident adds window-close
-  Triggers that re-ask a day after a landing.
-- **Mandates**. A Mandate grants a Line the right to propose or settle within a
-  scope. The template's say exactly what each Line settles (OSV's matches, an
-  SBOM's membership, KEV's and EPSS's own fields) and send everything else to
-  review; `cruxible runbook preview security.start` shows it per step.
-- **A Runbook**, `security.start`: its Lines in seeding order, run once by
-  command. A run stops at a step that fails or whose writes go to review.
-
-| For | Lines (example names) | Started by | Max authority |
-|---|---|---|---|
-| KEV and EPSS | `security.kev-daily`, `security.epss-daily` | daily at 14:17 and 13:45 UTC | observe: retains the CISA KEV catalog or the FIRST EPSS daily scores file |
-| | `security.kev-triage`, `security.epss-triage` | when a CISA KEV catalog or a FIRST EPSS daily scores file lands, retained by `security.kev-daily` or `security.epss-daily` | propose, until graduated to settle (below) |
-| | `security.kev-attention` | when a CISA KEV catalog lands, retained by `security.kev-daily` | observe: posts inbox items |
-| Applicability | `security.sbom-import` | when a CycloneDX SBOM lands, retained by a direct `security.sbom-acquire` run on an agent's workspace file | propose |
-| | `security.osv-applicability` | daily at 15:30 UTC | propose |
-| | `security.cve-applicability` | when a CVE record lands, retained by a direct `security.fetch` run | propose |
-| Your systems | `security.repo-pull.<repo>`, `security.registry-pull.<project>` (per repository and PyPI project, from [intake](intake.md#add-a-repository)) | every 6 hours from :05 UTC (repositories); daily from 06:20 UTC (PyPI), each source 5 minutes after the one before | observe |
-| | `security.repo-parse.<repo>`, `security.registry-parse.<project>` (the same) | when a GitHub repository snapshot or a PyPI release read lands, retained by a pull Line | propose |
-| | `security.harden` | daily at 07:40 UTC, and when either of those lands | observe: posts inbox items |
-| Your code's findings | `security.sarif-import.<repo>`, `security.sarif-attention.<repo>` (a pair per repository you scan, from [intake](intake.md#its-scans)) | when a SARIF scan log lands, retained by a direct `security.sarif-acquire` run on an agent's workspace file | propose; observe |
-| Incidents | `security.inventory-import.prod` (one per scope), `security.credential-import` | when a runtime-inventory scan or a credential key-state read lands, retained by a direct `security.inventory-acquire` or `security.credential-acquire` run on an agent's workspace file | propose |
-| | `security.respond.<incident>`, `security.log-import.<incident>` (declared with each incident) | daily, and a day after a scan or key-state read lands (window close); when a log read lands, retained by a direct `security.log-acquire` run | observe; propose |
-
-Every Line, what starts it and what a run does is in [reference.md](reference.md#what-runs-on-its-own).
-
-The automation example states the instance acquisition default once:
-`SourceAcquisitionPolicy:default`, `max_age: P1D`. Kit ownership uses dotted
-prefixes, so this instance setting is part of the consumer ChangeSet rather than
-the exported `security.` definitions. Lines inherit it without policy references.
-
-### One finding, end to end
-
-A mutable action in a job that can publish, found and fixed, with the names
-[intake.md's recipe](intake.md#add-a-repository) gives the repository
-`example-org/example-app`:
-
-1. **Pull (automatic).** Every 6 hours the Line `security.repo-pull.example-app`
-   runs the Procedure `security.repo-acquire`, which reads `.github/workflows/`
-   at `main` and retains it as one Capture under `security.fetched-v1`.
-   The Line's max authority is `observe`: it records the read and nothing else.
-2. **Parse (a proposal).** The landing starts `security.repo-parse.example-app`.
-   It proposes observation Claims citing that Capture, among them, for the job
-   `publish.yml#publish`, `security.job.permission` `id-token:write` and
-   `security.job.uses` `pkg:githubactions/actions/checkout@v4`, plus the source's
-   `security.coverage.revision` (the commit read). A person or agent reviews and
-   activates the proposal (`cruxible proposal review ID`, `cruxible proposal
-   activate ID`); an unchanged read proposes nothing.
-3. **Ask (automatic).** `security.harden` runs daily and on each landing (or
-   `cruxible line run security.harden`) and reads only accepted Claims, so its
-   first run after the activation asks HQ3 through `security.mutable_actions`:
-   the job holds a write credential and runs an action pinned to a tag, not a
-   40-hex commit SHA. The answer is **found**, posted as one inbox item naming
-   the job and the action. Harden only observes and posts; it never changes what
-   the instance holds.
-4. **Decide (needs someone).** An agent reads the finding (`cruxible inbox list
-   --line security.harden`) and records the decision: a `security.remediation`
-   with `security.work.job` naming the job and `security.work.rationale`, or a
-   `security.exception` if the risk is accepted. These are normative Claims in
-   the agent's own words; your instance's approval policy decides whether they
-   wait for review.
-5. **Close (automatic, then a proposal).** After the pin merges, the next pull
-   reads a new revision; the parse proposes revising `job.uses` to the SHA and
-   the one `coverage.revision` Claim, and nothing else. Once that is accepted,
-   harden's next run answers HQ3 **none** for the job, naming the revision it
-   read.
-
-The parse step can itself become automatic: once its proposals have been
-reviewed long enough, a settle Mandate lets the Line settle verbatim parses
-([Measure and graduate](#measure-and-graduate)). Judgments (a status an analyst
-decides, `explained_by`, a publish gate) always stay with people and agents.
-
-### Measure and graduate
-
-`security.kev-triage` declares `kev-backlog-cleared`: the `kev_triage_backlog`
-query must be empty 3 days after the Procedure is accepted (review when the
-satisfied rate drops below 0.8 over 5 readings).
-`cruxible procedure measure security.kev-triage --run-id RUN-...` and
-`cruxible procedure readings security.kev-triage --subject-grain procedure_unit`.
-
-When the readings justify it, settle the verbatim KEV and EPSS fields under
-settle mandates and raise the triage Lines to `settle`, in one change set from
-the Python SDK (`cruxible-client`, which `cruxible` installs; `gate/recipe.py`'s
-`graduate()` is the same change set as JSON, for `cruxible authoring submit`):
-
-```python
-from datetime import UTC, datetime, timedelta
-
-from cruxible_client import Cruxible
-from cruxible_client.contracts.authoring.inputs import ProcedureMandateInput
-from cruxible_client.contracts.authoring.models import (
-    MandateConditionAuthoring,
-    MandateScopeAuthoring,
-)
-from cruxible_client.contracts.procedures.models import ProcedureHardCaps
-
-cx = Cruxible.connect()
-now = datetime.now(UTC).replace(microsecond=0)
-condition = MandateConditionAuthoring(
-    query_name="security.settle_condition", binding_parameter="vulnerability_id",
-    required_fields=("cve_id",), fallback="propose",
-)
-# Procedure -> (the verbatim fields it settles, its capture-byte ceiling, its trigger input)
-triage = {
-    "security.kev-triage": (
-        ("kev_date_added", "kev_due_date", "kev_listed", "kev_ransomware_use"),
-        16_777_216, "catalog"),
-    "security.epss-triage": (("epss_percentile", "epss_score"), 33_554_432, "epss"),
-}
-
-draft = cx.changes(rationale="Graduate KEV and EPSS triage to settle.")
-for procedure, (fields, capture_bytes, trigger_input) in triage.items():
-    draft.procedure_mandate(ProcedureMandateInput(
-        kind="procedure_mandate", name=f"{procedure}-settle", procedure_name=procedure,
-        grants="settle", namespace=("claims",),
-        valid_from=now, expires_at=now + timedelta(days=90),
-        resource_ceiling=ProcedureHardCaps(
-            max_wall_clock={"microseconds": 300_000_000}, max_provider_calls=2,
-            max_capture_bytes=capture_bytes, max_items=5000, max_repeat_attempts=1),
-        scope=tuple(
-            MandateScopeAuthoring(claim_type=f"security.vulnerability.{field}",
-                                  change_kinds=("create", "revise"))
-            for field in fields),
-        condition=condition,
-    ))
-    draft.line(name=procedure, procedure=procedure, max_authority="settle",
-               trigger_input=trigger_input)
-intent = draft.submit()
-intent.outcome.status   # 'landed'
-```
-
-Re-enable both Lines. The KEV and EPSS fields are verbatim copies of CISA's and
-FIRST's data, so every change for a watched vulnerability settles. Core requires
-a condition on every settle grant and that it return exactly one row per
-target; `security.settle_condition` holds for any keyed vulnerability. It cannot
-re-derive "watched" (that needs an optional hop, which core admits only in
-path-shaped queries, whose rows are per path), and need not: the triage
-Procedures only change watched vulnerabilities, so the grant's scope decides.
-The Procedures do
-not change, so their digests and track records carry through.
-
-The parse Lines of the system model start at propose too. Their facts are verbatim
-parses, so they can graduate to settle like KEV and EPSS, with a condition that
-holds per target; `signal.explained_by` and `publish_gate` never enter a Mandate.
-
-Graduation never covers judgments. The SARIF import's report observations (the
-finding by key, `rule`, `reported_by`, a scan's `severity`) may graduate to settle
-per finder once its record holds, with `security.finding_settle_condition` as the
-condition; the default is propose.
+The bundled `security-osv-provider` serves `sbom.components`, `osv.query` and
+`osv.match`; bundled `cruxible-provider-web` serves the KEV/EPSS HTTP reads.
+Both carry registration schema 2, frozen locks and their runtime dependency
+wheel. Provider installation can download the registry dependencies pinned by
+those locks. The old analysis/sources providers, system-model and incident
+recipes are not part of this release.
 
 ## Install and first answers
 
-Cruxible includes `uv` for Provider installation and execution. The generator
-recipes need their own tools (`uv`/`uvx` for Python or `npm`/`npx` for
-JavaScript). [Intake recipes](intake.md) holds the commands and their gaps;
-the [security intake skill](skills/security-intake/SKILL.md) explains the inputs
-and what unknown answers mean.
+Use Cruxible 0.5 with its daemon running and a Git workspace selected. From a
+checkout of this repository (replace paths for your workspace):
 
-1. **Install.** `cruxible kit add security:1.3.0` previews the change; commit it
-   at the coordinate the preview prints: `cruxible kit add security:1.3.0
-   --commit --at OID`. This installs the kit's definitions and its Providers
-   (the packages its Procedures call to fetch and parse): the bundled
-   `security-analysis-provider` (deterministic parsing and classification, no
-   network) and
-   `security-sources-provider` (OSV.dev, EPSS, GitHub repository, PyPI and
-   release-asset reads), and `cruxible-provider-web` 0.2.2 by name from PyPI,
-   verified against the recorded hashes.
-2. **Tailor the automation template**, [automation.json](automation.json)
-   (`cruxible kit pull security:1.3.0 --out security-kit` writes it with the
-   kit's other files). Choose the Line names; set the SBOM Line's
-   `relative_path` and logical source (one `security.sbom-import.<name>` Line per
-   SBOM file); the cron times (UTC); and each Mandate's `valid_from` and
-   `expires_at`. Provider slots bind by fit with one installed build per
-   interface. Rename the Lines in `security.start`'s steps with them.
-3. **Submit it**: `cruxible authoring submit automation.json`, then review and
-   approve it under your approval policy. It authors four Lines, their Mandates,
-   three daily Triggers and the `security.start` Runbook.
-4. **Preview the start**: put your CycloneDX JSON SBOM at the SBOM Line's
-   `relative_path` in the attached workspace, then `cruxible runbook preview
-   security.start`. Per step it shows what the step reads and writes, which
-   provider calls it makes, what its Mandates settle and what would go to review
-   (and so stop the run), and any order problem (there are none in the template).
-5. **Run the start**: `cruxible runbook run security.start`. It runs the SBOM
-   import, OSV, KEV and EPSS once each, in order. A step whose writes go to review
-   stops the run there: review and approve that proposal (`cruxible proposal
-   list`, `review`, `approve`), then run it again; a step with nothing new to
-   write passes through.
-6. **Keep it current**: `cruxible line enable NAME` for each Line, and the daily
-   Triggers take over. Changing a Line, or a Trigger aimed at it, disables it
-   again; `cruxible next` names the `line enable` that restarts it.
-7. **A new or changed SBOM**: add its Line (or update the file) and run
-   `cruxible line run security.sbom-import.<name>`, then `security.osv-query`;
-   KEV and EPSS follow on their daily runs, or run them too.
-8. **The answer**: `cruxible query --name security.urgent_exposures`: every
-   exposure, KEV-listed first (`kev_listed`), then by EPSS. "Exploited
-   vulnerabilities we run" is its KEV-listed rows; the rest are affected releases
-   nobody has seen exploited.
+```sh
+cruxible init --principal-id owner --reviewer-key-dir /outside/workspace/reviewer-keys
+# Read the current coordinate, then review the manifest and guidance:
+cruxible orient --json
+# Use coordinate.git_oid as OID for the explicit install:
+cruxible kit add /path/to/cruxible-kits/kits/security --commit --at OID --json
+cruxible kit status --offline
+```
 
-What stays yours: tailoring and approving the automation, enabling Lines,
-providing SBOMs, reviewing what goes to review, renewing Mandates before they
-expire, and reviewing a Procedure revision an upgrade changes.
+No Contracts or providers need to be accepted beforehand. Installation governs
+the bundled operation Contracts, installs the providers, and proposes the rest.
+If your approval policy requires review, approve the proposal as a different
+actor and activate it before continuing. `cruxible kit add security:1.3.0` is
+**available only after the registry release**; use the local directory now.
 
-## Upgrading
+On the pinned core (`07b11ba84`), a first preview of a kit containing governed
+Documents can refuse with `cruxible.kit.document_bodies_not_staged`: the preview
+adapter does not stage their bodies. The explicit `--commit --at OID` path stages
+the bundled bodies before planning. It does not bypass the approval policy.
 
-Preview `cruxible kit add security:VERSION`, then commit with
-`cruxible kit add security:VERSION --commit --at OID`. Version 1.3.0 folds the nine
-old Blueprints into seven slotted Procedures; the upgrade retires those Blueprints
-without `keep`. Existing exact instances remain historical Procedures; update your
-Lines and direct calls to the names and parameters in the example.
+Copy [automation.json](automation.json) to your workspace and tailor it before
+submitting. It is a template, never installed or submitted by `kit add`:
 
-Compatible named Procedure revisions retain Line bytes and enablements. An exact
-Procedure revision carries its Mandates to propose-only; review and re-author the
-KEV/EPSS settle grants to restore settlement. Triggers retain their exact bytes.
-A Line or Trigger you edit still needs explicit enablement. A provider move that
-changes a Line's bindings is a Line revision and needs that enablement too.
-A release shipping a new provider build re-binds the affected Lines and disables
-them until they are explicitly re-enabled.
+- Choose the Line names and update their Mandates, Triggers and Runbook steps
+  to match. Keep `security.start` as the Runbook name if using the commands below.
+- Set the SBOM Line's `relative_path` and logical source. For a demo, copy
+  [examples/sboms/log4j-demo-app.cdx.json](examples/sboms/log4j-demo-app.cdx.json)
+  to the template's `sbom.cdx.json` workspace path.
+- Set the three daily cron schedules in UTC and each Mandate's `valid_from`
+  and `expires_at` to your observation window.
+- Review the settlement scopes below before adopting them.
 
-Provider builds remain installed alongside older builds. A direct or invoked run
-requires one fitting build per slot; use `--bind slot=provider` for a direct run or
-`bindings` on its Line when the choice is ambiguous. Invoked children bind by fit
-independently; a parent's Line bindings do not select their builds. Retire obsolete
-builds only after reviewing their live dependents.
+```sh
+cruxible authoring submit automation.json --no-accept --json
+cruxible proposal list --status open
+cruxible proposal review PROPOSAL_ID
+# A second actor, with its own registered principal and signing key:
+cruxible --principal-id reviewer proposal approve PROPOSAL_ID --key /outside/workspace/reviewer-keys/reviewer.ed25519 --yes
+cruxible runbook preview security.start
+# Review the preview separately before running:
+cruxible runbook run security.start
+cruxible query --name security.urgent_exposures
+cruxible next
+```
 
-The instance policy `default` is shared: another kit or consumer can revise it,
-changing the acquisition age bound inherited by these Procedures.
+The Runbook imports the SBOM, queries OSV, then reads KEV and EPSS in order.
+It stops on failure or when writes need review. Review and accept those proposals
+before rerunning; a step with no new writes passes through. Network calls are
+real: OSV uses `api.osv.dev`, KEV uses `www.cisa.gov`, and EPSS uses
+`api.first.org`. A source refusal is not a clean security result.
 
-## Operating notes
+After the initial run, enable each Line with `cruxible line enable NAME` to let
+its Trigger run it. Editing a Line or its Trigger disables it again. Renew
+Mandates before expiry, review Procedure upgrades, and supply fresh SBOM bytes.
 
-- **Network.** web.fetch reaches cisa.gov, cveawg.mitre.org and (for the
-  system model's release and history pulls) api.github.com;
-  `security-sources-provider` reaches api.osv.dev, epss.empiricalsecurity.com,
-  api.github.com, raw.githubusercontent.com, pypi.org, and github.com with its
-  asset hosts (its declared endpoints). No credential is sent: GitHub allows 60 unauthenticated API calls
-  an hour, and a repository pull costs two plus one raw read per file. The SBOM is read from the attached workspace by
-  core's built-in `workspace.file`; the Source request is the v2 form, so no
-  workspace binding digest is ever authored.
-- **Staleness.** The policy refuses a Capture older than 24 h: triage of a
-  backfilled catalog after a long outage refuses; run the acquisition Line for a
-  fresh one.
-- **Storage.** Retained for at least 30 days each: the KEV catalog (~1.8 MB per
-  acquisition), the EPSS daily file (~3.6 MB), each OSV answer (every advisory
-  record it read) and each SBOM.
-- **CVE Services throttles bursts**: fetch CVE records one at a time.
-- **Provider slots.** Procedures declare interfaces; Lines and direct runs choose fitting builds.
-- **Mandates expire** after 90 days in the payloads above; renew them first.
-- **Findings Lines per repository.** Each repository's `security.sarif-import` and
-  `security.sarif-attention` Lines read every SARIF landing and halt `wrong_repo` for
-  another repository's log after parsing it, so a landing costs one parse per
-  repository Line. The import's tap reads the repository's held findings
-  (`security.finding_index`, up to 2000; a truncated tap refuses rather than read a
-  held finding as new).
-- **Workspace files are at most 1 MiB.** Core's built-in `workspace.file` structures
-  at most 1 MiB, so every workspace-file Procedure (SBOM, evidence, SARIF,
-  reproduction, inventory, log read, credential state) budgets 1 MiB: split a larger
-  SBOM, scan or inventory scope.
-- **Incident Lines.** An inventory import reads one scope's held assets and runs
-  (`security.inventory_index` and `security.inventory_patches`, up to 2000 rows each:
-  split a scope that grows past it; a truncated tap refuses). The credential import
-  reads every held credential (`security.rotation_work`). Respond and the log import
-  read one incident's rows. A landing costs one import per scope or incident Line.
-- **Secret slips.** A credential-state body is an allow-list, but its bytes are
-  retained before the import refuses it; the three incident contracts authorize
-  erasure (`cruxible capture erase`): see [Respond to an
-  incident](walkthroughs.md#respond-to-an-incident). Every other kit contract (SBOM, evidence,
-  SARIF, reproduction and the public-source reads) keeps its bytes for good, so
-  check a file for secrets before you acquire it.
+## Automation authority
 
-## Where next
+The committed template retains its existing `max_authority: settle` on all four
+Lines. It does **not** start propose-only. These scoped grants may settle source
+observations without another approval after you approve the template:
 
-- [walkthroughs.md](walkthroughs.md): the hardening questions, your code's
-  findings and an incident response (PHP2Shell), each end to end.
-- [intake.md](intake.md): recipes for bringing your state in: SBOMs, services,
-  credentials, runtime inventory, log sources, your repositories and PyPI
-  projects, generic HTTP reads.
-- [in-depth.md](in-depth.md): how the vulnerability half names Subjects, decides
-  applicability, records analyst judgments and keeps KEV and EPSS current, and
-  predictions.
-- [reference.md](reference.md): every kind, field, contract, Line, Procedure and
-  query, generated from this release's definitions.
-- [automation.json](automation.json): the automation template you tailor and
-  submit; [examples/README.md](examples/README.md): the example SBOMs and status
-  page.
-- The [security intake](skills/security-intake/SKILL.md) and [security
-  analyst](skills/security-analyst/SKILL.md) skills, for an agent doing the work.
-- [source/README.md](source/README.md): for maintainers, building a release, the
-  release gate and self-dogfood (in the kits repository; not part of the bundle).
+| Line | Settle Mandate | What may settle |
+|---|---|---|
+| `security.sbom-import.app` | `security.sbom-import.app-settle` | Create inventory, component and occurrence Subjects; create/revise scope on extracted records; retire scope on absence |
+| `security.osv-query` | `security.osv-query-settle` | Create vulnerability Subjects; create/revise component `affected_by` on extracted records; retire on complete answered absence |
+| `security.kev-triage` | `security.kev-triage-settle` | Create/revise `listed_in` on extracted/absent records; create/revise KEV dates on extracted records and retire dates on absence; create/revise ransomware use on extracted records |
+| `security.epss-triage` | `security.epss-triage-settle` | Create/revise EPSS score, percentile and date from extracted records |
+
+No Mandate settles `security.exposure.justification` or
+`security.app_exposure.justification`. Read the installed governed dependency
+guidance before proposing either judgment; a different actor should review it.
+An app-level judgment affects one occurrence; a package-level normative none
+applies across inventories. OSV cannot overwrite a held normative none and
+reports disagreement to the Line inbox.
+
+## Limits and maintenance
+
+Distro purls (`deb`, `rpm`, `apk`) need source-package mapping and are currently
+**not checked** by OSV. Failed/incomplete OSV responses never authorize absence
+retirement. The SBOM workspace-file limit is 1 MiB: split larger inventories.
+An SBOM saying a package is present does not establish runtime reachability.
+
+The generated EPSS Line currently has a literal `?cve=` URL: it does not insert
+the watched CVEs automatically. FIRST may return a partial page of its entire
+catalog; the completeness check then records an incomplete result and scores
+stay unknown. Selecting the watched CVEs dynamically remains a follow-up.
+
+[source/README.md](source/README.md) describes the repeatable release build and
+gates. [examples/README.md](examples/README.md) describes the example inputs.
+The optional SARIF/audit work remains in source and has its own gates; its
+provider and definitions are not bundled by this dependency release recipe.

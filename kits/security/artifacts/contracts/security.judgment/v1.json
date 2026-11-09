@@ -1,0 +1,29 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One package-level judgment: its exposure pair, component, CVE and VEX justification.",
+  "fields": {
+    "component": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "cve_id": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "exposure": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "justification": {
+      "type": {
+        "claim_type": "security.exposure.justification",
+        "kind": "enum_of"
+      }
+    }
+  },
+  "name": "security.judgment",
+  "version": 1
+}

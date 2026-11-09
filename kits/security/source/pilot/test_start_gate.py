@@ -179,81 +179,24 @@ def _build_real_wheel(project: Path) -> Path:
 def _real_web_provider(
     tmp_path: Path, repository: Path, wheels: Path
 ) -> tuple[Path, Path, Path]:
-    """The real ``cruxible-provider-web`` package: its own source, its own lock."""
-
-    source = repository / "packages/cruxible-provider-web"
-    project = tmp_path / "cruxible-provider-web"
-    shutil.copytree(
-        source, project, ignore=shutil.ignore_patterns("dist", "__pycache__", ".venv")
-    )
-    wheel = _build_real_wheel(project)
-    runtime = next(wheels.glob("cruxible_provider_runtime-*.whl"))
-    return wheel, project / "uv.lock", runtime
+    """Build the exact web source and lock the release builder uses."""
+    return _release_provider(tmp_path, "cruxible-provider-web", wheels)
 
 
 def _real_osv_provider(
     tmp_path: Path, repository: Path, wheels: Path
 ) -> tuple[Path, Path, Path]:
-    """The real ``security-osv-provider`` package: its own source and registration,
-    under a borrowed lock (it ships none of its own; D-R48 follow-up).
+    """Build OSV with its own identity and frozen lock, without donor rewriting."""
+    return _release_provider(tmp_path, "security-osv-provider", wheels)
 
-    ``cruxible-provider-web``'s lock has the same shape (one root package, one
-    path dependency on ``cruxible-provider-runtime``, ``httpx`` from the
-    registry): borrowed and renamed to this package's own name, exactly as
-    ``tests.support.provider_installation.build_local_call`` already borrows
-    ``cruxible-provider-workspace``'s lock for its synthetic test packages.
-    The borrowed lock's own version becomes this build's version (the wheel's
-    identity must match its lock's root exactly), so ``pyproject.toml``'s and
-    ``manifest.yaml``'s version lines move to match, ``registration.json``'s
-    manifest digest moves to match the repatched ``manifest.yaml``, and
-    ``hatchling`` is pinned to the exact build already cached offline here
-    (the real ``pyproject.toml`` names it unpinned, which ``uv build
-    --offline`` cannot resolve). The declared operations and their Contract
-    refs -- what this test is actually proving -- are the real, unmodified
-    kit source.
-    """
 
-    from tests.support.provider_installation import _lock_root_version
-
-    source = dependency_replay.PROVIDER
-    project = tmp_path / "security-osv-provider"
-    shutil.copytree(source / "src", project / "src")
-    donor_lock = repository / "packages/cruxible-provider-web/uv.lock"
-    version = _lock_root_version(donor_lock)
-
-    package_root = project / "src" / "security_osv_provider"
-    manifest_path = package_root / "manifest.yaml"
-    manifest_text = manifest_path.read_text()
-    real_manifest_version = next(
-        line.split(":", 1)[1].strip()
-        for line in manifest_text.splitlines()
-        if line.strip().startswith("version:")
-    )
-    patched_manifest = manifest_text.replace(
-        f"version: {real_manifest_version}", f"version: {version}"
-    )
-    manifest_path.write_text(patched_manifest)
-    new_manifest_digest = (
-        "sha256:" + hashlib.sha256(patched_manifest.encode()).hexdigest()
-    )
-    registration_path = package_root / "registration.json"
-    registration = json.loads(registration_path.read_text())
-    registration["manifest"]["digest"] = new_manifest_digest
-    registration_path.write_text(json.dumps(registration, indent=1) + "\n")
-
-    pyproject = (source / "pyproject.toml").read_text()
-    real_version = next(
-        line.split('"')[1]
-        for line in pyproject.splitlines()
-        if line.startswith("version =")
-    )
-    (project / "pyproject.toml").write_text(
-        pyproject.replace(
-            f'version = "{real_version}"', f'version = "{version}"'
-        ).replace('requires = ["hatchling"]', 'requires = ["hatchling==1.32.1"]')
-    )
-    (project / "uv.lock").write_text(
-        donor_lock.read_text().replace("cruxible-provider-web", "security-osv-provider")
+def _release_provider(
+    tmp_path: Path, name: str, wheels: Path
+) -> tuple[Path, Path, Path]:
+    source = Path(__file__).resolve().parents[1] / "providers" / name
+    project = tmp_path / name
+    shutil.copytree(
+        source, project, ignore=shutil.ignore_patterns("dist", "__pycache__", ".venv")
     )
     wheel = _build_real_wheel(project)
     runtime = next(wheels.glob("cruxible_provider_runtime-*.whl"))
@@ -353,54 +296,30 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     """
 
     from tests.core_support._support import initialize_local
-    from tests.support.provider_checkout import _build_wheels, require_provider_checkout
-
     from cruxible_client.contracts.candidates import canonical_candidate_timestamp
-    from cruxible_client.contracts.kits import (
-        KitAddRequest,
-        KitAutomationTemplate,
-        KitBuildRequest,
-    )
+    from cruxible_client.contracts.kits import KitAddRequest
+    from cruxible_client.kits import read_kit_directory
     from cruxible_client.contracts.provider_installation import ProviderInstallRequest
     from cruxible_client.contracts.temporal import utc_now
     from cruxible_core.runtime.provider_runtime import (
         PROVIDER_RUNTIME_CONFIG_PATH,
         ProviderRuntimeOperator,
     )
-    from cruxible_core.service.kits import service_add_kit, service_build_kit
+    from cruxible_core.service.kits import service_add_kit
     from cruxible_core.service.procedures.provider_installation import (
         service_install_provider,
     )
 
-    (tmp_path / "publisher").mkdir()
-    instance = kit_world(tmp_path / "publisher", automation=False)
-    content = template.TEMPLATE.read_text()
-    repository = require_provider_checkout()
-    wheels = _build_wheels(repository, tmp_path / "provider-wheels-cache")
-    osv_wheel, osv_lock, osv_runtime = _real_osv_provider(
-        tmp_path / "osv-src", repository, wheels
-    )
-    web_wheel, web_lock, web_runtime = _real_web_provider(
-        tmp_path / "web-src", repository, wheels
-    )
-    providers = (
-        _staged_provider(instance, osv_wheel, osv_lock, osv_runtime),
-        _staged_provider(instance, web_wheel, web_lock, web_runtime),
-    )
-    result = service_build_kit(
-        instance,
-        KitBuildRequest(
-            kit_id="security",
-            version="1.3.0",
-            owns=("security.",),  # the manifest's own declaration, never widened
-            providers=providers,
-            automation_template=KitAutomationTemplate(
-                path="automation.json", content=content
-            ),
-        ),
-        template_actor_id="owner",
-    )
-    bundle = result.bundle
+    bundle = read_kit_directory(Path(__file__).resolve().parents[2])
+    assert bundle.manifest.owns == ("security.",)
+    assert bundle.manifest.automation_template == "automation.json"
+    assert {p.package for p in bundle.manifest.providers} == {
+        "security-osv-provider",
+        "cruxible-provider-web",
+    }
+    assert bundle.document_bodies
+    assert "subject-kinds/security.occurrence.json" in bundle.contents()
+    assert "procedures/security.osv-query.json" in bundle.contents()
 
     # A second instance that has NEVER accepted anything of this kit's: not
     # the osv/sbom in/out Contracts, not the refusal Contracts, nothing.
@@ -410,6 +329,8 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     for item in bundle.provider_files:
         stored = consumer.body_store().store(item.content)
         assert stored.digest in bundle.manifest.provider_files().values()
+    for body in bundle.document_bodies:
+        consumer.body_store().store(body.content)
     staged = bundle.model_copy(update={"provider_files": ()})
 
     state_root = tmp_path / "consumer-server-state"
@@ -463,3 +384,14 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     with consumer.accepted_history_reader() as history:
         # One Contract change, one registration per provider, one kit change.
         assert int(history.sequence) - before_generation == 4
+
+    from cruxible_core.service.runbook_preview import service_preview_runbook
+
+    submit(
+        consumer,
+        json.loads(bundle.file_contents()["automation.json"]),
+        name="committed-template",
+    )
+    preview = service_preview_runbook(consumer, name=template.START)
+    assert not any(step.unavailable for step in preview.steps)
+    assert preview.order_problems == ()

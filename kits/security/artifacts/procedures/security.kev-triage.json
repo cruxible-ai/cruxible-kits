@@ -1,105 +1,54 @@
 {
-  "activation_policy": "drain",
-  "artifact_format": "cruxible-procedure-v3",
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
   "definition": {
-    "budget": {
-      "max_capture_bytes": 16777216,
-      "max_provider_calls": 2,
-      "wall_clock": {
-        "microseconds": 120000000
-      }
-    },
     "contract_in": {
       "target": {
         "kind": "Contract",
-        "name": "security-empty-input"
+        "name": "security.kev-triage.input/v1"
       }
     },
     "contract_out": {
       "target": {
         "kind": "Contract",
-        "name": "security-kev-triage-summary"
+        "name": "security.kev-triage.output/v1"
       }
     },
-    "description": "Read the KEV catalog Capture that triggered the Line (security.fetched-v1) and the watched vulnerabilities, and settle one observation Claim per KEV field that changed (kev_listed, kev_date_added, kev_due_date, kev_ransomware_use) under a settle mandate, or propose it under a propose cap. Halts no_change when nothing changed. Runs as a Line with trigger_input catalog.",
+    "description": "Read the CISA KEV catalog and write each watched CVE's catalog membership, dates and ransomware use; a complete read records the unlisted ones.",
     "hard_caps": {
       "max_capture_bytes": 16777216,
-      "max_items": 5000,
-      "max_provider_calls": 2,
+      "max_items": 20000,
+      "max_provider_calls": 1,
+      "max_read_rows": 50000,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
         "microseconds": 300000000
       }
     },
-    "measurements": [
-      {
-        "check_after": {
-          "microseconds": 259200000000
-        },
-        "expires_after": {
-          "microseconds": 864000000000
-        },
-        "measurement": {
-          "expect": {
-            "max_count": 0
-          },
-          "kind": "accepted_query",
-          "query": {
-            "artifact_digest": "sha256:2bb6593d47adbe43240fcb12dc0ba27f1032834f209587a0603150baa04249a5",
-            "role": "query",
-            "target": {
-              "kind": "QueryDefinition",
-              "name": "security.kev_triage_backlog"
-            }
-          }
-        },
-        "name": "kev-backlog-cleared",
-        "review_when": [
-          {
-            "metric": "satisfied_rate",
-            "min_readings": 5,
-            "name": "satisfied-rate-low",
-            "operator": "lt",
-            "threshold": {
-              "$decimal": "0.8"
-            }
-          }
-        ],
-        "subject_grain": "procedure_unit"
-      }
-    ],
     "name": "security.kev-triage",
     "nodes": [
       {
-        "capture_contract": {
-          "target": {
-            "kind": "CaptureContract",
-            "name": "security.fetched-v1"
+        "captures": {
+          "capture": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.kev-catalog"
+            }
           }
         },
         "id": "catalog",
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "web.fetch/v3"
-          }
-        },
-        "kind": "source",
-        "provider": {
-          "slot_name": "catalog"
-        },
-        "request": {
+        "input": {
           "expected_format": "json",
-          "extract": false,
-          "logical_source": "cisa.kev.catalog",
-          "max_bytes": 4194304,
-          "render": false,
-          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-        }
+          "logical_source": "$params.logical_source",
+          "max_bytes": "$params.max_bytes",
+          "url": "$params.url"
+        },
+        "kind": "call",
+        "slot": "fetch"
       },
       {
         "id": "watched",
-        "kind": "state_tap",
+        "kind": "read",
         "query": {
           "target": {
             "kind": "QueryDefinition",
@@ -108,129 +57,143 @@
         }
       },
       {
-        "id": "parse",
-        "input": {
-          "catalog_base64": "$steps.catalog.retrieved.body_base64",
-          "watched": "$steps.watched.result.rows"
+        "capture": "$steps.catalog.capture",
+        "complete_when": {
+          "count_at": "/count"
         },
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "security.kev-catalog/v2"
+        "fields": {
+          "date_added": {
+            "at": "dateAdded",
+            "parse": "date"
+          },
+          "due_date": {
+            "at": "dueDate",
+            "parse": "date",
+            "presence": "optional"
+          },
+          "listed_from": {
+            "at": "dateAdded",
+            "parse": "date",
+            "project": "utc_start_of_day"
+          },
+          "ransomware_use": {
+            "at": "knownRansomwareCampaignUse",
+            "canonicalize": "claim_type",
+            "presence": "optional"
           }
         },
-        "kind": "call",
-        "provider": {
-          "slot_name": "parse"
+        "header": {
+          "catalog_version": {
+            "at": "/catalogVersion",
+            "presence": "required"
+          }
+        },
+        "id": "entries",
+        "key": {
+          "cve_id": {
+            "at": "cveID",
+            "type": "key_part<security.vulnerability:cve_id>"
+          }
+        },
+        "kind": "extract",
+        "records": "/vulnerabilities/*",
+        "row": {
+          "digest": "sha256:4a0615f4aabe5ccc4acc0cbeae98a8712695a59eb3ade3d37faec1770a07dc16",
+          "name": "security.kev-record",
+          "version": 1
         }
       },
       {
-        "contract_out": {
-          "target": {
-            "kind": "Contract",
-            "name": "security-kev-triage-summary"
-          }
-        },
-        "fields": {
-          "catalog_version": "$steps.parse.catalog_version",
-          "changed": "$steps.parse.changed",
-          "listed": "$steps.parse.listed",
-          "watched": "$steps.parse.watched"
-        },
-        "id": "summary",
-        "kind": "project"
-      },
-      {
-        "id": "changed",
-        "kind": "guard",
-        "message": "The catalog changes no watched Claim.",
-        "on_false": "nochange",
-        "predicate": {
-          "left": {
-            "alias": "parse",
-            "kind": "step",
-            "path": [
-              "changed"
-            ]
+        "claims": [
+          {
+            "effective_from": "$item.fields.listed_from",
+            "rationale": "CISA KEV catalog {$steps.entries.header.catalog_version} lists {$item.key.cve_id}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.vulnerability.listed_in"
+              }
+            },
+            "value": {
+              "key": {
+                "catalog_id": "cisa-kev"
+              },
+              "kind": "security.catalog"
+            },
+            "when_absent": "inverse"
           },
-          "operator": "gt",
-          "right": 0
-        },
-        "refusal_code": "no_change"
-      },
-      {
-        "candidate_templates": {
-          "items": "$steps.parse.items"
-        },
-        "id": "settle",
-        "kind": "settle_change_set",
-        "result": "$steps.summary"
-      },
-      {
-        "id": "nochange",
-        "kind": "halt",
-        "reason": "no_change"
+          {
+            "rationale": "CISA KEV catalog {$steps.entries.header.catalog_version}: dateAdded {$item.fields.date_added}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.vulnerability.kev_date_added"
+              }
+            },
+            "value": "$item.fields.date_added",
+            "when_absent": "mirror"
+          },
+          {
+            "rationale": "CISA KEV catalog {$steps.entries.header.catalog_version}: dueDate {$item.fields.due_date}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.vulnerability.kev_due_date"
+              }
+            },
+            "value": "$item.fields.due_date",
+            "when_absent": "mirror"
+          },
+          {
+            "rationale": "CISA KEV catalog {$steps.entries.header.catalog_version}: knownRansomwareCampaignUse {$item.fields.ransomware_use}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.vulnerability.kev_ransomware_use"
+              }
+            },
+            "value": "$item.fields.ransomware_use"
+          }
+        ],
+        "expect": "$steps.watched.rows",
+        "for_each": "$steps.entries.records",
+        "id": "write",
+        "kind": "claims",
+        "subject": {
+          "key": {
+            "cve_id": "$item.key.cve_id"
+          },
+          "kind": "security.vulnerability",
+          "within": "$steps.watched.rows"
+        }
       }
     ],
-    "pin_slots": [
-      {
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "web.fetch/v3"
-          }
-        },
-        "slot_name": "catalog"
-      },
-      {
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "security.kev-catalog/v2"
-          }
-        },
-        "slot_name": "parse"
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.kev-triage.params/v1"
       }
-    ],
-    "returns": "summary",
+    },
+    "slots": {
+      "fetch": {
+        "effect": "external_read",
+        "in": {
+          "digest": "sha256:1f4eefbeef292080ab075e22d068a4e45f6b01170802f2ca470daa2329444137",
+          "name": "web.fetch.request",
+          "version": 1
+        },
+        "out": {
+          "digest": "sha256:94f256cdc9f9dfb45d8ac2a55e5aaf40bdb64757cbbf21703baeb8bd8d03062f",
+          "name": "web.fetch.result",
+          "version": 1
+        }
+      }
+    },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:c49ae30a980db6bf8e0d894a6ca21435605511fb35714878ac255aa443f9e90f",
+  "definition_digest": "sha256:be7191b9bbc7b9b61e187ffb0f3a0609e2027c763f7aaa9aebd5dab7d126a545",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-triage"
-  },
-  "owned_contracts": [
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-empty-input"
-      },
-      "schema": {
-        "fields": {}
-      }
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-kev-triage-summary"
-      },
-      "schema": {
-        "fields": {
-          "catalog_version": {
-            "type": "string"
-          },
-          "changed": {
-            "type": "integer"
-          },
-          "listed": {
-            "type": "integer"
-          },
-          "watched": {
-            "type": "integer"
-          }
-        }
-      }
-    }
-  ]
+  }
 }
