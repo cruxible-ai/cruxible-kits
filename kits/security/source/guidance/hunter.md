@@ -60,8 +60,11 @@ boundary it crosses.
    workspace catalog): `## Trace`, entry point first and effect last, each step a
    `path#symbol`; `## Local check` if you ran one (command, input, limits, result);
    `## Blocker` if one outside fact decides it (the fact, and a safe way for an owner to
-   check it).
-4. **Write what you saw**, each Claim with role `observation`:
+   check it). Write it in its own write first (a docs-only write, or the file catalogued and
+   committed). A section appended in the same write as the Claims counts as your own words,
+   and an observation needs observed evidence, so that write is refused.
+4. **Then write what you saw**, in a second write citing the notes file, each Claim with role
+   `observation`:
    - `reported_at` (`path:line`), citing the code there (file evidence
      `path#<quoted line>`);
    - `rule` (the concern you checked, e.g. `audit:injection`), citing the notes file's

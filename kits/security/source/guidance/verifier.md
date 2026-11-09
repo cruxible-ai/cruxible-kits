@@ -6,7 +6,8 @@ Adapted from cloudflare/security-audit-skill (MIT).
 
 A verdict is your judgment of a finding someone else reported, on evidence you checked
 yourself. Your job is to try to refute it. If you reported it, stop and hand it to
-another agent. Judge it before reading other agents' verdicts or attestations on it.
+another agent. Write as your own principal (a third one beside the reporter and the
+approver: `cruxible principal add`). Judge it before reading other agents' verdicts or attestations on it.
 
 ## The bar for `confirmed`
 

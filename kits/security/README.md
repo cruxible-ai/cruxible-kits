@@ -122,6 +122,12 @@ it (`cruxible get Document:security.guidance.hunter`, and so on):
 3. `security.coverage_plan` lists units never checked, deferred or blocked;
    `cruxible next` lists findings and units whose cited code changed.
 
+The loop needs three principals: the hunter, the verifier and the approver.
+`cruxible init` registers two (owner and reviewer); add the third with
+`cruxible principal add verifier --key-dir /outside/workspace/verifier-keys
+--signer-key OWNER_KEY`, which writes its key and `cruxible.env` settings to
+that directory.
+
 To import a scanner's SARIF file, author a Line for `security.sarif-import`
 yourself (the automation template doesn't include one): bind `read` to
 `cruxible-builtin#workspace.file` and `derive` to

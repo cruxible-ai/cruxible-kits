@@ -43,17 +43,26 @@ reason.
   escalate. Write nothing.
 - **Not affected, package level**: only `vulnerable_code_not_present`. The vulnerable code is
   not in this package release at all (OSV's range is wrong for it, the fix was backported, the
-  module is not built). It holds for every inventory, so it is one write that retires OSV's
-  observation, states `affected_by` none of the vulnerability and sets
-  `security.exposure.justification` (`triage.judgment`).
+  module is not built). It holds for every inventory, so it is one write with four changes:
+  `retire` OSV's `affected_by` Claim; `add` `affected_by` with value
+  `{"none": "security.vulnerability/<cve id>"}` and role `normative` on the component; `create`
+  the `security.exposure` pair keyed by `component` and `vulnerability`; `set` its
+  `justification`.
 - **Not affected, app level**: one of `component_not_present` (listed but not shipped or
   loaded), `vulnerable_code_not_in_execute_path`,
   `vulnerable_code_cannot_be_controlled_by_adversary` or `inline_mitigations_already_exist`.
-  It holds for this inventory only: one write setting `security.app_exposure.justification`
-  on the occurrence's pair (`triage.app_judgment`). It never states the global none.
-- **Blocked on a fact you can't see**: don't guess. Attest `--unsure` on OSV's `affected_by`
-  Claim, naming the missing fact and how an owner can check it, with `--valid-until` no later
-  than the KEV due date (`triage.investigation`). The pair stays in the backlog, marked.
+  It holds for this inventory only: one write with two changes: `create` the
+  `security.app_exposure` pair keyed by `occurrence` (the worklist row's occurrence) and
+  `vulnerability`; `set` its `justification`. It never states the global none.
+- **Blocked on a fact you can't see**: don't guess. Attest unsure on OSV's `affected_by`
+  Claim, naming the missing fact and how an owner can check it:
+  `cruxible claim attest CLAIM --unsure --because "..." --valid-until TIME`, with TIME no later
+  than the end of the KEV due date when the vulnerability has one. The pair stays in the
+  backlog, marked.
+- **A KEV pair whose due date has passed**: it can't be held, since any hold would already
+  have ended. Judge it now with what you can see. If one fact you can't see still decides it,
+  treat the pair as affected: remediate, or escalate to the owner naming that fact. Never
+  leave it unjudged.
 
 ## Review
 
@@ -63,7 +72,7 @@ another path to the vulnerable code, check the control really applies. Never app
 judgment. No Mandate settles a justification.
 
 To withdraw one, retire its justification and, for a package-level one, its none in one write
-(`triage.reverse_judgment`).
+(one `retire` change each). The pair Subject stays as history.
 
 ## Anti-patterns
 
