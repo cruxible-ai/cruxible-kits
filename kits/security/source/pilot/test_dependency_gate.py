@@ -1313,19 +1313,19 @@ def test_exposure_counts_say_covered_new_confirmed_and_pair_without_judgment(
         (DEMO_APP, CORE, "CVE-2021-45046"),
         (OTHER_APP, CORE, "CVE-2021-45046"),
     }
-    # Withdrawn: the pair is back in the worklists, a pair with no judgment (and new).
+    # Withdrawn: the pair is back in the worklists, counted as a pair without judgment.
     reverse = triage.reverse_judgment(
         justification_claim(instance, app.changes[0].subject),
         because="The app now logs request headers.",
         accept="if_allowed",
     )
     assert write(instance, reverse).status == "accepted"
-    assert counts(instance) == {"covered": 2, "new": 15, "confirmed": 1, "pair_without_judgment": 1}
+    assert counts(instance) == {"covered": 2, "new": 14, "confirmed": 1, "pair_without_judgment": 1}
     assert exposures(instance, triage.PAIR_WITHOUT_JUDGMENT) == {(DEMO_APP, CORE, LOG4SHELL)}
     assert exposures(instance, triage.PAIR_WITHOUT_JUDGMENT) <= exposures(instance)
-    # A contested judgment holds a judgment Claim: new, never a pair without judgment.
+    # A contested judgment holds a judgment Claim: new, not a pair without judgment.
     _contested_justification_on(instance, OTHER_APP, CORE, LOG4SHELL)
-    assert counts(instance) == {"covered": 2, "new": 15, "confirmed": 1, "pair_without_judgment": 1}
+    assert counts(instance) == {"covered": 2, "new": 14, "confirmed": 1, "pair_without_judgment": 1}
     # A Query sees no history: a pair created before any judgment (here linked to a
     # codebase fact first, which the guidance says not to do) reads like a withdrawn one.
     fact = (
@@ -1368,12 +1368,102 @@ def test_exposure_counts_say_covered_new_confirmed_and_pair_without_judgment(
         },
     )
     assert linked.status == "accepted", linked
-    assert counts(instance) == {"covered": 2, "new": 15, "confirmed": 1, "pair_without_judgment": 2}
+    assert counts(instance) == {"covered": 2, "new": 13, "confirmed": 1, "pair_without_judgment": 2}
     # A capped answer is refused rather than under-counted.
     with pytest.raises(ValueError, match="capped"):
         triage.exposure_counts(
             lambda name: {"rows": [], "remaining": 0, "capped": ("max_results=200",)}
         )
+
+
+#: The package x app matrix: (CVE on log4j-core, package state, demo app state,
+#: other app state). Package states: none, not_affected. App states: none,
+#: not_affected, affected, contested (two justifications), both (affected beside a
+#: justification), withdrawn (a justification retired).
+_MATRIX = (
+    ("CVE-2021-45046", None, None, "not_affected"),
+    ("CVE-2021-44832", None, "affected", "contested"),
+    ("CVE-2021-45105", None, "both", "withdrawn"),
+    ("CVE-2025-68161", "not_affected", None, "not_affected"),
+    ("CVE-2026-34477", "not_affected", "affected", "contested"),
+    ("CVE-2026-34479", "not_affected", "both", "withdrawn"),
+)
+
+
+def _app_state(instance: Any, inventory_id: str, cve_id: str, state: str | None) -> None:
+    if state is None:
+        return
+    if state == "not_affected":
+        app_judge(instance, inventory_id, CORE, cve_id)
+    elif state == "affected":
+        confirm(instance, inventory_id, CORE, cve_id)
+    elif state == "contested":
+        _contested_justification_on(instance, inventory_id, CORE, cve_id)
+    elif state == "both":
+        pair = confirm(instance, inventory_id, CORE, cve_id).changes[0].subject
+        both = {"op": "set", "subject": pair, "field": "justification", "value": APP_REASON}
+        assert write(instance, {"because": "Both.", "changes": [both]}).status == "accepted"
+    elif state == "withdrawn":
+        pair = app_judge(instance, inventory_id, CORE, cve_id).changes[0].subject
+        reverse = triage.reverse_judgment(
+            justification_claim(instance, pair), because="Withdrawn.", accept="if_allowed"
+        )
+        assert write(instance, reverse).status == "accepted"
+    else:
+        raise AssertionError(state)
+
+
+def test_the_four_counts_partition_every_package_and_app_judgment_state(tmp_path: Path) -> None:
+    """Over every package x app state, each exposure is in exactly one of covered,
+    confirmed, new and pair without judgment. A resolved app-level affected verdict
+    beside a package-level not_affected judgment is confirmed, never covered: the
+    package judgment neither covers it nor brings it back to the worklists."""
+
+    instance = world(tmp_path, other=True)
+    run_osv(instance)
+    for cve_id, package, demo, other in _MATRIX:
+        _app_state(instance, DEMO_APP, cve_id, demo)
+        _app_state(instance, OTHER_APP, cve_id, other)
+        if package == "not_affected":
+            judge(instance, CORE, cve_id)
+    pairs = {
+        (app, purl, cve_id)
+        for app in (DEMO_APP, OTHER_APP)
+        for purl, cves in ((CORE, CORE_CVES), (API, {API_CVE}))
+        for cve_id in cves
+    }
+    worklist = exposures(instance)
+    without = exposures(instance, triage.PAIR_WITHOUT_JUDGMENT)
+    sets = {
+        "covered": exposures(instance, triage.COVERED_APP)
+        | exposures(instance, triage.COVERED_PACKAGE),
+        "confirmed": exposures(instance, triage.CONFIRMED),
+        "new": worklist - without,
+        "pair_without_judgment": without,
+    }
+    assert without <= worklist
+    for one, two in ((a, b) for a in sets for b in sets if a < b):
+        assert not sets[one] & sets[two], (one, two, sets[one] & sets[two])
+    assert set().union(*sets.values()) == pairs, pairs - set().union(*sets.values())
+    assert counts(instance) == {name: len(rows) for name, rows in sets.items()}
+    expected = {
+        "covered": {
+            (OTHER_APP, CORE, "CVE-2021-45046"),
+            (DEMO_APP, CORE, "CVE-2025-68161"),
+            (OTHER_APP, CORE, "CVE-2025-68161"),
+            (OTHER_APP, CORE, "CVE-2026-34477"),
+            (DEMO_APP, CORE, "CVE-2026-34479"),
+            (OTHER_APP, CORE, "CVE-2026-34479"),
+        },
+        "confirmed": {(DEMO_APP, CORE, "CVE-2021-44832"), (DEMO_APP, CORE, "CVE-2026-34477")},
+        "pair_without_judgment": {(OTHER_APP, CORE, "CVE-2021-45105")},
+    }
+    expected["new"] = pairs - set().union(*expected.values())
+    assert sets == expected
+    # The cross-scope pair: confirmed only; the package track record still lists the
+    # package judgment (a list of judgments, not of exposures).
+    assert (DEMO_APP, CORE, "CVE-2026-34477") not in worklist
+    assert "CVE-2026-34477" in {r["cve_id"] for r in query_rows(instance, triage.JUDGMENTS)}
 
 
 def _contested_justification_on(instance: Any, inventory_id: str, purl: str, cve_id: str) -> None:

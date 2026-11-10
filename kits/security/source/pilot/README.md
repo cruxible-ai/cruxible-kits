@@ -228,7 +228,7 @@ creates a judgment pair.
 | `security.app_not_affected_judgments` | Every app-level judgment: app_exposure, inventory, component, CVE, justification |
 | `security.watched_vulnerabilities` | One per vulnerability some inventoried component is affected by (K-B1-2); a package-level judgment drops it, an app-level one does not (a Subject-shaped query takes no optional hop) |
 | `security.covered_app_exposures` | One per occurrence OSV still lists V for whose app-level not_affected judgment is resolved |
-| `security.covered_package_exposures` | One per occurrence holding a scope of a component whose package-level judgment is resolved (every inventory holding it) |
+| `security.covered_package_exposures` | One per occurrence holding a scope of a component whose package-level judgment is resolved (every inventory holding it), except an occurrence confirmed affected at app level |
 | `security.pair_without_judgment_exposures` | The worklist rows whose judgment pair exists but holds no judgment Claim: a judgment withdrawn (the pair stays as history), or a pair created before any judgment (e.g. linked with `rests_on`); a Query sees no history, so it cannot tell which |
 | `security.unjudged_exposures`, `security.contested_exposures` | The worklist split by why a pair is there: no judgment Claim at all, or one that does not count; what the attention Lines post |
 
@@ -256,8 +256,12 @@ number is the rows of named Queries (`triage.COUNT_QUERIES`), and
 `triage.exposure_counts(answer)` sums them from the served answers (a page's
 rows plus `remaining`; a capped answer refuses rather than under-counts):
 covered = `covered_app_exposures` + `covered_package_exposures` (they never
-share a row), new = `urgent_exposures`, confirmed = `confirmed_exposures`, pair
-without judgment = `pair_without_judgment_exposures` (part of new). The last is
+share a row), confirmed = `confirmed_exposures`, pair without judgment =
+`pair_without_judgment_exposures`, and new = `urgent_exposures` less the pairs
+without judgment. The four partition the exposures over every package x app
+judgment state (`test_the_four_counts_partition_every_package_and_app_judgment_state`):
+a resolved app-level `affected` verdict beside a package-level not_affected
+judgment is confirmed, not covered (the more specific judgment wins). The last is
 what state shows, not a count of withdrawals: a Query sees no history, so a pair
 created before any judgment (linked with `rests_on` first) counts too; the
 guidance says to add `rests_on` in the write that sets the judgment. A judgment

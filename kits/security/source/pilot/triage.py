@@ -263,13 +263,17 @@ CONFIRMED_SPEC: dict[str, Any] = {
 #: judgment, each the row count of its Queries (the Query engine has no count or
 #: union form).
 #:
+#: The four partition the exposures: no pair is in two of them.
+#:
 #: - covered: occurrences with a resolved not_affected judgment, at app level (the
 #:   worklist walk: OSV still lists V) or at package level (every occurrence
-#:   holding a scope of the judged component). The two never share a row;
-#: - new: ``security.urgent_exposures`` (no judgment counts: unjudged, contested
-#:   or withdrawn);
-#: - confirmed: ``security.confirmed_exposures``;
-#: - pair without judgment: the part of new whose judgment pair exists but holds no
+#:   holding a scope of the judged component, except one confirmed affected at app
+#:   level). The two never share a row;
+#: - confirmed: ``security.confirmed_exposures`` (a resolved app-level affected
+#:   verdict wins over a package-level not_affected judgment);
+#: - new: ``security.urgent_exposures`` less the pairs without a judgment (no
+#:   judgment Claim and no judgment pair, or a judgment Claim that does not count);
+#: - pair without judgment: the part of the worklist whose judgment pair exists but holds no
 #:   judgment Claim. A Query sees no history, so this is what state shows, not a
 #:   count of withdrawals: a judgment withdrawn (the pair stays as history), or a
 #:   pair created before any judgment (say, linked to a fact with ``rests_on``). A
@@ -286,14 +290,17 @@ COVERED_PACKAGE_SPEC: dict[str, Any] = {
     "query": COVERED_PACKAGE,
     "description": "Every occurrence holding a scope of a component an agent judged "
     "not_affected at package level (a resolved justification): one row per inventory "
-    "holding it, KEV-listed first, then by EPSS score.",
+    "holding it, KEV-listed first, then by EPSS score. An occurrence whose own resolved "
+    "app-level verdict is affected is confirmed, not covered.",
     "from": {"e": EXPOSURE},
-    "where": _PACKAGE_NOT_AFFECTED,
+    # The more specific judgment wins: a confirmed app exposure stays confirmed.
+    "where": f"({_PACKAGE_NOT_AFFECTED}) and not ({_APP_AFFECTED})",
     "hops": [
         {"c": f"e.{EXPOSURE}.component!: {COMPONENT}"},
         {"v": f"e.{EXPOSURE}.vulnerability!: {VULN}"},
         {"o": f"{OCCURRENCE}{{component: c}}! with scope"},
         {"i": f"o.{OCCURRENCE}.inventory!: {INVENTORY}"},
+        {"ae": f"{APP_EXPOSURE}{{occurrence: o, vulnerability: v}}"},
     ],
     "row": f"{EXPOSURE_ROW}@1",
     "fields": list(_FIELDS),
@@ -327,8 +334,8 @@ CONTESTED_SPEC: dict[str, Any] = {
     "first, then by EPSS score.",
     "where": f"{_NOT_JUDGED} and ({_ANY_JUDGMENT})",
 }
-#: Each count and the Queries whose rows it is (``pair_without_judgment`` is part of
-#: ``new``).
+#: Each count and the Queries whose rows it is; ``new`` is the worklist less the
+#: pairs without a judgment, so no pair is counted twice.
 COUNT_QUERIES: dict[str, tuple[str, ...]] = {
     "covered": (COVERED_APP, COVERED_PACKAGE),
     "new": (URGENT,),
@@ -517,7 +524,9 @@ def exposure_counts(answer: Callable[[str], Any]) -> dict[str, int]:
 
     ``answer(name)`` is one named Query's answer, a ``cruxible query --name NAME
     --json`` page (or the SDK's): each count is the rows of its Queries
-    (``COUNT_QUERIES``), a page's ``rows`` plus its ``remaining``. A ``capped``
+    (``COUNT_QUERIES``), a page's ``rows`` plus its ``remaining``, and ``new`` is
+    the worklist less the pairs without a judgment: the four partition the
+    exposures, no pair in two of them. A ``capped``
     answer (its budget clipped the rows) is refused rather than under-counted:
     ask again with a larger budget.
     """
@@ -537,7 +546,10 @@ def exposure_counts(answer: Callable[[str], Any]) -> dict[str, int]:
             )
         return len(field("rows", ())) + int(field("remaining", 0) or 0)
 
-    return {label: sum(count(name) for name in names) for label, names in COUNT_QUERIES.items()}
+    counts = {label: sum(count(name) for name in names) for label, names in COUNT_QUERIES.items()}
+    # The pairs without a judgment are worklist rows: counted there, not as new.
+    counts["new"] -= counts["pair_without_judgment"]
+    return counts
 
 
 # -- Judgments: one write each ------------------------------------------------------------
