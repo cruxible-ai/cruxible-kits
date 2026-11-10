@@ -340,10 +340,11 @@ one finding with two reporters. What it checked is state too: a
   `cve` parameter through `web.fetch.pages`, at most 100 per page (FIRST's page
   size). A list extract declares no `complete_when`, so a page's own `/total` is
   not checked; the 100-id bound keeps every page whole, and a failed page makes
-  the run incomplete. **Open:** with nothing watched, `web.fetch.pages` declines
-  the empty `cve` list (`provider_declined`) before any request, so the EPSS run
-  is refused rather than a quiet no-op (the strict-xfail gate
-  `test_epss_with_nothing_watched_asks_nothing_and_writes_nothing`).
+  the run incomplete. With nothing watched, `web.fetch.pages` sends no request
+  and returns no Captures (providers `0343359`): the EPSS run succeeds, writes
+  nothing and is complete (`test_epss_with_nothing_watched_asks_nothing_and_writes_nothing`;
+  `security.start` on an inventory nothing affects:
+  `test_start_on_an_inventory_nothing_affects_completes_and_asks_epss_nothing`).
 - **The provider lock.** `security-osv-provider` has no committed `uv.lock`:
   `cruxible-provider-runtime` 0.4.0 is not on PyPI yet. The scratch instance
   locks it against the providers checkout and installs the runtime wheel as a

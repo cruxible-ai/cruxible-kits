@@ -16,16 +16,120 @@ import hashlib
 import json
 import shutil
 import subprocess
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import dependency_replay
 import template
-from test_pilot_gate import kit_world, submit
+from test_pilot_gate import (
+    Replay,
+    fixture_bytes,
+    kit,
+    kit_world,
+    submit,
+    workspace,
+    write_file,
+)
 
 
 def test_the_committed_template_is_the_generated_one() -> None:
     assert template.TEMPLATE.read_text() == template.render()
+
+
+#: Inside the template's Mandate window (valid from the day before ``DATED``).
+TEMPLATE_CLOCK = template.DATED + timedelta(hours=1)
+
+
+def adopted_world(tmp_path: Path, sbom: bytes) -> Any:
+    """The kit's definitions, the committed template adopted as written, and its
+    SBOM Line's file in the workspace."""
+
+    instance = kit_world(tmp_path, automation=False)
+    submit(
+        instance, json.loads(template.TEMPLATE.read_text()), name="automation-template"
+    )
+    write_file(tmp_path, template.SBOM[1], sbom)
+    return instance
+
+
+def run_runbook(instance: Any, replay: Replay, name: str, *, minutes: int = 0) -> Any:
+    """``cruxible runbook run NAME``: every step as the caller's manual Line run."""
+
+    from cruxible_core.documents.workspace_file import WorkspaceFileReader
+    from cruxible_core.service.runbooks import service_run_runbook
+    from tests.support.operation_world import actor
+    from tests.test_procedures.test_completeness_transfer import _Clock
+
+    at = TEMPLATE_CLOCK + timedelta(minutes=minutes)
+    replay.now = at
+    return service_run_runbook(
+        instance,
+        name=name,
+        actor_context=actor(),
+        caller_rung=3,
+        provider_runtime_operator=replay.operator(),
+        workspace_file_reader=WorkspaceFileReader(
+            instance_id=instance.descriptor.instance_id,
+            operating_profile="local",
+            attached_roots=(workspace(instance.root.parent),),
+            managed_roots=(instance.root,),
+        ),
+        daemon_clock=_Clock(at),
+    )
+
+
+def quiet_sbom() -> bytes:
+    """An inventory whose two components OSV reports nothing for."""
+
+    return json.dumps(
+        {
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.6",
+            "metadata": {
+                "component": {"name": "quiet", "purl": "pkg:generic/quiet-app@1"}
+            },
+            "components": [
+                {"type": "library", "name": name, "purl": f"pkg:pypi/{name}@1.0"}
+                for name in ("calm", "still")
+            ],
+        }
+    ).encode()
+
+
+def quiet_osv() -> Any:
+    batch = {"results": [{}, {}]}
+    return dependency_replay.RecordedOsv(
+        {"https://api.osv.dev/v1/querybatch": (200, json.dumps(batch).encode())}
+    )
+
+
+def step(result: Any, line: str) -> Any:
+    (found,) = [s for s in result.steps if s.target.line.target.name == line]
+    return found
+
+
+def test_start_on_an_inventory_nothing_affects_completes_and_asks_epss_nothing(
+    tmp_path: Path,
+) -> None:
+    """A fresh repository with no vulnerable dependency: ``security.start`` runs every
+    step to completion; OSV finds nothing, so nothing is watched, EPSS sends no
+    request and writes nothing, and its step is not flagged as needing attention."""
+
+    instance = adopted_world(tmp_path, quiet_sbom())
+    replay = Replay({kit.KEV_URL: fixture_bytes("kev-catalog")}, osv=quiet_osv())
+    result = run_runbook(instance, replay, template.START)
+    assert (result.status, result.stop_reason) == ("completed", None), result
+    assert [s.status for s in result.steps] == ["succeeded"] * len(template.START_LINES)
+    assert not any(url.startswith(kit.EPSS_API) for url in replay.requests), (
+        replay.requests
+    )
+    epss = step(result, kit.EPSS_LINE)
+    assert epss.counts is not None and epss.counts.complete, epss
+    assert (epss.counts.written, epss.counts.refused, epss.counts.inbox) == (0, 0, 0)
+    assert not epss.counts.needs_attention
+    # Nothing in the run needs attention: OSV answered in full, KEV read the catalog.
+    assert result.attention_steps == (), result.attention_steps
 
 
 def _inspected_package(root: Path, *, wheel_sha: str, lock_sha: str) -> Any:

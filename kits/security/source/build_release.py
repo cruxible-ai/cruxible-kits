@@ -33,6 +33,9 @@ SOURCE = Path(__file__).resolve().parent
 KIT = SOURCE.parent
 PROVIDERS = SOURCE / "providers"
 RELEASE = "1.3.0"  # Unpublished kit version; targets Cruxible 0.5.
+#: The reviewed cruxible-providers commit: the runtime wheel is built from it, and
+#: the vendored web source (``providers/cruxible-provider-web/src``) is its copy.
+PROVIDERS_COMMIT = "034335992cf7f4a312009cd17f3965b19d613fcc"
 PACKAGES = ("security-osv-provider", "cruxible-provider-web", "security-sarif-provider")
 #: The operations each bundled provider must install for the kit's Procedures.
 REQUIRED = {
@@ -203,8 +206,46 @@ class Session:
         return result
 
 
+def check_providers_checkout(checkout: Path) -> None:
+    """Refuse a providers checkout other than the recorded commit, or a vendored web
+    source that is not its copy."""
+    head = subprocess.run(
+        ["git", "-C", str(checkout), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    if head != PROVIDERS_COMMIT:
+        raise RuntimeError(
+            f"{checkout} is at {head}, not the recorded providers commit {PROVIDERS_COMMIT}"
+        )
+    dirty = subprocess.run(
+        ["git", "-C", str(checkout), "status", "--porcelain", "--", "packages"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    if dirty:
+        raise RuntimeError(f"{checkout} has uncommitted package changes:\n{dirty}")
+    upstream = checkout / "packages/cruxible-provider-web/src"
+    vendored = PROVIDERS / "cruxible-provider-web/src"
+
+    def files(root: Path) -> dict[str, bytes]:
+        return {
+            path.relative_to(root).as_posix(): path.read_bytes()
+            for path in root.rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts
+        }
+
+    if files(upstream) != files(vendored):
+        raise RuntimeError(
+            f"{vendored} is not a copy of {upstream} at {PROVIDERS_COMMIT}"
+        )
+
+
 def build_providers(root: Path, checkout: Path, env: dict[str, str]) -> list[Path]:
     """Build exact locked sources in scratch, never modifying the checkout."""
+    check_providers_checkout(checkout)
     root.mkdir()
     runtime = root / "cruxible-provider-runtime"
     shutil.copytree(

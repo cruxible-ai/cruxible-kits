@@ -24,8 +24,10 @@ Only scratch and this kit directory are written; the core and providers
 checkouts are read-only. `uv` and cached hatchling 1.32.1 are needed: wheels build
 with `uv build --offline`, and the three committed locks are checked, never
 re-resolved. The runtime wheel is built from the explicit providers checkout
-(version 0.4.0 for this release); select its reviewed commit. The web source
-vendored under `providers/cruxible-provider-web` is 0.5.0; OSV retains its own
+(version 0.4.0 for this release), which must be at the reviewed commit
+`build_release.PROVIDERS_COMMIT` records (`0343359`); the web source vendored
+under `providers/cruxible-provider-web` (0.5.0) must be that commit's
+`src/` byte for byte, and the build refuses otherwise. OSV retains its own
 0.1.0.dev0 identity, as does SARIF (`providers/security-sarif-provider`). Provider installation can fetch locked registry dependencies
 from PyPI. No manual pip install or development environment is created.
 

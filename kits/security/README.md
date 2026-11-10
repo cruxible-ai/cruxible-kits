@@ -177,6 +177,8 @@ An SBOM saying a package is present does not establish runtime reachability.
 EPSS asks FIRST for exactly the watched CVEs, at most 100 per request, so a CVE
 OSV adds is scored on the next EPSS run with no Line change. A request that
 fails leaves the run incomplete; a CVE FIRST has not scored gets no score.
+With nothing watched (a repository with no vulnerable dependency), EPSS sends no
+request and writes nothing, and the run completes cleanly.
 
 [source/README.md](source/README.md) describes the repeatable release build and
 gates. [examples/README.md](examples/README.md) describes the example inputs.

@@ -952,14 +952,9 @@ def test_epss_a_watched_cve_without_a_score_writes_nothing_for_it(tmp_path: Path
     assert not [f for f in state.findings if f.kind == "incomplete_source"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BLOCKED (kit-epss): web.fetch.pages declines an empty paged parameter "
-    "(provider_declined), so the EPSS run is node_refused; no template step can skip "
-    "the call (guard/halt are closed in authoring).",
-)
 def test_epss_with_nothing_watched_asks_nothing_and_writes_nothing(tmp_path: Path) -> None:
-    """An empty watch list: no request, nothing written, nothing needing attention."""
+    """An empty watch list: no request, nothing written, nothing needing attention
+    (web.fetch.pages with no values sends nothing and returns no Captures)."""
 
     instance = kit_world(tmp_path)
     before = instance.accepted_coordinate()
