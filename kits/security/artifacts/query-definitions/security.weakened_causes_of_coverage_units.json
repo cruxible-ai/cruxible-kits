@@ -1,0 +1,159 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Each security.coverage_unit judgment and a codebase fact of one repository it rests on that holds only partly or not at all: one row per (judgment, fact), the causes behind security.coverage_units_on_weakened_facts.",
+  "entry": {
+    "binding": "x",
+    "subject_kinds": [
+      "security.code_fact"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.weakened_causes_of_coverage_units"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "orderings": [
+    {
+      "key": {
+        "binding": "j",
+        "field": "subject_id",
+        "kind": "subject_field"
+      },
+      "value_type": "string"
+    },
+    {
+      "key": {
+        "binding": "x",
+        "kind": "claim_value",
+        "predicate": "security.code_fact.topic"
+      },
+      "value_type": "string"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "repo",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "fact",
+        "value": {
+          "binding": "x",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "holds",
+        "value": {
+          "binding": "x",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.holds"
+        }
+      },
+      {
+        "name": "judgment",
+        "value": {
+          "binding": "j",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "judgment_kind",
+        "value": {
+          "binding": "j",
+          "field": "subject_kind",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "topic",
+        "value": {
+          "binding": "x",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.topic"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:314e39591a57686d99c8ca1a21852291e65a909c3825e5f2ae130e3561b4b982",
+    "name": "security.resting-judgment",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "j",
+      "direction": "reverse",
+      "from_binding": "x",
+      "predicate": "security.coverage_unit.rests_on",
+      "target_subject_kinds": [
+        "security.coverage_unit"
+      ]
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "x",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.repo"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "repo"
+        },
+        "value_type": "string"
+      },
+      {
+        "kind": "membership",
+        "left": {
+          "binding": "x",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.holds"
+        },
+        "value_type": "string",
+        "values": [
+          {
+            "kind": "literal",
+            "value": "no"
+          },
+          {
+            "kind": "literal",
+            "value": "partly"
+          }
+        ]
+      }
+    ],
+    "kind": "all_of"
+  }
+}

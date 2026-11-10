@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "The exposures nobody has judged whose judgment pair exists but holds no judgment: a judgment was withdrawn and the occurrence is back in the worklists. A judgment whose cited code changed still stands: next lists it.",
+  "description": "The exposures nobody has judged whose judgment pair exists but holds no judgment Claim: a judgment was withdrawn (the pair stays as history), or the pair was created before any judgment (for instance linked to a codebase fact with rests_on). A Query sees no history, so it cannot tell the two apart. A judgment whose cited code changed still stands: next lists it.",
   "entry": {
     "binding": "v",
     "subject_kinds": [
@@ -25,7 +25,7 @@
   },
   "identity": {
     "kind": "QueryDefinition",
-    "name": "security.came_back_exposures"
+    "name": "security.pair_without_judgment_exposures"
   },
   "maximum_budgets": {
     "max_paths": 20000,

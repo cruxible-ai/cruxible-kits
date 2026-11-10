@@ -1,13 +1,11 @@
 {
   "artifact_format": "cruxible-query-definition-v3",
-  "dedupe": "path",
+  "dedupe": "subject",
   "default_budgets": {
-    "max_paths": 20000,
-    "max_paths_per_result": 100,
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "The security.app_exposure judgments resting on a codebase fact of one repository that holds only partly or not at all.",
+  "description": "Each security.app_exposure judgment resting on at least one codebase fact of one repository that holds only partly or not at all, once however many: read it again. The facts behind each are in security.weakened_causes_of_app_exposures.",
   "entry": {
     "binding": "x",
     "subject_kinds": [
@@ -28,29 +26,9 @@
     "name": "security.app_exposures_on_weakened_facts"
   },
   "maximum_budgets": {
-    "max_paths": 20000,
-    "max_paths_per_result": 1000,
     "max_results": 2000,
     "max_traversal_depth": 10
   },
-  "orderings": [
-    {
-      "key": {
-        "binding": "x",
-        "kind": "claim_value",
-        "predicate": "security.code_fact.topic"
-      },
-      "value_type": "string"
-    },
-    {
-      "key": {
-        "binding": "j",
-        "field": "subject_id",
-        "kind": "subject_field"
-      },
-      "value_type": "string"
-    }
-  ],
   "parameters": [
     {
       "name": "repo",
@@ -59,22 +37,6 @@
   ],
   "projection": {
     "fields": [
-      {
-        "name": "fact",
-        "value": {
-          "binding": "x",
-          "field": "subject_id",
-          "kind": "subject_field"
-        }
-      },
-      {
-        "name": "holds",
-        "value": {
-          "binding": "x",
-          "kind": "claim_value",
-          "predicate": "security.code_fact.holds"
-        }
-      },
       {
         "name": "judgment",
         "value": {
@@ -90,21 +52,14 @@
           "field": "subject_kind",
           "kind": "subject_field"
         }
-      },
-      {
-        "name": "topic",
-        "value": {
-          "binding": "x",
-          "kind": "claim_value",
-          "predicate": "security.code_fact.topic"
-        }
       }
     ]
   },
-  "result_shape": "path",
+  "result_binding": "j",
+  "result_shape": "subject",
   "row_contract": {
-    "digest": "sha256:314e39591a57686d99c8ca1a21852291e65a909c3825e5f2ae130e3561b4b982",
-    "name": "security.resting-judgment",
+    "digest": "sha256:e0dd05ea330425ad0433858152af5c25878b13f989378e7859b4b1bd3f89a532",
+    "name": "security.weakened-dependent",
     "version": 1
   },
   "traversal": [

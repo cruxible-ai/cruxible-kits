@@ -113,6 +113,7 @@ When a fact's cited code changes, `next` lists its `holds` as `citation_drifted`
 not act on `rests_on`: the judgments resting on that fact do not come back with it. Look
 them up with `security.findings_resting_on`, `security.coverage_units_resting_on` and
 `security.app_exposures_resting_on` (`--param fact=security.code_fact/<id>`), and after
-setting `holds` to `partly` or `no`, with the repository's `*_on_weakened_facts` Queries. A
+setting `holds` to `partly` or `no`, with the repository's `*_on_weakened_facts` Queries
+(each judgment once; `security.weakened_causes_of_*` says which facts). A
 judgment that cites the fact's code passage itself also comes back on its own when that
 passage changes.

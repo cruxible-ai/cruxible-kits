@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "Every occurrence holding a scope of a component an agent judged not_affected at package level (a resolved justification): one row per inventory holding it, KEV-listed first, then by EPSS score.",
+  "description": "Every occurrence holding a scope of a component an agent judged not_affected at package level (a resolved justification): one row per inventory holding it, KEV-listed first, then by EPSS score. An occurrence whose own resolved app-level verdict is affected is confirmed, not covered.",
   "entry": {
     "binding": "e",
     "subject_kinds": [
@@ -181,21 +181,69 @@
       "target_subject_kinds": [
         "security.inventory"
       ]
+    },
+    {
+      "binding": "ae",
+      "parts": [
+        {
+          "binding": "o",
+          "part": "security.app_exposure.occurrence"
+        },
+        {
+          "binding": "v",
+          "part": "security.app_exposure.vulnerability"
+        }
+      ],
+      "required": false,
+      "subject_kind": "security.app_exposure"
     }
   ],
   "where": {
-    "kind": "membership",
-    "left": {
-      "binding": "e",
-      "kind": "claim_value",
-      "predicate": "security.exposure.justification"
-    },
-    "value_type": "string",
-    "values": [
+    "filters": [
       {
-        "kind": "literal",
-        "value": "vulnerable_code_not_present"
+        "kind": "membership",
+        "left": {
+          "binding": "e",
+          "kind": "claim_value",
+          "predicate": "security.exposure.justification"
+        },
+        "value_type": "string",
+        "values": [
+          {
+            "kind": "literal",
+            "value": "vulnerable_code_not_present"
+          }
+        ]
+      },
+      {
+        "kind": "not",
+        "operand": {
+          "filters": [
+            {
+              "binding": "ae",
+              "kind": "claim_presence",
+              "negated": true,
+              "predicate": "security.app_exposure.justification"
+            },
+            {
+              "kind": "comparison",
+              "left": {
+                "binding": "ae",
+                "kind": "claim_value",
+                "predicate": "security.app_exposure.verdict"
+              },
+              "operator": "eq",
+              "right": {
+                "kind": "literal",
+                "value": "affected"
+              },
+              "value_type": "string"
+            }
+          ],
+          "kind": "all_of"
+        }
       }
-    ]
+    ],
+    "kind": "all_of"
   }
 }

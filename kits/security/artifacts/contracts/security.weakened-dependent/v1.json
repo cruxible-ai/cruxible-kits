@@ -1,0 +1,18 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One judgment resting on at least one weakened codebase fact: its Subject (kind and id).",
+  "fields": {
+    "judgment": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "judgment_kind": {
+      "type": {
+        "kind": "string"
+      }
+    }
+  },
+  "name": "security.weakened-dependent",
+  "version": 1
+}
