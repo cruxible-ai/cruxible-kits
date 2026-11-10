@@ -1,0 +1,32 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "One thing true of a repository's code that security judgments rest on.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.code_fact"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "security.code_fact.repo",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "security.code_fact.topic",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

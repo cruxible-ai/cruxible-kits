@@ -1,6 +1,6 @@
 # Keeping audit coverage
 
-Guides: security.coverage_unit.status.
+Guides: security.coverage_unit.status, security.coverage_unit.rests_on.
 Adapted from cloudflare/security-audit-skill (MIT).
 
 Coverage says what was checked, against which code, and with what result, so "nothing
@@ -30,7 +30,9 @@ agent count or "auth reviewed" is not.
 A unit with findings is `checked` and its findings link to it with `found_in`. Cite the
 passage, not the file: drift is detected on the cited bytes, so a change elsewhere in the
 file doesn't reopen the unit. Re-checking a unit revises its status; the earlier one stays
-in history.
+in history. A status that rests on a codebase fact (the middleware every route passes
+through) links it with `rests_on`; when that fact changes, `security.coverage_units_resting_on`
+lists the units to check again.
 
 ## Breadth and partial passes
 

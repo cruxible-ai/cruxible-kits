@@ -1,0 +1,32 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One codebase fact: its Subject id, topic, category and whether it holds.",
+  "fields": {
+    "category": {
+      "optional": true,
+      "type": {
+        "claim_type": "security.code_fact.category",
+        "kind": "enum_of"
+      }
+    },
+    "fact": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "holds": {
+      "optional": true,
+      "type": {
+        "claim_type": "security.code_fact.holds",
+        "kind": "enum_of"
+      }
+    },
+    "topic": {
+      "type": {
+        "kind": "string"
+      }
+    }
+  },
+  "name": "security.code-fact-row",
+  "version": 1
+}

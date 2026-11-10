@@ -1,0 +1,104 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 1
+  },
+  "description": "The codebase facts of one repository: topic, category and whether each holds. Read them before re-deriving how the code does something.",
+  "entry": {
+    "binding": "f",
+    "subject_kinds": [
+      "security.code_fact"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.code_facts"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 1
+  },
+  "orderings": [
+    {
+      "key": {
+        "binding": "f",
+        "kind": "claim_value",
+        "predicate": "security.code_fact.topic"
+      },
+      "value_type": "string"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "repo",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "category",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.category"
+        }
+      },
+      {
+        "name": "fact",
+        "value": {
+          "binding": "f",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "holds",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.holds"
+        }
+      },
+      {
+        "name": "topic",
+        "value": {
+          "binding": "f",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.topic"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "row_contract": {
+    "digest": "sha256:2611a7cdefe9b073ac149755e1f0a3b95b47e55110b0f8ff04f3074fb4966b50",
+    "name": "security.code-fact-row",
+    "version": 1
+  },
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "f",
+      "kind": "claim_value",
+      "predicate": "security.code_fact.repo"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "parameter",
+      "parameter": "repo"
+    },
+    "value_type": "string"
+  }
+}

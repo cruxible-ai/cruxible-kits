@@ -2,7 +2,7 @@
   "authority": {
     "required_tier": "governed_write"
   },
-  "body_digest": "sha256:083eff1fa65fcf841f6d4877230ba502b5da4e1d25b1939ed85198b6a1d91c1d",
+  "body_digest": "sha256:cee16c0257d3cb0a7fb8d802fca535b4750be33d9e2cc7f78eab1b0097905c43",
   "document_kind": "security.guidance",
   "format_version": 1,
   "governance_scope": [
@@ -18,6 +18,18 @@
   "links": [
     {
       "relation": "guides",
+      "target_identity": "ClaimType:security.code_fact.category"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.code_fact.holds"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.coverage_unit.rests_on"
+    },
+    {
+      "relation": "guides",
       "target_identity": "ClaimType:security.coverage_unit.status"
     },
     {
@@ -31,6 +43,10 @@
     {
       "relation": "guides",
       "target_identity": "ClaimType:security.finding.reported_by"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.rests_on"
     },
     {
       "relation": "guides",

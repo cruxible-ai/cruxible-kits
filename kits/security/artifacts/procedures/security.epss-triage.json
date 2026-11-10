@@ -162,12 +162,12 @@
       "fetch": {
         "effect": "external_read",
         "in": {
-          "digest": "sha256:68c6a684728cf19b150fd9c04e5e1aea22d2f7821b731480bcfc126b706f45a0",
+          "digest": "sha256:4ef9ca61bfce39d44bcb2ac0a63c98dd05a33e23c015647ebc999f1003a9f535",
           "name": "web.fetch.pages.request",
           "version": 1
         },
         "out": {
-          "digest": "sha256:2f2f11073ba56e5c11b0db62a01d1979f4a288a7a5835ed5958964ca1590e4c1",
+          "digest": "sha256:106bc80e150787fdcd299bdb17ff777e3bd2b3ca100c729de9dd2ae6fbe97db9",
           "name": "web.fetch.pages.result",
           "version": 1
         }
@@ -175,7 +175,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:d90df939301f5e38896a5db3441dd6cda8efeae0d7eef30e3eba673b1826f7e1",
+  "definition_digest": "sha256:d4b5e7026890d73e48123f67c520b31f43b69ed4c2470feeae47066a9e1a31c6",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"

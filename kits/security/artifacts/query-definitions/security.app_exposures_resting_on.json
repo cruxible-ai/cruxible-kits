@@ -1,0 +1,117 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "The security.app_exposure judgments resting on one codebase fact (rests_on): read them again when the fact changes or stops holding.",
+  "entry": {
+    "binding": "x",
+    "subject_id": {
+      "kind": "parameter",
+      "parameter": "fact"
+    },
+    "subject_kinds": [
+      "security.code_fact"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.app_exposures_resting_on"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "orderings": [
+    {
+      "key": {
+        "binding": "j",
+        "field": "subject_id",
+        "kind": "subject_field"
+      },
+      "value_type": "string"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "fact",
+      "value_type": "subject_reference"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "fact",
+        "value": {
+          "binding": "x",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "holds",
+        "value": {
+          "binding": "x",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.holds"
+        }
+      },
+      {
+        "name": "judgment",
+        "value": {
+          "binding": "j",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "judgment_kind",
+        "value": {
+          "binding": "j",
+          "field": "subject_kind",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "topic",
+        "value": {
+          "binding": "x",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.topic"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:314e39591a57686d99c8ca1a21852291e65a909c3825e5f2ae130e3561b4b982",
+    "name": "security.resting-judgment",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "j",
+      "direction": "reverse",
+      "from_binding": "x",
+      "predicate": "security.app_exposure.rests_on",
+      "target_subject_kinds": [
+        "security.app_exposure"
+      ]
+    }
+  ]
+}

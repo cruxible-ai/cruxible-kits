@@ -1,0 +1,77 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
+  "definition": {
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.exposure-attention.unjudged.input/v1"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.exposure-attention.unjudged.output/v1"
+      }
+    },
+    "description": "Post one Line inbox item per unjudged urgent exposure (security.unjudged_exposures), KEV-listed first, then by EPSS score.",
+    "hard_caps": {
+      "max_capture_bytes": 0,
+      "max_items": 20000,
+      "max_provider_calls": 0,
+      "max_read_rows": 50000,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000
+      }
+    },
+    "name": "security.exposure-attention.unjudged",
+    "nodes": [
+      {
+        "fields": {},
+        "id": "summary",
+        "kind": "project"
+      },
+      {
+        "id": "pairs",
+        "kind": "read",
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.unjudged_exposures"
+          }
+        }
+      },
+      {
+        "contract": {
+          "digest": "sha256:2e684d1f4a1edd21dbcac32a1008ee50cd9093a1f5251d5a33b40a1f4f1b0930",
+          "name": "security.exposure-attention",
+          "version": 1
+        },
+        "dedupe_key": [
+          "occurrence",
+          "cve_id",
+          "state"
+        ],
+        "fields": {
+          "component": "$item.component",
+          "cve_id": "$item.cve_id",
+          "inventory": "$item.inventory",
+          "occurrence": "$item.occurrence",
+          "state": "unjudged"
+        },
+        "for_each": "$steps.pairs.rows",
+        "id": "post",
+        "kind": "post_inbox",
+        "max_items": 100
+      }
+    ],
+    "returns": "summary",
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:bab42975ae6181d75cf9d18e9d41d3cb2ce941a7e65ab7cdfb1a88fc285a3713",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.exposure-attention.unjudged"
+  }
+}

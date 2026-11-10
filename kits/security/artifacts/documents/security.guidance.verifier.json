@@ -2,7 +2,7 @@
   "authority": {
     "required_tier": "governed_write"
   },
-  "body_digest": "sha256:fa9ee23597eeefbe9c3009b8822bc598a00bf13a4307660d80d17a292d8ffbc7",
+  "body_digest": "sha256:1518c135f8263a1e4c5c06b30b55c988af298697773bd31c1380ed60b374694e",
   "document_kind": "security.guidance",
   "format_version": 1,
   "governance_scope": [
@@ -18,11 +18,23 @@
   "links": [
     {
       "relation": "guides",
+      "target_identity": "ClaimType:security.code_fact.category"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.code_fact.holds"
+    },
+    {
+      "relation": "guides",
       "target_identity": "ClaimType:security.finding.fixed_by"
     },
     {
       "relation": "guides",
       "target_identity": "ClaimType:security.finding.justification"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.rests_on"
     },
     {
       "relation": "guides",
