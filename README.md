@@ -19,6 +19,8 @@ cruxible kit status
 
 `kit add` only proposes; approve and activate like any other change.
 
+Supported: Linux x86-64 and macOS on Apple silicon; on Windows, use WSL2.
+
 ## Making a release
 
 1. In an instance that holds the definitions, export them:
