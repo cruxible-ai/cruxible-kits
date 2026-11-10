@@ -726,14 +726,25 @@ def _end_of_day(value: date) -> datetime:
 HOLD_DAYS = 14
 
 
+def _utc(value: datetime) -> datetime:
+    """An instant in UTC (a naive one is read as UTC).
+
+    Adding a timedelta to an aware datetime in a zone with daylight saving adds
+    wall-clock time, so 14 days across a clock change would be 337 or 335 hours.
+    """
+
+    return value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC)
+
+
 def hold_until(*, now: datetime, kev_due_date: date | None = None) -> datetime:
-    """When the longest hold allowed ``now`` ends: 14 days from ``now``, or the end
-    of the KEV due date if that is sooner and still in the future.
+    """When the longest hold allowed ``now`` ends, in UTC: 14 days (336 hours) from
+    ``now``, or the end of the KEV due date if that is sooner and still ahead.
 
     A KEV due date already past neither shortens nor cancels the hold (most KEV
     entries are past due), so it is held for 14 days like a pair with no KEV entry.
     """
 
+    now = _utc(now)
     cap = now + timedelta(days=HOLD_DAYS)
     if kev_due_date is not None:
         due = _end_of_day(kev_due_date)
@@ -764,10 +775,10 @@ def investigation(
     is refused (ValueError).
     """
 
-    now = now or datetime.now(UTC)
+    now = _utc(now or datetime.now(UTC))
     valid_until = hold_until(now=now, kev_due_date=kev_due_date)
     if until is not None:
-        valid_until = min(valid_until, until if until.tzinfo else until.replace(tzinfo=UTC))
+        valid_until = min(valid_until, _utc(until))
     if valid_until <= now:
         raise ValueError(f"the hold would end at {valid_until.isoformat()}, already past")
     return {

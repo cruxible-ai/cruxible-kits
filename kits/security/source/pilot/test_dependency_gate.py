@@ -1191,6 +1191,31 @@ def test_a_pair_under_investigation_stays_in_the_backlog_until_the_kev_due_date(
         triage.investigation(claim, because="x", until=NOW - timedelta(minutes=1), now=NOW)
 
 
+@pytest.mark.parametrize(
+    "local",
+    ["2026-10-25T12:00", "2027-03-07T12:00", "2026-07-01T12:00"],
+    ids=["autumn-dst", "spring-dst", "no-change"],
+)
+def test_a_hold_is_336_hours_across_a_daylight_saving_change(local: str) -> None:
+    """14 days are 336 elapsed hours whatever zone now is given in: America/New_York
+    leaves DST on 2026-11-01 and enters it on 2027-03-14."""
+
+    from datetime import UTC, datetime
+    from zoneinfo import ZoneInfo
+
+    now = datetime.fromisoformat(local).replace(tzinfo=ZoneInfo("America/New_York"))
+    cap = triage.hold_until(now=now)
+    assert cap.tzinfo == UTC
+    assert cap - now.astimezone(UTC) == timedelta(hours=336)
+    held = triage.investigation("CLM-x", because="checking", now=now)["valid_until"]
+    assert held == cap
+    # A sooner until in another zone is compared as an instant.
+    until = now + timedelta(days=2)
+    assert triage.investigation("CLM-x", because="x", until=until, now=now)[
+        "valid_until"
+    ] == until.astimezone(UTC)
+
+
 def test_a_past_due_kev_pair_is_held_for_14_days(tmp_path: Path) -> None:
     """A KEV due date already past neither shortens nor cancels the hold: the real
     attestation lands with a 14-day valid_until and marks the row until then."""
