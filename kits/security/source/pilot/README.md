@@ -202,7 +202,8 @@ stays in the worklists until an agent judges it. Each judgment is ONE
   `--unsure` on OSV's `affected_by` Claim, with the reason (`--because` or a
   cited section) and `--valid-until` at most 14 days ahead, or the end of the
   KEV due date if that is sooner and still in the future (`triage.hold_until()`;
-  a due date already past neither shortens nor cancels the hold). The pair
+  a due date already past neither shortens nor cancels the hold; read the
+  `affected_by` Claim and the due date at one coordinate, `--at`). The pair
   stays in the worklists and the KEV backlog; `triage.under_investigation()`
   over that one Claim's `get --detail evidence` attestations marks it.
 
@@ -253,8 +254,14 @@ judgment (`security.pair_without_judgment_exposures` lists such pairs)
 
 **Exposure counts.** The Query engine has no count or union form, so each
 number is the rows of named Queries (`triage.COUNT_QUERIES`), and
-`triage.exposure_counts(answer)` sums them from the served answers (a page's
-rows plus `remaining`; a capped answer refuses rather than under-counts):
+`triage.exposure_counts(answer, at=None)` sums them from the served answers (a
+page's rows plus `remaining`; a capped answer refuses rather than under-counts).
+`answer(name, at)` is `cruxible query --name NAME --at OID --json`: the first
+read fixes the accepted coordinate and every later read is pinned to it, and an
+answer whose receipt names another coordinate refuses `MixedCoordinates` (retry)
+rather than combining two heads. It returns an `ExposureCounts` with the
+coordinate (`at`) the four were read at
+(`test_exposure_counts_read_every_query_at_one_coordinate`):
 covered = `covered_app_exposures` + `covered_package_exposures` (they never
 share a row), confirmed = `confirmed_exposures`, pair without judgment =
 `pair_without_judgment_exposures`, and new = `urgent_exposures` less the pairs
@@ -410,7 +417,8 @@ notes document a Claim cites.
   `holds` is `no` or `partly` (a contested `holds` is no resolved value), once:
   Subject-shaped with the judgment as the result binding, so Subject dedupe keys
   on it. The three `security.weakened_causes_of_*` Queries list the (judgment,
-  fact) pairs behind them. `security.code_facts`
+  fact) pairs behind them; to pair a view with its causes, read the second with
+  `--at` set to the first answer's receipt coordinate. `security.code_facts`
   lists one repository's facts. The reads cost the same beside 10 or 40
   unrelated components and other repositories' facts
   (`test_fact_reads_are_flat_in_unrelated_inventories_and_repositories`).

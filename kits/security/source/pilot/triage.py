@@ -73,6 +73,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Literal
 
@@ -518,38 +519,89 @@ def attention_automation() -> list[dict[str, Any]]:
     ]
 
 
-def exposure_counts(answer: Callable[[str], Any]) -> dict[str, int]:
-    """How many exposures are covered, new, confirmed, and on the worklist with a
-    judgment pair but no judgment on it.
+class MixedCoordinates(ValueError):
+    """Two answers of one count came from different accepted coordinates (the head
+    moved between reads and the read was not pinned): nothing is combined; retry."""
 
-    ``answer(name)`` is one named Query's answer, a ``cruxible query --name NAME
-    --json`` page (or the SDK's): each count is the rows of its Queries
-    (``COUNT_QUERIES``), a page's ``rows`` plus its ``remaining``, and ``new`` is
-    the worklist less the pairs without a judgment: the four partition the
-    exposures, no pair in two of them. A ``capped``
-    answer (its budget clipped the rows) is refused rather than under-counted:
-    ask again with a larger budget.
+    code = "security.counts.mixed_coordinates"
+
+
+@dataclass(frozen=True)
+class ExposureCounts:
+    """The four exposure counts, every one read at the accepted coordinate ``at``."""
+
+    covered: int
+    new: int
+    confirmed: int
+    pair_without_judgment: int
+    #: The git oid of the one accepted coordinate every count was read at.
+    at: str
+
+    def as_dict(self) -> dict[str, int]:
+        return {
+            "covered": self.covered,
+            "new": self.new,
+            "confirmed": self.confirmed,
+            "pair_without_judgment": self.pair_without_judgment,
+        }
+
+
+def exposure_counts(
+    answer: Callable[[str, str | None], Any], *, at: str | None = None
+) -> ExposureCounts:
+    """How many exposures are covered, new, confirmed, and on the worklist with a
+    judgment pair but no judgment on it, all at one accepted coordinate.
+
+    ``answer(name, at)`` is one named Query's answer at accepted coordinate ``at``
+    (a git oid, or a unique prefix; ``None`` is the current head): a ``cruxible
+    query --name NAME --at OID --json`` page, or the SDK's. The first read fixes
+    the coordinate (``at`` when given) and every later read is pinned to it, and
+    each answer's receipt coordinate is checked: an answer from another
+    coordinate refuses (:class:`MixedCoordinates`) rather than combining two
+    heads. Each count is the rows of its Queries (``COUNT_QUERIES``), a page's
+    ``rows`` plus its ``remaining``, and ``new`` is the worklist less the pairs
+    without a judgment: the four partition the exposures, no pair in two of
+    them. A ``capped`` answer (its budget clipped the rows) is refused rather
+    than under-counted: ask again with a larger budget.
     """
 
+    pinned = at
+
+    def field(page: Any, key: str, default: Any) -> Any:
+        if isinstance(page, Mapping):
+            return page.get(key, default)
+        return getattr(page, key, default)
+
     def count(name: str) -> int:
-        page = answer(name)
-
-        def field(key: str, default: Any) -> Any:
-            if isinstance(page, Mapping):
-                return page.get(key, default)
-            return getattr(page, key, default)
-
-        capped = field("capped", ())
+        nonlocal pinned
+        page = answer(name, pinned)
+        coordinate = field(field(page, "receipt", None), "coordinate", None)
+        oid = field(coordinate, "git_oid", None)
+        if not isinstance(oid, str):
+            raise MixedCoordinates(f"{name}'s answer names no accepted coordinate to check")
+        if pinned is not None and not oid.startswith(pinned):
+            raise MixedCoordinates(
+                f"{name} was answered at {oid}, not at {pinned}: the head moved between "
+                "reads; ask again (pin every read to one coordinate)"
+            )
+        pinned = oid
+        capped = field(page, "capped", ())
         if capped:
             raise ValueError(
                 f"{name} is capped ({', '.join(capped)}): its rows are not all counted"
             )
-        return len(field("rows", ())) + int(field("remaining", 0) or 0)
+        return len(field(page, "rows", ())) + int(field(page, "remaining", 0) or 0)
 
     counts = {label: sum(count(name) for name in names) for label, names in COUNT_QUERIES.items()}
-    # The pairs without a judgment are worklist rows: counted there, not as new.
-    counts["new"] -= counts["pair_without_judgment"]
-    return counts
+    assert pinned is not None
+    return ExposureCounts(
+        covered=counts["covered"],
+        # The pairs without a judgment are worklist rows: counted there, not as new.
+        new=counts["new"] - counts["pair_without_judgment"],
+        confirmed=counts["confirmed"],
+        pair_without_judgment=counts["pair_without_judgment"],
+        at=pinned,
+    )
 
 
 # -- Judgments: one write each ------------------------------------------------------------
@@ -783,7 +835,9 @@ def investigation(
 ) -> dict[str, Any]:
     """The ``claim attest --unsure`` of a pair under investigation.
 
-    ``claim`` is OSV's ``affected_by`` Claim of the pair. The hold lasts until
+    ``claim`` is OSV's ``affected_by`` Claim of the pair; read it and
+    ``kev_due_date`` at one accepted coordinate (``--at``), so the cap is that
+    head's due date. The hold lasts until
     :func:`hold_until` (at most 14 days, or the end of a KEV due date still
     ahead, whichever is sooner), or until ``until`` when that is sooner. The
     reason is ``because`` (or cite a section instead). The pair stays in the

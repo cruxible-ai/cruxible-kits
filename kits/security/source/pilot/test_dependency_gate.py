@@ -1280,15 +1280,24 @@ def test_a_hold_lasts_at_most_14_days_or_until_a_sooner_kev_due_date(
 # -- exposure counts ----------------------------------------------------------------
 
 
-def counts(instance: Any) -> dict[str, int]:
-    """``triage.exposure_counts`` over the served named-query answers."""
+def answer(instance: Any) -> Any:
+    """``cruxible query --name NAME [--at OID] --json``, served."""
 
     from cruxible_client.contracts.compact_query import QueryRequest
     from cruxible_core.service.discovery.compact_query import service_playbill_query
 
-    return triage.exposure_counts(
-        lambda name: service_playbill_query(instance, request=QueryRequest(name=name, limit=500))
-    )
+    def read(name: str, at: str | None) -> Any:
+        return service_playbill_query(instance, request=QueryRequest(name=name, limit=500, at=at))
+
+    return read
+
+
+def counts(instance: Any) -> dict[str, int]:
+    """``triage.exposure_counts`` over the served named-query answers, at one head."""
+
+    counted = triage.exposure_counts(answer(instance))
+    assert counted.at == instance.accepted_coordinate().git_oid
+    return counted.as_dict()
 
 
 def test_exposure_counts_say_covered_new_confirmed_and_pair_without_judgment(
@@ -1370,10 +1379,58 @@ def test_exposure_counts_say_covered_new_confirmed_and_pair_without_judgment(
     assert linked.status == "accepted", linked
     assert counts(instance) == {"covered": 2, "new": 13, "confirmed": 1, "pair_without_judgment": 2}
     # A capped answer is refused rather than under-counted.
+    capped = {"oid": "a" * 40}
     with pytest.raises(ValueError, match="capped"):
         triage.exposure_counts(
-            lambda name: {"rows": [], "remaining": 0, "capped": ("max_results=200",)}
+            lambda name, at: {
+                "rows": [],
+                "remaining": 0,
+                "capped": ("max_results=200",),
+                "receipt": {"coordinate": {"git_oid": capped["oid"]}},
+            }
         )
+
+
+def test_exposure_counts_read_every_query_at_one_coordinate(tmp_path: Path) -> None:
+    """A judgment withdrawn between two of the reads: pinned reads still answer at
+    the first read's coordinate, so the counts are that head's (never covered 9 /
+    new -1); a surface that ignores the pin is refused, never combined."""
+
+    instance = world(tmp_path)
+    run_osv(instance)
+    pair = app_judge(instance, DEMO_APP, CORE, LOG4SHELL).changes[0].subject
+    before = counts(instance)
+    assert before == {"covered": 1, "new": 8, "confirmed": 0, "pair_without_judgment": 0}
+    head = instance.accepted_coordinate().git_oid
+    served = answer(instance)
+
+    def withdraw() -> None:
+        reverse = triage.reverse_judgment(
+            justification_claim(instance, pair), because="Withdrawn.", accept="if_allowed"
+        )
+        assert write(instance, reverse).status == "accepted"
+
+    def moving(pinned: bool) -> Any:
+        seen: list[str] = []
+
+        def read(name: str, at: str | None) -> Any:
+            if name == triage.PAIR_WITHOUT_JUDGMENT and not seen:
+                seen.append(name)
+                withdraw()  # the head moves between urgent_exposures and this read
+            return served(name, at if pinned else None)
+
+        return read
+
+    counted = triage.exposure_counts(moving(pinned=True))
+    assert (counted.as_dict(), counted.at) == (before, head)
+    after = counts(instance)
+    assert after == {"covered": 0, "new": 8, "confirmed": 0, "pair_without_judgment": 1}
+    # The head moves again under a surface that ignores the pin: refused.
+    pair = app_judge(instance, DEMO_APP, CORE, LOG4SHELL).changes[0].subject
+    with pytest.raises(triage.MixedCoordinates):
+        triage.exposure_counts(moving(pinned=False))
+    # An explicit coordinate reads the past head whole.
+    assert triage.exposure_counts(served, at=head[:12]).as_dict() == before
 
 
 #: The package x app matrix: (CVE on log4j-core, package state, demo app state,
