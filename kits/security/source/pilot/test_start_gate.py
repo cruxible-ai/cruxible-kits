@@ -894,7 +894,7 @@ def test_urgent_pairs_reach_the_inbox_once_and_decisions_stand(
     decided (their sightings count up); a judged pair (not_affected or affected) is
     never posted again; and a linked pair whose judgment is later withdrawn is the
     same item re-sighted: it stays linked, so it does not come back through the
-    inbox (security.came_back_exposures lists it)."""
+    inbox (security.pair_without_judgment_exposures lists it)."""
 
     from test_dependency_gate import (
         API,
@@ -975,7 +975,9 @@ def test_urgent_pairs_reach_the_inbox_once_and_decisions_stand(
     withdrawn = item_of(back, LOG4SHELL)
     assert (withdrawn.status, withdrawn.occurrences) == ("linked", 3), withdrawn
     assert withdrawn.recurred_since_disposition >= 1
-    assert {r["cve_id"] for r in query_rows(instance, triage.CAME_BACK)} == {LOG4SHELL}
+    assert {
+        r["cve_id"] for r in query_rows(instance, triage.PAIR_WITHOUT_JUDGMENT)
+    } == {LOG4SHELL}
 
 
 def test_a_newly_urgent_or_contested_pair_posts_exactly_one_new_item(

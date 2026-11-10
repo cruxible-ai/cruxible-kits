@@ -229,7 +229,7 @@ creates a judgment pair.
 | `security.watched_vulnerabilities` | One per vulnerability some inventoried component is affected by (K-B1-2); a package-level judgment drops it, an app-level one does not (a Subject-shaped query takes no optional hop) |
 | `security.covered_app_exposures` | One per occurrence OSV still lists V for whose app-level not_affected judgment is resolved |
 | `security.covered_package_exposures` | One per occurrence holding a scope of a component whose package-level judgment is resolved (every inventory holding it) |
-| `security.came_back_exposures` | The worklist rows whose judgment pair exists but holds no judgment Claim: a judgment withdrawn (the pair stays as history) |
+| `security.pair_without_judgment_exposures` | The worklist rows whose judgment pair exists but holds no judgment Claim: a judgment withdrawn (the pair stays as history), or a pair created before any judgment (e.g. linked with `rests_on`); a Query sees no history, so it cannot tell which |
 | `security.unjudged_exposures`, `security.contested_exposures` | The worklist split by why a pair is there: no judgment Claim at all, or one that does not count; what the attention Lines post |
 
 **The inbox** (`triage.attention_spec`). Two observe-only Lines, the last steps of
@@ -246,7 +246,7 @@ the same state is one item re-sighted, a contested judgment a new one. Each run
 posts at most 100 (declared `max_items`), the first rows in worklist order (KEV
 first, then EPSS), and past that reports `inbox_truncation`. A decided item stays
 decided when its pair comes back in the same state, as after a withdrawn
-judgment (`security.came_back_exposures` lists those)
+judgment (`security.pair_without_judgment_exposures` lists such pairs)
 (`test_urgent_pairs_reach_the_inbox_once_and_decisions_stand`,
 `test_a_newly_urgent_or_contested_pair_posts_exactly_one_new_item`,
 `test_an_attention_run_posts_at_most_100_items_most_urgent_first`).
@@ -256,10 +256,13 @@ number is the rows of named Queries (`triage.COUNT_QUERIES`), and
 `triage.exposure_counts(answer)` sums them from the served answers (a page's
 rows plus `remaining`; a capped answer refuses rather than under-counts):
 covered = `covered_app_exposures` + `covered_package_exposures` (they never
-share a row), new = `urgent_exposures`, confirmed = `confirmed_exposures`, came
-back = `came_back_exposures` (part of new). A judgment whose cited code changed
-still stands: it is `next`'s `citation_drifted`, not came back
-(`test_exposure_counts_say_covered_new_confirmed_and_came_back`).
+share a row), new = `urgent_exposures`, confirmed = `confirmed_exposures`, pair
+without judgment = `pair_without_judgment_exposures` (part of new). The last is
+what state shows, not a count of withdrawals: a Query sees no history, so a pair
+created before any judgment (linked with `rests_on` first) counts too; the
+guidance says to add `rests_on` in the write that sets the judgment. A judgment
+whose cited code changed still stands: it is `next`'s `citation_drifted`
+(`test_exposure_counts_say_covered_new_confirmed_and_pair_without_judgment`).
 
 The worklists walk vulnerability ← `affected_by` ← component → its occurrences
 holding a scope (the pair index) → inventory, then the two judgment pairs by

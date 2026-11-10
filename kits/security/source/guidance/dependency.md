@@ -29,7 +29,8 @@ most urgent first, at most 100 per run. `next` shows each Line's unread items as
 the write created (`cruxible inbox link ITEM --subject security.app_exposure/<id>`) or `ack`
 it. `security.urgent_exposures` and `security.kev_triage_backlog` stay the whole worklist,
 past what one run posts. A decided item stays decided when the same pair comes back in the
-same state, as when a judgment is withdrawn: `security.came_back_exposures` lists those. A
+same state, as when a judgment is withdrawn: `security.pair_without_judgment_exposures` lists
+worklist pairs that exist with no judgment on them (withdrawn, or created before judging). A
 judgment whose cited code changed comes back through `next` on its own (`citation_drifted`),
 not through the inbox.
 
@@ -55,8 +56,9 @@ your own words instead only when no code passage carries the judgment; both are 
 neither drifts with the code. A low EPSS score, no KEV listing or a quiet advisory is not a
 reason. When the judgment rests on how the code works beyond the passage you cite (a
 `security.code_fact` in `security.code_facts`, such as which helper all logging goes
-through), link the pair to it with `rests_on` in the same write; record a missing one as the
-hunter guidance says.
+through), link the pair to it with `rests_on` in the write that sets the judgment, not
+before: a pair holding only `rests_on` reads like one whose judgment was withdrawn. Record a
+missing fact as the hunter guidance says.
 
 ## The outcomes
 

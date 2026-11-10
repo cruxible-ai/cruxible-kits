@@ -14,8 +14,9 @@ visible ``scope`` -> inventory.
   whose occurrence is still present (its SBOM still lists the component): the
   confirmed, fix-pending work, with the same KEV and EPSS facts.
 - ``security.covered_app_exposures`` / ``security.covered_package_exposures`` /
-  ``security.came_back_exposures``: the exposure counts with the two above
-  (:func:`exposure_counts`): covered, new, confirmed and came back.
+  ``security.pair_without_judgment_exposures``: the exposure counts with the two
+  above (:func:`exposure_counts`): covered, new, confirmed, and worklist pairs that
+  exist with no judgment on them.
 - ``security.not_affected_judgments`` / ``security.app_not_affected_judgments``:
   the track record: every package-level and app-level judgment with its VEX
   justification. ``get <claim> --detail history`` on its Claims gives who
@@ -95,7 +96,7 @@ APP_JUDGMENTS = "security.app_not_affected_judgments"
 CONFIRMED = "security.confirmed_exposures"
 COVERED_APP = "security.covered_app_exposures"
 COVERED_PACKAGE = "security.covered_package_exposures"
-CAME_BACK = "security.came_back_exposures"
+PAIR_WITHOUT_JUDGMENT = "security.pair_without_judgment_exposures"
 UNJUDGED = "security.unjudged_exposures"
 CONTESTED = "security.contested_exposures"
 #: The inbox item Contract the attention Lines post.
@@ -258,8 +259,9 @@ CONFIRMED_SPEC: dict[str, Any] = {
     "order": ["-v.kev_date_added", "-v.epss_score"],
 }
 
-#: The exposure counts (K-B2-TR): covered, new, confirmed and came back, each the
-#: row count of its Queries (the Query engine has no count or union form).
+#: The exposure counts (K-B2-TR): covered, new, confirmed and pairs without a
+#: judgment, each the row count of its Queries (the Query engine has no count or
+#: union form).
 #:
 #: - covered: occurrences with a resolved not_affected judgment, at app level (the
 #:   worklist walk: OSV still lists V) or at package level (every occurrence
@@ -267,9 +269,11 @@ CONFIRMED_SPEC: dict[str, Any] = {
 #: - new: ``security.urgent_exposures`` (no judgment counts: unjudged, contested
 #:   or withdrawn);
 #: - confirmed: ``security.confirmed_exposures``;
-#: - came back: the part of new whose judgment pair exists but holds no judgment
-#:   Claim, i.e. a judgment was withdrawn (the pair stays as history). A judgment
-#:   whose cited code changed still stands; ``next`` lists it, not this.
+#: - pair without judgment: the part of new whose judgment pair exists but holds no
+#:   judgment Claim. A Query sees no history, so this is what state shows, not a
+#:   count of withdrawals: a judgment withdrawn (the pair stays as history), or a
+#:   pair created before any judgment (say, linked to a fact with ``rests_on``). A
+#:   judgment whose cited code changed still stands; ``next`` lists it, not this.
 COVERED_APP_SPEC: dict[str, Any] = {
     **URGENT_SPEC,
     "query": COVERED_APP,
@@ -295,12 +299,14 @@ COVERED_PACKAGE_SPEC: dict[str, Any] = {
     "fields": list(_FIELDS),
     "order": ["-v.kev_date_added", "-v.epss_score"],
 }
-CAME_BACK_SPEC: dict[str, Any] = {
+PAIR_WITHOUT_JUDGMENT_SPEC: dict[str, Any] = {
     **URGENT_SPEC,
-    "query": CAME_BACK,
+    "query": PAIR_WITHOUT_JUDGMENT,
     "description": "The exposures nobody has judged whose judgment pair exists but holds no "
-    "judgment: a judgment was withdrawn and the occurrence is back in the worklists. A "
-    "judgment whose cited code changed still stands: next lists it.",
+    "judgment Claim: a judgment was withdrawn (the pair stays as history), or the pair was "
+    "created before any judgment (for instance linked to a codebase fact with rests_on). "
+    "A Query sees no history, so it cannot tell the two apart. A judgment whose cited code "
+    "changed still stands: next lists it.",
     "where": f"not ({_ANY_JUDGMENT}) and ({_PAIR_EXISTS})",
 }
 #: The worklist split by why a pair is there, for the attention Line (one inbox
@@ -321,12 +327,13 @@ CONTESTED_SPEC: dict[str, Any] = {
     "first, then by EPSS score.",
     "where": f"{_NOT_JUDGED} and ({_ANY_JUDGMENT})",
 }
-#: Each count and the Queries whose rows it is (``came_back`` is part of ``new``).
+#: Each count and the Queries whose rows it is (``pair_without_judgment`` is part of
+#: ``new``).
 COUNT_QUERIES: dict[str, tuple[str, ...]] = {
     "covered": (COVERED_APP, COVERED_PACKAGE),
     "new": (URGENT,),
     "confirmed": (CONFIRMED,),
-    "came_back": (CAME_BACK,),
+    "pair_without_judgment": (PAIR_WITHOUT_JUDGMENT,),
 }
 
 
@@ -403,7 +410,7 @@ def vocabulary_members() -> list[dict[str, Any]]:
         APP_JUDGMENTS_SPEC,
         COVERED_APP_SPEC,
         COVERED_PACKAGE_SPEC,
-        CAME_BACK_SPEC,
+        PAIR_WITHOUT_JUDGMENT_SPEC,
         UNJUDGED_SPEC,
         CONTESTED_SPEC,
     ):
@@ -505,7 +512,8 @@ def attention_automation() -> list[dict[str, Any]]:
 
 
 def exposure_counts(answer: Callable[[str], Any]) -> dict[str, int]:
-    """How many exposures are covered, new, confirmed and came back.
+    """How many exposures are covered, new, confirmed, and on the worklist with a
+    judgment pair but no judgment on it.
 
     ``answer(name)`` is one named Query's answer, a ``cruxible query --name NAME
     --json`` page (or the SDK's): each count is the rows of its Queries
