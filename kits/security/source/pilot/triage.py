@@ -54,9 +54,10 @@ contested write can never silence a row.
 
 **Under investigation** (K-CF1) is no judgment: the agent attests ``unsure``
 on OSV's ``affected_by`` Claim (:func:`investigation`), with its reason
-(``--because`` or a cited section) and a ``valid_until`` capped at the KEV due
-date. The pair stays in the worklists and the KEV backlog; reading that one
-Claim's evidence (:func:`under_investigation`) marks the row.
+(``--because`` or a cited section) and a ``valid_until`` at most 14 days ahead,
+or the end of the KEV due date if that is sooner and still in the future
+(:func:`hold_until`). The pair stays in the worklists and the KEV backlog;
+reading that one Claim's evidence (:func:`under_investigation`) marks the row.
 
 Judgments are agents' alone: no Mandate settles a justification, a verdict or the none,
 and review is on the honor system (K-CF2a): the author writes with
@@ -495,36 +496,54 @@ def _end_of_day(value: date) -> datetime:
     return datetime.combine(value + timedelta(days=1), time(0), tzinfo=UTC)
 
 
+#: The longest an investigation holds a pair (K-CF1).
+HOLD_DAYS = 14
+
+
+def hold_until(*, now: datetime, kev_due_date: date | None = None) -> datetime:
+    """When the longest hold allowed ``now`` ends: 14 days from ``now``, or the end
+    of the KEV due date if that is sooner and still in the future.
+
+    A KEV due date already past neither shortens nor cancels the hold (most KEV
+    entries are past due), so it is held for 14 days like a pair with no KEV entry.
+    """
+
+    cap = now + timedelta(days=HOLD_DAYS)
+    if kev_due_date is not None:
+        due = _end_of_day(kev_due_date)
+        if now < due < cap:
+            cap = due
+    return cap
+
+
 def investigation(
     claim: str,
     *,
     because: str,
-    until: datetime,
+    until: datetime | None = None,
     kev_due_date: date | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """The ``claim attest --unsure`` of a pair under investigation.
 
     ``claim`` is OSV's ``affected_by`` Claim of the pair. The hold lasts until
-    ``until``, capped at the end of the KEV due date when the vulnerability has
-    one (K-CF1): an investigation never outlives the remediation deadline. The
+    :func:`hold_until` (at most 14 days, or the end of a KEV due date still
+    ahead, whichever is sooner), or until ``until`` when that is sooner. The
     reason is ``because`` (or cite a section instead). The pair stays in the
     worklists and the KEV backlog.
 
     Returns the attestation's arguments: ``claim``, ``stance``, ``because`` and
     ``valid_until`` (``cruxible claim attest CLAIM --unsure --because ...
-    --valid-until ...``; :func:`investigation_argv`). A pair whose KEV due date
-    has passed cannot be held: judge it instead (ValueError).
+    --valid-until ...``; :func:`investigation_argv`). An ``until`` already past
+    is refused (ValueError).
     """
 
-    valid_until = until if until.tzinfo else until.replace(tzinfo=UTC)
-    if kev_due_date is not None:
-        valid_until = min(valid_until, _end_of_day(kev_due_date))
-    if valid_until <= (now or datetime.now(UTC)):
-        raise ValueError(
-            f"the hold would end at {valid_until.isoformat()}, already past: the KEV due "
-            "date has passed, so judge the pair instead of holding it"
-        )
+    now = now or datetime.now(UTC)
+    valid_until = hold_until(now=now, kev_due_date=kev_due_date)
+    if until is not None:
+        valid_until = min(valid_until, until if until.tzinfo else until.replace(tzinfo=UTC))
+    if valid_until <= now:
+        raise ValueError(f"the hold would end at {valid_until.isoformat()}, already past")
     return {
         "claim": claim,
         "stance": "unsure",

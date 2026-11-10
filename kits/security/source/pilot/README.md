@@ -199,10 +199,11 @@ stays in the worklists until an agent judges it. Each judgment is ONE
   `next`.
 - **Under investigation** (K-CF1, `triage.investigation()`): no judgment. Attest
   `--unsure` on OSV's `affected_by` Claim, with the reason (`--because` or a
-  cited section) and `--valid-until` capped at the end of the KEV due date (a
-  due date already past refuses: judge the pair instead). The pair stays in
-  the worklists and the KEV backlog; `triage.under_investigation()` over that
-  one Claim's `get --detail evidence` attestations marks it.
+  cited section) and `--valid-until` at most 14 days ahead, or the end of the
+  KEV due date if that is sooner and still in the future (`triage.hold_until()`;
+  a due date already past neither shortens nor cancels the hold). The pair
+  stays in the worklists and the KEV backlog; `triage.under_investigation()`
+  over that one Claim's `get --detail evidence` attestations marks it.
 
 OSV's next run cannot override a package-level judgment's normative none; it
 records a `held_disagrees` finding (held: none of V, incoming: V), which the

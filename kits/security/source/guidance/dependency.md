@@ -65,13 +65,14 @@ reason.
   none.
 - **Blocked on a fact you can't see**: don't guess. Attest unsure on OSV's `affected_by`
   Claim, naming the missing fact and how an owner can check it:
-  `cruxible claim attest CLAIM --unsure --because "..." --valid-until TIME`, with TIME no later
-  than the end of the KEV due date when the vulnerability has one. The pair stays in the
-  backlog, marked.
-- **A KEV pair whose due date has passed**: it can't be held, since any hold would already
-  have ended. Judge it now with what you can see. If one fact you can't see still decides it,
-  write the `affected` verdict, naming that fact in the write's `because`, then remediate or
-  escalate to the owner. Never leave it unjudged.
+  `cruxible claim attest CLAIM --unsure --because "..." --valid-until TIME`, with TIME at most
+  14 days ahead, or the end of the KEV due date if that is sooner and still in the future. The
+  pair stays in the backlog, marked.
+- **A KEV pair whose due date has passed**: the passed date neither shortens nor cancels a
+  hold (most KEV entries are past due), so hold it for at most 14 days like any other pair.
+  When the hold ends, judge it with what you can see. If one fact you can't see still decides
+  it, write the `affected` verdict, naming that fact in the write's `because`, then remediate
+  or escalate to the owner. Never leave it unjudged.
 
 A pair holds one judgment: a justification (not_affected) or the verdict `affected`, never
 both. A pair holding both, a `not_affected` verdict with no justification, or a contested
@@ -103,7 +104,7 @@ really dropped the release, then retire the verdict to clear that row.
 - `vulnerable_code_not_present` for code that is present but unused: that is
   `vulnerable_code_not_in_execute_path`, for one inventory.
 - Judging from the advisory summary without reading the code that uses the package.
-- Holding a KEV-listed pair past its due date instead of judging it.
+- Holding a pair past its cap (14 days, or a KEV due date still ahead) instead of judging it.
 - Proving a pair reachable and writing nothing: the worklist can't tell it from a pair
   nobody looked at. Write the `affected` verdict.
 - Treating an exposure as fixed because a newer version exists somewhere: it leaves the

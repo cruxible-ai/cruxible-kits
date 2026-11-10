@@ -1153,8 +1153,9 @@ def _kev_due_soon(instance: Any, due: Any) -> None:
 def test_a_pair_under_investigation_stays_in_the_backlog_until_the_kev_due_date(
     tmp_path: Path,
 ) -> None:
-    """K-CF1: an unsure attestation on OSV's affected_by, capped at the KEV due date;
-    the pair stays in the backlog, and reading its one Claim marks it."""
+    """K-CF1: an unsure attestation on OSV's affected_by, capped at a KEV due date
+    sooner than 14 days; the pair stays in the backlog, and reading its one Claim
+    marks it."""
 
     instance = world(tmp_path)
     run_osv(instance)
@@ -1168,7 +1169,7 @@ def test_a_pair_under_investigation_stays_in_the_backlog_until_the_kev_due_date(
         kev_due_date=due,
         now=NOW,
     )
-    # The hold never outlives the remediation deadline.
+    # A due date still ahead and sooner than 14 days ends the hold.
     assert request["valid_until"] == triage._end_of_day(due)
     assert triage.investigation_argv(request)[:4] == ["claim", "attest", claim, "--unsure"]
     _attest_unsure(instance, tmp_path, claim, request)
@@ -1185,15 +1186,69 @@ def test_a_pair_under_investigation_stays_in_the_backlog_until_the_kev_due_date(
             instance, affected_claim(instance, API, API_CVE), detail="evidence"
         ).evidence.attestations
     )
-    # A due date already past cannot be held: judge the pair instead.
-    with pytest.raises(ValueError, match="KEV due"):
-        triage.investigation(
-            claim,
-            because="x",
-            until=NOW + timedelta(days=1),
-            kev_due_date=(NOW - timedelta(days=1)).date(),
-            now=NOW,
-        )
+    # An until already past is refused.
+    with pytest.raises(ValueError, match="already past"):
+        triage.investigation(claim, because="x", until=NOW - timedelta(minutes=1), now=NOW)
+
+
+def test_a_past_due_kev_pair_is_held_for_14_days(tmp_path: Path) -> None:
+    """A KEV due date already past neither shortens nor cancels the hold: the real
+    attestation lands with a 14-day valid_until and marks the row until then."""
+
+    instance = world(tmp_path)
+    run_osv(instance)
+    past = (NOW - timedelta(days=30)).date()
+    _kev_due_soon(instance, past)
+    claim = affected_claim(instance, CORE, LOG4SHELL)
+    request = triage.investigation(
+        claim, because="Checking the log pattern.", kev_due_date=past, now=NOW
+    )
+    assert request["valid_until"] == NOW + timedelta(days=14)
+    _attest_unsure(instance, tmp_path, claim, request)
+    assert (DEMO_APP, CORE, LOG4SHELL) in exposures(instance, triage.BACKLOG)
+
+    def marked(at: Any) -> bool:
+        evidence = get(instance, claim, detail="evidence", evaluation_time=at).evidence
+        return triage.under_investigation(evidence.attestations)
+
+    assert marked(NOW + timedelta(days=13))
+    assert not marked(NOW + timedelta(days=14, minutes=1))
+
+
+@pytest.mark.parametrize(
+    ("due_in_days", "held"),
+    [
+        (None, timedelta(days=14)),  # no KEV entry
+        (5, None),  # KEV due in 5 days: the end of that day
+        (30, timedelta(days=14)),  # KEV due in 30 days: 14 days is sooner
+        (-1, timedelta(days=14)),  # KEV due in the past: neither shortens nor cancels
+    ],
+    ids=["no-kev", "kev-in-5-days", "kev-in-30-days", "kev-past-due"],
+)
+def test_a_hold_lasts_at_most_14_days_or_until_a_sooner_kev_due_date(
+    due_in_days: int | None, held: timedelta | None
+) -> None:
+    due = None if due_in_days is None else (NOW + timedelta(days=due_in_days)).date()
+    request = triage.investigation("CLM-x", because="checking", kev_due_date=due, now=NOW)
+    expected = triage._end_of_day(due) if held is None else NOW + held
+    assert request["valid_until"] == expected == triage.hold_until(now=NOW, kev_due_date=due)
+    if due_in_days == 5:
+        assert timedelta(days=5) <= expected - NOW < timedelta(days=6)
+    # A sooner until shortens it; a later one never lengthens it.
+    sooner = NOW + timedelta(days=2)
+    assert (
+        triage.investigation("CLM-x", because="x", until=sooner, kev_due_date=due, now=NOW)[
+            "valid_until"
+        ]
+        == sooner
+    )
+    later = NOW + timedelta(days=90)
+    assert (
+        triage.investigation("CLM-x", because="x", until=later, kev_due_date=due, now=NOW)[
+            "valid_until"
+        ]
+        == expected
+    )
 
 
 # -- work counts --------------------------------------------------------------------
