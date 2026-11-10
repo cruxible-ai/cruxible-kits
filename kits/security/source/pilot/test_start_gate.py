@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 import dependency_replay
+import osv
 import template
 from test_pilot_gate import (
     Replay,
@@ -41,14 +42,19 @@ def test_the_committed_template_is_the_generated_one() -> None:
 TEMPLATE_CLOCK = template.DATED + timedelta(hours=1)
 
 
-def adopted_world(tmp_path: Path, sbom: bytes) -> Any:
-    """The kit's definitions, the committed template adopted as written, and its
-    SBOM Line's file in the workspace."""
+def adopted_world(tmp_path: Path, sbom: bytes, *, expires_at: Any = None) -> Any:
+    """The kit's definitions, the committed template adopted, and its SBOM Line's
+    file in the workspace. ``expires_at`` re-dates every Mandate (valid from
+    2026-01-01) for a run on the wall clock, as an adopter tailors them."""
 
     instance = kit_world(tmp_path, automation=False)
-    submit(
-        instance, json.loads(template.TEMPLATE.read_text()), name="automation-template"
-    )
+    adopted = json.loads(template.TEMPLATE.read_text())
+    if expires_at is not None:
+        for member in adopted["members"]:
+            if member["kind"] == "procedure_mandate":
+                member["valid_from"] = "2026-01-01T00:00:00Z"
+                member["expires_at"] = expires_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+    submit(instance, adopted, name="automation-template")
     write_file(tmp_path, template.SBOM[1], sbom)
     return instance
 
@@ -130,6 +136,254 @@ def test_start_on_an_inventory_nothing_affects_completes_and_asks_epss_nothing(
     assert not epss.counts.needs_attention
     # Nothing in the run needs attention: OSV answered in full, KEV read the catalog.
     assert result.attention_steps == (), result.attention_steps
+
+
+# -- the daily refresh: one Trigger aimed at security.maintain -------------------------
+
+DEMO_SBOM = (
+    Path(__file__).resolve().parents[2] / "examples/sboms/log4j-demo-app.cdx.json"
+)
+
+
+def accepted_names(instance: Any, directory: str) -> dict[str, Any]:
+    """The accepted artifacts under ``directory/`` by name (their parsed JSON)."""
+
+    tree = instance.tree_at(instance.accepted_coordinate().git_oid)
+    return {
+        path.removeprefix(directory + "/").removesuffix(".json"): json.loads(raw)
+        for path, raw in tree.items()
+        if path.startswith(directory + "/")
+    }
+
+
+def test_the_template_adopts_two_runbooks_and_one_daily_trigger(tmp_path: Path) -> None:
+    """Adopting the template yields exactly one Trigger, aimed at security.maintain on
+    one cron schedule, and two Runbooks: start (SBOM, OSV, KEV, EPSS) and maintain
+    (no SBOM import)."""
+
+    instance = kit_world(tmp_path, automation=False)
+    seeded = accepted_names(instance, "triggers")  # core's own internal-action Triggers
+    submit(
+        instance, json.loads(template.TEMPLATE.read_text()), name="automation-template"
+    )
+    triggers = {
+        name: value
+        for name, value in accepted_names(instance, "triggers").items()
+        if name not in seeded
+    }
+    runbooks = accepted_names(instance, "runbooks")
+    assert set(triggers) == {template.MAINTAIN_TRIGGER}, sorted(triggers)
+    assert set(runbooks) == {template.START, template.MAINTAIN}, sorted(runbooks)
+    (trigger,) = triggers.values()
+    assert trigger["target"] == {
+        "kind": "runbook",
+        "runbook": {"target": {"kind": "Runbook", "name": template.MAINTAIN}},
+    }
+    assert trigger["schedule"] == {"kind": "cron", "expression": template.MAINTAIN_CRON}
+
+    def lines(name: str) -> list[str]:
+        return [s["line"]["target"]["name"] for s in runbooks[name]["steps"]]
+
+    assert lines(template.START) == list(template.START_LINES)
+    assert lines(template.MAINTAIN) == list(template.MAINTAIN_LINES)
+    assert template.START_LINES[0] not in template.MAINTAIN_LINES
+
+
+class KitManager:
+    """The daemon manager surface a Trigger-fired Runbook run reads, answering every
+    provider call from the scenario's recordings."""
+
+    def __init__(self, instance: Any, replay: Replay) -> None:
+        from cruxible_core.documents.workspace_file import WorkspaceFileReader
+
+        self.instance, self.replay = instance, replay
+        self.reader = WorkspaceFileReader(
+            instance_id=instance.descriptor.instance_id,
+            operating_profile="local",
+            attached_roots=(workspace(instance.root.parent),),
+            managed_roots=(instance.root,),
+        )
+
+    def get(self, instance_id: str) -> Any:
+        return self.instance
+
+    def workspace_file_reader(self, instance_id: str) -> Any:
+        return self.reader
+
+    def provider_runtime_operator(self) -> Any:
+        return self.replay.operator()
+
+    def procedure_run_config(self) -> Any:
+        from cruxible_core.service.procedures.procedure_runs import (
+            ProcedureRunOperationalConfigV1,
+        )
+
+        return ProcedureRunOperationalConfigV1(evaluation_instant_skew_seconds=10**9)
+
+
+def enable(instance: Any, line: str, *, now: Any) -> None:
+    """``cruxible line enable LINE`` as the owner (rechecked before every admission)."""
+
+    from cruxible_client.contracts.line_dispatch import LineEnablementPrincipal
+    from cruxible_core.service.procedures.line_dispatch import service_enable_line
+    from tests.support.operation_world import actor
+
+    service_enable_line(
+        instance,
+        line,
+        principal=LineEnablementPrincipal.model_validate(
+            {"kind": "principal_claim", "label": "owner"}
+        ),
+        actor=actor(),
+        now=now,
+        daemon_id="kit-start-gate",
+    )
+
+
+def fire_daily(instance: Any, replay: Replay, *, day: int = 1) -> Any:
+    """Let the daily Trigger fire once, on the ``day``-th day after it was accepted,
+    and run the fired Runbook as the daemon's Runbook consumer does; its run record."""
+
+    from cruxible_core.consumers.runbooks import RUNBOOKS
+    from cruxible_core.service.runbooks import latest_runbook_run
+    from cruxible_core.triggers.journal import evaluate_triggers, internal_triggers
+
+    (item,) = [
+        t
+        for t in internal_triggers(instance)
+        if t.trigger == f"Trigger:{template.MAINTAIN_TRIGGER}"
+    ]
+    assert item.action == f"runbook:{template.MAINTAIN}"
+    since = item.accepted_at + timedelta(days=day - 1)
+    at = item.accepted_at + timedelta(days=day)
+    with instance.accepted_history_reader() as history:
+        generation = history.sequence
+    fired = evaluate_triggers(
+        instance, now=at, listening_since=since, listening_generation=generation
+    )
+    assert [e.trigger for e in fired if e.action == item.action] == [
+        f"Trigger:{template.MAINTAIN_TRIGGER}"
+    ]
+    manager = KitManager(instance, replay)
+    work = list(RUNBOOKS.due(instance, now=at))
+    assert len(work) == 1, work
+    RUNBOOKS.run(manager, "fixture", work[0], now=at)
+    return latest_runbook_run(instance, template.MAINTAIN)
+
+
+def started_world(tmp_path: Path) -> tuple[Any, Any]:
+    """The demo app adopted with wall-clock Mandates and seeded by security.start."""
+
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    instance = adopted_world(
+        tmp_path, DEMO_SBOM.read_bytes(), expires_at=now + timedelta(days=30)
+    )
+    seeded = run_runbook(instance, demo_replay(), template.START)
+    assert seeded.status == "completed", seeded
+    return instance, now
+
+
+def demo_replay() -> Replay:
+    from test_pilot_gate import EpssOrigin
+
+    return Replay(
+        {kit.KEV_URL: fixture_bytes("kev-catalog")},
+        osv=dependency_replay.RecordedOsv(),
+        epss=EpssOrigin(),
+    )
+
+
+def test_the_daily_trigger_runs_osv_kev_and_epss_in_order_under_their_enablement(
+    tmp_path: Path,
+) -> None:
+    """One fire of security.maintain-daily runs security.maintain: OSV, KEV, EPSS, in
+    that order, each under its Line's own enablement; a Line nobody enabled stops
+    the run there (no Mandate is widened for the Runbook)."""
+
+    instance, now = started_world(tmp_path)
+    for line in template.MAINTAIN_LINES[:-1]:
+        enable(instance, line, now=now)
+    replay = demo_replay()
+    replay.now = now
+    stopped = fire_daily(instance, replay)
+    assert stopped is not None and stopped.mode == "trigger", stopped
+    assert stopped.trigger == f"Trigger:{template.MAINTAIN_TRIGGER}"
+    assert (stopped.stop_reason, stopped.stopped_at_step) == (
+        "line_not_enabled",
+        len(template.MAINTAIN_LINES),
+    )
+
+    enable(instance, template.MAINTAIN_LINES[-1], now=now)
+    replay = demo_replay()
+    replay.now = now
+    ran = fire_daily(instance, replay, day=2)
+    assert ran is not None and ran.run_id != stopped.run_id
+    assert (ran.status, ran.mode) == ("completed", "trigger"), ran
+    assert [s.target.line.target.name for s in ran.steps] == list(
+        template.MAINTAIN_LINES
+    )
+    assert [s.status for s in ran.steps] == ["succeeded"] * len(template.MAINTAIN_LINES)
+    assert all(s.run_id for s in ran.steps)
+    # OSV asked first, then CISA, then FIRST: the order of the requests themselves.
+    hosts = [
+        host
+        for url in (*replay.osv.requests, *replay.requests)
+        for host in ("api.osv.dev", "www.cisa.gov", "api.first.org")
+        if host in url
+    ]
+    assert (
+        hosts[0] == "api.osv.dev"
+        and "www.cisa.gov" in hosts
+        and hosts[-1] == "api.first.org"
+    )
+
+
+class OsvDeclines(Replay):
+    """OSV's provider declines the query (``provider_declined``): the step fails."""
+
+    def operator(self) -> Any:
+        from test_pilot_gate import _Refused
+
+        operator = super().operator()
+        answer = operator.invoker.output
+
+        def output(context: Any) -> Any:
+            if context.operation == "osv.query":
+                raise _Refused("provider_declined", {})
+            return answer(context)
+
+        operator.invoker.output = output
+        return operator
+
+
+def test_a_failed_osv_step_stops_maintain_as_it_stops_start(tmp_path: Path) -> None:
+    """A failed OSV step stops either Runbook there: KEV and EPSS do not run."""
+
+    instance = adopted_world(tmp_path, DEMO_SBOM.read_bytes())
+    for minutes, (name, lines) in enumerate(
+        (
+            (template.START, template.START_LINES),
+            (template.MAINTAIN, template.MAINTAIN_LINES),
+        )
+    ):
+        replay = OsvDeclines(
+            {kit.KEV_URL: fixture_bytes("kev-catalog")},
+            osv=dependency_replay.RecordedOsv(),
+        )
+        result = run_runbook(instance, replay, name, minutes=minutes)
+        at = lines.index(osv.OSV_LINE) + 1
+        assert (result.status, result.stop_reason, result.stopped_at_step) == (
+            "stopped",
+            "step_failed",
+            at,
+        ), result
+        statuses = [s.status for s in result.steps]
+        assert statuses[at - 1] == "failed" and set(statuses[at:]) == {"not_run"}
+        assert not any(
+            "cisa.gov" in url or "first.org" in url for url in replay.requests
+        )
 
 
 def _inspected_package(root: Path, *, wheel_sha: str, lock_sha: str) -> Any:
@@ -239,6 +493,13 @@ def test_the_template_authors_and_the_start_runbook_has_no_order_problems(
     )
     assert not any(step.unavailable for step in preview.steps)
     assert preview.order_problems == (), preview.order_problems
+    # The daily refresh reads the inventory the SBOM import Line (outside it) writes.
+    maintain = service_preview_runbook(instance, name=template.MAINTAIN)
+    assert [step.target.line.target.name for step in maintain.steps] == list(
+        template.MAINTAIN_LINES
+    )
+    assert not any(step.unavailable for step in maintain.steps)
+    assert maintain.order_problems == (), maintain.order_problems
 
     # The order is what the reads and writes imply: reversed, every reader of a
     # later step's writes is reported (the preview reorders nothing).

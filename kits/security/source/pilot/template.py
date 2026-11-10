@@ -1,9 +1,11 @@
 """The security kit's automation template (D-R48): ``automation.json`` at the kit root.
 
 One change set the adopter tailors and submits as their own reviewed change: the
-dependency loop's Lines (one SBOM import, OSV, KEV and EPSS), their Mandates and
-Triggers, and the ``security.start`` Runbook that seeds a fresh instance in the
-order the Lines' reads and writes imply:
+dependency loop's Lines (one SBOM import, OSV, KEV and EPSS) and their Mandates,
+two Runbooks, and one daily Trigger.
+
+``security.start`` seeds a fresh instance in the order the Lines' reads and
+writes imply:
 
 1. ``security.sbom-import.app``: writes each occurrence's ``scope`` (and creates
    the inventory and its components); it reads no state;
@@ -13,9 +15,12 @@ order the Lines' reads and writes imply:
    affected_by join over the occurrences) and writes the KEV fields;
 4. ``security.epss-triage``: reads the same watch list and writes the EPSS fields.
 
-Each Line fetches its own source (no landing Trigger sits between a fetch and its
-triage in this form), so the start runs every Line once, in order; the daily
-Triggers keep them current afterwards. Nothing here is installed by ``kit add``.
+``security.maintain`` is the daily refresh: steps 2-4 without the SBOM import
+(the SBOM changes when the repository changes, not on a clock). The one Trigger,
+``security.maintain-daily``, fires it at 14:00 UTC; each step runs under its
+Line's own enablement, so a Line nobody enabled stops the run. Each Line fetches
+its own source (no landing Trigger sits between a fetch and its triage in this
+form). Nothing here is installed by ``kit add``.
 
     python template.py           # rewrite ../../automation.json
     python template.py --check   # fail when it is out of date
@@ -40,6 +45,12 @@ import osv  # noqa: E402
 KIT = HERE.parents[1]
 TEMPLATE = KIT / "automation.json"
 START = "security.start"
+MAINTAIN = "security.maintain"
+MAINTAIN_TRIGGER = "security.maintain-daily"
+#: 14:00 UTC daily. KEV has no fixed publication time (CISA adds entries as it
+#: confirms them), so no hour catches every same-day addition: a daily read is at
+#: most a day behind whatever hour runs it.
+MAINTAIN_CRON = "0 14 * * *"
 #: The example SBOM import: Line suffix and workspace path (tailor both).
 SBOM = ("app", "sbom.cdx.json")
 #: Mandates start the day before this and expire 90 days after (tailor both).
@@ -51,12 +62,14 @@ START_LINES = (
     kit.KEV_LINE,
     kit.EPSS_LINE,
 )
+#: The daily refresh: the seeding order without the SBOM import.
+MAINTAIN_LINES = START_LINES[1:]
 
 
 def template() -> dict[str, Any]:
     value = kit.automation((), now=DATED, sboms=(SBOM,))
     members = list(value["members"])
-    members.append(
+    members += [
         {
             "kind": "runbook",
             "name": START,
@@ -65,15 +78,33 @@ def template() -> dict[str, Any]:
                 "read KEV and EPSS for what it found."
             ),
             "steps": [{"line": line} for line in START_LINES],
-        }
-    )
+        },
+        {
+            "kind": "runbook",
+            "name": MAINTAIN,
+            "description": (
+                "Daily refresh: ask OSV what affects the inventory, then read KEV and EPSS "
+                "for what it found."
+            ),
+            "steps": [{"line": line} for line in MAINTAIN_LINES],
+        },
+        # After the Runbook it names: a Runbook Trigger needs its Runbook live.
+        {
+            "kind": "trigger",
+            "name": MAINTAIN_TRIGGER,
+            "runbook_name": MAINTAIN,
+            "schedule": {"kind": "cron", "expression": MAINTAIN_CRON},
+        },
+    ]
     return {
         "kind": "change_set",
         "rationale": (
             "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS "
-            "Lines, their Mandates and daily Triggers, and the security.start Runbook. "
-            "Tailor the Line names, the SBOM path, the cron times and the Mandate dates "
-            "before submitting."
+            "Lines and their Mandates; the security.start Runbook that seeds a fresh "
+            "instance; and the security.maintain Runbook that the one daily Trigger "
+            "security.maintain-daily runs (OSV, KEV, EPSS; the SBOM import runs when the "
+            "SBOM changes). Tailor the Line names, the SBOM path, the cron time and the "
+            "Mandate dates before submitting."
         ),
         "members": members,
     }

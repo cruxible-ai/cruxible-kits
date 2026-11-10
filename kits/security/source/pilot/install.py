@@ -8,7 +8,7 @@ Every step is an ordinary governed write the instance's approval policy admits
 3. the Contracts security-osv-provider's operations pin, and ``provider install``
    of its wheel (``--osv-wheel``/``--osv-lock``; batch 2, the dependency loop);
 4. the CaptureKinds (``capture-contract propose``);
-5. vocabulary, Procedures, vulnerability Subjects and the Lines/Mandates/Triggers
+5. vocabulary, Procedures, vulnerability Subjects and the Lines/Mandates
    (``authoring submit`` of the change sets ``definitions.py`` writes);
 6. the dependency-judgment guidance Document (``../guidance/dependency.md``,
    K-CF2a), which guides the two justification ClaimTypes;

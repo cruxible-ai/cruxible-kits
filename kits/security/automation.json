@@ -1,6 +1,6 @@
 {
  "kind": "change_set",
- "rationale": "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS Lines, their Mandates and daily Triggers, and the security.start Runbook. Tailor the Line names, the SBOM path, the cron times and the Mandate dates before submitting.",
+ "rationale": "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS Lines and their Mandates; the security.start Runbook that seeds a fresh instance; and the security.maintain Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, EPSS; the SBOM import runs when the SBOM changes). Tailor the Line names, the SBOM path, the cron time and the Mandate dates before submitting.",
  "members": [
   {
    "kind": "line",
@@ -387,33 +387,6 @@
    ]
   },
   {
-   "kind": "trigger",
-   "name": "security.osv-daily",
-   "line_name": "security.osv-query",
-   "schedule": {
-    "kind": "cron",
-    "expression": "0 14 * * *"
-   }
-  },
-  {
-   "kind": "trigger",
-   "name": "security.kev-daily",
-   "line_name": "security.kev-triage",
-   "schedule": {
-    "kind": "cron",
-    "expression": "15 18 * * *"
-   }
-  },
-  {
-   "kind": "trigger",
-   "name": "security.epss-daily",
-   "line_name": "security.epss-triage",
-   "schedule": {
-    "kind": "cron",
-    "expression": "30 14 * * *"
-   }
-  },
-  {
    "kind": "runbook",
    "name": "security.start",
    "description": "Seed a fresh instance: import the SBOM, ask OSV what affects it, then read KEV and EPSS for what it found.",
@@ -431,6 +404,31 @@
      "line": "security.epss-triage"
     }
    ]
+  },
+  {
+   "kind": "runbook",
+   "name": "security.maintain",
+   "description": "Daily refresh: ask OSV what affects the inventory, then read KEV and EPSS for what it found.",
+   "steps": [
+    {
+     "line": "security.osv-query"
+    },
+    {
+     "line": "security.kev-triage"
+    },
+    {
+     "line": "security.epss-triage"
+    }
+   ]
+  },
+  {
+   "kind": "trigger",
+   "name": "security.maintain-daily",
+   "runbook_name": "security.maintain",
+   "schedule": {
+    "kind": "cron",
+    "expression": "0 14 * * *"
+   }
   }
  ]
 }

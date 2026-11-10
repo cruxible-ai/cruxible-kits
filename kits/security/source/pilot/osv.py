@@ -290,7 +290,8 @@ OSV_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
 def automation(
     *, now: datetime, findings: Sequence[str], settle: bool = True
 ) -> list[dict[str, Any]]:
-    """The OSV Line (the consumer's), its Mandates and a daily Trigger."""
+    """The OSV Line (the consumer's) and its Mandates; the template's maintenance
+    Runbook runs it daily."""
 
     valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
     expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
@@ -335,14 +336,6 @@ def automation(
                 ],
             }
         )
-    members.append(
-        {
-            "kind": "trigger",
-            "name": "security.osv-daily",
-            "line_name": OSV_LINE,
-            "schedule": {"kind": "cron", "expression": "0 14 * * *"},
-        }
-    )
     return members
 
 

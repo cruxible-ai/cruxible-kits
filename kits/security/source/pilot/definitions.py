@@ -8,8 +8,9 @@ accepts, in order:
 2. ``vocabulary.json``: row Contracts, the ClaimTypes, the two SubjectKinds and
    the watched-vulnerabilities Query, as one change set;
 3. ``procedures.json``: ``security.kev-triage`` and ``security.epss-triage``;
-4. ``automation.json``: the consumer's Lines, Mandates and Triggers (a kit
-   carries no authority; the instance that adopts it authors these);
+4. ``automation.json``: the consumer's Lines and Mandates (a kit carries no
+   authority; the instance that adopts it authors these; the kit's automation
+   template adds the Runbooks and their one daily Trigger, ``template.py``);
 5. ``watch.json``: the vulnerability Subjects (state, not kit); the KEV Line
    creates the ``security.catalog/cisa-kev`` Subject on its first run.
 
@@ -699,7 +700,7 @@ def procedures() -> dict[str, Any]:
     }
 
 
-# -- 4. Automation (the consumer's Lines, Mandates, Triggers) ----------------------------
+# -- 4. Automation (the consumer's Lines and Mandates) -----------------------------------
 
 #: Findings each Line routes to its inbox (D-R10); everything else stays in the run report.
 FINDINGS = [
@@ -748,9 +749,12 @@ def automation(
     sboms: Sequence[tuple[str, str]] = (),
     osv_line: bool = True,
 ) -> dict[str, Any]:
-    """The consumer's Lines: KEV and EPSS (EPSS asks for the CVEs the watch list
-    holds at run time), one SBOM import Line per (name, workspace path) in
-    ``sboms``, and the OSV Line. ``watch`` is unused: no Line names a CVE."""
+    """The consumer's Lines and their Mandates: KEV and EPSS (EPSS asks for the CVEs
+    the watch list holds at run time), one SBOM import Line per (name, workspace
+    path) in ``sboms``, and the OSV Line. ``watch`` is unused: no Line names a CVE.
+
+    No Line has a Trigger of its own: the automation template (``template.py``)
+    runs OSV, KEV and EPSS on one daily Trigger aimed at its maintenance Runbook."""
     valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
     expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
     del watch
@@ -822,20 +826,6 @@ def automation(
         import osv
 
         members += osv.automation(now=now, findings=FINDINGS, settle=settle)
-    members += [
-        {
-            "kind": "trigger",
-            "name": "security.kev-daily",
-            "line_name": KEV_LINE,
-            "schedule": {"kind": "cron", "expression": "15 18 * * *"},
-        },
-        {
-            "kind": "trigger",
-            "name": "security.epss-daily",
-            "line_name": EPSS_LINE,
-            "schedule": {"kind": "cron", "expression": "30 14 * * *"},
-        },
-    ]
     return {
         "kind": "change_set",
         "rationale": "Adopt the SBOM import, OSV, KEV and EPSS Lines.",

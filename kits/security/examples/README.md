@@ -16,7 +16,7 @@ cp /path/to/cruxible-kits/kits/security/automation.json automation.json
 cp /path/to/cruxible-kits/kits/security/examples/sboms/log4j-demo-app.cdx.json sbom.cdx.json
 ```
 
-Tailor the Line names and references, UTC cron times and Mandate dates. The
+Tailor the Line names and references, the daily UTC cron time and Mandate dates. The
 SBOM Line must read `sbom.cdx.json` (or the workspace-relative path you choose).
 Submit with `cruxible authoring submit automation.json --no-accept`, have a
 second actor review and approve it, activate the proposal, then run

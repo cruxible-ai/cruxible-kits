@@ -72,13 +72,14 @@ nothing.
 Copy [automation.json](automation.json) to your workspace and tailor it before
 submitting. It is a template, never installed or submitted by `kit add`:
 
-- Choose the Line names and update their Mandates, Triggers and Runbook steps
-  to match. Keep `security.start` as the Runbook name if using the commands below.
+- Choose the Line names and update their Mandates and Runbook steps to match.
+  Keep `security.start` as the Runbook name if using the commands below.
 - Set the SBOM Line's `relative_path` and logical source. For a demo, copy
   [examples/sboms/log4j-demo-app.cdx.json](examples/sboms/log4j-demo-app.cdx.json)
   to the template's `sbom.cdx.json` workspace path.
-- Set the three daily cron schedules in UTC and each Mandate's `valid_from`
-  and `expires_at` to your observation window.
+- Set the one daily cron time in UTC (the `security.maintain-daily` Trigger,
+  14:00 UTC as shipped) and each Mandate's `valid_from` and `expires_at` to
+  your observation window.
 - Review the settlement scopes below before adopting them.
 
 ```sh
@@ -100,9 +101,15 @@ before rerunning; a step with no new writes passes through. Network calls are
 real: OSV uses `api.osv.dev`, KEV uses `www.cisa.gov`, and EPSS uses
 `api.first.org`. A source refusal is not a clean security result.
 
-After the initial run, enable each Line with `cruxible line enable NAME` to let
-its Trigger run it. Editing a Line or its Trigger disables it again. Renew
-Mandates before expiry, review Procedure upgrades, and supply fresh SBOM bytes.
+After the initial run, one Trigger keeps the facts current:
+`security.maintain-daily` runs the `security.maintain` Runbook (OSV, then KEV,
+then EPSS) once a day. Each step runs under its Line's own enablement, so
+enable each of those Lines with `cruxible line enable NAME`; a step whose Line
+is not enabled stops the run there, and the Runbook never adds authority of its
+own. Editing a Line disables it again. The SBOM import is not on the clock: the
+SBOM changes when the repository does, so rerun `cruxible runbook run
+security.start` (or `cruxible line run security.sbom-import.app`) with fresh
+SBOM bytes. Renew Mandates before expiry and review Procedure upgrades.
 
 ## The audit loop
 

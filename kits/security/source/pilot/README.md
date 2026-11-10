@@ -12,7 +12,8 @@ Queries, provider and guidance, never their Lines.
 
 | File | What |
 |---|---|
-| `definitions.py` | Every authoring payload, in install order: CaptureKinds, the provider Contracts, vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates, Triggers), and state (catalog, vulnerabilities, seeds) |
+| `definitions.py` | Every authoring payload, in install order: CaptureKinds, the provider Contracts, vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates), and state (catalog, vulnerabilities, seeds) |
+| `template.py` | The automation template (`../../automation.json`): the Lines and Mandates, the `security.start` and `security.maintain` Runbooks, and the one daily Trigger `security.maintain-daily` aimed at `security.maintain` |
 | `inventory.py` | The SBOM import, the inventory and component kinds, the pair kinds (occurrence, exposure, app_exposure) and their ClaimTypes, and `affected_by` (with its inverse) |
 | `osv.py` | The OSV Procedure and Line, the OSV response kind and the provider's Contracts as an authoring change set |
 | `triage.py` | The triage, confirmed and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `affected_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
@@ -40,7 +41,11 @@ flowchart LR
 ```
 
 Lines depend on each other only through state (D-R35). Run the SBOM import
-Lines, then OSV, then KEV and EPSS.
+Lines, then OSV, then KEV and EPSS. The automation template's `security.start`
+Runbook runs them once in that order; its one Trigger, `security.maintain-daily`
+(cron `0 14 * * *`), runs `security.maintain` (OSV, KEV, EPSS; the SBOM import
+runs when the SBOM changes) under each Line's own enablement
+(`test_start_gate.py`).
 
 ## Kinds and fields
 
