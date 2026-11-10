@@ -21,13 +21,13 @@ cites (each record's `fixed`), then the code that uses the package.
 ## Where the work arrives
 
 Urgent exposures arrive in the Line inbox: the `security.exposure-attention.unjudged` Line
-posts one item per pair nobody has judged whose vulnerability is KEV-listed or has an EPSS
-score at or above the Line's `min_epss` threshold (a Line on
+posts one item per pair nobody has judged whose vulnerability is KEV-listed, or has an EPSS
+score at or above the Line's `min_epss` threshold, or has no EPSS score yet (a Line on
 `security.exposure-attention.unjudged-inventory` does the same for one inventory), and
 `security.exposure-attention.contested` one per pair whose judgment does not count
 (contested, or `affected` beside a justification), most urgent first, at most 100 per run.
-A pair under the threshold, or with no EPSS score and no KEV listing, is not posted; it is
-still on the worklist. `next` shows each Line's unread items as
+A pair scored under the threshold, or whose EPSS score is contested, is not posted unless
+it is KEV-listed; it is still on the worklist. The inbox item carries no score. When a score arrives, a pair at or above the threshold stays the same item (seen again, its status and decision kept); a pair below it stops being posted, and its item stays in the inbox as it was, no longer seen again (core does not withdraw inbox items). `next` shows each Line's unread items as
 `line_inbox_unread`. An item names the inventory, the component, the CVE and the occurrence
 (`get security.occurrence/<occurrence>`). After judging the pair, link the item to the pair
 the write created (`cruxible inbox link ITEM --subject security.app_exposure/<id>`) or `ack`

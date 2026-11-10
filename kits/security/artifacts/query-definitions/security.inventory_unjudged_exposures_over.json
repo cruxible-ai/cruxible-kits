@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "security.unjudged_exposures_over for one inventory (its inventory_id): the exposures nobody has judged, holding no judgment Claim, whose vulnerability is KEV-listed or has an EPSS score at or above min_epss, KEV-listed first, then by EPSS score.",
+  "description": "security.unjudged_exposures_over for one inventory (its inventory_id): the exposures nobody has judged, holding no judgment Claim, whose vulnerability is KEV-listed, or has an EPSS score at or above min_epss, or has no EPSS score yet, KEV-listed first, then by EPSS score.",
   "entry": {
     "binding": "v",
     "subject_kinds": [
@@ -222,6 +222,12 @@
             "binding": "v",
             "kind": "claim_presence",
             "predicate": "security.vulnerability.kev_date_added"
+          },
+          {
+            "binding": "v",
+            "kind": "claim_presence",
+            "negated": true,
+            "predicate": "security.vulnerability.epss_score"
           },
           {
             "kind": "comparison",

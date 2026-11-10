@@ -14,7 +14,7 @@
         "name": "security.exposure-attention.unjudged.output/v1"
       }
     },
-    "description": "Post one Line inbox item per exposure nobody has judged whose vulnerability is KEV-listed or has an EPSS score at or above the Line's min_epss (security.unjudged_exposures_over), in every inventory, KEV-listed first, then by EPSS score.",
+    "description": "Post one Line inbox item per exposure nobody has judged whose vulnerability is KEV-listed, or has an EPSS score at or above the Line's min_epss, or has no EPSS score yet (security.unjudged_exposures_over), in every inventory, KEV-listed first, then by EPSS score.",
     "hard_caps": {
       "max_capture_bytes": 0,
       "max_items": 20000,
@@ -78,7 +78,7 @@
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:83480e9e65d2ab5986d02b2d5c85fcc5430043cff3f4ff71fccbd01eed4719c7",
+  "definition_digest": "sha256:44dca5a9f3f968e392b77f4d68ca9815ba13436612c8d726663c7e93a53fb41b",
   "identity": {
     "kind": "Procedure",
     "name": "security.exposure-attention.unjudged"

@@ -605,7 +605,7 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:29f03a054c4e4e8edce3023ad6ba6ec500075784b2ca2bc1331e505415502df1",
+      "artifact_digest": "sha256:b4dc7f86aaf4d4be4dd22e74aa39e2d804b37b6a339daac2a187dae2d9755c60",
       "path": "documents/security.guidance.dependency.json"
     },
     {
@@ -625,11 +625,11 @@
       "path": "procedures/security.exposure-attention.contested.json"
     },
     {
-      "artifact_digest": "sha256:23c228f19b9bd8db0bbf14e168ae1cb104290401379afb2cd3ecdf7b9876e2d5",
+      "artifact_digest": "sha256:6e8e06e163cfeac7a7b022302f306b4a420d76f86c7c88dbef9decadd5a0c9a1",
       "path": "procedures/security.exposure-attention.unjudged-inventory.json"
     },
     {
-      "artifact_digest": "sha256:57e003a1250c067936034adb3e0279a275db8ba05c2b85be0e0ec0d48e355b8e",
+      "artifact_digest": "sha256:c601e10e51bae2d99ca327f76d20957dca7c01df3542c9fe7521887ffb186823",
       "path": "procedures/security.exposure-attention.unjudged.json"
     },
     {
@@ -717,7 +717,7 @@
       "path": "query-definitions/security.inventory_components.json"
     },
     {
-      "artifact_digest": "sha256:fcc51a088c185bfd85fd31ca07f5b6aa26987cbee20adfb800c092619b978b89",
+      "artifact_digest": "sha256:8613effc278528e8ab074b9e1858c70a5c4d311814d12ba5691ddc6c6c83b050",
       "path": "query-definitions/security.inventory_unjudged_exposures_over.json"
     },
     {
@@ -745,7 +745,7 @@
       "path": "query-definitions/security.unjudged_exposures.json"
     },
     {
-      "artifact_digest": "sha256:b7c9d2fdd132e1f138ee1df877c026c911aeb5927ef3bcb2dc2d0a6b17bba901",
+      "artifact_digest": "sha256:55ec8d7212eeffa5c8ac40689b7905700693ca9b5085b85f8253410ed77e2f69",
       "path": "query-definitions/security.unjudged_exposures_over.json"
     },
     {
@@ -818,12 +818,12 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:75b48facf5af7229a1653ead1e5c6ad647722858ae3246399bbe17934e32a0dc"
+      "sha256": "sha256:0443e32ccd9ebe40ecae9ab1dd4d45ac4317271cf649b52aa63a41109cb45761"
     },
     {
       "path": "automation.json",
       "role": "reference",
-      "sha256": "sha256:ddd97baa8673fa2a5f18cb74e483ef5836111a4b5f480fb1691b8ecd29287345"
+      "sha256": "sha256:1032451447f92174aa0b6af40f9681b38755d7c790deac4dd0be95e66b1ba93a"
     },
     {
       "path": "examples/README.md",
@@ -913,12 +913,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf",
-      "generation_root": "sha256:5f51a0cec3fdb5e5f549ec0750294857d1d70c4d759f94dd43dd0fb8275d4c2f",
-      "git_oid": "79c2e1ab8e2d1e03801718204b8c1ef413e0191e",
-      "semantic_root": "sha256:2c9d7344885c71794911d8b7e4c65eaa88b6a0acee0506ac3694c2ddbf13d8cb",
+      "generation_root": "sha256:72c5d4eafa7fde16e1100758a4a311e48086d689ba6ae5f9b1c40f179cac3807",
+      "git_oid": "abc3b2c97f9c29524a35db7ef5459b229f2c7b40",
+      "semantic_root": "sha256:222f3c143a601f47d011311705b7f30a417296297d7b0b678c84175f69adadd8",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_22864b2969904836",
+    "instance_id": "inst_70aeb22a2c774dcf",
     "principal_id": "owner"
   },
   "providers": [
