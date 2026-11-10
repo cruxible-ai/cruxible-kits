@@ -98,7 +98,12 @@ cruxible query --name security.urgent_exposures
 cruxible next
 ```
 
-The Runbook imports the SBOM, queries OSV, then reads KEV and EPSS in order.
+The Runbook imports the SBOM, queries OSV, reads KEV and EPSS in order, then
+posts each urgent pair nobody has judged to the Line inbox (one item per pair,
+`unjudged` or `contested`, at most 100 per run, most urgent first): `cruxible
+next` shows them as `line_inbox_unread`. The preview lists `reads_unwritten` for
+the two attention steps: they read the judgments, which agents write and no Line
+does.
 It stops on failure or when writes need review. Review and accept those proposals
 before rerunning; a step with no new writes passes through. Network calls are
 real: OSV uses `api.osv.dev`, KEV uses `www.cisa.gov`, and EPSS uses
@@ -106,7 +111,7 @@ real: OSV uses `api.osv.dev`, KEV uses `www.cisa.gov`, and EPSS uses
 
 After the initial run, one Trigger keeps the facts current:
 `security.maintain-daily` runs the `security.maintain` Runbook (OSV, then KEV,
-then EPSS) once a day. Each step runs under its Line's own enablement, so
+then EPSS, then the two attention Lines) once a day. Each step runs under its Line's own enablement, so
 enable each of those Lines with `cruxible line enable NAME`; a step whose Line
 is not enabled stops the run there, and the Runbook never adds authority of its
 own. Editing a Line disables it again. The SBOM import is not on the clock: the
@@ -150,8 +155,8 @@ finding Subjects as agents' reports.
 
 ## Automation authority
 
-The committed template retains its existing `max_authority: settle` on all four
-Lines. It does **not** start propose-only. These scoped grants may settle source
+The committed template retains its existing `max_authority: settle` on the four
+source Lines. It does **not** start propose-only. These scoped grants may settle source
 observations without another approval after you approve the template:
 
 | Line | Settle Mandate | What may settle |
@@ -160,6 +165,7 @@ observations without another approval after you approve the template:
 | `security.osv-query` | `security.osv-query-settle` | Create vulnerability Subjects; create/revise component `affected_by` on extracted records; retire on complete answered absence |
 | `security.kev-triage` | `security.kev-triage-settle` | Create/revise `listed_in` on extracted/absent records; create/revise KEV dates on extracted records and retire dates on absence; create/revise ransomware use on extracted records |
 | `security.epss-triage` | `security.epss-triage-settle` | Create/revise EPSS score, percentile and date from extracted records |
+| `security.exposure-attention.unjudged`, `.contested` | none (`max_authority: observe`) | Nothing: they only post inbox items, and change no accepted state |
 
 No Mandate settles `security.exposure.justification`,
 `security.app_exposure.justification` or `security.app_exposure.verdict`. Read

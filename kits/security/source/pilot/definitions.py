@@ -687,6 +687,7 @@ def epss_spec() -> dict[str, Any]:
 
 def procedures() -> dict[str, Any]:
     import osv
+    import triage
     from inventory import procedure_members
 
     members = [
@@ -694,6 +695,11 @@ def procedures() -> dict[str, Any]:
         *({"kind": "procedure", "spec": spec} for spec in (kev_spec(), epss_spec())),
         # -- Batch 2, dependency loop: the OSV Procedure.
         *osv.procedure_members(),
+        # The worklist's urgent pairs to the Line inbox, one Procedure per state.
+        *(
+            {"kind": "procedure", "spec": triage.attention_spec(state)}
+            for state in triage.ATTENTION_STATES
+        ),
     ]
     for member in members:
         ProcedureInput.model_validate(member)
@@ -830,6 +836,9 @@ def automation(
         import osv
 
         members += osv.automation(now=now, findings=FINDINGS, settle=settle)
+    import triage
+
+    members += triage.attention_automation()
     return {
         "kind": "change_set",
         "rationale": "Adopt the SBOM import, OSV, KEV and EPSS Lines.",

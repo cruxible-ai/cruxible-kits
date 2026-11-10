@@ -96,6 +96,19 @@ CONFIRMED = "security.confirmed_exposures"
 COVERED_APP = "security.covered_app_exposures"
 COVERED_PACKAGE = "security.covered_package_exposures"
 CAME_BACK = "security.came_back_exposures"
+UNJUDGED = "security.unjudged_exposures"
+CONTESTED = "security.contested_exposures"
+#: The inbox item Contract the attention Lines post.
+ATTENTION_ITEM = "security.exposure-attention"
+ATTENTION_STATES = ("unjudged", "contested")
+#: One Procedure and Line per state, each reading its own worklist split: a
+#: Procedure has one terminal (a second is unreachable without a guard, and guards
+#: are closed in authoring), so one run cannot post two states.
+ATTENTION = {state: f"{ATTENTION_ITEM}.{state}" for state in ATTENTION_STATES}
+#: The most items one attention run posts (core: a declared max_items, at most
+#: 1000; 100 when undeclared). Past it the run reports inbox_truncation and posts
+#: the first rows in worklist order: KEV-listed first, then by EPSS score.
+ATTENTION_MAX_ITEMS = 100
 CONFIRMED_ROW = "security.confirmed-exposure"
 EXPOSURE_ROW = "security.exposure-row"
 JUDGMENT_ROW = "security.judgment"
@@ -290,6 +303,24 @@ CAME_BACK_SPEC: dict[str, Any] = {
     "judgment whose cited code changed still stands: next lists it.",
     "where": f"not ({_ANY_JUDGMENT}) and ({_PAIR_EXISTS})",
 }
+#: The worklist split by why a pair is there, for the attention Line (one inbox
+#: item per pair and state): no judgment Claim at all, or a judgment Claim that
+#: does not count (contested, affected beside a justification, a bare not_affected).
+UNJUDGED_SPEC: dict[str, Any] = {
+    **URGENT_SPEC,
+    "query": UNJUDGED,
+    "description": "The exposures nobody has judged that hold no judgment Claim at all, "
+    "KEV-listed first, then by EPSS score.",
+    "where": f"not ({_ANY_JUDGMENT})",
+}
+CONTESTED_SPEC: dict[str, Any] = {
+    **URGENT_SPEC,
+    "query": CONTESTED,
+    "description": "The exposures holding a judgment Claim that does not count (a contested "
+    "verdict or justification, or an affected verdict beside a justification), KEV-listed "
+    "first, then by EPSS score.",
+    "where": f"{_NOT_JUDGED} and ({_ANY_JUDGMENT})",
+}
 #: Each count and the Queries whose rows it is (``came_back`` is part of ``new``).
 COUNT_QUERIES: dict[str, tuple[str, ...]] = {
     "covered": (COVERED_APP, COVERED_PACKAGE),
@@ -373,9 +404,104 @@ def vocabulary_members() -> list[dict[str, Any]]:
         COVERED_APP_SPEC,
         COVERED_PACKAGE_SPEC,
         CAME_BACK_SPEC,
+        UNJUDGED_SPEC,
+        CONTESTED_SPEC,
     ):
         members.append({"kind": "query_definition", "query_definition": spec})
+    members.append(
+        {
+            "kind": "contract",
+            "name": ATTENTION_ITEM,
+            "version": 1,
+            "description": "One urgent exposure for an agent to judge: the inventory, the "
+            "component, the vulnerability, the occurrence's Subject id (get "
+            "security.occurrence/<occurrence>) and why it is here: unjudged, or contested (a "
+            "judgment is on the pair but none counts). Stable identity only, so the same pair "
+            "in the same state is the same item.",
+            "fields": {
+                "inventory": "string",
+                "component": "string",
+                "cve_id": "string",
+                "occurrence": "string",
+                "state": "enum[" + ", ".join(f'"{s}"' for s in ATTENTION_STATES) + "]",
+            },
+        }
+    )
     return members
+
+
+# -- The attention Line: urgent unjudged exposures reach the Line inbox ------------------
+
+
+def attention_spec(state: str) -> dict[str, Any]:
+    """``security.exposure-attention.<state>``: read one worklist split, post one item
+    per pair.
+
+    No provider slot: one state read (``security.unjudged_exposures`` or
+    ``security.contested_exposures``) and one ``post_inbox`` terminal, with the
+    state as a literal field. An item is only the pair's stable identity and its
+    state, so a pair seen daily in the same state is one item re-sighted, never a
+    new one; a contested judgment is a new item. The worklist order (KEV-listed
+    first, then EPSS) is the posting order, so a capped run posts the most urgent.
+    """
+
+    from definitions import refs
+
+    query = {"unjudged": UNJUDGED, "contested": CONTESTED}[state]
+    return refs(
+        {
+            "procedure": ATTENTION[state],
+            "description": f"Post one Line inbox item per {state} urgent exposure ({query}), "
+            "KEV-listed first, then by EPSS score.",
+            "input": {},
+            "output": {},
+            # Inbox egress is the terminal; the run's own value is empty.
+            "returns": {"fields": {}},
+            "hard_caps": {
+                "wall_clock": "PT5M",
+                "provider_calls": 0,
+                "capture_bytes": 0,
+                "items": 20_000,
+                "read_rows": 50_000,
+                "repeat_attempts": 1,
+            },
+            "steps": [
+                {"read": "pairs", "query": query},
+                {
+                    "id": "post",
+                    "inbox": f"{ATTENTION_ITEM}@1",
+                    "for_each": "$steps.pairs.rows",
+                    "fields": {
+                        "inventory": "$item.inventory",
+                        "component": "$item.component",
+                        "cve_id": "$item.cve_id",
+                        "occurrence": "$item.occurrence",
+                        "state": state,
+                    },
+                    "dedupe_key": ["occurrence", "cve_id", "state"],
+                    "max_items": ATTENTION_MAX_ITEMS,
+                },
+            ],
+        }
+    )
+
+
+def attention_automation() -> list[dict[str, Any]]:
+    """The two attention Lines: inbox egress only, so ``observe`` and no Mandate
+    (posting feeds agents, it changes no accepted state)."""
+
+    return [
+        {
+            "kind": "line",
+            "name": ATTENTION[state],
+            "procedure_name": ATTENTION[state],
+            "bindings": {},
+            "parameters": {},
+            "acquisition": {},
+            "max_authority": "observe",
+        }
+        for state in ATTENTION_STATES
+    ]
 
 
 def exposure_counts(answer: Callable[[str], Any]) -> dict[str, int]:

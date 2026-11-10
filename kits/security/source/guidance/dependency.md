@@ -18,6 +18,21 @@ can actually be reached here, and to show why.
 Read the advisory and the fix versions in the `osv.match` document OSV's `affected_by` Claim
 cites (each record's `fixed`), then the code that uses the package.
 
+## Where the work arrives
+
+Urgent unjudged exposures arrive in the Line inbox: the `security.exposure-attention.unjudged`
+Line posts one item per pair nobody has judged, and `security.exposure-attention.contested`
+one per pair whose judgment does not count (contested, or `affected` beside a justification),
+most urgent first, at most 100 per run. `next` shows each Line's unread items as
+`line_inbox_unread`. An item names the inventory, the component, the CVE and the occurrence
+(`get security.occurrence/<occurrence>`). After judging the pair, link the item to the pair
+the write created (`cruxible inbox link ITEM --subject security.app_exposure/<id>`) or `ack`
+it. `security.urgent_exposures` and `security.kev_triage_backlog` stay the whole worklist,
+past what one run posts. A decided item stays decided when the same pair comes back in the
+same state, as when a judgment is withdrawn: `security.came_back_exposures` lists those. A
+judgment whose cited code changed comes back through `next` on its own (`citation_drifted`),
+not through the inbox.
+
 ## The bar
 
 A judgment either way shows reachability or the boundary, from source and bounded local

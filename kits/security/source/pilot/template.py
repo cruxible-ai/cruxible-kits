@@ -13,9 +13,12 @@ writes imply:
    holding a scope) and writes ``component.affected_by``;
 3. ``security.kev-triage``: reads ``security.watched_vulnerabilities`` (the
    affected_by join over the occurrences) and writes the KEV fields;
-4. ``security.epss-triage``: reads the same watch list and writes the EPSS fields.
+4. ``security.epss-triage``: reads the same watch list and writes the EPSS fields;
+5. ``security.exposure-attention.unjudged`` and ``.contested``: read the worklist
+   (the judgments, which agents write and no Line does) and post one Line inbox
+   item per urgent pair nobody has judged.
 
-``security.maintain`` is the daily refresh: steps 2-4 without the SBOM import
+``security.maintain`` is the daily refresh: steps 2-5 without the SBOM import
 (the SBOM changes when the repository changes, not on a clock). The one Trigger,
 ``security.maintain-daily``, fires it at 14:00 UTC; each step runs under its
 Line's own enablement, so a Line nobody enabled stops the run. Each Line fetches
@@ -41,6 +44,7 @@ sys.path.insert(0, str(HERE))
 import definitions as kit  # noqa: E402
 import inventory  # noqa: E402
 import osv  # noqa: E402
+import triage  # noqa: E402
 
 KIT = HERE.parents[1]
 TEMPLATE = KIT / "automation.json"
@@ -61,6 +65,7 @@ START_LINES = (
     osv.OSV_LINE,
     kit.KEV_LINE,
     kit.EPSS_LINE,
+    *(triage.ATTENTION[state] for state in triage.ATTENTION_STATES),
 )
 #: The daily refresh: the seeding order without the SBOM import.
 MAINTAIN_LINES = START_LINES[1:]
@@ -74,8 +79,9 @@ def template() -> dict[str, Any]:
             "kind": "runbook",
             "name": START,
             "description": (
-                "Seed a fresh instance: import the SBOM, ask OSV what affects it, then "
-                "read KEV and EPSS for what it found."
+                "Seed a fresh instance: import the SBOM, ask OSV what affects it, read KEV "
+                "and EPSS for what it found, then post the urgent pairs nobody has judged "
+                "to the inbox."
             ),
             "steps": [{"line": line} for line in START_LINES],
         },
@@ -83,8 +89,8 @@ def template() -> dict[str, Any]:
             "kind": "runbook",
             "name": MAINTAIN,
             "description": (
-                "Daily refresh: ask OSV what affects the inventory, then read KEV and EPSS "
-                "for what it found."
+                "Daily refresh: ask OSV what affects the inventory, read KEV and EPSS for "
+                "what it found, then post the urgent pairs nobody has judged to the inbox."
             ),
             "steps": [{"line": line} for line in MAINTAIN_LINES],
         },
@@ -100,11 +106,12 @@ def template() -> dict[str, Any]:
         "kind": "change_set",
         "rationale": (
             "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS "
-            "Lines and their Mandates; the security.start Runbook that seeds a fresh "
-            "instance; and the security.maintain Runbook that the one daily Trigger "
-            "security.maintain-daily runs (OSV, KEV, EPSS; the SBOM import runs when the "
-            "SBOM changes). Tailor the Line names, the SBOM path, the cron time and the "
-            "Mandate dates before submitting."
+            "Lines and their Mandates, and the two observe-only attention Lines that post "
+            "urgent unjudged exposures to the inbox; the security.start Runbook that seeds "
+            "a fresh instance; and the security.maintain Runbook that the one daily Trigger "
+            "security.maintain-daily runs (OSV, KEV, EPSS, attention; the SBOM import runs "
+            "when the SBOM changes). Tailor the Line names, the SBOM path, the cron time and "
+            "the Mandate dates before submitting."
         ),
         "members": members,
     }

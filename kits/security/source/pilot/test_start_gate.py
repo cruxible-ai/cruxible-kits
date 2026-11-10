@@ -21,8 +21,11 @@ from pathlib import Path
 from typing import Any
 
 import dependency_replay
+import inventory
 import osv
+import pytest
 import template
+import triage
 from test_pilot_gate import (
     Replay,
     fixture_bytes,
@@ -38,37 +41,37 @@ def test_the_committed_template_is_the_generated_one() -> None:
     assert template.TEMPLATE.read_text() == template.render()
 
 
-#: Inside the template's Mandate window (valid from the day before ``DATED``).
-TEMPLATE_CLOCK = template.DATED + timedelta(hours=1)
-
-
-def adopted_world(tmp_path: Path, sbom: bytes, *, expires_at: Any = None) -> Any:
+def adopted_world(tmp_path: Path, sbom: bytes) -> Any:
     """The kit's definitions, the committed template adopted, and its SBOM Line's
-    file in the workspace. ``expires_at`` re-dates every Mandate (valid from
-    2026-01-01) for a run on the wall clock, as an adopter tailors them."""
+    file in the workspace. Every Mandate is re-dated around the wall clock (valid
+    from 2026-01-01 to 30 days ahead), as an adopter tailors them, so runs on the
+    daemon's own clock admit."""
+
+    from datetime import UTC, datetime
 
     instance = kit_world(tmp_path, automation=False)
     adopted = json.loads(template.TEMPLATE.read_text())
-    if expires_at is not None:
-        for member in adopted["members"]:
-            if member["kind"] == "procedure_mandate":
-                member["valid_from"] = "2026-01-01T00:00:00Z"
-                member["expires_at"] = expires_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+    expires_at = datetime.now(UTC) + timedelta(days=30)
+    for member in adopted["members"]:
+        if member["kind"] == "procedure_mandate":
+            member["valid_from"] = "2026-01-01T00:00:00Z"
+            member["expires_at"] = expires_at.strftime("%Y-%m-%dT%H:%M:%SZ")
     submit(instance, adopted, name="automation-template")
     write_file(tmp_path, template.SBOM[1], sbom)
     return instance
 
 
-def run_runbook(instance: Any, replay: Replay, name: str, *, minutes: int = 0) -> Any:
-    """``cruxible runbook run NAME``: every step as the caller's manual Line run."""
+def run_runbook(instance: Any, replay: Replay, name: str) -> Any:
+    """``cruxible runbook run NAME``: every step as the caller's manual Line run, on
+    the daemon's clock (the wall clock: each step reads what earlier steps wrote)."""
+
+    from datetime import UTC, datetime
 
     from cruxible_core.documents.workspace_file import WorkspaceFileReader
     from cruxible_core.service.runbooks import service_run_runbook
     from tests.support.operation_world import actor
-    from tests.test_procedures.test_completeness_transfer import _Clock
 
-    at = TEMPLATE_CLOCK + timedelta(minutes=minutes)
-    replay.now = at
+    replay.now = datetime.now(UTC)
     return service_run_runbook(
         instance,
         name=name,
@@ -81,7 +84,6 @@ def run_runbook(instance: Any, replay: Replay, name: str, *, minutes: int = 0) -
             attached_roots=(workspace(instance.root.parent),),
             managed_roots=(instance.root,),
         ),
-        daemon_clock=_Clock(at),
     )
 
 
@@ -272,17 +274,14 @@ def fire_daily(instance: Any, replay: Replay, *, day: int = 1) -> Any:
 
 
 def started_world(tmp_path: Path) -> tuple[Any, Any]:
-    """The demo app adopted with wall-clock Mandates and seeded by security.start."""
+    """The demo app adopted and seeded by security.start."""
 
     from datetime import UTC, datetime
 
-    now = datetime.now(UTC).replace(microsecond=0)
-    instance = adopted_world(
-        tmp_path, DEMO_SBOM.read_bytes(), expires_at=now + timedelta(days=30)
-    )
+    instance = adopted_world(tmp_path, DEMO_SBOM.read_bytes())
     seeded = run_runbook(instance, demo_replay(), template.START)
     assert seeded.status == "completed", seeded
-    return instance, now
+    return instance, datetime.now(UTC)
 
 
 def demo_replay() -> Replay:
@@ -362,17 +361,15 @@ def test_a_failed_osv_step_stops_maintain_as_it_stops_start(tmp_path: Path) -> N
     """A failed OSV step stops either Runbook there: KEV and EPSS do not run."""
 
     instance = adopted_world(tmp_path, DEMO_SBOM.read_bytes())
-    for minutes, (name, lines) in enumerate(
-        (
-            (template.START, template.START_LINES),
-            (template.MAINTAIN, template.MAINTAIN_LINES),
-        )
+    for name, lines in (
+        (template.START, template.START_LINES),
+        (template.MAINTAIN, template.MAINTAIN_LINES),
     ):
         replay = OsvDeclines(
             {kit.KEV_URL: fixture_bytes("kev-catalog")},
             osv=dependency_replay.RecordedOsv(),
         )
-        result = run_runbook(instance, replay, name, minutes=minutes)
+        result = run_runbook(instance, replay, name)
         at = lines.index(osv.OSV_LINE) + 1
         assert (result.status, result.stop_reason, result.stopped_at_step) == (
             "stopped",
@@ -384,6 +381,40 @@ def test_a_failed_osv_step_stops_maintain_as_it_stops_start(tmp_path: Path) -> N
         assert not any(
             "cisa.gov" in url or "first.org" in url for url in replay.requests
         )
+
+
+#: The judgments only agents write (no Line does, by design: K-CF2a).
+AGENT_JUDGMENTS = frozenset(
+    {
+        f"{inventory.EXPOSURE}.justification",
+        f"{inventory.APP_EXPOSURE}.justification",
+        f"{inventory.APP_EXPOSURE}.verdict",
+    }
+)
+
+
+def unexpected_order_problems(preview: Any, lines: tuple[str, ...]) -> tuple[Any, ...]:
+    """Every order problem except the true one the attention steps always carry: they
+    read the judgments, which agents write and no Line does (``reads_unwritten``)."""
+
+    attention = {
+        index
+        for index, line in enumerate(lines, start=1)
+        if line in triage.ATTENTION.values()
+    }
+    expected = {
+        (problem.step, problem.claim_type)
+        for problem in preview.order_problems
+        if problem.kind == "reads_unwritten"
+        and problem.step in attention
+        and problem.claim_type in AGENT_JUDGMENTS
+    }
+    assert {step for step, _claim_type in expected} == attention, preview.order_problems
+    return tuple(
+        problem
+        for problem in preview.order_problems
+        if (problem.step, problem.claim_type) not in expected
+    )
 
 
 def _inspected_package(root: Path, *, wheel_sha: str, lock_sha: str) -> Any:
@@ -492,14 +523,14 @@ def test_the_template_authors_and_the_start_runbook_has_no_order_problems(
         template.START_LINES
     )
     assert not any(step.unavailable for step in preview.steps)
-    assert preview.order_problems == (), preview.order_problems
+    assert unexpected_order_problems(preview, template.START_LINES) == ()
     # The daily refresh reads the inventory the SBOM import Line (outside it) writes.
     maintain = service_preview_runbook(instance, name=template.MAINTAIN)
     assert [step.target.line.target.name for step in maintain.steps] == list(
         template.MAINTAIN_LINES
     )
     assert not any(step.unavailable for step in maintain.steps)
-    assert maintain.order_problems == (), maintain.order_problems
+    assert unexpected_order_problems(maintain, template.MAINTAIN_LINES) == ()
 
     # The order is what the reads and writes imply: reversed, every reader of a
     # later step's writes is reported (the preview reorders nothing).
@@ -648,7 +679,7 @@ def test_the_real_security_kit_builds_through_production_service_build_kit(
         template.START_LINES
     )
     assert not any(step.unavailable for step in preview.steps)
-    assert preview.order_problems == (), preview.order_problems
+    assert unexpected_order_problems(preview, template.START_LINES) == ()
 
 
 def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
@@ -767,4 +798,308 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     )
     preview = service_preview_runbook(consumer, name=template.START)
     assert not any(step.unavailable for step in preview.steps)
-    assert preview.order_problems == ()
+    assert unexpected_order_problems(preview, template.START_LINES) == ()
+
+
+# -- urgent unjudged exposures reach the Line inbox ------------------------------------
+
+
+def wall_world(tmp_path: Path, sbom: bytes | None = None) -> Any:
+    return adopted_world(tmp_path, DEMO_SBOM.read_bytes() if sbom is None else sbom)
+
+
+def run_now(instance: Any, name: str, replay: Replay | None = None) -> Any:
+    result = run_runbook(instance, replay or demo_replay(), name)
+    assert result.status == "completed", result
+    return result
+
+
+def attention_items(instance: Any) -> dict[tuple[str, str, str], Any]:
+    """Every item the attention Lines posted: (occurrence, CVE, state) -> envelope."""
+
+    from cruxible_core.service.procedures.line_inbox import (
+        service_get_inbox_item,
+        service_list_inbox,
+    )
+    from cruxible_core.storage.cas import BodyAccessContext
+
+    access = BodyAccessContext(principal_id="reader", can_read_body=True)
+    out: dict[tuple[str, str, str], Any] = {}
+    for line in triage.ATTENTION.values():
+        listed = service_list_inbox(instance, line=line, limit=200, access=access)
+        assert not listed.truncated
+        for entry in listed.entries:
+            item = service_get_inbox_item(
+                instance, item=entry.item.item_id, access=access
+            )
+            payload = item.payload
+            assert set(payload) == {
+                "inventory",
+                "component",
+                "cve_id",
+                "occurrence",
+                "state",
+            }
+            key = (payload["occurrence"], payload["cve_id"], payload["state"])
+            assert key not in out, key
+            out[key] = item.item
+    return out
+
+
+def urgent_pairs(instance: Any) -> set[tuple[str, str]]:
+    from test_dependency_gate import query_rows
+
+    return {(r["occurrence"], r["cve_id"]) for r in query_rows(instance, triage.URGENT)}
+
+
+def item_of(
+    items: dict[tuple[str, str, str], Any], cve_id: str, state: str = "unjudged"
+) -> Any:
+    (found,) = [item for (o, c, s), item in items.items() if c == cve_id and s == state]
+    return found
+
+
+def decide(instance: Any, item: Any, *, link: str | None = None) -> None:
+    """``cruxible inbox ack ITEM``, or ``inbox link ITEM --subject KIND/ID``."""
+
+    from datetime import UTC, datetime
+
+    from cruxible_client.contracts.line_inbox import InboxLinkSubject
+    from cruxible_core.service.procedures.line_inbox import (
+        service_acknowledge_inbox_item,
+        service_link_inbox_item,
+    )
+    from tests.support.operation_world import actor
+
+    now = datetime.now(UTC)
+    if link is None:
+        service_acknowledge_inbox_item(
+            instance, item=item.item_id, actor_context=actor(), decided_at=now
+        )
+    else:
+        service_link_inbox_item(
+            instance,
+            item=item.item_id,
+            target=InboxLinkSubject(subject=link),
+            actor_context=actor(),
+            decided_at=now,
+        )
+
+
+def test_urgent_pairs_reach_the_inbox_once_and_decisions_stand(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """security.start posts one unread item per urgent pair and next names the Line; a
+    rerun with nothing changed posts nothing new and acked or linked items stay
+    decided (their sightings count up); a judged pair (not_affected or affected) is
+    never posted again; and a linked pair whose judgment is later withdrawn is the
+    same item re-sighted: it stays linked, so it does not come back through the
+    inbox (security.came_back_exposures lists it)."""
+
+    from test_dependency_gate import (
+        API,
+        API_CVE,
+        CORE,
+        DEMO_APP,
+        LOG4SHELL,
+        _next_rows,
+        app_judge,
+        confirm,
+        justification_claim,
+        query_rows,
+        write,
+    )
+
+    monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
+    instance = wall_world(tmp_path)
+    started = run_now(instance, template.START)
+    urgent = urgent_pairs(instance)
+    items = attention_items(instance)
+    assert {(o, c) for o, c, _s in items} == urgent and len(items) == len(urgent) > 0
+    assert {s for _o, _c, s in items} == {"unjudged"}
+    assert {item.status for item in items.values()} == {"unread"}
+    posted = step(started, triage.ATTENTION["unjudged"])
+    assert posted.counts.inbox == len(urgent) and posted.step in started.attention_steps
+    assert step(started, triage.ATTENTION["contested"]).counts.inbox == 0
+    rows = [
+        row.model_dump(mode="json")
+        for row in _next_rows(instance, tmp_path, "line_inbox_unread")
+    ]
+    (row,) = [r for r in rows if triage.ATTENTION["unjudged"] in json.dumps(r)]
+    assert row["detail"]["unread"] == len(urgent), row
+
+    # Nothing changed: the same items, re-sighted; the decided ones stay decided.
+    acked, linked = item_of(items, "CVE-2021-45105"), item_of(items, "CVE-2021-44832")
+    decide(instance, acked)
+    linked_occurrence = next(o for o, c, _s in items if c == "CVE-2021-44832")
+    decide(instance, linked, link=f"{inventory.OCCURRENCE}/{linked_occurrence}")
+    run_now(instance, template.MAINTAIN)
+    again = attention_items(instance)
+    assert set(again) == set(items)
+    assert (
+        again[next(k for k in again if k[1] == "CVE-2021-45105")].status
+        == "acknowledged"
+    )
+    assert again[next(k for k in again if k[1] == "CVE-2021-44832")].status == "linked"
+    assert {item.occurrences for item in again.values()} == {2}
+
+    # Judged pairs (app-level not_affected; affected) are never posted again.
+    pair = app_judge(instance, DEMO_APP, CORE, LOG4SHELL).changes[0].subject
+    confirm(instance, DEMO_APP, API, API_CVE)
+    decide(instance, item_of(again, LOG4SHELL), link=pair)
+    run_now(instance, template.MAINTAIN)
+    judged = attention_items(instance)
+    assert set(judged) == set(items)
+    assert (
+        item_of(judged, LOG4SHELL).occurrences
+        == item_of(judged, API_CVE).occurrences
+        == 2
+    )
+    assert {
+        item.occurrences
+        for (_o, c, _s), item in judged.items()
+        if c not in (LOG4SHELL, API_CVE)
+    } == {3}
+
+    # Fact-finding: the linked pair's judgment is withdrawn and the pair is urgent again.
+    reverse = triage.reverse_judgment(
+        justification_claim(instance, pair), because="Withdrawn.", accept="if_allowed"
+    )
+    assert write(instance, reverse).status == "accepted"
+    assert (next(o for o, c, _s in items if c == LOG4SHELL), LOG4SHELL) in urgent_pairs(
+        instance
+    )
+    run_now(instance, template.MAINTAIN)
+    back = attention_items(instance)
+    assert set(back) == set(items)  # the same key: no new item
+    withdrawn = item_of(back, LOG4SHELL)
+    assert (withdrawn.status, withdrawn.occurrences) == ("linked", 3), withdrawn
+    assert withdrawn.recurred_since_disposition >= 1
+    assert {r["cve_id"] for r in query_rows(instance, triage.CAME_BACK)} == {LOG4SHELL}
+
+
+def test_a_newly_urgent_or_contested_pair_posts_exactly_one_new_item(
+    tmp_path: Path,
+) -> None:
+    """A pair OSV newly lists posts one new item; a contested judgment on a pair posts
+    a contested item, distinct from that pair's unjudged one."""
+
+    from test_dependency_gate import (
+        API,
+        API_CVE,
+        BATCH_ORDER,
+        CORE,
+        DEMO_APP,
+        LOG4SHELL,
+        OSV,
+        QUERYBATCH,
+        _contend,
+        app_judge,
+        batch_with,
+        write,
+    )
+
+    def drop_api(results: list[Any]) -> None:
+        results[BATCH_ORDER.index(API)] = {}
+
+    instance = wall_world(tmp_path)
+    first = demo_replay()
+    first.osv = OSV({QUERYBATCH: batch_with(drop_api)})
+    run_now(instance, template.START, first)
+    before = attention_items(instance)
+    assert not any(c == API_CVE for _o, c, _s in before)
+
+    run_now(instance, template.MAINTAIN)  # OSV now lists API_CVE for log4j-api
+    added = set(attention_items(instance)) - set(before)
+    assert [(c, s) for _o, c, s in added] == [(API_CVE, "unjudged")], added
+
+    pair = app_judge(instance, DEMO_APP, CORE, LOG4SHELL).changes[0].subject
+    contended = write(
+        instance,
+        {
+            "because": "A competing reason.",
+            "changes": [
+                _contend(pair, "justification", "inline_mitigations_already_exist")
+            ],
+        },
+    )
+    assert contended.status == "accepted", contended
+    current = attention_items(instance)
+    run_now(instance, template.MAINTAIN)
+    after = attention_items(instance)
+    added = set(after) - set(current)
+    assert [(c, s) for _o, c, s in added] == [(LOG4SHELL, "contested")], added
+    (contested_key,) = added
+    unjudged_key = (contested_key[0], LOG4SHELL, "unjudged")
+    assert after[contested_key].item_id != after[unjudged_key].item_id
+    assert after[contested_key].status == "unread"
+
+
+def test_an_attention_run_posts_at_most_100_items_most_urgent_first(
+    tmp_path: Path,
+) -> None:
+    """105 urgent pairs: one run posts the 100 with the highest EPSS score (the
+    worklist order), and its terminal reports inbox_truncation (cap 100, declared)."""
+
+    from datetime import UTC, datetime
+
+    from cruxible_core.service.procedures.procedure_runs import (
+        LineRunRequest,
+        service_run_playbill_line,
+    )
+    from test_dependency_gate import synthetic_osv, synthetic_sbom
+    from test_pilot_gate import EpssOrigin, epss_answer
+    from tests.support.operation_world import actor
+    from tests.test_procedures.test_completeness_transfer import _Clock
+
+    size = 105
+    instance = wall_world(tmp_path, synthetic_sbom(size))
+    head = {k: v for k, v in epss_answer().items() if k != "data"}
+    data = [
+        {
+            "cve": f"CVE-2026-{1000 + i}",
+            "epss": f"{(i + 1) / 1000:.9f}",
+            "percentile": "0.500000000",
+            "date": "2026-11-02",
+        }
+        for i in range(size)
+    ]
+    replay = Replay(
+        {kit.KEV_URL: fixture_bytes("kev-catalog")},
+        osv=synthetic_osv(size),
+        epss=EpssOrigin({**head, "total": size, "data": data}),
+    )
+    started = run_now(instance, template.START, replay)
+    assert step(started, triage.ATTENTION["unjudged"]).counts.inbox == 100
+    posted = {c for _o, c, _s in attention_items(instance)}
+    from test_dependency_gate import query_rows
+
+    ranked = [
+        (r["cve_id"], r.get("epss_score"))
+        for r in query_rows(instance, triage.URGENT, limit=500)
+    ]
+    assert posted == {f"CVE-2026-{1000 + i}" for i in range(size - 100, size)}, ranked
+
+    now = datetime.now(UTC) + timedelta(seconds=1)
+    state = service_run_playbill_line(
+        instance,
+        path_identity_digest=triage.ATTENTION["unjudged"],
+        request=LineRunRequest(line=triage.ATTENTION["unjudged"]),
+        actor_context=actor(),
+        caller_rung=2,
+        daemon_clock=_Clock(now),
+    )
+    assert state.status == "succeeded", state.terminal
+    (egress,) = state.terminal_egress
+    truncation = egress.inbox_truncation
+    assert (
+        truncation.cap,
+        truncation.cap_source,
+        truncation.selected,
+        truncation.posted,
+    ) == (
+        100,
+        "declared",
+        size,
+        100,
+    )

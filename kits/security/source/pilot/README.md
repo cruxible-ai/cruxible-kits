@@ -230,6 +230,26 @@ creates a judgment pair.
 | `security.covered_app_exposures` | One per occurrence OSV still lists V for whose app-level not_affected judgment is resolved |
 | `security.covered_package_exposures` | One per occurrence holding a scope of a component whose package-level judgment is resolved (every inventory holding it) |
 | `security.came_back_exposures` | The worklist rows whose judgment pair exists but holds no judgment Claim: a judgment withdrawn (the pair stays as history) |
+| `security.unjudged_exposures`, `security.contested_exposures` | The worklist split by why a pair is there: no judgment Claim at all, or one that does not count; what the attention Lines post |
+
+**The inbox** (`triage.attention_spec`). Two observe-only Lines, the last steps of
+`security.start` and `security.maintain`, post urgent unjudged exposures to the
+Line inbox: `security.exposure-attention.unjudged` reads
+`security.unjudged_exposures` (no judgment Claim on the pair) and
+`.contested` reads `security.contested_exposures` (a judgment Claim that does not
+count). A Procedure has one terminal (a second is unreachable without a guard,
+and guards are closed), so each state is its own Procedure and Line: a state
+read, then one `post_inbox` with the state as a literal field, no provider slot
+and no Mandate. An item is only stable identity (inventory, component, CVE,
+occurrence id, state; `dedupe_key` occurrence, CVE, state): a pair seen daily in
+the same state is one item re-sighted, a contested judgment a new one. Each run
+posts at most 100 (declared `max_items`), the first rows in worklist order (KEV
+first, then EPSS), and past that reports `inbox_truncation`. A decided item stays
+decided when its pair comes back in the same state, as after a withdrawn
+judgment (`security.came_back_exposures` lists those)
+(`test_urgent_pairs_reach_the_inbox_once_and_decisions_stand`,
+`test_a_newly_urgent_or_contested_pair_posts_exactly_one_new_item`,
+`test_an_attention_run_posts_at_most_100_items_most_urgent_first`).
 
 **Exposure counts.** The Query engine has no count or union form, so each
 number is the rows of named Queries (`triage.COUNT_QUERIES`), and
