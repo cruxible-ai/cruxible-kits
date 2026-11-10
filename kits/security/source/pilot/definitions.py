@@ -707,11 +707,9 @@ def procedures() -> dict[str, Any]:
         *({"kind": "procedure", "spec": spec} for spec in (kev_spec(), epss_spec())),
         # -- Batch 2, dependency loop: the OSV Procedure.
         *osv.procedure_members(),
-        # The worklist's urgent pairs to the Line inbox, one Procedure per state.
-        *(
-            {"kind": "procedure", "spec": triage.attention_spec(state)}
-            for state in triage.ATTENTION_STATES
-        ),
+        # The worklist's urgent pairs to the Line inbox: one Procedure per state, and
+        # the unjudged one again for a single inventory.
+        *({"kind": "procedure", "spec": spec} for spec in triage.attention_procedures()),
     ]
     for member in members:
         ProcedureInput.model_validate(member)

@@ -16,7 +16,10 @@ writes imply:
 4. ``security.epss-triage``: reads the same watch list and writes the EPSS fields;
 5. ``security.exposure-attention.unjudged`` and ``.contested``: read the worklist
    (the judgments, which agents write and no Line does) and post one Line inbox
-   item per urgent pair nobody has judged.
+   item per pair nobody has judged whose vulnerability is KEV-listed or has an
+   EPSS score at or above the unjudged Line's ``min_epss`` (``0.1`` as shipped),
+   and one per pair whose judgment does not count (no threshold). The whole
+   worklist stays in ``security.urgent_exposures``.
 
 ``security.maintain`` is the daily refresh: steps 2-5 without the SBOM import
 (the SBOM changes when the repository changes, not on a clock). The one Trigger,
@@ -80,8 +83,10 @@ def template() -> dict[str, Any]:
             "name": START,
             "description": (
                 "Seed a fresh instance: import the SBOM, ask OSV what affects it, read KEV "
-                "and EPSS for what it found, then post the urgent pairs nobody has judged "
-                "to the inbox."
+                "and EPSS for what it found, then post to the inbox the pairs nobody has "
+                "judged that are KEV-listed or have an EPSS score at or above the attention "
+                "Line's min_epss, and the pairs whose judgment does not count. The whole "
+                "worklist stays in security.urgent_exposures."
             ),
             "steps": [{"line": line} for line in START_LINES],
         },
@@ -90,7 +95,10 @@ def template() -> dict[str, Any]:
             "name": MAINTAIN,
             "description": (
                 "Daily refresh: ask OSV what affects the inventory, read KEV and EPSS for "
-                "what it found, then post the urgent pairs nobody has judged to the inbox."
+                "what it found, then post to the inbox the pairs nobody has judged that are "
+                "KEV-listed or have an EPSS score at or above the attention Line's min_epss, "
+                "and the pairs whose judgment does not count. The whole worklist stays in "
+                "security.urgent_exposures."
             ),
             "steps": [{"line": line} for line in MAINTAIN_LINES],
         },
@@ -107,11 +115,12 @@ def template() -> dict[str, Any]:
         "rationale": (
             "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS "
             "Lines and their Mandates, and the two observe-only attention Lines that post "
-            "urgent unjudged exposures to the inbox; the security.start Runbook that seeds "
+            "exposures to the inbox (unjudged pairs KEV-listed or with an EPSS score at or "
+            "above min_epss, 0.1 as shipped; contested pairs); the security.start Runbook that seeds "
             "a fresh instance; and the security.maintain Runbook that the one daily Trigger "
             "security.maintain-daily runs (OSV, KEV, EPSS, attention; the SBOM import runs "
-            "when the SBOM changes). Tailor the Line names, the SBOM path, the cron time and "
-            "the Mandate dates before submitting."
+            "when the SBOM changes). Tailor the Line names, the SBOM path, the cron time, "
+            "the attention threshold and the Mandate dates before submitting."
         ),
         "members": members,
     }

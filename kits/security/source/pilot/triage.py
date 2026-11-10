@@ -99,6 +99,10 @@ COVERED_APP = "security.covered_app_exposures"
 COVERED_PACKAGE = "security.covered_package_exposures"
 PAIR_WITHOUT_JUDGMENT = "security.pair_without_judgment_exposures"
 UNJUDGED = "security.unjudged_exposures"
+#: The unjudged pairs over the attention Line's urgency threshold, in every
+#: inventory or in one: what the unjudged attention Lines read.
+UNJUDGED_OVER = "security.unjudged_exposures_over"
+UNJUDGED_OVER_IN = "security.inventory_unjudged_exposures_over"
 CONTESTED = "security.contested_exposures"
 #: The inbox item Contract the attention Lines post.
 ATTENTION_ITEM = "security.exposure-attention"
@@ -107,6 +111,12 @@ ATTENTION_STATES = ("unjudged", "contested")
 #: Procedure has one terminal (a second is unreachable without a guard, and guards
 #: are closed in authoring), so one run cannot post two states.
 ATTENTION = {state: f"{ATTENTION_ITEM}.{state}" for state in ATTENTION_STATES}
+#: The unjudged attention Procedure for one inventory: a maintainer adds one Line
+#: per inventory on it, each with its own threshold (the template ships none).
+ATTENTION_IN_INVENTORY = f"{ATTENTION_ITEM}.unjudged-inventory"
+#: The urgency threshold the template's unjudged attention Line ships with: a pair
+#: posts when its vulnerability is KEV-listed or its EPSS score is at least this.
+ATTENTION_MIN_EPSS = "0.1"
 #: The most items one attention run posts (core: a declared max_items, at most
 #: 1000; 100 when undeclared). Past it the run reports inbox_truncation and posts
 #: the first rows in worklist order: KEV-listed first, then by EPSS score.
@@ -327,6 +337,34 @@ UNJUDGED_SPEC: dict[str, Any] = {
     "KEV-listed first, then by EPSS score.",
     "where": f"not ({_ANY_JUDGMENT})",
 }
+#: Urgent enough to post: KEV-listed, or an EPSS score at or above the Line's
+#: threshold. A pair whose vulnerability has no EPSS score and no KEV listing never
+#: qualifies, at any threshold: a comparison with an absent value never matches,
+#: and the Query grammar cannot test the parameter on its own (``$min_epss == 0``),
+#: so "0 means every pair" is not expressible here. It stays in
+#: ``security.unjudged_exposures`` and ``security.urgent_exposures``.
+_URGENT_ENOUGH = "(exists v.kev_date_added or v.epss_score >= $min_epss)"
+UNJUDGED_OVER_SPEC: dict[str, Any] = {
+    **UNJUDGED_SPEC,
+    "query": UNJUDGED_OVER,
+    "description": "The exposures nobody has judged that hold no judgment Claim at all and "
+    "whose vulnerability is KEV-listed or has an EPSS score at or above min_epss, in every "
+    "inventory, KEV-listed first, then by EPSS score. A vulnerability with neither is never "
+    "listed here; security.unjudged_exposures and security.urgent_exposures keep the whole "
+    "worklist.",
+    "params": {"min_epss": "decimal"},
+    "where": f"not ({_ANY_JUDGMENT}) and {_URGENT_ENOUGH}",
+}
+UNJUDGED_OVER_IN_SPEC: dict[str, Any] = {
+    **UNJUDGED_OVER_SPEC,
+    "query": UNJUDGED_OVER_IN,
+    "description": "security.unjudged_exposures_over for one inventory (its inventory_id): "
+    "the exposures nobody has judged, holding no judgment Claim, whose vulnerability is "
+    "KEV-listed or has an EPSS score at or above min_epss, KEV-listed first, then by EPSS "
+    "score.",
+    "params": {"inventory": "string", "min_epss": "decimal"},
+    "where": f"not ({_ANY_JUDGMENT}) and {_URGENT_ENOUGH} and i.inventory_id == $inventory",
+}
 CONTESTED_SPEC: dict[str, Any] = {
     **URGENT_SPEC,
     "query": CONTESTED,
@@ -420,6 +458,8 @@ def vocabulary_members() -> list[dict[str, Any]]:
         COVERED_PACKAGE_SPEC,
         PAIR_WITHOUT_JUDGMENT_SPEC,
         UNJUDGED_SPEC,
+        UNJUDGED_OVER_SPEC,
+        UNJUDGED_OVER_IN_SPEC,
         CONTESTED_SPEC,
     ):
         members.append({"kind": "query_definition", "query_definition": spec})
@@ -448,28 +488,70 @@ def vocabulary_members() -> list[dict[str, Any]]:
 # -- The attention Line: urgent unjudged exposures reach the Line inbox ------------------
 
 
-def attention_spec(state: str) -> dict[str, Any]:
-    """``security.exposure-attention.<state>``: read one worklist split, post one item
-    per pair.
+#: Each attention Procedure: the state it posts, the Query it reads, the Line
+#: parameters it takes (passed to the Query as they are) and its description.
+_ATTENTION_PROCEDURES: dict[str, tuple[str, str, dict[str, str], str]] = {
+    ATTENTION["unjudged"]: (
+        "unjudged",
+        UNJUDGED_OVER,
+        {"min_epss": "decimal{0..1}"},
+        "Post one Line inbox item per exposure nobody has judged whose vulnerability is "
+        f"KEV-listed or has an EPSS score at or above the Line's min_epss ({UNJUDGED_OVER}), "
+        "in every inventory, KEV-listed first, then by EPSS score.",
+    ),
+    ATTENTION_IN_INVENTORY: (
+        "unjudged",
+        UNJUDGED_OVER_IN,
+        {"inventory": "string", "min_epss": "decimal{0..1}"},
+        "Post one Line inbox item per exposure nobody has judged in the Line's inventory "
+        "whose vulnerability is KEV-listed or has an EPSS score at or above the Line's "
+        f"min_epss ({UNJUDGED_OVER_IN}), KEV-listed first, then by EPSS score.",
+    ),
+    ATTENTION["contested"]: (
+        "contested",
+        CONTESTED,
+        {},
+        # As before the threshold: the contested Procedure is unchanged.
+        f"Post one Line inbox item per contested urgent exposure ({CONTESTED}), KEV-listed "
+        "first, then by EPSS score.",
+    ),
+}
 
-    No provider slot: one state read (``security.unjudged_exposures`` or
+
+def attention_procedures() -> list[dict[str, Any]]:
+    """The three attention Procedures (unjudged in every inventory, unjudged in one
+    inventory, contested)."""
+
+    return [attention_spec(name) for name in _ATTENTION_PROCEDURES]
+
+
+def attention_spec(name: str) -> dict[str, Any]:
+    """One attention Procedure: read one worklist split, post one item per pair.
+
+    No provider slot: one state read (``security.unjudged_exposures_over``,
+    ``security.inventory_unjudged_exposures_over`` or
     ``security.contested_exposures``) and one ``post_inbox`` terminal, with the
-    state as a literal field. An item is only the pair's stable identity and its
-    state, so a pair seen daily in the same state is one item re-sighted, never a
-    new one; a contested judgment is a new item. The worklist order (KEV-listed
+    state as a literal field. The unjudged reads take the Line's ``min_epss``
+    (and ``inventory``) as Query params, so a maintainer tunes what posts by
+    editing the Line. An item is only the pair's stable identity and its state,
+    so a pair seen daily in the same state is one item re-sighted, never a new
+    one; a contested judgment is a new item. The worklist order (KEV-listed
     first, then EPSS) is the posting order, so a capped run posts the most urgent.
     """
 
     from definitions import refs
 
-    query = {"unjudged": UNJUDGED, "contested": CONTESTED}[state]
+    state, query, params, description = _ATTENTION_PROCEDURES[name]
+    read: dict[str, Any] = {"read": "pairs", "query": query}
+    if params:
+        read["params"] = {param: f"$params.{param}" for param in params}
     return refs(
         {
-            "procedure": ATTENTION[state],
-            "description": f"Post one Line inbox item per {state} urgent exposure ({query}), "
-            "KEV-listed first, then by EPSS score.",
+            "procedure": name,
+            "description": description,
             "input": {},
             "output": {},
+            **({"params": dict(params)} if params else {}),
             # Inbox egress is the terminal; the run's own value is empty.
             "returns": {"fields": {}},
             "hard_caps": {
@@ -481,7 +563,7 @@ def attention_spec(state: str) -> dict[str, Any]:
                 "repeat_attempts": 1,
             },
             "steps": [
-                {"read": "pairs", "query": query},
+                read,
                 {
                     "id": "post",
                     "inbox": f"{ATTENTION_ITEM}@1",
@@ -501,21 +583,32 @@ def attention_spec(state: str) -> dict[str, Any]:
     )
 
 
+def attention_line(
+    name: str, procedure: str, parameters: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    """An attention Line: inbox egress only, so ``observe`` and no Mandate (posting
+    feeds agents, it changes no accepted state)."""
+
+    return {
+        "kind": "line",
+        "name": name,
+        "procedure_name": procedure,
+        "bindings": {},
+        "parameters": dict(parameters or {}),
+        "acquisition": {},
+        "max_authority": "observe",
+    }
+
+
 def attention_automation() -> list[dict[str, Any]]:
-    """The two attention Lines: inbox egress only, so ``observe`` and no Mandate
-    (posting feeds agents, it changes no accepted state)."""
+    """The two attention Lines the template ships: unjudged pairs over the default
+    threshold in every inventory, and contested pairs (unfiltered)."""
 
     return [
-        {
-            "kind": "line",
-            "name": ATTENTION[state],
-            "procedure_name": ATTENTION[state],
-            "bindings": {},
-            "parameters": {},
-            "acquisition": {},
-            "max_authority": "observe",
-        }
-        for state in ATTENTION_STATES
+        attention_line(
+            ATTENTION["unjudged"], ATTENTION["unjudged"], {"min_epss": ATTENTION_MIN_EPSS}
+        ),
+        attention_line(ATTENTION["contested"], ATTENTION["contested"]),
     ]
 
 
