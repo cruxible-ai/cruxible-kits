@@ -838,7 +838,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:0443e32ccd9ebe40ecae9ab1dd4d45ac4317271cf649b52aa63a41109cb45761"
+      "sha256": "sha256:e7b9352e98a4c590ef444155a9c4f3bdbdece8d1e137a72061a3b1c28cfca5d0"
     },
     {
       "path": "automation.json",
@@ -848,7 +848,7 @@
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:b079079dd051b8becba74a8e4a8b579c43f6c17aa23d61a70b28181dd3153ed6"
+      "sha256": "sha256:f28e2fcdb0b37923c9b49c9b43add30dfb9b0c0a4df1d7e9f67286a3b1bd0630"
     },
     {
       "path": "examples/sboms/cruxible-env.cdx.json",

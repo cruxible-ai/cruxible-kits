@@ -18,10 +18,12 @@ cp /path/to/cruxible-kits/kits/security/examples/sboms/log4j-demo-app.cdx.json s
 
 Tailor the Line names and references, the daily UTC cron time and Mandate dates. The
 SBOM Line must read `sbom.cdx.json` (or the workspace-relative path you choose).
-Submit with `cruxible authoring submit automation.json --no-accept`, have a
-second actor review and approve it, activate the proposal, then run
-`cruxible runbook preview security.start`. Review its availability, order and
-settlement scopes before `cruxible runbook run security.start`.
+Submit with `cruxible authoring submit automation.json --no-accept`, review it
+and approve it (`cruxible proposal approve PROPOSAL_ID --yes`: on a one-owner
+instance your own approval activates it; under `independent_approval_required`
+a different principal approves), then run `cruxible runbook preview
+security.start`. Review its availability, order, settlement scopes and the
+inputs each step lists as needed before `cruxible runbook run security.start`.
 
 The Runbook makes real OSV, CISA and FIRST network calls. Refusals or incomplete
 answers remain gaps. No recorded responses are substituted by this example.
