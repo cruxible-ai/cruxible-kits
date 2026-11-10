@@ -31,7 +31,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from definitions import VULN, refs
+from definitions import VULN, params_contract, params_contract_members, refs
 from inventory import COMPONENT, DEPENDENCY_PROVIDER, OCCURRENCE, OSV_MATCH_KIND, OSV_SOURCE
 
 OSV_PROCEDURE = "security.osv-query"
@@ -158,10 +158,26 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "kind": "query_definition",
             "query_definition": subject_shaped(COMPONENTS_SPEC, claim_types),
         },
+        *params_contract_members(OSV_PROCEDURE, *OSV_PARAMS),
     ]
 
 
 # -- Procedure --------------------------------------------------------------------------
+
+#: What the Line on security.osv-query supplies, as its params Contract says it.
+OSV_PARAMS = (
+    "What the Line on security.osv-query needs: only the source label. It asks "
+    "api.osv.dev about every component an inventory holds; when the Line lists "
+    "acquisition origins, https://api.osv.dev must be one.",
+    {
+        "logical_source": (
+            'string{pattern: "^[a-z][a-z0-9_.-]{0,255}$"}',
+            "Source label OSV's responses and the derived match document are recorded "
+            "under, lowercase (the template uses osv.dev.query). Evidence requirements and "
+            "landing Triggers can name it.",
+        ),
+    },
+)
 
 
 def osv_spec() -> dict[str, Any]:
@@ -173,7 +189,7 @@ def osv_spec() -> dict[str, Any]:
             "longer lists for a component it answered in full retires.",
             "input": {},
             "output": {},
-            "params": {"logical_source": 'string{pattern: "^[a-z][a-z0-9_.-]{0,255}$"}'},
+            "parameter_contract": params_contract(OSV_PROCEDURE),
             "slots": {
                 "query": {
                     "in": "osv.query.request@1",

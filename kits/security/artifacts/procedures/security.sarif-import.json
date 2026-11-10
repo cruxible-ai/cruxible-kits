@@ -219,7 +219,7 @@
     "parameter_contract": {
       "target": {
         "kind": "Contract",
-        "name": "security.sarif-import.params/v1"
+        "name": "security.sarif-import.params/v2"
       }
     },
     "slots": {
@@ -252,7 +252,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:a4bd7bacd949d5364e91076d97664fa2ca6b438469447c9c02098a9be2fb3232",
+  "definition_digest": "sha256:fff06fa6d4509d355074eb64be4f3a8d48c140b60b7aed1357710201da25a241",
   "identity": {
     "kind": "Procedure",
     "name": "security.sarif-import"

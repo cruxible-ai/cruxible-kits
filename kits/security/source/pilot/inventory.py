@@ -57,7 +57,7 @@ from typing import Any
 
 from cruxible_client.contracts.authoring.inputs import ProcedureInput
 from cruxible_core.claims.claim_type_inputs import ClaimTypeInputRecord, lower_claim_type_input
-from definitions import VULN, refs
+from definitions import VULN, params_contract, params_contract_members, refs
 
 INVENTORY = "security.inventory"
 COMPONENT = "security.component"
@@ -456,6 +456,7 @@ def vocabulary_members() -> list[dict[str, Any]]:
             },
         },
         {"kind": "query_definition", "query_definition": INVENTORY_COMPONENTS_SPEC},
+        *params_contract_members(SBOM_PROCEDURE, *SBOM_PARAMS),
     ]
 
 
@@ -482,7 +483,34 @@ _CAPS = {
     "read_rows": 20_000,
     "repeat_attempts": 1,
 }
-_PARAMS = {"relative_path": _PATH, "logical_source": _SOURCE}
+#: What a Line on security.sbom-import supplies, as its params Contract says it.
+SBOM_PARAMS = (
+    "What a Line on security.sbom-import reads: one SBOM file in the workspace and the "
+    "source label it is recorded under; one Line per SBOM file. Each component's "
+    "occurrence takes the CycloneDX scope the SBOM states (required when it states none). "
+    "A scope other than required, optional or excluded is refused for that component, "
+    "which keeps the scope it held; a purl listed twice with two scopes writes nothing "
+    "for that purl.",
+    {
+        "relative_path": (
+            _PATH,
+            "Workspace-relative path of one CycloneDX JSON SBOM (bomFormat CycloneDX; "
+            "tested with spec 1.6): at most 1 MiB and 20000 components, nested at most 16 "
+            "levels deep. The root component's purl (metadata.component.purl) names the "
+            "inventory; without one, the inventory is named by this path, so moving the "
+            "file starts a new inventory. Every component needs a purl: one without is "
+            "counted but not imported, and the run then retires nothing. A generator for "
+            "the project's ecosystem writes the file (cyclonedx-py, syft, cdxgen); "
+            "Cruxible does not.",
+        ),
+        "logical_source": (
+            _SOURCE,
+            "Source label the SBOM Capture and its derived component list are recorded "
+            "under, lowercase (the template uses cyclonedx.sbom.app). Give each SBOM Line "
+            "its own; evidence requirements and landing Triggers can name it.",
+        ),
+    },
+)
 _PATH_REF = "$params.relative_path"
 _INVENTORY_REF = "$steps.listed.header.inventory"
 
@@ -506,7 +534,7 @@ def sbom_spec() -> dict[str, Any]:
             "component the SBOM no longer lists has its scope retired.",
             "input": {},
             "output": {},
-            "params": _PARAMS,
+            "parameter_contract": params_contract(SBOM_PROCEDURE),
             "slots": _SLOTS,
             "hard_caps": _CAPS,
             "steps": [

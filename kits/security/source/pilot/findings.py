@@ -44,7 +44,7 @@ from typing import Any
 from cruxible_client.contracts.authoring.inputs import ChangeSetInput, ProcedureInput
 from cruxible_core.claims.claim_type_inputs import ClaimTypeInputRecord, lower_claim_type_input
 
-from definitions import FINDINGS, refs
+from definitions import FINDINGS, params_contract, params_contract_members, refs
 
 FINDING = "security.finding"
 #: The SARIF file as read (core's builtin workspace.file), decoded as JSON.
@@ -669,6 +669,7 @@ def vocabulary() -> dict[str, Any]:
             },
         },
     ]
+    members += params_contract_members(IMPORT_PROCEDURE, *IMPORT_PARAMS)
     # Codebase facts: rests_on on findings and coverage units, and their Queries.
     import facts
 
@@ -701,7 +702,37 @@ _CAPS = {
     "read_rows": 20_000,
     "repeat_attempts": 1,
 }
-_PARAMS = {"relative_path": _PATH, "logical_source": _SOURCE, "repo": _REPO}
+#: What a Line on security.sarif-import supplies, as its params Contract says it.
+IMPORT_PARAMS = (
+    "What a Line on security.sarif-import reads: one SARIF file in the workspace, the "
+    "repository whose results it imports, and the source label it is recorded under; one "
+    "Line per scanner and repository.",
+    {
+        "relative_path": (
+            _PATH,
+            "Workspace-relative path of one SARIF 2.1.0 JSON log, at most 1 MiB and 20000 "
+            "results. Only runs whose versionControlProvenance[0].repositoryUri names the "
+            "Line's repo are read. A result needs a repository-relative path and a symbol, "
+            "snippet or primaryLocationLineHash, or it is a location gap, not a finding; a "
+            "CVE or GHSA result in a manifest is left to the SBOM loop. Only a run with "
+            "properties cruxible.coverage full, every invocation successful, marks findings "
+            "fixed. The scanner writes the file; Cruxible does not.",
+        ),
+        "logical_source": (
+            _SOURCE,
+            "Source label the SARIF Capture and the derived findings document are recorded "
+            "under, lowercase: sarif.<scanner> (for example sarif.semgrep). The attention "
+            "Line's landing Trigger names it, so give each scanner's import its own.",
+        ),
+        "repo": (
+            _REPO,
+            "The repository the findings belong to, as host/owner/repo in lowercase (for "
+            "example github.com/acme/shop). It is part of every finding's key and picks "
+            "which runs of the log are read: a log with no run of this repository imports "
+            "nothing.",
+        ),
+    },
+)
 
 
 def _key(part: str) -> dict[str, Any]:
@@ -751,7 +782,7 @@ def import_spec() -> dict[str, Any]:
             "reports for the Line's repository; a full scan verifies fixes.",
             "input": {},
             "output": {},
-            "params": _PARAMS,
+            "parameter_contract": params_contract(IMPORT_PROCEDURE),
             "slots": _SLOTS,
             "hard_caps": _CAPS,
             "steps": [

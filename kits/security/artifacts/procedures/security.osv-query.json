@@ -142,7 +142,7 @@
     "parameter_contract": {
       "target": {
         "kind": "Contract",
-        "name": "security.osv-query.params/v1"
+        "name": "security.osv-query.params/v2"
       }
     },
     "slots": {
@@ -175,7 +175,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:5ec884a3fc9750a45e699b2dac3428b927942f860ad7c3fbbaa6b612e71f983a",
+  "definition_digest": "sha256:3ea98153c1e19273cb18ef5c06ccd93ce28d193e9e1c815c2a504f11708ce28d",
   "identity": {
     "kind": "Procedure",
     "name": "security.osv-query"

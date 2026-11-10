@@ -329,6 +329,10 @@
       "path": "contracts/security.epss-triage.params/v1.json"
     },
     {
+      "artifact_digest": "sha256:70390cd4c1426f3038d49a0c7baddae09e2d0ee020e4ed4db7529e46559c55fe",
+      "path": "contracts/security.epss-triage.params/v2.json"
+    },
+    {
       "artifact_digest": "sha256:c708236781b0179068cfeaa13e909e73325791d4a09431a9342a2d256025d264",
       "path": "contracts/security.exposure-attention.contested.input/v1.json"
     },
@@ -397,6 +401,10 @@
       "path": "contracts/security.kev-triage.params/v1.json"
     },
     {
+      "artifact_digest": "sha256:533dd4a9e6c719171d606cd0ae39f01611aae7f0db57ec1753eebc8aacaf6d76",
+      "path": "contracts/security.kev-triage.params/v2.json"
+    },
+    {
       "artifact_digest": "sha256:78e3bcd86138b59ec55cdac71ea154aaf3e26bebdaca1896679c46ba9b39bc35",
       "path": "contracts/security.osv-affected/v1.json"
     },
@@ -415,6 +423,10 @@
     {
       "artifact_digest": "sha256:ae9ec883a12e23be9e4fc55534052680d2781dfae1a6a62e8c621609a2c40c7e",
       "path": "contracts/security.osv-query.params/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:bce7d6a1ef7e45998a0a218b8b53b9559c4d34721d336da8079c5cd598f241a4",
+      "path": "contracts/security.osv-query.params/v2.json"
     },
     {
       "artifact_digest": "sha256:314e39591a57686d99c8ca1a21852291e65a909c3825e5f2ae130e3561b4b982",
@@ -457,6 +469,10 @@
       "path": "contracts/security.sarif-import.params/v1.json"
     },
     {
+      "artifact_digest": "sha256:2f765f91db4ce27812f7c483a84e456122af9284e280e20b5096199ffac922a3",
+      "path": "contracts/security.sarif-import.params/v2.json"
+    },
+    {
       "artifact_digest": "sha256:f8b48814c88ac2cdeadc62e9c4f9c65ee0e8b62ccbd118a3af5cfa1ea2076532",
       "path": "contracts/security.sbom-component/v1.json"
     },
@@ -471,6 +487,10 @@
     {
       "artifact_digest": "sha256:15847ee44e36f885389e9855cab40f62773801d9cd90fed02323b39651aace13",
       "path": "contracts/security.sbom-import.params/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:3961ee6284cd1532ccfa2c40fd9d0538cc42c96704a2a30deb00c6404977ca8b",
+      "path": "contracts/security.sbom-import.params/v2.json"
     },
     {
       "artifact_digest": "sha256:ee38397d2b261a53087088722727aa0b902e1e002f33ebb50017d3b644bb6dde",
@@ -617,7 +637,7 @@
       "path": "documents/security.guidance.verifier.json"
     },
     {
-      "artifact_digest": "sha256:858b42d01538d5374582398bb9320ea8d52274781ac9f6926a2b6bdfb0c8d215",
+      "artifact_digest": "sha256:9026c48a1058c50b8579606c27a628c44101af4b02f68c36cefe7672a30c72d2",
       "path": "procedures/security.epss-triage.json"
     },
     {
@@ -633,11 +653,11 @@
       "path": "procedures/security.exposure-attention.unjudged.json"
     },
     {
-      "artifact_digest": "sha256:06d4de6551b453401a33d225e473f9273aab7fc0d244adbf98277c14864069af",
+      "artifact_digest": "sha256:b4015f461202ed9c36b615224dee12100a03241f81bb2f2dfa20c1ff7994125e",
       "path": "procedures/security.kev-triage.json"
     },
     {
-      "artifact_digest": "sha256:1e0a678683e0b487fb661477e48a5daad716d174c144828946dc95533b3e79e1",
+      "artifact_digest": "sha256:38d086c1aff729ad97f37068582c26076e1d0c09d7cc8dc31c83b052415d79ae",
       "path": "procedures/security.osv-query.json"
     },
     {
@@ -645,11 +665,11 @@
       "path": "procedures/security.sarif-attention.json"
     },
     {
-      "artifact_digest": "sha256:199502a319745820dc565131aed60750a418732208e5a7b922d812d38e555a98",
+      "artifact_digest": "sha256:1749e4be162c752f7c452b40949751070c66cb72a2fa1de81e9b0beed6fdfb02",
       "path": "procedures/security.sarif-import.json"
     },
     {
-      "artifact_digest": "sha256:a10f9e25ee884f3f9f07e739b7c882ec702fc3779781ca51fe37cf5b1968f3b2",
+      "artifact_digest": "sha256:8e081cc27c629576cbc30def0a9fd3596d4857c1f3e0a7e6f1adbd2dce521540",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -913,12 +933,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf",
-      "generation_root": "sha256:72c5d4eafa7fde16e1100758a4a311e48086d689ba6ae5f9b1c40f179cac3807",
-      "git_oid": "abc3b2c97f9c29524a35db7ef5459b229f2c7b40",
-      "semantic_root": "sha256:222f3c143a601f47d011311705b7f30a417296297d7b0b678c84175f69adadd8",
+      "generation_root": "sha256:d4bc49b3f845a7e7cdc9bc6fb8eca24286940685fa1f11f6e0271a6981cb98a2",
+      "git_oid": "f7d4afc553b09893749adc0372c0886e4de78f74",
+      "semantic_root": "sha256:a867edc021005beb167774ed38cb202fd11c4681a0d0c3f1f6e83348521e829b",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_70aeb22a2c774dcf",
+    "instance_id": "inst_edcd4aefd84242b5",
     "principal_id": "owner"
   },
   "providers": [

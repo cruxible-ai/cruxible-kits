@@ -172,7 +172,7 @@
     "parameter_contract": {
       "target": {
         "kind": "Contract",
-        "name": "security.kev-triage.params/v1"
+        "name": "security.kev-triage.params/v2"
       }
     },
     "slots": {
@@ -192,7 +192,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:1390c0c1877e7b15dde052bf1ae929be6b060ee98f5c57e0176f2804c9550a59",
+  "definition_digest": "sha256:14814cf8f353d65e26d6fd6df35b8d1c29853110969166770d16e6939cf6e002",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-triage"

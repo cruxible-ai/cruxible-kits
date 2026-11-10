@@ -155,7 +155,7 @@
     "parameter_contract": {
       "target": {
         "kind": "Contract",
-        "name": "security.epss-triage.params/v1"
+        "name": "security.epss-triage.params/v2"
       }
     },
     "slots": {
@@ -175,7 +175,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:d4b5e7026890d73e48123f67c520b31f43b69ed4c2470feeae47066a9e1a31c6",
+  "definition_digest": "sha256:7d45f8399644da8050e0db4fb6d3e8cccf7108439244eb75accaca3956ae008c",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"
