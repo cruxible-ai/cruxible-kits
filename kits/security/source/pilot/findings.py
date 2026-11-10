@@ -54,6 +54,10 @@ FINDINGS_KIND = "security.sarif-findings"
 FINDING_ROW = "security.sarif-finding"
 ATTENTION_ROW = "security.sarif-attention-record"
 ATTENTION_ITEM = "security.sarif-attention"
+#: The item Contract version the attention Lines post: version 2 types the finding
+#: key parts as references and describes each field; version 1 stays accepted as its
+#: predecessor. Item identity is the Line, posting step and ``ref``, so it holds.
+ATTENTION_ITEM_VERSION = 2
 HELD_ROW = "sarif.held-finding"
 HELD_QUERY = "security.sarif_held_findings"
 VERDICTS_QUERY = "security.finding_verdicts"
@@ -104,6 +108,11 @@ _SOURCE = 'string{pattern: "^[a-z][a-z0-9_.-]{0,255}$"}'
 _REPO_PATTERN = "^[a-z0-9.-]+/[^/\\s]+/[^/\\s]+$"
 _REPO = f'string{{max_len: 256, pattern: "{_REPO_PATTERN.replace(chr(92), chr(92) * 2)}"}}'
 _ATTENTION_KINDS = 'enum["location_gap", "regression"]'
+_ATTENTION_ITEM_DESCRIPTION = (
+    "A code-findings item for an agent: a regression (a finding verified fixed that a "
+    "scan reports again) or a location gap (a result with no repository path or no "
+    "stable locator, so it is no finding yet)."
+)
 _WEAKNESS_PATTERN = "^(CWE-[0-9]{1,6}|RULE:\\S{1,240})$"
 _TOOL_PATTERN = "^[0-9a-z][0-9a-z._-]{0,63}$"
 _TOOL = f'string{{max_len: 64, pattern: "{_TOOL_PATTERN}"}}'
@@ -504,9 +513,7 @@ def vocabulary() -> dict[str, Any]:
             "kind": "contract",
             "name": ATTENTION_ITEM,
             "version": 1,
-            "description": "A code-findings item for an agent: a regression (a finding verified "
-            "fixed that a scan reports again) or a location gap (a result with no repository "
-            "path or no stable locator, so it is no finding yet).",
+            "description": _ATTENTION_ITEM_DESCRIPTION,
             "fields": {
                 "kind": _ATTENTION_KINDS,
                 "ref": "string{max_len: 512}",
@@ -517,6 +524,58 @@ def vocabulary() -> dict[str, Any]:
                 "locus": "string{max_len: 256}?",
                 "finding": "string{max_len: 256}?",
                 "reason": "string{max_len: 64}?",
+            },
+        },
+        {
+            "kind": "contract",
+            "name": ATTENTION_ITEM,
+            "version": ATTENTION_ITEM_VERSION,
+            "description": _ATTENTION_ITEM_DESCRIPTION,
+            "fields": {
+                "kind": {
+                    "type": _ATTENTION_KINDS,
+                    "description": "regression (a finding verified fixed that a scan reports "
+                    "again) or location_gap (a result the scan could not place).",
+                },
+                "ref": {
+                    "type": "string{max_len: 512}",
+                    "description": "The item's identity: the kind, then the finding and scan "
+                    "revision, or the rule and path.",
+                },
+                "repo": {
+                    "type": f"key_part<{FINDING}:repo>",
+                    "description": "The repository (host/owner/repo): the finding key's repo.",
+                },
+                "rule": {
+                    "type": "string{max_len: 256}",
+                    "description": "The rule that reported it, as tool:ruleId.",
+                },
+                "path": {
+                    "type": "string{max_len: 256}",
+                    "description": "The repository-relative path the result names, or (none).",
+                },
+                "weakness": {
+                    "type": f"key_part<{FINDING}:weakness>?",
+                    "description": "A regression's weakness (CWE-n or RULE:tool/ruleId): the "
+                    "finding key's weakness.",
+                },
+                "locus": {
+                    "type": f"key_part<{FINDING}:locus>?",
+                    "description": "A regression's locus (path#locator): the finding key's "
+                    "locus.",
+                },
+                # The held row's subject_id, without its kind: subject<security.finding>
+                # takes kind/id only, so typing it would change the posted value.
+                "finding": {
+                    "type": "string{max_len: 256}?",
+                    "description": "A regression's finding Subject id: get "
+                    "security.finding/<finding>.",
+                },
+                "reason": {
+                    "type": "string{max_len: 64}?",
+                    "description": "Why a location gap is no finding (for example "
+                    "no_repository_path or no_stable_location).",
+                },
             },
         },
         {
@@ -903,7 +962,7 @@ def attention_spec() -> dict[str, Any]:
                 },
                 {
                     "id": "post",
-                    "inbox": f"{ATTENTION_ITEM}@1",
+                    "inbox": f"{ATTENTION_ITEM}@{ATTENTION_ITEM_VERSION}",
                     "for_each": "$steps.attention.records",
                     "fields": {
                         name: f"$item.fields.{name}"

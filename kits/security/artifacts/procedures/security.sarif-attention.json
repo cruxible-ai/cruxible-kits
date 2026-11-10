@@ -97,9 +97,9 @@
       },
       {
         "contract": {
-          "digest": "sha256:04958b75f4898e9f00f3363374ba66950695ef7d09a226f28766ebf9c25d8f57",
+          "digest": "sha256:bbf2723cdc63290a0807458e75b4fee3663c80586554bf482d28b39cc94752c4",
           "name": "security.sarif-attention",
-          "version": 1
+          "version": 2
         },
         "dedupe_key": [
           "ref"
@@ -144,7 +144,7 @@
     },
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:3b6c126f8cf16e60d75d991ff88abe47d055c291cac1242970b2614a427e2903",
+  "definition_digest": "sha256:54c35b97009fc972948f2191326a11f46d49ede8bfde9f15a8a0200ee143ebf8",
   "identity": {
     "kind": "Procedure",
     "name": "security.sarif-attention"

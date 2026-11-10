@@ -133,6 +133,10 @@ urgent first): `cruxible next` shows them as `line_inbox_unread`.
   not count (contested, or `affected` beside a justification), with no
   threshold.
 
+Item fields are typed references (`security.exposure-attention@2`):
+`inventory`, `component` and `cve_id` are keys of their Subject kinds, and
+`occurrence` is the occurrence's Subject id.
+
 `security.urgent_exposures` and `security.kev_triage_backlog` stay the whole
 worklist, whatever the threshold. The preview lists `reads_unwritten` for the
 two attention steps: they read the judgments, which agents write and no Line

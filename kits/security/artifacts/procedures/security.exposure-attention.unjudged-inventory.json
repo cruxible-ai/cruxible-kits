@@ -48,9 +48,9 @@
       },
       {
         "contract": {
-          "digest": "sha256:2e684d1f4a1edd21dbcac32a1008ee50cd9093a1f5251d5a33b40a1f4f1b0930",
+          "digest": "sha256:35ff62263c6f4ed134b78bedd0d11dc1e6c156904053bc58e232c28f5cb97e30",
           "name": "security.exposure-attention",
-          "version": 1
+          "version": 2
         },
         "dedupe_key": [
           "occurrence",
@@ -79,7 +79,7 @@
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:41d63bf9c208bf8f58c597f5a95f0d7e118c85a260ba178e5187e5f9abb8e1cd",
+  "definition_digest": "sha256:5d281f5442e372f90d3d5dc592edd9c8a8fdbd2e66460406d52f7d575330938f",
   "identity": {
     "kind": "Procedure",
     "name": "security.exposure-attention.unjudged-inventory"

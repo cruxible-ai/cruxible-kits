@@ -106,6 +106,11 @@ UNJUDGED_OVER_IN = "security.inventory_unjudged_exposures_over"
 CONTESTED = "security.contested_exposures"
 #: The inbox item Contract the attention Lines post.
 ATTENTION_ITEM = "security.exposure-attention"
+#: The item Contract version the attention Lines post: version 2 types the fields
+#: as references and describes each; version 1 (plain strings) stays accepted as
+#: its predecessor. An item's identity is its Line, posting step and dedupe values,
+#: so the same pair posted under either version is the same item.
+ATTENTION_ITEM_VERSION = 2
 ATTENTION_STATES = ("unjudged", "contested")
 #: One Procedure and Line per state, each reading its own worklist split: a
 #: Procedure has one terminal (a second is unreachable without a guard, and guards
@@ -470,25 +475,61 @@ def vocabulary_members() -> list[dict[str, Any]]:
         CONTESTED_SPEC,
     ):
         members.append({"kind": "query_definition", "query_definition": spec})
-    members.append(
+    description = (
+        "One urgent exposure for an agent to judge: the inventory, the component, the "
+        "vulnerability, the occurrence's Subject id (get security.occurrence/<occurrence>) "
+        "and why it is here: unjudged, or contested (a judgment is on the pair but none "
+        "counts). Stable identity only, so the same pair in the same state is the same item."
+    )
+    state_type = "enum[" + ", ".join(f'"{s}"' for s in ATTENTION_STATES) + "]"
+    members += [
         {
             "kind": "contract",
             "name": ATTENTION_ITEM,
             "version": 1,
-            "description": "One urgent exposure for an agent to judge: the inventory, the "
-            "component, the vulnerability, the occurrence's Subject id (get "
-            "security.occurrence/<occurrence>) and why it is here: unjudged, or contested (a "
-            "judgment is on the pair but none counts). Stable identity only, so the same pair "
-            "in the same state is the same item.",
+            "description": description,
             "fields": {
                 "inventory": "string",
                 "component": "string",
                 "cve_id": "string",
                 "occurrence": "string",
-                "state": "enum[" + ", ".join(f'"{s}"' for s in ATTENTION_STATES) + "]",
+                "state": state_type,
             },
-        }
-    )
+        },
+        {
+            "kind": "contract",
+            "name": ATTENTION_ITEM,
+            "version": ATTENTION_ITEM_VERSION,
+            "description": description,
+            "fields": {
+                "inventory": {
+                    "type": f"key<{INVENTORY}>",
+                    "description": "The inventory's key: its SBOM's root purl, or the SBOM's "
+                    "workspace path when the SBOM names none.",
+                },
+                "component": {
+                    "type": f"key<{COMPONENT}>",
+                    "description": "The component's key: its purl@version.",
+                },
+                "cve_id": {
+                    "type": f"key<{VULN}>",
+                    "description": "The vulnerability's key: its CVE id.",
+                },
+                # The Subject id without its kind (as Query rows read subject_id), so it
+                # stays a string: subject<security.occurrence> takes kind/id only.
+                "occurrence": {
+                    "type": "string",
+                    "description": "The occurrence's Subject id (the pair of this inventory "
+                    "and component): get security.occurrence/<occurrence>.",
+                },
+                "state": {
+                    "type": state_type,
+                    "description": "Why the pair is here: unjudged (nobody has judged it), "
+                    "or contested (a judgment is on it but none counts).",
+                },
+            },
+        },
+    ]
     return members
 
 
@@ -575,7 +616,7 @@ def attention_spec(name: str) -> dict[str, Any]:
                 read,
                 {
                     "id": "post",
-                    "inbox": f"{ATTENTION_ITEM}@1",
+                    "inbox": f"{ATTENTION_ITEM}@{ATTENTION_ITEM_VERSION}",
                     "for_each": "$steps.pairs.rows",
                     "fields": {
                         "inventory": "$item.inventory",
