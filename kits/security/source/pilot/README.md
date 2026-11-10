@@ -231,17 +231,33 @@ creates a judgment pair.
 | `security.covered_app_exposures` | One per occurrence OSV still lists V for whose app-level not_affected judgment is resolved |
 | `security.covered_package_exposures` | One per occurrence holding a scope of a component whose package-level judgment is resolved (every inventory holding it), except an occurrence confirmed affected at app level |
 | `security.pair_without_judgment_exposures` | The worklist rows whose judgment pair exists but holds no judgment Claim: a judgment withdrawn (the pair stays as history), or a pair created before any judgment (e.g. linked with `rests_on`); a Query sees no history, so it cannot tell which |
-| `security.unjudged_exposures`, `security.contested_exposures` | The worklist split by why a pair is there: no judgment Claim at all, or one that does not count; what the attention Lines post |
+| `security.unjudged_exposures`, `security.contested_exposures` | The worklist split by why a pair is there: no judgment Claim at all, or one that does not count |
+| `security.unjudged_exposures_over` (`min_epss`), `security.inventory_unjudged_exposures_over` (`inventory`, `min_epss`) | The unjudged split, only pairs whose vulnerability is KEV-listed, or has an EPSS score at or above `min_epss`, or has no EPSS score yet, in every inventory or in one; what the unjudged attention Lines post |
 
 **The inbox** (`triage.attention_spec`). Two observe-only Lines, the last steps of
-`security.start` and `security.maintain`, post urgent unjudged exposures to the
-Line inbox: `security.exposure-attention.unjudged` reads
-`security.unjudged_exposures` (no judgment Claim on the pair) and
-`.contested` reads `security.contested_exposures` (a judgment Claim that does not
-count). A Procedure has one terminal (a second is unreachable without a guard,
-and guards are closed), so each state is its own Procedure and Line: a state
-read, then one `post_inbox` with the state as a literal field, no provider slot
-and no Mandate. An item is only stable identity (inventory, component, CVE,
+`security.start` and `security.maintain`, post exposures to the Line inbox:
+`security.exposure-attention.unjudged` reads `security.unjudged_exposures_over`
+(no judgment Claim on the pair, and KEV-listed, EPSS at or above the Line's
+`min_epss` (`0.1` in the template), or no EPSS Claim yet:
+`exists v.kev_date_added or v.epss_score >= $min_epss or not exists v.epss_score`) and `.contested` reads
+`security.contested_exposures` (a judgment Claim that does not count; no
+threshold). The Line's `parameters` carry `min_epss` and the Procedure passes it
+to the Query, so the threshold is tuned by editing the Line. It is a required
+parameter: the compact Query form declares required params only (a default needs
+the explicit typed definition) and a Procedure's params Contract has no field
+defaults, so the template's value is the default. A comparison with an absent
+or contested value never matches, so the absence test is what admits a pair FIRST
+has not scored yet, and a contested score (`exists` holds, the comparison does
+not) is not posted unless KEV-listed; it stays in the whole worklist. The inbox item carries no score. When a score arrives, a pair at or above the threshold stays the same item (seen again, its status and decision kept); a pair below it stops being posted, and its item stays in the inbox as it was, no longer seen again (core does not withdraw inbox items). A
+maintainer can add Lines on `security.exposure-attention.unjudged-inventory`
+(reads `security.inventory_unjudged_exposures_over`), one per inventory with its
+own threshold. A Query param cannot be optional in the compact form, so "every
+inventory" and "one inventory" are two Queries and two Procedures, not one
+optional `inventory` param. Items are per Line: a pair two Lines post is an item
+in each inbox, decided apart. A Procedure has one terminal (a second is
+unreachable without a guard, and guards are closed), so each state is its own
+Procedure and Line: a state read, then one `post_inbox` with the state as a
+literal field, no provider slot and no Mandate. An item is only stable identity (inventory, component, CVE,
 occurrence id, state; `dedupe_key` occurrence, CVE, state): a pair seen daily in
 the same state is one item re-sighted, a contested judgment a new one. Each run
 posts at most 100 (declared `max_items`), the first rows in worklist order (KEV
@@ -250,7 +266,11 @@ decided when its pair comes back in the same state, as after a withdrawn
 judgment (`security.pair_without_judgment_exposures` lists such pairs)
 (`test_urgent_pairs_reach_the_inbox_once_and_decisions_stand`,
 `test_a_newly_urgent_or_contested_pair_posts_exactly_one_new_item`,
-`test_an_attention_run_posts_at_most_100_items_most_urgent_first`).
+`test_an_attention_run_posts_at_most_100_items_most_urgent_first`,
+`test_the_unjudged_line_posts_kev_listed_scored_at_its_threshold_and_unscored_pairs`,
+`test_a_line_for_one_inventory_posts_only_its_pairs_at_its_own_threshold`; the
+filtered reads cost no more than the unfiltered one beside an unrelated inventory,
+`test_triage_reads_are_flat_in_unrelated_inventories`).
 
 **Exposure counts.** The Query engine has no count or union form, so each
 number is the rows of named Queries (`triage.COUNT_QUERIES`), and

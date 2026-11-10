@@ -25,6 +25,7 @@ stays unknown; it never means unaffected or clean.
 | `security.vulnerability`, `security.component.affected_by` | OSV's affected packages and vulnerabilities |
 | `security.exposure`, `security.app_exposure` | Package-level and app-level judgment pairs: a `justification` (not_affected), or on the app-level pair the `verdict` `affected` |
 | `security.urgent_exposures`, `security.kev_triage_backlog` | Exposures nobody has judged, with KEV and EPSS context |
+| `security.unjudged_exposures_over`, `security.inventory_unjudged_exposures_over` | Exposures nobody has judged whose vulnerability is KEV-listed, or has an EPSS score at or above `min_epss`, or has no EPSS score yet, in every inventory or in one: what the unjudged attention Lines post |
 | `security.confirmed_exposures` | Exposures judged `affected` whose SBOM still lists the component: fix pending, with KEV and EPSS context |
 | `security.covered_app_exposures`, `security.covered_package_exposures`, `security.pair_without_judgment_exposures` | Exposures a resolved not_affected judgment covers (app or package level), and worklist pairs that exist with no judgment on them (a withdrawn judgment, or a pair created before judging; a Query cannot tell which): with the worklist and confirmed list, the row counts say how many are covered, new, confirmed and in that last state |
 | `security.watched_vulnerabilities` | Vulnerabilities affecting imported components |
@@ -99,11 +100,52 @@ cruxible next
 ```
 
 The Runbook imports the SBOM, queries OSV, reads KEV and EPSS in order, then
-posts each urgent pair nobody has judged to the Line inbox (one item per pair,
-`unjudged` or `contested`, at most 100 per run, most urgent first): `cruxible
-next` shows them as `line_inbox_unread`. The preview lists `reads_unwritten` for
-the two attention steps: they read the judgments, which agents write and no Line
+posts pairs to the Line inbox (one item per pair, at most 100 per run, most
+urgent first): `cruxible next` shows them as `line_inbox_unread`.
+
+- `security.exposure-attention.unjudged` posts each pair nobody has judged whose
+  vulnerability is KEV-listed, or has an EPSS score at or above the Line's
+  `min_epss` parameter (`0.1` as shipped), or has no EPSS score yet, in every
+  inventory (`security.unjudged_exposures_over`). Raise or lower `min_epss` by
+  editing the Line; `0` posts every pair nobody has judged. FIRST scores a new
+  CVE a day or more after it is published, so the newest CVEs post rather than
+  wait. The inbox item carries no score: when a score arrives, a pair at or
+  above the threshold stays the same item (seen again, its status and decision
+  kept), and a pair below it stops being posted while its item stays in the
+  inbox as it was, no longer seen again (core does not withdraw inbox items).
+  A pair whose EPSS score is contested is not posted unless it is KEV-listed.
+- `security.exposure-attention.contested` posts every pair whose judgment does
+  not count (contested, or `affected` beside a justification), with no
+  threshold.
+
+`security.urgent_exposures` and `security.kev_triage_backlog` stay the whole
+worklist, whatever the threshold. The preview lists `reads_unwritten` for the
+two attention steps: they read the judgments, which agents write and no Line
 does.
+
+To give one inventory its own threshold, add a Line on the
+`security.exposure-attention.unjudged-inventory` Procedure (it reads
+`security.inventory_unjudged_exposures_over`) with that inventory's
+`inventory_id` and threshold, for example:
+
+```json
+{
+ "kind": "line",
+ "name": "security.exposure-attention.unjudged.app",
+ "procedure_name": "security.exposure-attention.unjudged-inventory",
+ "bindings": {},
+ "parameters": {"inventory": "INVENTORY_ID", "min_epss": "0.05"},
+ "acquisition": {},
+ "max_authority": "observe"
+}
+```
+
+Add it to the `security.maintain` Runbook's steps after the shipped attention
+Lines. Its items have the same fields as the shipped Line's. Items are kept
+per Line: a pair both Lines post is two items, one in each Line's inbox, and
+deciding one leaves the other unread. To give every inventory its own
+threshold, remove the shipped unjudged Line from the template and add one
+per-inventory Line for each inventory, so no pair is posted twice.
 It stops on failure or when writes need review. Review and accept those proposals
 before rerunning; a step with no new writes passes through. Network calls are
 real: OSV uses `api.osv.dev`, KEV uses `www.cisa.gov`, and EPSS uses
@@ -165,7 +207,7 @@ observations without another approval after you approve the template:
 | `security.osv-query` | `security.osv-query-settle` | Create vulnerability Subjects; create/revise component `affected_by` on extracted records; retire on complete answered absence |
 | `security.kev-triage` | `security.kev-triage-settle` | Create/revise `listed_in` on extracted/absent records; create/revise KEV dates on extracted records and retire dates on absence; create/revise ransomware use on extracted records |
 | `security.epss-triage` | `security.epss-triage-settle` | Create/revise EPSS score, percentile and date from extracted records |
-| `security.exposure-attention.unjudged`, `.contested` | none (`max_authority: observe`) | Nothing: they only post inbox items, and change no accepted state |
+| `security.exposure-attention.unjudged`, `.contested` (and any per-inventory Line you add) | none (`max_authority: observe`) | Nothing: they only post inbox items, and change no accepted state |
 
 No Mandate settles `security.exposure.justification`,
 `security.app_exposure.justification` or `security.app_exposure.verdict`. Read

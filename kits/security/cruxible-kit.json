@@ -337,12 +337,28 @@
       "path": "contracts/security.exposure-attention.contested.output/v1.json"
     },
     {
+      "artifact_digest": "sha256:f5fd9d244c23566a4e4b027c1841ccba7b58f098bb2e7b1c4548f23921723691",
+      "path": "contracts/security.exposure-attention.unjudged-inventory.input/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:b648762896de8de8f6e5893bb0697825f8a0a63666da1f216e3726e350a1e508",
+      "path": "contracts/security.exposure-attention.unjudged-inventory.output/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:9ed5aabfbb0a8f803f338f7653bd0ac4918929cf7f292d001e5a408195628a93",
+      "path": "contracts/security.exposure-attention.unjudged-inventory.params/v1.json"
+    },
+    {
       "artifact_digest": "sha256:2f2f2e947bd6144d2af36c892167269d7da2357d6051244e317a23e9b5437029",
       "path": "contracts/security.exposure-attention.unjudged.input/v1.json"
     },
     {
       "artifact_digest": "sha256:acb4793f48f0557820b01e9d865e33b815fe4e03d84634f1bb132adeb2994c61",
       "path": "contracts/security.exposure-attention.unjudged.output/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:d7666f49a0eb1113139f660d5bc454ae92c4bf28c7dae555ef1fb3f0013c873c",
+      "path": "contracts/security.exposure-attention.unjudged.params/v1.json"
     },
     {
       "artifact_digest": "sha256:2e684d1f4a1edd21dbcac32a1008ee50cd9093a1f5251d5a33b40a1f4f1b0930",
@@ -589,7 +605,7 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:4a7106127abed76d9707a4b8d0c82923398d406c6ffc856222a3135bcd0779a2",
+      "artifact_digest": "sha256:b4dc7f86aaf4d4be4dd22e74aa39e2d804b37b6a339daac2a187dae2d9755c60",
       "path": "documents/security.guidance.dependency.json"
     },
     {
@@ -609,7 +625,11 @@
       "path": "procedures/security.exposure-attention.contested.json"
     },
     {
-      "artifact_digest": "sha256:ef51f8816db5295681366947cbb366d244f24284212ebe5f2c2840b4a2b2b9f7",
+      "artifact_digest": "sha256:6e8e06e163cfeac7a7b022302f306b4a420d76f86c7c88dbef9decadd5a0c9a1",
+      "path": "procedures/security.exposure-attention.unjudged-inventory.json"
+    },
+    {
+      "artifact_digest": "sha256:c601e10e51bae2d99ca327f76d20957dca7c01df3542c9fe7521887ffb186823",
       "path": "procedures/security.exposure-attention.unjudged.json"
     },
     {
@@ -697,6 +717,10 @@
       "path": "query-definitions/security.inventory_components.json"
     },
     {
+      "artifact_digest": "sha256:8613effc278528e8ab074b9e1858c70a5c4d311814d12ba5691ddc6c6c83b050",
+      "path": "query-definitions/security.inventory_unjudged_exposures_over.json"
+    },
+    {
       "artifact_digest": "sha256:7c93f73bd703827ed769ea7a197e8684644284bca1410c37455c1d0254422c31",
       "path": "query-definitions/security.kev_triage_backlog.json"
     },
@@ -719,6 +743,10 @@
     {
       "artifact_digest": "sha256:94e1bb43cb2e5d0956a3bac93cb0df532f2b1f084e650d9c842c7741256ae4da",
       "path": "query-definitions/security.unjudged_exposures.json"
+    },
+    {
+      "artifact_digest": "sha256:55ec8d7212eeffa5c8ac40689b7905700693ca9b5085b85f8253410ed77e2f69",
+      "path": "query-definitions/security.unjudged_exposures_over.json"
     },
     {
       "artifact_digest": "sha256:a9febb63459a5444573a7e9ac0d5d20837ed0ca32376c8a3b2b8f9f446fefa9e",
@@ -790,12 +818,12 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:21bd48ded783e1ac5aee8270c59eb6849ac9c70d22d97e9b09cfd365c1675e45"
+      "sha256": "sha256:0443e32ccd9ebe40ecae9ab1dd4d45ac4317271cf649b52aa63a41109cb45761"
     },
     {
       "path": "automation.json",
       "role": "reference",
-      "sha256": "sha256:196778548880febce32b4b8703c060f6663dc3b4bdb3edfde26640e75c91bd5a"
+      "sha256": "sha256:1032451447f92174aa0b6af40f9681b38755d7c790deac4dd0be95e66b1ba93a"
     },
     {
       "path": "examples/README.md",
@@ -885,12 +913,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf",
-      "generation_root": "sha256:16c5c4662d48c35bd13f161d3c0183c5781bcb4026ca4eb617b267d4a0de9662",
-      "git_oid": "178a07690f394b26ce9bac789560f0d4dfae0abf",
-      "semantic_root": "sha256:9c2624bc84513e39bf27c281934a697f6813fba75dbbe3786827d2bbf4e73e1a",
+      "generation_root": "sha256:72c5d4eafa7fde16e1100758a4a311e48086d689ba6ae5f9b1c40f179cac3807",
+      "git_oid": "abc3b2c97f9c29524a35db7ef5459b229f2c7b40",
+      "semantic_root": "sha256:222f3c143a601f47d011311705b7f30a417296297d7b0b678c84175f69adadd8",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_e14498b42d7c48ea",
+    "instance_id": "inst_70aeb22a2c774dcf",
     "principal_id": "owner"
   },
   "providers": [

@@ -16,6 +16,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+from collections.abc import Callable, Iterable, Mapping
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -41,16 +42,21 @@ def test_the_committed_template_is_the_generated_one() -> None:
     assert template.TEMPLATE.read_text() == template.render()
 
 
-def adopted_world(tmp_path: Path, sbom: bytes) -> Any:
+def adopted_world(
+    tmp_path: Path, sbom: bytes, tailor: Callable[[dict[str, Any]], None] | None = None
+) -> Any:
     """The kit's definitions, the committed template adopted, and its SBOM Line's
     file in the workspace. Every Mandate is re-dated around the wall clock (valid
     from 2026-01-01 to 30 days ahead), as an adopter tailors them, so runs on the
-    daemon's own clock admit."""
+    daemon's own clock admit. ``tailor`` edits the template first, as an adopter
+    does (a Line's parameters, another SBOM Line)."""
 
     from datetime import UTC, datetime
 
     instance = kit_world(tmp_path, automation=False)
     adopted = json.loads(template.TEMPLATE.read_text())
+    if tailor is not None:
+        tailor(adopted)
     expires_at = datetime.now(UTC) + timedelta(days=30)
     for member in adopted["members"]:
         if member["kind"] == "procedure_mandate":
@@ -804,8 +810,14 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
 # -- urgent unjudged exposures reach the Line inbox ------------------------------------
 
 
-def wall_world(tmp_path: Path, sbom: bytes | None = None) -> Any:
-    return adopted_world(tmp_path, DEMO_SBOM.read_bytes() if sbom is None else sbom)
+def wall_world(
+    tmp_path: Path,
+    sbom: bytes | None = None,
+    tailor: Callable[[dict[str, Any]], None] | None = None,
+) -> Any:
+    return adopted_world(
+        tmp_path, DEMO_SBOM.read_bytes() if sbom is None else sbom, tailor
+    )
 
 
 def run_now(instance: Any, name: str, replay: Replay | None = None) -> Any:
@@ -814,8 +826,102 @@ def run_now(instance: Any, name: str, replay: Replay | None = None) -> Any:
     return result
 
 
-def attention_items(instance: Any) -> dict[tuple[str, str, str], Any]:
-    """Every item the attention Lines posted: (occurrence, CVE, state) -> envelope."""
+def scored_replay(
+    scores: Mapping[str, str] | None = None, default: str | None = None
+) -> Replay:
+    """The demo's recorded OSV and KEV, and an EPSS that scores each CVE asked
+    ``scores[cve]``, else ``default`` (``None``: FIRST has no score for it)."""
+
+    from test_pilot_gate import EpssOrigin
+
+    class ScoredEpss(EpssOrigin):
+        def respond(self, url: str) -> Any:
+            from urllib.parse import parse_qs, urlsplit
+
+            (cves,) = parse_qs(urlsplit(url).query)[kit.EPSS_PARAM]
+            for cve in cves.split(","):
+                score = (scores or {}).get(cve, default)
+                if score is None:
+                    self.records.pop(cve, None)
+                else:
+                    self.records[cve] = {
+                        "cve": cve,
+                        "epss": score,
+                        "percentile": "0.500000000",
+                        "date": "2026-11-02",
+                    }
+            self.recorded = set()  # never the verbatim recording
+            return super().respond(url)
+
+    return Replay(
+        {kit.KEV_URL: fixture_bytes("kev-catalog")},
+        osv=dependency_replay.RecordedOsv(),
+        epss=ScoredEpss(),
+    )
+
+
+#: Every demo pair scores over the shipped threshold: the attention tests that are
+#: about identity and decisions, not the threshold, see every unjudged pair posted.
+def over_threshold() -> Replay:
+    return scored_replay(default="0.500000000")
+
+
+def tailor_line(
+    adopted: dict[str, Any], line: str, parameters: Mapping[str, Any]
+) -> None:
+    """Set one template Line's parameters, as an adopter tailors them."""
+
+    (member,) = [
+        m for m in adopted["members"] if m["kind"] == "line" and m["name"] == line
+    ]
+    member["parameters"] = dict(parameters)
+
+
+def edit_line(
+    instance: Any, line: str, procedure: str, parameters: Mapping[str, Any]
+) -> None:
+    """Author one attention Line (a new one, or an edit of its parameters)."""
+
+    submit(
+        instance,
+        {
+            "kind": "change_set",
+            "rationale": f"Tailor the attention Line {line}.",
+            "members": [triage.attention_line(line, procedure, parameters)],
+        },
+        name=f"tailor-{line}",
+    )
+
+
+def run_line(instance: Any, line: str) -> Any:
+    """One manual run of an attention Line (no provider, no workspace file)."""
+
+    from datetime import UTC, datetime
+
+    from cruxible_core.service.procedures.procedure_runs import (
+        LineRunRequest,
+        service_run_playbill_line,
+    )
+    from tests.support.operation_world import actor
+    from tests.test_procedures.test_completeness_transfer import _Clock
+
+    state = service_run_playbill_line(
+        instance,
+        path_identity_digest=line,
+        request=LineRunRequest(line=line),
+        actor_context=actor(),
+        caller_rung=2,
+        daemon_clock=_Clock(datetime.now(UTC) + timedelta(seconds=1)),
+    )
+    assert state.status == "succeeded", state.terminal
+    return state
+
+
+def attention_items(
+    instance: Any, lines: Iterable[str] | None = None
+) -> dict[tuple[str, str, str], Any]:
+    """Every item the attention Lines (``lines``, else the template's two) posted:
+    (occurrence, CVE, state) -> envelope."""
 
     from cruxible_core.service.procedures.line_inbox import (
         service_get_inbox_item,
@@ -825,7 +931,7 @@ def attention_items(instance: Any) -> dict[tuple[str, str, str], Any]:
 
     access = BodyAccessContext(principal_id="reader", can_read_body=True)
     out: dict[tuple[str, str, str], Any] = {}
-    for line in triage.ATTENTION.values():
+    for line in triage.ATTENTION.values() if lines is None else lines:
         listed = service_list_inbox(instance, line=line, limit=200, access=access)
         assert not listed.truncated
         for entry in listed.entries:
@@ -912,7 +1018,7 @@ def test_urgent_pairs_reach_the_inbox_once_and_decisions_stand(
 
     monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
     instance = wall_world(tmp_path)
-    started = run_now(instance, template.START)
+    started = run_now(instance, template.START, over_threshold())
     urgent = urgent_pairs(instance)
     items = attention_items(instance)
     assert {(o, c) for o, c, _s in items} == urgent and len(items) == len(urgent) > 0
@@ -933,7 +1039,7 @@ def test_urgent_pairs_reach_the_inbox_once_and_decisions_stand(
     decide(instance, acked)
     linked_occurrence = next(o for o, c, _s in items if c == "CVE-2021-44832")
     decide(instance, linked, link=f"{inventory.OCCURRENCE}/{linked_occurrence}")
-    run_now(instance, template.MAINTAIN)
+    run_now(instance, template.MAINTAIN, over_threshold())
     again = attention_items(instance)
     assert set(again) == set(items)
     assert (
@@ -947,7 +1053,7 @@ def test_urgent_pairs_reach_the_inbox_once_and_decisions_stand(
     pair = app_judge(instance, DEMO_APP, CORE, LOG4SHELL).changes[0].subject
     confirm(instance, DEMO_APP, API, API_CVE)
     decide(instance, item_of(again, LOG4SHELL), link=pair)
-    run_now(instance, template.MAINTAIN)
+    run_now(instance, template.MAINTAIN, over_threshold())
     judged = attention_items(instance)
     assert set(judged) == set(items)
     assert (
@@ -969,7 +1075,7 @@ def test_urgent_pairs_reach_the_inbox_once_and_decisions_stand(
     assert (next(o for o, c, _s in items if c == LOG4SHELL), LOG4SHELL) in urgent_pairs(
         instance
     )
-    run_now(instance, template.MAINTAIN)
+    run_now(instance, template.MAINTAIN, over_threshold())
     back = attention_items(instance)
     assert set(back) == set(items)  # the same key: no new item
     withdrawn = item_of(back, LOG4SHELL)
@@ -1005,13 +1111,15 @@ def test_a_newly_urgent_or_contested_pair_posts_exactly_one_new_item(
         results[BATCH_ORDER.index(API)] = {}
 
     instance = wall_world(tmp_path)
-    first = demo_replay()
+    first = over_threshold()
     first.osv = OSV({QUERYBATCH: batch_with(drop_api)})
     run_now(instance, template.START, first)
     before = attention_items(instance)
     assert not any(c == API_CVE for _o, c, _s in before)
 
-    run_now(instance, template.MAINTAIN)  # OSV now lists API_CVE for log4j-api
+    run_now(
+        instance, template.MAINTAIN, over_threshold()
+    )  # OSV now lists API_CVE for log4j-api
     added = set(attention_items(instance)) - set(before)
     assert [(c, s) for _o, c, s in added] == [(API_CVE, "unjudged")], added
 
@@ -1027,7 +1135,7 @@ def test_a_newly_urgent_or_contested_pair_posts_exactly_one_new_item(
     )
     assert contended.status == "accepted", contended
     current = attention_items(instance)
-    run_now(instance, template.MAINTAIN)
+    run_now(instance, template.MAINTAIN, over_threshold())
     after = attention_items(instance)
     added = set(after) - set(current)
     assert [(c, s) for _o, c, s in added] == [(LOG4SHELL, "contested")], added
@@ -1040,8 +1148,9 @@ def test_a_newly_urgent_or_contested_pair_posts_exactly_one_new_item(
 def test_an_attention_run_posts_at_most_100_items_most_urgent_first(
     tmp_path: Path,
 ) -> None:
-    """105 urgent pairs: one run posts the 100 with the highest EPSS score (the
-    worklist order), and its terminal reports inbox_truncation (cap 100, declared)."""
+    """105 urgent pairs, the unjudged Line's threshold 0: one run posts the 100 with
+    the highest EPSS score (the worklist order), and its terminal reports
+    inbox_truncation (cap 100, declared)."""
 
     from datetime import UTC, datetime
 
@@ -1055,7 +1164,13 @@ def test_an_attention_run_posts_at_most_100_items_most_urgent_first(
     from tests.test_procedures.test_completeness_transfer import _Clock
 
     size = 105
-    instance = wall_world(tmp_path, synthetic_sbom(size))
+    instance = wall_world(
+        tmp_path,
+        synthetic_sbom(size),
+        lambda adopted: tailor_line(
+            adopted, triage.ATTENTION["unjudged"], {"min_epss": "0"}
+        ),
+    )
     head = {k: v for k, v in epss_answer().items() if k != "data"}
     data = [
         {
@@ -1105,3 +1220,210 @@ def test_an_attention_run_posts_at_most_100_items_most_urgent_first(
         size,
         100,
     )
+
+
+# -- the unjudged Line's threshold, and Lines for one inventory -------------------------
+
+#: Demo CVEs by the part they play (each affects log4j-core only).
+AT, BELOW, UNSCORED = "CVE-2021-45046", "CVE-2021-45105", "CVE-2021-44832"
+#: Unscored at first, then scored under the threshold (log4j-core).
+LATE_LOW = "CVE-2025-68161"
+
+
+def unjudged_keys(
+    rows: Iterable[Any], *cves: str, inventory: str | None = None
+) -> set[Any]:
+    """The attention item keys of the worklist ``rows`` for ``cves`` (in ``inventory``)."""
+
+    return {
+        (r["occurrence"], r["cve_id"], "unjudged")
+        for r in rows
+        if r["cve_id"] in cves and inventory in (None, r["inventory"])
+    }
+
+
+def test_the_unjudged_line_posts_kev_listed_scored_at_its_threshold_and_unscored_pairs(
+    tmp_path: Path,
+) -> None:
+    """At the shipped threshold (0.1) a pair scored under it is not posted, one at it
+    is, a KEV-listed pair is whatever its EPSS score, and one FIRST has not scored yet
+    is; the worklist keeps them all. When a score arrives, a pair scored over the
+    threshold (an unscored one, or one under it before) is the same item or one new
+    item, its status kept; an unscored pair scored under it is not posted again and its
+    item stays as it was. A judged pair stops posting. At threshold 0 every pair nobody
+    has judged posts, the posted ones the same items."""
+
+    from test_dependency_gate import (
+        API_CVE,
+        CORE,
+        DEMO_APP,
+        LOG4SHELL,
+        app_judge,
+        query_rows,
+    )
+
+    low = "0.000100000"
+    first = {
+        LOG4SHELL: "0.010000000",
+        AT: "0.100000000",
+        BELOW: "0.099999999",
+        UNSCORED: None,
+        LATE_LOW: None,
+        API_CVE: None,  # never scored
+    }
+    instance = wall_world(tmp_path)
+    started = run_now(instance, template.START, scored_replay(first, default=low))
+    rows = query_rows(instance, triage.URGENT)
+    assert {r["cve_id"] for r in rows} >= set(first)
+    items = attention_items(instance)
+    assert set(items) == unjudged_keys(
+        rows, LOG4SHELL, AT, UNSCORED, LATE_LOW, API_CVE
+    ), items
+    assert step(started, triage.ATTENTION["unjudged"]).counts.inbox == len(items)
+    over = query_rows(instance, triage.UNJUDGED_OVER, params={"min_epss": "0.1"})
+    assert {(r["occurrence"], r["cve_id"], "unjudged") for r in over} == set(items)
+    for cve in (UNSCORED, LATE_LOW):
+        decide(instance, item_of(items, cve))
+
+    # FIRST scores BELOW and UNSCORED over the threshold, LATE_LOW under it.
+    second = {
+        **first,
+        BELOW: "0.300000000",
+        UNSCORED: "0.400000000",
+        LATE_LOW: "0.010000000",
+    }
+    run_now(instance, template.MAINTAIN, scored_replay(second, default=low))
+    scored = attention_items(instance)
+    assert set(scored) - set(items) == unjudged_keys(rows, BELOW)
+    assert all(scored[key].item_id == items[key].item_id for key in items)
+    (late_high,) = unjudged_keys(rows, UNSCORED)
+    (late_low,) = unjudged_keys(rows, LATE_LOW)
+    assert (scored[late_high].status, scored[late_high].occurrences) == (
+        "acknowledged",
+        2,
+    )
+    assert (scored[late_low].status, scored[late_low].occurrences) == (
+        "acknowledged",
+        1,
+    )
+    assert {scored[key].occurrences for key in set(items) - {late_low}} == {2}
+
+    # A judged pair stops posting: its item is not re-sighted.
+    app_judge(instance, DEMO_APP, CORE, LOG4SHELL)
+    run_now(instance, template.MAINTAIN, scored_replay(second, default=low))
+    judged = attention_items(instance)
+    assert set(judged) == set(scored)
+    assert {judged[key].occurrences for key in unjudged_keys(rows, LOG4SHELL)} == {2}
+    assert {judged[key].occurrences for key in unjudged_keys(rows, AT, API_CVE)} == {3}
+    assert judged[late_low].occurrences == 1
+
+    # Threshold 0: every pair nobody has judged, the posted ones the same items.
+    edit_line(
+        instance,
+        triage.ATTENTION["unjudged"],
+        triage.ATTENTION["unjudged"],
+        {"min_epss": "0"},
+    )
+    run_now(instance, template.MAINTAIN, scored_replay(second, default=low))
+    everything = attention_items(instance)
+    rest = {r["cve_id"] for r in rows} - set(first)
+    assert rest and set(everything) - set(judged) == unjudged_keys(rows, *rest)
+    assert all(everything[key].item_id == judged[key].item_id for key in judged)
+    assert everything[late_low].occurrences == 2
+    assert {everything[key].occurrences for key in unjudged_keys(rows, API_CVE)} == {4}
+
+
+DEMO_LINE = triage.ATTENTION["unjudged"] + ".demo"
+OTHER_LINE = triage.ATTENTION["unjudged"] + ".other"
+
+
+def test_a_line_for_one_inventory_posts_only_its_pairs_at_its_own_threshold(
+    tmp_path: Path,
+) -> None:
+    """Two inventories holding the same components, the shipped unjudged Line (no
+    inventory, 0.1) and a Line on the per-inventory Procedure for each (the demo at
+    0.5, its twin at 0.05). The shipped Line posts both inventories' pairs over 0.1;
+    each per-inventory Line only its own inventory's pairs over its own threshold
+    (KEV-listed always), with the same item fields. A pair the shipped Line and a
+    per-inventory Line both post is one item in each Line's inbox (the same payload,
+    two item ids), decided apart; rerunning both re-sights each and posts nothing new."""
+
+    from test_dependency_gate import (
+        DEMO_APP,
+        LOG4SHELL,
+        OTHER_APP,
+        other_sbom,
+        query_rows,
+    )
+
+    other = ("other", "other.cdx.json")
+
+    def tailor(adopted: dict[str, Any]) -> None:
+        members = adopted["members"]
+        members += inventory.sbom_automation((other,), now=template.DATED)
+        members += [
+            triage.attention_line(
+                DEMO_LINE,
+                triage.ATTENTION_IN_INVENTORY,
+                {"inventory": DEMO_APP, "min_epss": "0.5"},
+            ),
+            triage.attention_line(
+                OTHER_LINE,
+                triage.ATTENTION_IN_INVENTORY,
+                {"inventory": OTHER_APP, "min_epss": "0.05"},
+            ),
+        ]
+        (start,) = [
+            m for m in members if m["kind"] == "runbook" and m["name"] == template.START
+        ]
+        start["steps"].insert(1, {"line": inventory.sbom_line_name(other[0])})
+
+    # Scores here: AT over every threshold, BELOW over 0.1 only, UNSCORED (scored here)
+    # over 0.05 only, the rest under all three; LOG4SHELL is KEV-listed.
+    scores = {
+        LOG4SHELL: "0.010000000",
+        AT: "0.600000000",
+        BELOW: "0.300000000",
+        UNSCORED: "0.070000000",
+    }
+    instance = wall_world(tmp_path, tailor=tailor)
+    write_file(tmp_path, other[1], other_sbom())
+    run_now(instance, template.START, scored_replay(scores, default="0.010000000"))
+    rows = query_rows(instance, triage.URGENT)
+    assert {r["inventory"] for r in rows} == {DEMO_APP, OTHER_APP}
+
+    shipped = attention_items(instance, (triage.ATTENTION["unjudged"],))
+    assert set(shipped) == unjudged_keys(rows, LOG4SHELL, AT, BELOW)
+    for line in (DEMO_LINE, OTHER_LINE):
+        run_line(instance, line)
+    demo = attention_items(instance, (DEMO_LINE,))
+    assert set(demo) == unjudged_keys(rows, LOG4SHELL, AT, inventory=DEMO_APP)
+    twin = attention_items(instance, (OTHER_LINE,))
+    assert set(twin) == unjudged_keys(
+        rows, LOG4SHELL, AT, BELOW, UNSCORED, inventory=OTHER_APP
+    )
+    assert {
+        (r["occurrence"], r["cve_id"], "unjudged")
+        for r in query_rows(
+            instance,
+            triage.UNJUDGED_OVER_IN,
+            params={"inventory": DEMO_APP, "min_epss": "0.5"},
+        )
+    } == set(demo)
+
+    # The same pair in two Lines' inboxes: two items, decided apart.
+    (both,) = unjudged_keys(rows, AT, inventory=DEMO_APP)
+    assert shipped[both].item_id != demo[both].item_id
+    decide(instance, shipped[both])
+    run_now(instance, template.MAINTAIN, scored_replay(scores, default="0.010000000"))
+    for line in (DEMO_LINE, OTHER_LINE):
+        run_line(instance, line)
+    shipped_again = attention_items(instance, (triage.ATTENTION["unjudged"],))
+    demo_again = attention_items(instance, (DEMO_LINE,))
+    assert (set(shipped_again), set(demo_again)) == (set(shipped), set(demo))
+    assert set(attention_items(instance, (OTHER_LINE,))) == set(twin)
+    assert (shipped_again[both].status, demo_again[both].status) == (
+        "acknowledged",
+        "unread",
+    )
+    assert {item.occurrences for item in demo_again.values()} == {2}

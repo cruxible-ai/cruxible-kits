@@ -1658,6 +1658,22 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
             ("covered_app", lambda: query_rows(instance, triage.COVERED_APP)),
             ("covered_package", lambda: query_rows(instance, triage.COVERED_PACKAGE)),
             ("pair_without_judgment", lambda: query_rows(instance, triage.PAIR_WITHOUT_JUDGMENT)),
+            # The attention reads: unfiltered, and over a threshold in every inventory
+            # or in one. Nothing is scored, so every unjudged pair passes the filter: the
+            # filter's own work, with no rows saved to pay for it.
+            ("unjudged", lambda: query_rows(instance, triage.UNJUDGED)),
+            (
+                "unjudged_over",
+                lambda: query_rows(instance, triage.UNJUDGED_OVER, params={"min_epss": "0.1"}),
+            ),
+            (
+                "unjudged_over_in",
+                lambda: query_rows(
+                    instance,
+                    triage.UNJUDGED_OVER_IN,
+                    params={"inventory": DEMO_APP, "min_epss": "0.1"},
+                ),
+            ),
             (
                 "investigation",
                 lambda: (
@@ -1683,6 +1699,10 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
                 assert len(result) == 1, (name, result)
             if name == "investigation":
                 assert triage.under_investigation(result)
+            if name == "unjudged":
+                unjudged = sorted(r["cve_id"] for r in result)
+            if name in ("unjudged_over", "unjudged_over_in"):
+                assert sorted(r["cve_id"] for r in result) == unjudged, (name, result)
             out[name] = {counter: window.counts[counter] for counter in _FLAT}
     return out
 
@@ -1692,7 +1712,8 @@ def test_triage_reads_are_flat_in_unrelated_inventories(tmp_path: Path) -> None:
     vulnerabilities' links and reach occurrences by the pair index, and the confirmed
     and package-level covered lists from the judgment pairs, so an unrelated inventory
     growing 10 -> 40 costs them nothing; the investigation mark is one Claim read per
-    pair."""
+    pair. The attention Lines' filtered reads (over a threshold, in every inventory
+    or in one) cost no more than the unfiltered unjudged read."""
 
     # One warm-up world first: process-wide caches fill once, on whichever world
     # runs first in this worker, so neither measured size pays for them.
@@ -1710,12 +1731,24 @@ def test_triage_reads_are_flat_in_unrelated_inventories(tmp_path: Path) -> None:
         "covered_app",
         "covered_package",
         "pair_without_judgment",
+        "unjudged",
+        "unjudged_over",
+        "unjudged_over_in",
         "investigation",
     ):
         small, large = measured[10][read], measured[40][read]
         for counter in ("sql_statements", "projection_binds", "claim_parses"):
             assert large[counter] == small[counter], (read, counter, measured)
         assert large["sql_vm_steps"] <= small["sql_vm_steps"] * 1.05, (read, measured)
+    # The attention Lines' filtered reads cost no more than the unfiltered one.
+    for size in (10, 40):
+        for read in ("unjudged_over", "unjudged_over_in"):
+            for counter in ("sql_statements", "projection_binds", "claim_parses", "sql_vm_steps"):
+                assert measured[size][read][counter] <= measured[size]["unjudged"][counter], (
+                    read,
+                    counter,
+                    measured[size],
+                )
 
 
 def test_chain_sbom_osv_kev_without_a_seed(tmp_path: Path) -> None:

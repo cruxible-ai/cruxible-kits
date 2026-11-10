@@ -14,7 +14,7 @@
         "name": "security.exposure-attention.unjudged.output/v1"
       }
     },
-    "description": "Post one Line inbox item per unjudged urgent exposure (security.unjudged_exposures), KEV-listed first, then by EPSS score.",
+    "description": "Post one Line inbox item per exposure nobody has judged whose vulnerability is KEV-listed, or has an EPSS score at or above the Line's min_epss, or has no EPSS score yet (security.unjudged_exposures_over), in every inventory, KEV-listed first, then by EPSS score.",
     "hard_caps": {
       "max_capture_bytes": 0,
       "max_items": 20000,
@@ -35,10 +35,13 @@
       {
         "id": "pairs",
         "kind": "read",
+        "parameters": {
+          "min_epss": "$params.min_epss"
+        },
         "query": {
           "target": {
             "kind": "QueryDefinition",
-            "name": "security.unjudged_exposures"
+            "name": "security.unjudged_exposures_over"
           }
         }
       },
@@ -66,10 +69,16 @@
         "max_items": 100
       }
     ],
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.exposure-attention.unjudged.params/v1"
+      }
+    },
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:bab42975ae6181d75cf9d18e9d41d3cb2ce941a7e65ab7cdfb1a88fc285a3713",
+  "definition_digest": "sha256:44dca5a9f3f968e392b77f4d68ca9815ba13436612c8d726663c7e93a53fb41b",
   "identity": {
     "kind": "Procedure",
     "name": "security.exposure-attention.unjudged"
