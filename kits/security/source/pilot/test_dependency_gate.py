@@ -1659,7 +1659,8 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
             ("covered_package", lambda: query_rows(instance, triage.COVERED_PACKAGE)),
             ("pair_without_judgment", lambda: query_rows(instance, triage.PAIR_WITHOUT_JUDGMENT)),
             # The attention reads: unfiltered, and over a threshold in every inventory
-            # or in one (only LOG4SHELL is KEV-listed; nothing is scored).
+            # or in one. Nothing is scored, so every unjudged pair passes the filter: the
+            # filter's own work, with no rows saved to pay for it.
             ("unjudged", lambda: query_rows(instance, triage.UNJUDGED)),
             (
                 "unjudged_over",
@@ -1698,8 +1699,10 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
                 assert len(result) == 1, (name, result)
             if name == "investigation":
                 assert triage.under_investigation(result)
+            if name == "unjudged":
+                unjudged = sorted(r["cve_id"] for r in result)
             if name in ("unjudged_over", "unjudged_over_in"):
-                assert [r["cve_id"] for r in result] == [LOG4SHELL], (name, result)
+                assert sorted(r["cve_id"] for r in result) == unjudged, (name, result)
             out[name] = {counter: window.counts[counter] for counter in _FLAT}
     return out
 

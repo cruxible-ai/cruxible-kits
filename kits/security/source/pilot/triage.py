@@ -115,7 +115,8 @@ ATTENTION = {state: f"{ATTENTION_ITEM}.{state}" for state in ATTENTION_STATES}
 #: per inventory on it, each with its own threshold (the template ships none).
 ATTENTION_IN_INVENTORY = f"{ATTENTION_ITEM}.unjudged-inventory"
 #: The urgency threshold the template's unjudged attention Line ships with: a pair
-#: posts when its vulnerability is KEV-listed or its EPSS score is at least this.
+#: posts when its vulnerability is KEV-listed, its EPSS score is at least this, or it
+#: has no EPSS score yet.
 ATTENTION_MIN_EPSS = "0.1"
 #: The most items one attention run posts (core: a declared max_items, at most
 #: 1000; 100 when undeclared). Past it the run reports inbox_truncation and posts
@@ -338,20 +339,27 @@ UNJUDGED_SPEC: dict[str, Any] = {
     "where": f"not ({_ANY_JUDGMENT})",
 }
 #: Urgent enough to post: KEV-listed, or an EPSS score at or above the Line's
-#: threshold. A pair whose vulnerability has no EPSS score and no KEV listing never
-#: qualifies, at any threshold: a comparison with an absent value never matches,
-#: and the Query grammar cannot test the parameter on its own (``$min_epss == 0``),
-#: so "0 means every pair" is not expressible here. It stays in
-#: ``security.unjudged_exposures`` and ``security.urgent_exposures``.
-_URGENT_ENOUGH = "(exists v.kev_date_added or v.epss_score >= $min_epss)"
+#: threshold, or not yet scored (no EPSS Claim at all: FIRST scores a new CVE a day
+#: or more after it is published, so the newest CVEs post rather than wait). The
+#: inbox item carries no score, so when a score arrives a pair at or above the
+#: threshold stays the same item (seen again, its status and decision kept), and a
+#: pair below it stops being posted: its item stays in the inbox as it was, no
+#: longer seen again (core does not withdraw inbox items). A contested EPSS score
+#: (competing Claims, no resolved value) is not posted by this rule unless the
+#: vulnerability is KEV-listed: ``exists`` holds and the comparison does not. Every
+#: such pair stays in ``security.unjudged_exposures`` and ``security.urgent_exposures``.
+_URGENT_ENOUGH = "(exists v.kev_date_added or v.epss_score >= $min_epss or not exists v.epss_score)"
+_OVER_RULE = (
+    "whose vulnerability is KEV-listed, or has an EPSS score at or above min_epss, or has "
+    "no EPSS score yet"
+)
 UNJUDGED_OVER_SPEC: dict[str, Any] = {
     **UNJUDGED_SPEC,
     "query": UNJUDGED_OVER,
     "description": "The exposures nobody has judged that hold no judgment Claim at all and "
-    "whose vulnerability is KEV-listed or has an EPSS score at or above min_epss, in every "
-    "inventory, KEV-listed first, then by EPSS score. A vulnerability with neither is never "
-    "listed here; security.unjudged_exposures and security.urgent_exposures keep the whole "
-    "worklist.",
+    f"{_OVER_RULE}, in every inventory, KEV-listed first, then by EPSS score. A pair scored "
+    "below min_epss, or whose EPSS score is contested, is not listed here unless KEV-listed; "
+    "security.unjudged_exposures and security.urgent_exposures keep the whole worklist.",
     "params": {"min_epss": "decimal"},
     "where": f"not ({_ANY_JUDGMENT}) and {_URGENT_ENOUGH}",
 }
@@ -359,9 +367,8 @@ UNJUDGED_OVER_IN_SPEC: dict[str, Any] = {
     **UNJUDGED_OVER_SPEC,
     "query": UNJUDGED_OVER_IN,
     "description": "security.unjudged_exposures_over for one inventory (its inventory_id): "
-    "the exposures nobody has judged, holding no judgment Claim, whose vulnerability is "
-    "KEV-listed or has an EPSS score at or above min_epss, KEV-listed first, then by EPSS "
-    "score.",
+    f"the exposures nobody has judged, holding no judgment Claim, {_OVER_RULE}, KEV-listed "
+    "first, then by EPSS score.",
     "params": {"inventory": "string", "min_epss": "decimal"},
     "where": f"not ({_ANY_JUDGMENT}) and {_URGENT_ENOUGH} and i.inventory_id == $inventory",
 }
@@ -496,16 +503,18 @@ _ATTENTION_PROCEDURES: dict[str, tuple[str, str, dict[str, str], str]] = {
         UNJUDGED_OVER,
         {"min_epss": "decimal{0..1}"},
         "Post one Line inbox item per exposure nobody has judged whose vulnerability is "
-        f"KEV-listed or has an EPSS score at or above the Line's min_epss ({UNJUDGED_OVER}), "
-        "in every inventory, KEV-listed first, then by EPSS score.",
+        "KEV-listed, or has an EPSS score at or above the Line's min_epss, or has no EPSS "
+        f"score yet ({UNJUDGED_OVER}), in every inventory, KEV-listed first, then by EPSS "
+        "score.",
     ),
     ATTENTION_IN_INVENTORY: (
         "unjudged",
         UNJUDGED_OVER_IN,
         {"inventory": "string", "min_epss": "decimal{0..1}"},
         "Post one Line inbox item per exposure nobody has judged in the Line's inventory "
-        "whose vulnerability is KEV-listed or has an EPSS score at or above the Line's "
-        f"min_epss ({UNJUDGED_OVER_IN}), KEV-listed first, then by EPSS score.",
+        "whose vulnerability is KEV-listed, or has an EPSS score at or above the Line's "
+        f"min_epss, or has no EPSS score yet ({UNJUDGED_OVER_IN}), KEV-listed first, then by "
+        "EPSS score.",
     ),
     ATTENTION["contested"]: (
         "contested",

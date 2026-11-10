@@ -1226,6 +1226,8 @@ def test_an_attention_run_posts_at_most_100_items_most_urgent_first(
 
 #: Demo CVEs by the part they play (each affects log4j-core only).
 AT, BELOW, UNSCORED = "CVE-2021-45046", "CVE-2021-45105", "CVE-2021-44832"
+#: Unscored at first, then scored under the threshold (log4j-core).
+LATE_LOW = "CVE-2025-68161"
 
 
 def unjudged_keys(
@@ -1240,17 +1242,25 @@ def unjudged_keys(
     }
 
 
-def test_the_unjudged_line_posts_kev_listed_pairs_and_pairs_at_its_threshold(
+def test_the_unjudged_line_posts_kev_listed_scored_at_its_threshold_and_unscored_pairs(
     tmp_path: Path,
 ) -> None:
-    """At the shipped threshold (0.1) a pair under it is not posted, one at it is, a
-    KEV-listed pair is whatever its EPSS score, and one FIRST has no score for is not;
-    the worklist keeps them all. An EPSS refresh that lifts a pair over the threshold
-    posts exactly its new item, and the posted pairs are the same items re-sighted;
-    a judged pair stops posting. At threshold 0 every scored pair posts, the same
-    items kept, and a pair with no EPSS score and no KEV listing still does not."""
+    """At the shipped threshold (0.1) a pair scored under it is not posted, one at it
+    is, a KEV-listed pair is whatever its EPSS score, and one FIRST has not scored yet
+    is; the worklist keeps them all. When a score arrives, a pair scored over the
+    threshold (an unscored one, or one under it before) is the same item or one new
+    item, its status kept; an unscored pair scored under it is not posted again and its
+    item stays as it was. A judged pair stops posting. At threshold 0 every pair nobody
+    has judged posts, the posted ones the same items."""
 
-    from test_dependency_gate import CORE, DEMO_APP, LOG4SHELL, app_judge, query_rows
+    from test_dependency_gate import (
+        API_CVE,
+        CORE,
+        DEMO_APP,
+        LOG4SHELL,
+        app_judge,
+        query_rows,
+    )
 
     low = "0.000100000"
     first = {
@@ -1258,34 +1268,56 @@ def test_the_unjudged_line_posts_kev_listed_pairs_and_pairs_at_its_threshold(
         AT: "0.100000000",
         BELOW: "0.099999999",
         UNSCORED: None,
+        LATE_LOW: None,
+        API_CVE: None,  # never scored
     }
     instance = wall_world(tmp_path)
     started = run_now(instance, template.START, scored_replay(first, default=low))
     rows = query_rows(instance, triage.URGENT)
-    assert {r["cve_id"] for r in rows} >= {LOG4SHELL, AT, BELOW, UNSCORED}
+    assert {r["cve_id"] for r in rows} >= set(first)
     items = attention_items(instance)
-    assert set(items) == unjudged_keys(rows, LOG4SHELL, AT), items
+    assert set(items) == unjudged_keys(
+        rows, LOG4SHELL, AT, UNSCORED, LATE_LOW, API_CVE
+    ), items
     assert step(started, triage.ATTENTION["unjudged"]).counts.inbox == len(items)
     over = query_rows(instance, triage.UNJUDGED_OVER, params={"min_epss": "0.1"})
     assert {(r["occurrence"], r["cve_id"], "unjudged") for r in over} == set(items)
+    for cve in (UNSCORED, LATE_LOW):
+        decide(instance, item_of(items, cve))
 
-    # FIRST raises BELOW over the threshold: one new item, the others re-sighted.
-    second = {**first, BELOW: "0.300000000"}
+    # FIRST scores BELOW and UNSCORED over the threshold, LATE_LOW under it.
+    second = {
+        **first,
+        BELOW: "0.300000000",
+        UNSCORED: "0.400000000",
+        LATE_LOW: "0.010000000",
+    }
     run_now(instance, template.MAINTAIN, scored_replay(second, default=low))
-    crossed = attention_items(instance)
-    assert set(crossed) - set(items) == unjudged_keys(rows, BELOW)
-    assert all(crossed[key].item_id == items[key].item_id for key in items)
-    assert {crossed[key].occurrences for key in items} == {2}
+    scored = attention_items(instance)
+    assert set(scored) - set(items) == unjudged_keys(rows, BELOW)
+    assert all(scored[key].item_id == items[key].item_id for key in items)
+    (late_high,) = unjudged_keys(rows, UNSCORED)
+    (late_low,) = unjudged_keys(rows, LATE_LOW)
+    assert (scored[late_high].status, scored[late_high].occurrences) == (
+        "acknowledged",
+        2,
+    )
+    assert (scored[late_low].status, scored[late_low].occurrences) == (
+        "acknowledged",
+        1,
+    )
+    assert {scored[key].occurrences for key in set(items) - {late_low}} == {2}
 
     # A judged pair stops posting: its item is not re-sighted.
     app_judge(instance, DEMO_APP, CORE, LOG4SHELL)
     run_now(instance, template.MAINTAIN, scored_replay(second, default=low))
     judged = attention_items(instance)
-    assert set(judged) == set(crossed)
+    assert set(judged) == set(scored)
     assert {judged[key].occurrences for key in unjudged_keys(rows, LOG4SHELL)} == {2}
-    assert {judged[key].occurrences for key in unjudged_keys(rows, AT)} == {3}
+    assert {judged[key].occurrences for key in unjudged_keys(rows, AT, API_CVE)} == {3}
+    assert judged[late_low].occurrences == 1
 
-    # Threshold 0: every scored pair, the posted ones the same items; never UNSCORED.
+    # Threshold 0: every pair nobody has judged, the posted ones the same items.
     edit_line(
         instance,
         triage.ATTENTION["unjudged"],
@@ -1294,11 +1326,11 @@ def test_the_unjudged_line_posts_kev_listed_pairs_and_pairs_at_its_threshold(
     )
     run_now(instance, template.MAINTAIN, scored_replay(second, default=low))
     everything = attention_items(instance)
-    rest = {r["cve_id"] for r in rows} - {LOG4SHELL, AT, BELOW, UNSCORED}
+    rest = {r["cve_id"] for r in rows} - set(first)
     assert rest and set(everything) - set(judged) == unjudged_keys(rows, *rest)
     assert all(everything[key].item_id == judged[key].item_id for key in judged)
-    assert not any(c == UNSCORED for _o, c, _s in everything)
-    assert UNSCORED in {r["cve_id"] for r in query_rows(instance, triage.URGENT)}
+    assert everything[late_low].occurrences == 2
+    assert {everything[key].occurrences for key in unjudged_keys(rows, API_CVE)} == {4}
 
 
 DEMO_LINE = triage.ATTENTION["unjudged"] + ".demo"

@@ -1,6 +1,6 @@
 {
  "kind": "change_set",
- "rationale": "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS Lines and their Mandates, and the two observe-only attention Lines that post exposures to the inbox (unjudged pairs KEV-listed or with an EPSS score at or above min_epss, 0.1 as shipped; contested pairs); the security.start Runbook that seeds a fresh instance; and the security.maintain Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, EPSS, attention; the SBOM import runs when the SBOM changes). Tailor the Line names, the SBOM path, the cron time, the attention threshold and the Mandate dates before submitting.",
+ "rationale": "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS Lines and their Mandates, and the two observe-only attention Lines that post exposures to the inbox (unjudged pairs KEV-listed, with an EPSS score at or above min_epss, 0.1 as shipped, or not yet scored; contested pairs); the security.start Runbook that seeds a fresh instance; and the security.maintain Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, EPSS, attention; the SBOM import runs when the SBOM changes). Tailor the Line names, the SBOM path, the cron time, the attention threshold and the Mandate dates before submitting.",
  "members": [
   {
    "kind": "line",
@@ -409,7 +409,7 @@
   {
    "kind": "runbook",
    "name": "security.start",
-   "description": "Seed a fresh instance: import the SBOM, ask OSV what affects it, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed or have an EPSS score at or above the attention Line's min_epss, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures.",
+   "description": "Seed a fresh instance: import the SBOM, ask OSV what affects it, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures.",
    "steps": [
     {
      "line": "security.sbom-import.app"
@@ -434,7 +434,7 @@
   {
    "kind": "runbook",
    "name": "security.maintain",
-   "description": "Daily refresh: ask OSV what affects the inventory, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed or have an EPSS score at or above the attention Line's min_epss, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures.",
+   "description": "Daily refresh: ask OSV what affects the inventory, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures.",
    "steps": [
     {
      "line": "security.osv-query"

@@ -25,7 +25,7 @@ stays unknown; it never means unaffected or clean.
 | `security.vulnerability`, `security.component.affected_by` | OSV's affected packages and vulnerabilities |
 | `security.exposure`, `security.app_exposure` | Package-level and app-level judgment pairs: a `justification` (not_affected), or on the app-level pair the `verdict` `affected` |
 | `security.urgent_exposures`, `security.kev_triage_backlog` | Exposures nobody has judged, with KEV and EPSS context |
-| `security.unjudged_exposures_over`, `security.inventory_unjudged_exposures_over` | Exposures nobody has judged whose vulnerability is KEV-listed or has an EPSS score at or above `min_epss`, in every inventory or in one: what the unjudged attention Lines post |
+| `security.unjudged_exposures_over`, `security.inventory_unjudged_exposures_over` | Exposures nobody has judged whose vulnerability is KEV-listed, or has an EPSS score at or above `min_epss`, or has no EPSS score yet, in every inventory or in one: what the unjudged attention Lines post |
 | `security.confirmed_exposures` | Exposures judged `affected` whose SBOM still lists the component: fix pending, with KEV and EPSS context |
 | `security.covered_app_exposures`, `security.covered_package_exposures`, `security.pair_without_judgment_exposures` | Exposures a resolved not_affected judgment covers (app or package level), and worklist pairs that exist with no judgment on them (a withdrawn judgment, or a pair created before judging; a Query cannot tell which): with the worklist and confirmed list, the row counts say how many are covered, new, confirmed and in that last state |
 | `security.watched_vulnerabilities` | Vulnerabilities affecting imported components |
@@ -104,12 +104,16 @@ posts pairs to the Line inbox (one item per pair, at most 100 per run, most
 urgent first): `cruxible next` shows them as `line_inbox_unread`.
 
 - `security.exposure-attention.unjudged` posts each pair nobody has judged whose
-  vulnerability is KEV-listed or has an EPSS score at or above the Line's
-  `min_epss` parameter (`0.1` as shipped), in every inventory
-  (`security.unjudged_exposures_over`). Raise or lower `min_epss` by editing
-  the Line; `0` posts every KEV-listed or scored pair. A pair whose
-  vulnerability has no EPSS score and no KEV listing never posts from this
-  Line, at any threshold.
+  vulnerability is KEV-listed, or has an EPSS score at or above the Line's
+  `min_epss` parameter (`0.1` as shipped), or has no EPSS score yet, in every
+  inventory (`security.unjudged_exposures_over`). Raise or lower `min_epss` by
+  editing the Line; `0` posts every pair nobody has judged. FIRST scores a new
+  CVE a day or more after it is published, so the newest CVEs post rather than
+  wait. The inbox item carries no score: when a score arrives, a pair at or
+  above the threshold stays the same item (seen again, its status and decision
+  kept), and a pair below it stops being posted while its item stays in the
+  inbox as it was, no longer seen again (core does not withdraw inbox items).
+  A pair whose EPSS score is contested is not posted unless it is KEV-listed.
 - `security.exposure-attention.contested` posts every pair whose judgment does
   not count (contested, or `affected` beside a justification), with no
   threshold.
