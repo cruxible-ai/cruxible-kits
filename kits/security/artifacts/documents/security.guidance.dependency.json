@@ -2,7 +2,7 @@
   "authority": {
     "required_tier": "governed_write"
   },
-  "body_digest": "sha256:3468cb0514f1ea2b82fd1f0ceda67909fd0f44e60f9df0147cce904310b2d0c3",
+  "body_digest": "sha256:2b6421c589096a153f5f28dfd18d941f7ffdde64b20056bfd4000a3f1f59c81f",
   "document_kind": "security.guidance",
   "format_version": 1,
   "governance_scope": [
