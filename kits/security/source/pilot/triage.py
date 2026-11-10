@@ -13,6 +13,9 @@ visible ``scope`` -> inventory.
 - ``security.confirmed_exposures``: the exposures an agent judged ``affected``
   whose occurrence is still present (its SBOM still lists the component): the
   confirmed, fix-pending work, with the same KEV and EPSS facts.
+- ``security.covered_app_exposures`` / ``security.covered_package_exposures`` /
+  ``security.came_back_exposures``: the exposure counts with the two above
+  (:func:`exposure_counts`): covered, new, confirmed and came back.
 - ``security.not_affected_judgments`` / ``security.app_not_affected_judgments``:
   the track record: every package-level and app-level judgment with its VEX
   justification. ``get <claim> --detail history`` on its Claims gives who
@@ -68,7 +71,7 @@ guidance (``../guidance/dependency.md``).
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Literal
 
@@ -90,6 +93,9 @@ BACKLOG = "security.kev_triage_backlog"
 JUDGMENTS = "security.not_affected_judgments"
 APP_JUDGMENTS = "security.app_not_affected_judgments"
 CONFIRMED = "security.confirmed_exposures"
+COVERED_APP = "security.covered_app_exposures"
+COVERED_PACKAGE = "security.covered_package_exposures"
+CAME_BACK = "security.came_back_exposures"
 CONFIRMED_ROW = "security.confirmed-exposure"
 EXPOSURE_ROW = "security.exposure-row"
 JUDGMENT_ROW = "security.judgment"
@@ -141,6 +147,10 @@ _APP_AFFECTED = f'ae.verdict == "{APP_VERDICTS[0]}" and not exists ae.justificat
 _NOT_JUDGED = (
     f"not ({_PACKAGE_NOT_AFFECTED}) and not ({_APP_NOT_AFFECTED}) and not ({_APP_AFFECTED})"
 )
+#: Some judgment Claim is on the pair, resolved or not (``exists`` is presence).
+_ANY_JUDGMENT = "exists e.justification or exists ae.justification or exists ae.verdict"
+#: A judgment pair exists: its key-part Claims stay when its judgment is withdrawn.
+_PAIR_EXISTS = "exists e.component or exists ae.occurrence"
 _FIELDS = (
     {"inventory": "i.inventory_id"},
     {"component": "c.purl"},
@@ -235,6 +245,59 @@ CONFIRMED_SPEC: dict[str, Any] = {
     "order": ["-v.kev_date_added", "-v.epss_score"],
 }
 
+#: The exposure counts (K-B2-TR): covered, new, confirmed and came back, each the
+#: row count of its Queries (the Query engine has no count or union form).
+#:
+#: - covered: occurrences with a resolved not_affected judgment, at app level (the
+#:   worklist walk: OSV still lists V) or at package level (every occurrence
+#:   holding a scope of the judged component). The two never share a row;
+#: - new: ``security.urgent_exposures`` (no judgment counts: unjudged, contested
+#:   or withdrawn);
+#: - confirmed: ``security.confirmed_exposures``;
+#: - came back: the part of new whose judgment pair exists but holds no judgment
+#:   Claim, i.e. a judgment was withdrawn (the pair stays as history). A judgment
+#:   whose cited code changed still stands; ``next`` lists it, not this.
+COVERED_APP_SPEC: dict[str, Any] = {
+    **URGENT_SPEC,
+    "query": COVERED_APP,
+    "description": "Every occurrence a vulnerability affects that an agent judged "
+    "not_affected for its inventory (a resolved app-level judgment), KEV-listed first, then "
+    "by EPSS score.",
+    "where": f"({_APP_NOT_AFFECTED}) and not ({_PACKAGE_NOT_AFFECTED})",
+}
+COVERED_PACKAGE_SPEC: dict[str, Any] = {
+    "query": COVERED_PACKAGE,
+    "description": "Every occurrence holding a scope of a component an agent judged "
+    "not_affected at package level (a resolved justification): one row per inventory "
+    "holding it, KEV-listed first, then by EPSS score.",
+    "from": {"e": EXPOSURE},
+    "where": _PACKAGE_NOT_AFFECTED,
+    "hops": [
+        {"c": f"e.{EXPOSURE}.component!: {COMPONENT}"},
+        {"v": f"e.{EXPOSURE}.vulnerability!: {VULN}"},
+        {"o": f"{OCCURRENCE}{{component: c}}! with scope"},
+        {"i": f"o.{OCCURRENCE}.inventory!: {INVENTORY}"},
+    ],
+    "row": f"{EXPOSURE_ROW}@1",
+    "fields": list(_FIELDS),
+    "order": ["-v.kev_date_added", "-v.epss_score"],
+}
+CAME_BACK_SPEC: dict[str, Any] = {
+    **URGENT_SPEC,
+    "query": CAME_BACK,
+    "description": "The exposures nobody has judged whose judgment pair exists but holds no "
+    "judgment: a judgment was withdrawn and the occurrence is back in the worklists. A "
+    "judgment whose cited code changed still stands: next lists it.",
+    "where": f"not ({_ANY_JUDGMENT}) and ({_PAIR_EXISTS})",
+}
+#: Each count and the Queries whose rows it is (``came_back`` is part of ``new``).
+COUNT_QUERIES: dict[str, tuple[str, ...]] = {
+    "covered": (COVERED_APP, COVERED_PACKAGE),
+    "new": (URGENT,),
+    "confirmed": (CONFIRMED,),
+    "came_back": (CAME_BACK,),
+}
+
 
 #: The exposure row's fields (the worklists and the confirmed list alike).
 _EXPOSURE_FIELDS: dict[str, str] = {
@@ -301,9 +364,46 @@ def vocabulary_members() -> list[dict[str, Any]]:
             },
         },
     ]
-    for spec in (URGENT_SPEC, BACKLOG_SPEC, CONFIRMED_SPEC, JUDGMENTS_SPEC, APP_JUDGMENTS_SPEC):
+    for spec in (
+        URGENT_SPEC,
+        BACKLOG_SPEC,
+        CONFIRMED_SPEC,
+        JUDGMENTS_SPEC,
+        APP_JUDGMENTS_SPEC,
+        COVERED_APP_SPEC,
+        COVERED_PACKAGE_SPEC,
+        CAME_BACK_SPEC,
+    ):
         members.append({"kind": "query_definition", "query_definition": spec})
     return members
+
+
+def exposure_counts(answer: Callable[[str], Any]) -> dict[str, int]:
+    """How many exposures are covered, new, confirmed and came back.
+
+    ``answer(name)`` is one named Query's answer, a ``cruxible query --name NAME
+    --json`` page (or the SDK's): each count is the rows of its Queries
+    (``COUNT_QUERIES``), a page's ``rows`` plus its ``remaining``. A ``capped``
+    answer (its budget clipped the rows) is refused rather than under-counted:
+    ask again with a larger budget.
+    """
+
+    def count(name: str) -> int:
+        page = answer(name)
+
+        def field(key: str, default: Any) -> Any:
+            if isinstance(page, Mapping):
+                return page.get(key, default)
+            return getattr(page, key, default)
+
+        capped = field("capped", ())
+        if capped:
+            raise ValueError(
+                f"{name} is capped ({', '.join(capped)}): its rows are not all counted"
+            )
+        return len(field("rows", ())) + int(field("remaining", 0) or 0)
+
+    return {label: sum(count(name) for name in names) for label, names in COUNT_QUERIES.items()}
 
 
 # -- Judgments: one write each ------------------------------------------------------------

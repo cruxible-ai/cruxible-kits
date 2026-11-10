@@ -1251,6 +1251,71 @@ def test_a_hold_lasts_at_most_14_days_or_until_a_sooner_kev_due_date(
     )
 
 
+# -- exposure counts ----------------------------------------------------------------
+
+
+def counts(instance: Any) -> dict[str, int]:
+    """``triage.exposure_counts`` over the served named-query answers."""
+
+    from cruxible_client.contracts.compact_query import QueryRequest
+    from cruxible_core.service.discovery.compact_query import service_playbill_query
+
+    return triage.exposure_counts(
+        lambda name: service_playbill_query(instance, request=QueryRequest(name=name, limit=500))
+    )
+
+
+def test_exposure_counts_say_covered_new_confirmed_and_came_back(tmp_path: Path) -> None:
+    """How many exposures are covered (a resolved not_affected judgment, either level),
+    new (unjudged), confirmed and came back (a withdrawn judgment, part of new), from
+    the rows of named Queries."""
+
+    instance = world(tmp_path, other=True)
+    run_osv(instance)
+    kev(instance, fixture_bytes("kev-catalog"), minute=1)
+    assert counts(instance) == {"covered": 0, "new": 18, "confirmed": 0, "came_back": 0}
+    app = app_judge(instance, DEMO_APP, CORE, LOG4SHELL)  # one occurrence
+    judge(instance, CORE, "CVE-2021-45046")  # package level: both inventories
+    confirm(instance, OTHER_APP, CORE, "CVE-2021-44832")
+    assert counts(instance) == {"covered": 3, "new": 14, "confirmed": 1, "came_back": 0}
+    covered = exposures(instance, triage.COVERED_APP) | exposures(instance, triage.COVERED_PACKAGE)
+    assert covered == {
+        (DEMO_APP, CORE, LOG4SHELL),
+        (DEMO_APP, CORE, "CVE-2021-45046"),
+        (OTHER_APP, CORE, "CVE-2021-45046"),
+    }
+    # Withdrawn: the pair is back in the worklists and counts as came back (and new).
+    reverse = triage.reverse_judgment(
+        justification_claim(instance, app.changes[0].subject),
+        because="The app now logs request headers.",
+        accept="if_allowed",
+    )
+    assert write(instance, reverse).status == "accepted"
+    assert counts(instance) == {"covered": 2, "new": 15, "confirmed": 1, "came_back": 1}
+    assert exposures(instance, triage.CAME_BACK) == {(DEMO_APP, CORE, LOG4SHELL)}
+    assert exposures(instance, triage.CAME_BACK) <= exposures(instance)
+    # A contested judgment holds a judgment Claim: new, never came back.
+    _contested_justification_on(instance, OTHER_APP, CORE, LOG4SHELL)
+    assert counts(instance) == {"covered": 2, "new": 15, "confirmed": 1, "came_back": 1}
+    # A capped answer is refused rather than under-counted.
+    with pytest.raises(ValueError, match="capped"):
+        triage.exposure_counts(
+            lambda name: {"rows": [], "remaining": 0, "capped": ("max_results=200",)}
+        )
+
+
+def _contested_justification_on(instance: Any, inventory_id: str, purl: str, cve_id: str) -> None:
+    pair = app_judge(instance, inventory_id, purl, cve_id).changes[0].subject
+    outcome = write(
+        instance,
+        {
+            "because": "A competing reason.",
+            "changes": [_contend(pair, "justification", "inline_mitigations_already_exist")],
+        },
+    )
+    assert outcome.status == "accepted", outcome
+
+
 # -- work counts --------------------------------------------------------------------
 
 _SIZES = (10, 20, 40)
@@ -1359,10 +1424,21 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
         )
         _attest_unsure(instance, tmp_path, claim, request)
         confirm(instance, DEMO_APP, API, API_CVE)
+        # One pair covered at package level, one at app level, one judgment withdrawn.
+        judge(instance, CORE, "CVE-2021-45046")
+        app_judge(instance, DEMO_APP, CORE, "CVE-2021-45105")
+        withdrawn = app_judge(instance, DEMO_APP, CORE, "CVE-2021-44832").changes[0].subject
+        reverse = triage.reverse_judgment(
+            justification_claim(instance, withdrawn), because="withdrawn", accept="if_allowed"
+        )
+        assert write(instance, reverse).status == "accepted"
         for name, read in (
             ("urgent", lambda: query_rows(instance, triage.URGENT)),
             ("backlog", lambda: query_rows(instance, triage.BACKLOG)),
             ("confirmed", lambda: query_rows(instance, triage.CONFIRMED)),
+            ("covered_app", lambda: query_rows(instance, triage.COVERED_APP)),
+            ("covered_package", lambda: query_rows(instance, triage.COVERED_PACKAGE)),
+            ("came_back", lambda: query_rows(instance, triage.CAME_BACK)),
             (
                 "investigation",
                 lambda: (
@@ -1380,9 +1456,12 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
                 result = read()
             assert not window.unexplained, window.unexplained
             if name == "urgent":
-                assert len(result) == 8  # nine pairs, one confirmed affected
+                # Nine pairs: one confirmed, one covered per level; the withdrawn one is back.
+                assert len(result) == 6
             if name == "confirmed":
                 assert [r["cve_id"] for r in result] == [API_CVE]
+            if name in ("covered_app", "covered_package", "came_back"):
+                assert len(result) == 1, (name, result)
             if name == "investigation":
                 assert triage.under_investigation(result)
             out[name] = {counter: window.counts[counter] for counter in _FLAT}
@@ -1390,10 +1469,11 @@ def counted_triage_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, 
 
 
 def test_triage_reads_are_flat_in_unrelated_inventories(tmp_path: Path) -> None:
-    """The worklists start from the vulnerabilities' links and reach occurrences by
-    the pair index, and the confirmed list from the judgment pairs, so an unrelated
-    inventory growing 10 -> 40 costs them nothing; the investigation mark is one
-    Claim read per pair."""
+    """The worklists (and the app-level covered and came-back lists) start from the
+    vulnerabilities' links and reach occurrences by the pair index, and the confirmed
+    and package-level covered lists from the judgment pairs, so an unrelated inventory
+    growing 10 -> 40 costs them nothing; the investigation mark is one Claim read per
+    pair."""
 
     # One warm-up world first: process-wide caches fill once, on whichever world
     # runs first in this worker, so neither measured size pays for them.
@@ -1404,7 +1484,15 @@ def test_triage_reads_are_flat_in_unrelated_inventories(tmp_path: Path) -> None:
         root = tmp_path / f"u{unrelated}"
         root.mkdir()
         measured[unrelated] = counted_triage_reads(root, unrelated)
-    for read in ("urgent", "backlog", "confirmed", "investigation"):
+    for read in (
+        "urgent",
+        "backlog",
+        "confirmed",
+        "covered_app",
+        "covered_package",
+        "came_back",
+        "investigation",
+    ):
         small, large = measured[10][read], measured[40][read]
         for counter in ("sql_statements", "projection_binds", "claim_parses"):
             assert large[counter] == small[counter], (read, counter, measured)

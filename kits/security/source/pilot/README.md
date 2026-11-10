@@ -227,6 +227,19 @@ creates a judgment pair.
 | `security.not_affected_judgments` | Every package-level judgment: exposure, component, CVE, justification |
 | `security.app_not_affected_judgments` | Every app-level judgment: app_exposure, inventory, component, CVE, justification |
 | `security.watched_vulnerabilities` | One per vulnerability some inventoried component is affected by (K-B1-2); a package-level judgment drops it, an app-level one does not (a Subject-shaped query takes no optional hop) |
+| `security.covered_app_exposures` | One per occurrence OSV still lists V for whose app-level not_affected judgment is resolved |
+| `security.covered_package_exposures` | One per occurrence holding a scope of a component whose package-level judgment is resolved (every inventory holding it) |
+| `security.came_back_exposures` | The worklist rows whose judgment pair exists but holds no judgment Claim: a judgment withdrawn (the pair stays as history) |
+
+**Exposure counts.** The Query engine has no count or union form, so each
+number is the rows of named Queries (`triage.COUNT_QUERIES`), and
+`triage.exposure_counts(answer)` sums them from the served answers (a page's
+rows plus `remaining`; a capped answer refuses rather than under-counts):
+covered = `covered_app_exposures` + `covered_package_exposures` (they never
+share a row), new = `urgent_exposures`, confirmed = `confirmed_exposures`, came
+back = `came_back_exposures` (part of new). A judgment whose cited code changed
+still stands: it is `next`'s `citation_drifted`, not came back
+(`test_exposure_counts_say_covered_new_confirmed_and_came_back`).
 
 The worklists walk vulnerability ← `affected_by` ← component → its occurrences
 holding a scope (the pair index) → inventory, then the two judgment pairs by

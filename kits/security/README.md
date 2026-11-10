@@ -26,6 +26,7 @@ stays unknown; it never means unaffected or clean.
 | `security.exposure`, `security.app_exposure` | Package-level and app-level judgment pairs: a `justification` (not_affected), or on the app-level pair the `verdict` `affected` |
 | `security.urgent_exposures`, `security.kev_triage_backlog` | Exposures nobody has judged, with KEV and EPSS context |
 | `security.confirmed_exposures` | Exposures judged `affected` whose SBOM still lists the component: fix pending, with KEV and EPSS context |
+| `security.covered_app_exposures`, `security.covered_package_exposures`, `security.came_back_exposures` | Exposures a resolved not_affected judgment covers (app or package level), and worklist rows whose judgment was withdrawn: with the worklist and confirmed list, the row counts say how many are covered, new, confirmed and came back |
 | `security.watched_vulnerabilities` | Vulnerabilities affecting imported components |
 | `security.finding` | One weakness at one place in one repository: `rule`, `reported_by`, `reported_at`, `verification`, `severity`, and the judgments `verdict`, `justification`, `fixed_by`, `found_in` |
 | `security.coverage_unit` | One surface of one repository checked for one concern, with its `status` |
