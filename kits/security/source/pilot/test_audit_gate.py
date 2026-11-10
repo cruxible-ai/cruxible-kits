@@ -850,9 +850,13 @@ VERIFIER = "document:security.guidance.verifier"
 def test_guidance_guides_only_kit_claim_types() -> None:
     from cruxible_client.contracts.documents import DocumentShell
 
+    import facts
     import install
 
-    declared = {record["predicate"] for record in findings.claim_type_records()}
+    declared = {
+        record["predicate"]
+        for record in (*findings.claim_type_records(), *facts.claim_type_records())
+    }
     documents = [
         DocumentShell.model_validate(item)
         for item in install.guidance_documents(lambda path: "sha256:" + "0" * 64)

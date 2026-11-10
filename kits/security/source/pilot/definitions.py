@@ -323,6 +323,10 @@ def vocabulary() -> dict[str, Any]:
 
     members += osv.vocabulary_members([*claim_types, *inventory_claim_types()])
     members += triage.vocabulary_members()
+    # Codebase facts: the fact kind, app_exposure.rests_on and their Queries.
+    import facts
+
+    members += facts.dependency_members()
     return {
         "kind": "change_set",
         "rationale": "Security kit vocabulary: SBOM inventory (occurrences), KEV and EPSS "

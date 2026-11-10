@@ -1,7 +1,8 @@
 # Reporting a security finding
 
 Guides: security.finding.reported_at, security.finding.rule, security.finding.reported_by,
-security.finding.found_in, security.coverage_unit.status.
+security.finding.found_in, security.coverage_unit.status, security.finding.rests_on,
+security.coverage_unit.rests_on, security.code_fact.category, security.code_fact.holds.
 Adapted from cloudflare/security-audit-skill (MIT).
 
 A `security.finding` you report says: at this place in this repository's code, a
@@ -70,7 +71,11 @@ boundary it crosses.
    - `rule` (the concern you checked, e.g. `audit:injection`), citing the notes file's
      `Trace` section (`{kind: section, file: <notes file>, section: [<title>, Trace]}`);
    - `reported_by` = `audit`, citing the code.
-5. **Link it:** `found_in` → the coverage unit you were working.
+
+   Cite the narrowest passage that decides the judgment: a whole file reopens it on every
+   edit, and no citation never reopens it.
+5. **Link it:** `found_in` → the coverage unit you were working; `rests_on` → each
+   codebase fact the finding rests on (below).
 6. **Leave `verdict`, `severity` and `justification` alone.**
 
 ## Coverage
@@ -83,3 +88,31 @@ it now.
 
 Hardening notes and safe patterns you confirmed go in the unit's notes section, which its
 `status` cites; they are never findings.
+
+## Codebase facts
+
+A `security.code_fact` holds one thing true of a repository's code that security judgments
+rest on: a `control` (something enforces it), an `invariant` (true by construction), a
+`boundary` (where untrusted input enters or trust changes) or a `hazard` (a dangerous helper
+or sink whose callers need checking). It is keyed by `repo` and `topic`, a short slug in your
+words (`authn-middleware`, `tenant-id-source`) spelled the same every run. `security.code_facts`
+lists a repository's facts and whether each holds: read them before re-deriving how the code
+does something.
+
+Record a fact when a judgment rests on something true beyond the passage you are judging,
+and establishing it took real reading or more than one judgment will rest on it. Leave out
+what one search answers. Facts are not a file map or an architecture document: expect tens
+per repository. In one write: append a section to the repository's facts notes file (a
+catalogued workspace file) stating the fact, where it holds and its known exceptions;
+`create` the fact; `set` its `category` citing that section; `set` `holds` (`yes`, `partly` or
+`no`) citing the code passage that decides it. A change carries one piece of evidence, so
+the code backs `holds` and the notes back `category`. Link each judgment that rests on a fact
+with `rests_on`.
+
+When a fact's cited code changes, `next` lists its `holds` as `citation_drifted`. Core does
+not act on `rests_on`: the judgments resting on that fact do not come back with it. Look
+them up with `security.findings_resting_on`, `security.coverage_units_resting_on` and
+`security.app_exposures_resting_on` (`--param fact=security.code_fact/<id>`), and after
+setting `holds` to `partly` or `no`, with the repository's `*_on_weakened_facts` Queries. A
+judgment that cites the fact's code passage itself also comes back on its own when that
+passage changes.

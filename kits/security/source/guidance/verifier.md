@@ -1,7 +1,8 @@
 # Judging a security finding
 
 Guides: security.finding.verdict, security.finding.severity, security.finding.justification,
-security.finding.fixed_by.
+security.finding.fixed_by, security.finding.rests_on, security.code_fact.category,
+security.code_fact.holds.
 Adapted from cloudflare/security-audit-skill (MIT).
 
 A verdict is your judgment of a finding someone else reported, on evidence you checked
@@ -54,6 +55,9 @@ your own words. A one-line `because` is enough only for a plain refutation.
   reasoning section.
 - **Refuted:** `verdict` and `justification` cite your reasoning section.
 
+Cite the narrowest passage that decides the judgment: a whole file reopens it on every
+edit, and no citation never reopens it.
+
 | Outcome | Write | The section says |
 |---|---|---|
 | Confirmed | `verdict = confirmed`, `severity` | root cause; conditions; the check and its result; likelihood and impact, separately; the smallest source fix at the last trusted decision point, with a regression test |
@@ -71,6 +75,16 @@ comes back through drift, and you judge it again.
 
 Deployment controls, proxies, identity policy and topology are real controls. When the
 repository doesn't show them, assume neither that they exist nor that they don't.
+
+## Codebase facts
+
+The repository's facts (`security.code_facts`: what enforces what, where trust changes,
+which helpers are hazards) are other agents' reading of the code, each citing the passage
+that decides it. Read them before reconstructing a control, then check the ones your
+verdict leans on: a fact is a lead, not proof. Link the verdict's finding to each fact it
+rests on with `rests_on`. If a fact no longer holds, set its `holds` to `partly` or `no`
+citing the passage (see the hunter guidance for recording a new one); core does not bring
+back what rests on it, so look that up with the `*_resting_on` Queries.
 
 ## Severity
 

@@ -18,9 +18,10 @@ Queries, provider and guidance, never their Lines.
 | `osv.py` | The OSV Procedure and Line, the OSV response kind and the provider's Contracts as an authoring change set |
 | `triage.py` | The triage, confirmed and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `affected_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
 | `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines; security audits: the coverage unit, `found_in` and the audit Queries |
+| `facts.py` | Codebase facts: `security.code_fact` (keyed by repo and topic; `category`, `holds`), `rests_on` on findings, app exposures and coverage units, and their Queries |
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
-| `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py`, `test_audit_gate.py` | The gate, run on recorded real bytes |
+| `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py`, `test_audit_gate.py`, `test_facts_gate.py`, `test_start_gate.py` | The gate, run on recorded real bytes |
 | `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive), with its recorded OSV exchanges |
 | `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure) and its SARIF test data |
 | `../guidance/dependency.md` | Judging a dependency exposure: the review guidance the two justifications and the app-level verdict point to |
@@ -336,6 +337,40 @@ one finding with two reporters. What it checked is state too: a
 - **Review is on the honor system.** The verifier writes its verdict with
   `accept: never`, and a different agent approves it after reading the
   guidance; the author never approves its own verdict.
+
+## Codebase facts
+
+What an agent learns about how a repository's code works, that security
+judgments rest on, so the next session reads it instead of re-deriving it
+(`facts.py`). Short labels that identify a thing are typed keys; anything
+compared is an enum, a reference or a number; anything that argues goes in a
+notes document a Claim cites.
+
+| ClaimType | Value | Evidence |
+|---|---|---|
+| `code_fact.repo`, `.topic` | key (`topic`: a short stable slug, e.g. `authn-middleware`) | the fact's create (own words) |
+| `code_fact.category` | `control`, `invariant`, `boundary`, `hazard` (`kind` is a field name core's read verbs reserve) | the notes section stating the fact, where it holds and its exceptions (own words when the same write appends it) |
+| `code_fact.holds` | `yes`, `partly`, `no`; never a Mandate's | required: a file receipt of the code passage that decides it (own words refused) |
+| `finding.rests_on`, `app_exposure.rests_on`, `coverage_unit.rests_on` (many, → fact) | the judgment was made in light of that fact; never a Mandate's | own words |
+
+- **One write records a fact**: append the notes section, create the fact, set
+  `category` citing the section and `holds` citing the code. A write change
+  carries one `evidence`, so one Claim cannot cite both the code and the notes
+  (`test_one_write_records_a_fact_its_notes_and_the_code_it_rests_on`).
+- **Drift**: editing the cited passage brings `holds` back in `next` as
+  `citation_drifted`; an edit elsewhere in the file does not. Two Claims citing
+  one passage each come back, so a judgment that cites the fact's passage
+  itself comes back on its own.
+- **Core does not act on `rests_on`**: the judgments resting on a fact that
+  comes back do not come back with it. `security.findings_resting_on`,
+  `security.app_exposures_resting_on` and `security.coverage_units_resting_on`
+  (`--param fact=security.code_fact/<id>`) list them, one Query per judging kind
+  (the engine has no union); the three `*_on_weakened_facts` Queries list, for
+  one repository, the judgments resting on a fact whose resolved `holds` is `no`
+  or `partly` (a contested `holds` is no resolved value). `security.code_facts`
+  lists one repository's facts. The reads cost the same beside 10 or 40
+  unrelated components and other repositories' facts
+  (`test_fact_reads_are_flat_in_unrelated_inventories_and_repositories`).
 
 ## Known limits
 

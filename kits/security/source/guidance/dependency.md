@@ -1,7 +1,7 @@
 # Judging a dependency exposure
 
 Guides: security.exposure.justification, security.app_exposure.justification,
-security.app_exposure.verdict.
+security.app_exposure.verdict, security.app_exposure.rests_on.
 
 A worklist row (`security.urgent_exposures`, `security.kev_triage_backlog`) says: OSV lists
 this vulnerability for this exact package release, this inventory holds it, and nobody has
@@ -32,11 +32,16 @@ Cite the code you read as the judgment's evidence:
 `"evidence": {"kind": "file", "file": "PATH#ANCHOR"}` on the justification or verdict change, where
 ANCHOR is the exact passage you relied on, found once in the file. Catalogue the file first
 (`cruxible files add NAME PATH`). When that passage changes, `next` lists the judgment as
-`citation_drifted`, so it gets judged again. A change cites one piece of evidence: put longer
+`citation_drifted`, so it gets judged again. Cite the narrowest passage that decides the
+judgment: a whole file reopens it on every edit, and no citation never reopens it. A change
+cites one piece of evidence: put longer
 reasoning in the write's `because` or a notes file beside the code. Cite a notes section or
 your own words instead only when no code passage carries the judgment; both are admitted, but
 neither drifts with the code. A low EPSS score, no KEV listing or a quiet advisory is not a
-reason.
+reason. When the judgment rests on how the code works beyond the passage you cite (a
+`security.code_fact` in `security.code_facts`, such as which helper all logging goes
+through), link the pair to it with `rests_on` in the same write; record a missing one as the
+hunter guidance says.
 
 ## The outcomes
 

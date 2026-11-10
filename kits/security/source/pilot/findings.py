@@ -669,11 +669,15 @@ def vocabulary() -> dict[str, Any]:
             },
         },
     ]
+    # Codebase facts: rests_on on findings and coverage units, and their Queries.
+    import facts
+
+    members += facts.audit_members()
     return {
         "kind": "change_set",
         "rationale": "Security kit code findings: the finding and coverage-unit Subjects, "
         "scan and audit observations, agent judgments, the held-findings Query the import "
-        "reads and the audit Queries.",
+        "reads, the audit Queries, and the judgments that rest on codebase facts.",
         "members": members,
     }
 
