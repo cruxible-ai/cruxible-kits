@@ -322,6 +322,16 @@ def weakened(instance: Any) -> dict[str, list[str]]:
     }
 
 
+def causes(instance: Any) -> dict[str, list[tuple[str, str]]]:
+    return {
+        kind: [
+            (f"{r['judgment_kind']}/{r['judgment']}", f"{FACT}/{r['fact']}")
+            for r in query_rows(instance, facts.WEAKENED_CAUSES[kind], repo=REPO)
+        ]
+        for kind in facts.JUDGING_KINDS
+    }
+
+
 def test_rests_on_from_each_judging_kind_resolves_and_lists_on_the_fact(tmp_path: Path) -> None:
     """Gate 3. A finding, a coverage unit and an app exposure each rest on the fact;
     each kind's resting_on Query lists exactly its own judgment."""
@@ -343,10 +353,59 @@ def test_judgments_on_weakened_facts_need_a_resolved_no_or_partly(tmp_path: Path
     assert weakened(instance) == nothing
     set_holds(instance, tmp_path, fact, "no")
     assert weakened(instance) == {kind: [ref] for kind, ref in judged.items()}
+    assert causes(instance) == {kind: [(ref, fact)] for kind, ref in judged.items()}
     set_holds(instance, tmp_path, fact, "yes", contend=True)
     (row,) = query_rows(instance, facts.FACTS_QUERY, repo=REPO)
     assert row["holds"] is None, row  # contested: no single value
     assert weakened(instance) == nothing
+    assert causes(instance) == nothing
+
+
+def test_a_judgment_on_two_weakened_facts_is_listed_once_with_both_causes(
+    tmp_path: Path,
+) -> None:
+    """A finding resting on two facts that hold no is one row of
+    findings_on_weakened_facts, and two rows (one per fact) of its causes Query."""
+
+    instance = facts_world(tmp_path)
+    (first,) = created(record_fact(instance, tmp_path, holds="no"), FACT)
+    judged = resting_judgments(instance, tmp_path, first)
+    second = production_write(
+        instance,
+        tmp_path,
+        because="find_by_id is the only query that binds",
+        changes=[
+            {
+                "op": "create",
+                "label": "f2",
+                "subject_kind": FACT,
+                "key": _key(repo=REPO, topic="query-binding"),
+            },
+            {"op": "set", "subject": {"created": "f2"}, "field": "category", "value": "control"},
+            {
+                "op": "set",
+                "subject": {"created": "f2"},
+                "field": "holds",
+                "value": "no",
+                "evidence": code(PARAMETERISED),
+            },
+        ],
+    )
+    assert second.status == "accepted", second.model_dump(mode="json")
+    (other,) = created(second, FACT)
+    finding = judged[findings.FINDING]
+    linked = production_write(
+        instance,
+        tmp_path,
+        because="also rests on the binding fact",
+        changes=[{"op": "add", "subject": finding, "field": "rests_on", "value": other}],
+    )
+    assert linked.status == "accepted", linked.model_dump(mode="json")
+    assert weakened(instance) == {kind: [ref] for kind, ref in judged.items()}
+    found = causes(instance)
+    assert sorted(found[findings.FINDING]) == sorted([(finding, first), (finding, other)])
+    for kind in (findings.UNIT, inventory.APP_EXPOSURE):
+        assert found[kind] == [(judged[kind], first)]
 
 
 def test_two_claims_citing_one_passage_each_come_back(
@@ -472,6 +531,12 @@ def counted_fact_reads(tmp_path: Path, unrelated: int) -> dict[str, dict[str, fl
             **{
                 f"weakened:{kind}": (
                     lambda k=kind: query_rows(instance, facts.ON_WEAKENED[k], repo=REPO)
+                )
+                for kind in facts.JUDGING_KINDS
+            },
+            **{
+                f"causes:{kind}": (
+                    lambda k=kind: query_rows(instance, facts.WEAKENED_CAUSES[k], repo=REPO)
                 )
                 for kind in facts.JUDGING_KINDS
             },

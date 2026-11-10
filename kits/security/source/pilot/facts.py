@@ -31,8 +31,10 @@ Core does not act on ``rests_on``. When a fact comes back in ``next`` because
 its cited code changed, the judgments resting on it do not come back with it:
 an agent runs ``security.*_resting_on`` for that fact. The engine has no union,
 so there is one Query per judging kind. ``security.*_on_weakened_facts`` lists,
-for one repository, the judgments resting on a fact whose resolved ``holds`` is
-``no`` or ``partly`` (a contested ``holds`` is no resolved value).
+for one repository, each judgment resting on at least one fact whose resolved
+``holds`` is ``no`` or ``partly`` (a contested ``holds`` is no resolved value),
+once however many such facts it rests on; ``security.weakened_causes_of_*``
+lists the (judgment, weakened fact) pairs, the causes.
 
 The fact kind, its ClaimTypes and ``app_exposure.rests_on`` install with the
 dependency vocabulary (:func:`dependency_members`); ``finding.rests_on`` and
@@ -64,8 +66,10 @@ JUDGING_KINDS = (FINDING, APP_EXPOSURE, UNIT)
 FACTS_QUERY = "security.code_facts"
 FACT_ROW = "security.code-fact-row"
 RESTING_ROW = "security.resting-judgment"
-#: Per judging kind: the Query of judgments resting on one fact, and of
-#: judgments resting on a weakened fact of one repository.
+DEPENDENT_ROW = "security.weakened-dependent"
+#: Per judging kind: the Query of judgments resting on one fact; of the judgments
+#: resting on a weakened fact of one repository, once each; and of each (judgment,
+#: weakened fact) pair, the causes.
 RESTING_ON = {
     FINDING: "security.findings_resting_on",
     APP_EXPOSURE: "security.app_exposures_resting_on",
@@ -75,6 +79,11 @@ ON_WEAKENED = {
     FINDING: "security.findings_on_weakened_facts",
     APP_EXPOSURE: "security.app_exposures_on_weakened_facts",
     UNIT: "security.coverage_units_on_weakened_facts",
+}
+WEAKENED_CAUSES = {
+    FINDING: "security.weakened_causes_of_findings",
+    APP_EXPOSURE: "security.weakened_causes_of_app_exposures",
+    UNIT: "security.weakened_causes_of_coverage_units",
 }
 
 _REPO_PATTERN = "^[a-z0-9.-]+/[^/\\s]+/[^/\\s]+$"
@@ -240,23 +249,82 @@ def resting_on_spec(kind: str) -> dict[str, Any]:
     }
 
 
-def on_weakened_spec(kind: str) -> dict[str, Any]:
-    """The judgments of ``kind`` resting on a fact of one repository whose resolved
-    ``holds`` is no or partly; a contested or absent ``holds`` is no resolved value."""
+def _weakened(kind: str) -> dict[str, Any]:
+    """The walk both weakened views share: the facts of one repository whose resolved
+    ``holds`` is no or partly (a contested or absent ``holds`` is no resolved
+    value), then the ``kind`` judgments resting on each."""
 
     weakened = ", ".join(json.dumps(value) for value in WEAKENED)
     return {
-        "query": ON_WEAKENED[kind],
-        "description": f"The {kind} judgments resting on a codebase fact of one repository "
-        "that holds only partly or not at all.",
         "params": {"repo": "string"},
         "from": {"x": CODE_FACT},
         "where": f"x.repo == $repo and x.holds in ({weakened})",
         "hops": [{"j": f"<x.{kind}.rests_on!: {kind}"}],
+    }
+
+
+def weakened_causes_spec(kind: str) -> dict[str, Any]:
+    """Each (``kind`` judgment, weakened fact) pair of one repository: the causes."""
+
+    return {
+        "query": WEAKENED_CAUSES[kind],
+        "description": f"Each {kind} judgment and a codebase fact of one repository it rests "
+        "on that holds only partly or not at all: one row per (judgment, fact), the causes "
+        f"behind {ON_WEAKENED[kind]}.",
+        **_weakened(kind),
         "row": f"{RESTING_ROW}@1",
         "fields": _resting_fields(),
-        "order": ["x.topic", "j.subject_id"],
+        "order": ["j.subject_id", "x.topic"],
     }
+
+
+def on_weakened_spec(kind: str) -> dict[str, Any]:
+    """The ``kind`` judgments resting on at least one weakened fact of one repository,
+    once each: the same walk, deduplicated by the judgment (the result binding)."""
+
+    return {
+        "query": ON_WEAKENED[kind],
+        "description": f"Each {kind} judgment resting on at least one codebase fact of one "
+        "repository that holds only partly or not at all, once however many: read it again. "
+        f"The facts behind each are in {WEAKENED_CAUSES[kind]}.",
+        **_weakened(kind),
+        "row": f"{DEPENDENT_ROW}@1",
+        "fields": [{"judgment_kind": "j.subject_kind"}, {"judgment": "j.subject_id"}],
+    }
+
+
+def on_weakened_definition(kind: str) -> dict[str, Any]:
+    """:func:`on_weakened_spec` lowered and made Subject-shaped on the judgment: Subject
+    dedupe keyed on ``j``, so a judgment resting on two weakened facts is one row."""
+
+    import inventory
+    from definitions import subject_shaped
+
+    claim_types = [
+        lower_claim_type_input(ClaimTypeInputRecord.model_validate(record), tree={})
+        for record in claim_type_records()
+    ]
+    kinds = [
+        {
+            "kind": "subject_kind",
+            "name": CODE_FACT,
+            "keys": [CODE_FACT + ".repo", CODE_FACT + ".topic"],
+        },
+        {
+            "kind": "subject_kind",
+            "name": FINDING,
+            "keys": [f"{FINDING}.{part}" for part in ("repo", "weakness", "locus")],
+        },
+        {
+            "kind": "subject_kind",
+            "name": UNIT,
+            "keys": [f"{UNIT}.{part}" for part in ("repo", "surface", "concern")],
+        },
+        *(m for m in inventory.subject_kind_members() if m["name"] == APP_EXPOSURE),
+    ]
+    return subject_shaped(
+        on_weakened_spec(kind), claim_types, result_binding="j", subject_kinds=kinds
+    )
 
 
 FACTS_SPEC: dict[str, Any] = {
@@ -296,6 +364,14 @@ def dependency_members() -> list[dict[str, Any]]:
         },
         {
             "kind": "contract",
+            "name": DEPENDENT_ROW,
+            "version": 1,
+            "description": "One judgment resting on at least one weakened codebase fact: its "
+            "Subject (kind and id).",
+            "fields": {"judgment_kind": "string", "judgment": "string"},
+        },
+        {
+            "kind": "contract",
             "name": RESTING_ROW,
             "version": 1,
             "description": "One judgment resting on a codebase fact: the judgment's Subject "
@@ -318,7 +394,8 @@ def dependency_members() -> list[dict[str, Any]]:
         *_claim_type_members([rests_on_record(APP_EXPOSURE)]),
         _query(FACTS_SPEC),
         _query(resting_on_spec(APP_EXPOSURE)),
-        _query(on_weakened_spec(APP_EXPOSURE)),
+        _query(on_weakened_definition(APP_EXPOSURE)),
+        _query(weakened_causes_spec(APP_EXPOSURE)),
     ]
 
 
@@ -329,5 +406,6 @@ def audit_members() -> list[dict[str, Any]]:
     return [
         *_claim_type_members([rests_on_record(FINDING), rests_on_record(UNIT)]),
         *(_query(resting_on_spec(kind)) for kind in (FINDING, UNIT)),
-        *(_query(on_weakened_spec(kind)) for kind in (FINDING, UNIT)),
+        *(_query(on_weakened_definition(kind)) for kind in (FINDING, UNIT)),
+        *(_query(weakened_causes_spec(kind)) for kind in (FINDING, UNIT)),
     ]

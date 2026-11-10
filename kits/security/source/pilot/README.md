@@ -406,8 +406,11 @@ notes document a Claim cites.
   `security.app_exposures_resting_on` and `security.coverage_units_resting_on`
   (`--param fact=security.code_fact/<id>`) list them, one Query per judging kind
   (the engine has no union); the three `*_on_weakened_facts` Queries list, for
-  one repository, the judgments resting on a fact whose resolved `holds` is `no`
-  or `partly` (a contested `holds` is no resolved value). `security.code_facts`
+  one repository, each judgment resting on at least one fact whose resolved
+  `holds` is `no` or `partly` (a contested `holds` is no resolved value), once:
+  Subject-shaped with the judgment as the result binding, so Subject dedupe keys
+  on it. The three `security.weakened_causes_of_*` Queries list the (judgment,
+  fact) pairs behind them. `security.code_facts`
   lists one repository's facts. The reads cost the same beside 10 or 40
   unrelated components and other repositories' facts
   (`test_fact_reads_are_flat_in_unrelated_inventories_and_repositories`).

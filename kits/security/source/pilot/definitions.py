@@ -363,13 +363,22 @@ WATCH_KEYS_SPEC: dict[str, Any] = {
 }
 
 
-def subject_shaped(spec: Mapping[str, Any], claim_types: Sequence[Any]) -> dict[str, Any]:
+def subject_shaped(
+    spec: Mapping[str, Any],
+    claim_types: Sequence[Any],
+    *,
+    result_binding: str | None = None,
+    subject_kinds: Sequence[Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
     """One Query, lowered against this vocabulary and made Subject-shaped.
 
     The authored form (``QuerySpecInput``) lowers a query with hops to one row per
     path; a list such as the watch list is one row per entry Subject, so the
     lowered definition is stated with ``result_shape: subject`` and Subject
     dedupe (every hop is required, as a Subject-shaped query needs).
+    ``result_binding`` dedupes by a hop's Subject instead of the entry's (one row
+    per Subject the walk reaches); ``subject_kinds`` are the SubjectKind members
+    the spec names (default: the dependency loop's).
     """
 
     from cruxible_client.contracts.claim_types import claim_type_path, render_claim_type
@@ -380,13 +389,16 @@ def subject_shaped(spec: Mapping[str, Any], claim_types: Sequence[Any]) -> dict[
     )
 
     tree = {claim_type_path(t.predicate): render_claim_type(t) for t in claim_types}
-    tree.update(subject_kind_tree())
+    tree.update(subject_kind_tree(subject_kinds))
     resolver = AuthoredQueryResolver(candidate_query_vocabulary(tree))
     lowered = lower_query_spec(QuerySpecInput.model_validate(spec), resolver)
     wire = lowered.model_dump(mode="json", by_alias=True)
     for budget in ("default_budgets", "maximum_budgets"):
         wire[budget] = {**wire[budget], "max_paths": None, "max_paths_per_result": None}
-    shaped = lowered.model_validate({**wire, "result_shape": "subject", "dedupe": "subject"})
+    wire.update(result_shape="subject", dedupe="subject")
+    if result_binding is not None:
+        wire["result_binding"] = result_binding
+    shaped = lowered.model_validate(wire)
     return shaped.model_dump(mode="json", by_alias=True)
 
 
@@ -412,9 +424,9 @@ def subject_kind_members() -> list[dict[str, Any]]:
     ]
 
 
-def subject_kind_tree() -> dict[str, bytes]:
+def subject_kind_tree(members: Sequence[Mapping[str, Any]] | None = None) -> dict[str, bytes]:
     """The SubjectKinds as a candidate tree holds them: a pair hop resolves its parts
-    against its kind's key."""
+    against its kind's key. ``members`` default to the kit's dependency kinds."""
 
     from cruxible_client.contracts.artifacts import ArtifactIdentity
     from cruxible_client.contracts.authoring.models import SubjectKindAuthoringPayload
@@ -426,7 +438,7 @@ def subject_kind_tree() -> dict[str, bytes]:
     )
 
     tree: dict[str, bytes] = {}
-    for member in subject_kind_members():
+    for member in subject_kind_members() if members is None else members:
         payload = SubjectKindAuthoringPayload.model_validate(
             {key: value for key, value in member.items() if key != "kind"}
         )
