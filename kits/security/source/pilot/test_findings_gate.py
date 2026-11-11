@@ -539,6 +539,61 @@ def test_a_fixed_finding_reappearing_is_a_regression_in_the_inbox(tmp_path: Path
     assert item["finding"] == held(instance)[SQLI]["subject_id"]
 
 
+def test_attention_items_posted_untyped_are_resighted_after_the_typed_upgrade(
+    tmp_path: Path,
+) -> None:
+    """A regression posted under ``security.sarif-attention@1`` (plain strings) is the
+    same item after the attention Procedure moves to ``@2`` (repo, weakness and locus
+    typed as the finding's key parts) together with its Line: the same item id and
+    payload, one more sighting. Identity is the Line, posting step and ``ref``."""
+
+    from cruxible_core.exhaust.line_inbox import LineInboxStore
+    from tests.support.operation_world import NOW
+
+    line = findings.attention_line_name("semgrep")
+    (line_member,) = [
+        m
+        for m in findings.automation((("semgrep", REPO, SEMGREP),), now=NOW)["members"]
+        if m["kind"] == "line" and m["name"] == line
+    ]
+
+    def author_attention(version: int) -> None:
+        spec = copy.deepcopy(findings.attention_spec())
+        (post,) = [s for s in spec["steps"] if s.get("id") == "post"]
+        post["inbox"] = f"{findings.ATTENTION_ITEM}@{version}"
+        submit(
+            instance,
+            {"kind": "change_set", "members": [{"kind": "procedure", "spec": spec}, line_member]},
+            name=f"attention-v{version}",
+        )
+
+    def items() -> dict[str, tuple[int, Any]]:
+        store = LineInboxStore(instance)
+        entries, _cursor = store.page(line=None, status=None, limit=200, cursor=None)
+        return {
+            e.envelope.item_id: (e.envelope.occurrences, store.get(e.envelope.item_id).payload)
+            for e in entries
+            if line in json.dumps(e.envelope.model_dump(mode="json"))
+        }
+
+    instance = findings_world(tmp_path)
+    author_attention(1)
+    vulnerable = sarif("semgrep-gate-app-vulnerable.sarif")
+    scan(instance, tmp_path, vulnerable)
+    scan(instance, tmp_path, sarif("semgrep-gate-app-fixed.sarif"), minute=1)
+    state = scan(instance, tmp_path, vulnerable, minute=2)
+    attention(instance, state, minute=3)
+    ((item_id, (sightings, payload)),) = items().items()
+    assert sightings == 1 and payload["kind"] == "regression"
+
+    # The same regression again (fixed, then reported at the same revision).
+    author_attention(findings.ATTENTION_ITEM_VERSION)
+    scan(instance, tmp_path, sarif("semgrep-gate-app-fixed.sarif"), minute=4)
+    state = scan(instance, tmp_path, vulnerable, minute=5)
+    attention(instance, state, minute=6)
+    assert items() == {item_id: (2, payload)}
+
+
 def test_a_location_gap_reaches_the_inbox_and_is_no_finding(tmp_path: Path) -> None:
     scans = (("auditor", REPO, "scans/auditor.sarif"),)
     instance = findings_world(tmp_path, scans=scans)

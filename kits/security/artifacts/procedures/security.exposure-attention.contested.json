@@ -44,9 +44,9 @@
       },
       {
         "contract": {
-          "digest": "sha256:2e684d1f4a1edd21dbcac32a1008ee50cd9093a1f5251d5a33b40a1f4f1b0930",
+          "digest": "sha256:35ff62263c6f4ed134b78bedd0d11dc1e6c156904053bc58e232c28f5cb97e30",
           "name": "security.exposure-attention",
-          "version": 1
+          "version": 2
         },
         "dedupe_key": [
           "occurrence",
@@ -69,7 +69,7 @@
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:b6a7200f784fab5acb4bfc030861eae9d573121b9125b79f405ed0bc49a73122",
+  "definition_digest": "sha256:b6413d88112e58e488cdfb266f675b15f6f87e213232b32f45c11ad2e70ff0d8",
   "identity": {
     "kind": "Procedure",
     "name": "security.exposure-attention.contested"

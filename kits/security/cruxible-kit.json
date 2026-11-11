@@ -329,6 +329,10 @@
       "path": "contracts/security.epss-triage.params/v1.json"
     },
     {
+      "artifact_digest": "sha256:70390cd4c1426f3038d49a0c7baddae09e2d0ee020e4ed4db7529e46559c55fe",
+      "path": "contracts/security.epss-triage.params/v2.json"
+    },
+    {
       "artifact_digest": "sha256:c708236781b0179068cfeaa13e909e73325791d4a09431a9342a2d256025d264",
       "path": "contracts/security.exposure-attention.contested.input/v1.json"
     },
@@ -365,6 +369,10 @@
       "path": "contracts/security.exposure-attention/v1.json"
     },
     {
+      "artifact_digest": "sha256:35ff62263c6f4ed134b78bedd0d11dc1e6c156904053bc58e232c28f5cb97e30",
+      "path": "contracts/security.exposure-attention/v2.json"
+    },
+    {
       "artifact_digest": "sha256:5d66f7a1b3e4e55821e974c579c51b392fc4a3a71251e669b95e992fcaf8c847",
       "path": "contracts/security.exposure-row/v1.json"
     },
@@ -397,6 +405,10 @@
       "path": "contracts/security.kev-triage.params/v1.json"
     },
     {
+      "artifact_digest": "sha256:533dd4a9e6c719171d606cd0ae39f01611aae7f0db57ec1753eebc8aacaf6d76",
+      "path": "contracts/security.kev-triage.params/v2.json"
+    },
+    {
       "artifact_digest": "sha256:78e3bcd86138b59ec55cdac71ea154aaf3e26bebdaca1896679c46ba9b39bc35",
       "path": "contracts/security.osv-affected/v1.json"
     },
@@ -415,6 +427,10 @@
     {
       "artifact_digest": "sha256:ae9ec883a12e23be9e4fc55534052680d2781dfae1a6a62e8c621609a2c40c7e",
       "path": "contracts/security.osv-query.params/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:bce7d6a1ef7e45998a0a218b8b53b9559c4d34721d336da8079c5cd598f241a4",
+      "path": "contracts/security.osv-query.params/v2.json"
     },
     {
       "artifact_digest": "sha256:314e39591a57686d99c8ca1a21852291e65a909c3825e5f2ae130e3561b4b982",
@@ -441,6 +457,10 @@
       "path": "contracts/security.sarif-attention/v1.json"
     },
     {
+      "artifact_digest": "sha256:bbf2723cdc63290a0807458e75b4fee3663c80586554bf482d28b39cc94752c4",
+      "path": "contracts/security.sarif-attention/v2.json"
+    },
+    {
       "artifact_digest": "sha256:89b733667e5379af29230e496b5bf182942cb251b0891be100444d3ed82b7d91",
       "path": "contracts/security.sarif-finding/v1.json"
     },
@@ -457,6 +477,10 @@
       "path": "contracts/security.sarif-import.params/v1.json"
     },
     {
+      "artifact_digest": "sha256:2f765f91db4ce27812f7c483a84e456122af9284e280e20b5096199ffac922a3",
+      "path": "contracts/security.sarif-import.params/v2.json"
+    },
+    {
       "artifact_digest": "sha256:f8b48814c88ac2cdeadc62e9c4f9c65ee0e8b62ccbd118a3af5cfa1ea2076532",
       "path": "contracts/security.sbom-component/v1.json"
     },
@@ -471,6 +495,10 @@
     {
       "artifact_digest": "sha256:15847ee44e36f885389e9855cab40f62773801d9cd90fed02323b39651aace13",
       "path": "contracts/security.sbom-import.params/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:3961ee6284cd1532ccfa2c40fd9d0538cc42c96704a2a30deb00c6404977ca8b",
+      "path": "contracts/security.sbom-import.params/v2.json"
     },
     {
       "artifact_digest": "sha256:ee38397d2b261a53087088722727aa0b902e1e002f33ebb50017d3b644bb6dde",
@@ -617,39 +645,39 @@
       "path": "documents/security.guidance.verifier.json"
     },
     {
-      "artifact_digest": "sha256:858b42d01538d5374582398bb9320ea8d52274781ac9f6926a2b6bdfb0c8d215",
+      "artifact_digest": "sha256:9026c48a1058c50b8579606c27a628c44101af4b02f68c36cefe7672a30c72d2",
       "path": "procedures/security.epss-triage.json"
     },
     {
-      "artifact_digest": "sha256:581d637aa65d3208ec1e9f77930c9d5a039fdaaaab07ba5203ef411f8d9edc4c",
+      "artifact_digest": "sha256:69679c7165da9f5f1dcb0b1f78718bc992f3f74025d79fe69c86de4893e4b3bf",
       "path": "procedures/security.exposure-attention.contested.json"
     },
     {
-      "artifact_digest": "sha256:6e8e06e163cfeac7a7b022302f306b4a420d76f86c7c88dbef9decadd5a0c9a1",
+      "artifact_digest": "sha256:034607b322b72f944242aecd3051d04386e529afd20c38b499d64301d4b91d92",
       "path": "procedures/security.exposure-attention.unjudged-inventory.json"
     },
     {
-      "artifact_digest": "sha256:c601e10e51bae2d99ca327f76d20957dca7c01df3542c9fe7521887ffb186823",
+      "artifact_digest": "sha256:e891a59668bff1856ab6e780b33a2cbe2a07f5cb9b7070197cba495dd176c7b3",
       "path": "procedures/security.exposure-attention.unjudged.json"
     },
     {
-      "artifact_digest": "sha256:06d4de6551b453401a33d225e473f9273aab7fc0d244adbf98277c14864069af",
+      "artifact_digest": "sha256:b4015f461202ed9c36b615224dee12100a03241f81bb2f2dfa20c1ff7994125e",
       "path": "procedures/security.kev-triage.json"
     },
     {
-      "artifact_digest": "sha256:1e0a678683e0b487fb661477e48a5daad716d174c144828946dc95533b3e79e1",
+      "artifact_digest": "sha256:38d086c1aff729ad97f37068582c26076e1d0c09d7cc8dc31c83b052415d79ae",
       "path": "procedures/security.osv-query.json"
     },
     {
-      "artifact_digest": "sha256:0800d69979b3c9cad6fdf919e85160dc40f3b969fb1fbe76b37f5680af4390e9",
+      "artifact_digest": "sha256:156f9f1f6c25b8557940a2abe95342813327d37aa5f13624beaee1edbca67fe2",
       "path": "procedures/security.sarif-attention.json"
     },
     {
-      "artifact_digest": "sha256:199502a319745820dc565131aed60750a418732208e5a7b922d812d38e555a98",
+      "artifact_digest": "sha256:1749e4be162c752f7c452b40949751070c66cb72a2fa1de81e9b0beed6fdfb02",
       "path": "procedures/security.sarif-import.json"
     },
     {
-      "artifact_digest": "sha256:a10f9e25ee884f3f9f07e739b7c882ec702fc3779781ca51fe37cf5b1968f3b2",
+      "artifact_digest": "sha256:8e081cc27c629576cbc30def0a9fd3596d4857c1f3e0a7e6f1adbd2dce521540",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -818,7 +846,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:0443e32ccd9ebe40ecae9ab1dd4d45ac4317271cf649b52aa63a41109cb45761"
+      "sha256": "sha256:7b74f9abc2edd42da76f75d54e59d4f2221405a852c1eeaf1eb48bf1626ffb14"
     },
     {
       "path": "automation.json",
@@ -828,7 +856,7 @@
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:b079079dd051b8becba74a8e4a8b579c43f6c17aa23d61a70b28181dd3153ed6"
+      "sha256": "sha256:f28e2fcdb0b37923c9b49c9b43add30dfb9b0c0a4df1d7e9f67286a3b1bd0630"
     },
     {
       "path": "examples/sboms/cruxible-env.cdx.json",
@@ -913,12 +941,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf",
-      "generation_root": "sha256:72c5d4eafa7fde16e1100758a4a311e48086d689ba6ae5f9b1c40f179cac3807",
-      "git_oid": "abc3b2c97f9c29524a35db7ef5459b229f2c7b40",
-      "semantic_root": "sha256:222f3c143a601f47d011311705b7f30a417296297d7b0b678c84175f69adadd8",
+      "generation_root": "sha256:235bbcb14ac60a3435a84af3552d092917d84a5465f06e0cdea2a668c9b48aa0",
+      "git_oid": "9459bb30b80112ce9d7a6ce6b9dd5a958d62b656",
+      "semantic_root": "sha256:e5ce094d6c10545ed73bf70a3a6d2d332241ce281c5cd8f5d559f6d9105e1e2e",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_70aeb22a2c774dcf",
+    "instance_id": "inst_f4d799c113114a92",
     "principal_id": "owner"
   },
   "providers": [

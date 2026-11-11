@@ -163,7 +163,7 @@
     "parameter_contract": {
       "target": {
         "kind": "Contract",
-        "name": "security.sbom-import.params/v1"
+        "name": "security.sbom-import.params/v2"
       }
     },
     "slots": {
@@ -196,7 +196,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:67d3b50cf7bf0bcd14245975e9e14fabb2edd5590384bdd0239d03f500e0c8c0",
+  "definition_digest": "sha256:1a215cc240d14204e9941e8fc00ade5a01ffac336b627067c2b224533f24a0bc",
   "identity": {
     "kind": "Procedure",
     "name": "security.sbom-import"

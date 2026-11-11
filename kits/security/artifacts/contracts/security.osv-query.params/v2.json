@@ -1,0 +1,16 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "What the Line on security.osv-query needs: only the source label. It asks api.osv.dev about every component an inventory holds; when the Line lists acquisition origins, https://api.osv.dev must be one.",
+  "fields": {
+    "logical_source": {
+      "description": "Source label OSV's responses and the derived match document are recorded under, lowercase (the template uses osv.dev.query). Evidence requirements and landing Triggers can name it.",
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    }
+  },
+  "name": "security.osv-query.params",
+  "predecessor_digest": "sha256:ae9ec883a12e23be9e4fc55534052680d2781dfae1a6a62e8c621609a2c40c7e",
+  "version": 2
+}

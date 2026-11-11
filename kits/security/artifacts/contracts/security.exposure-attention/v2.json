@@ -1,0 +1,46 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One urgent exposure for an agent to judge: the inventory, the component, the vulnerability, the occurrence's Subject id (get security.occurrence/<occurrence>) and why it is here: unjudged, or contested (a judgment is on the pair but none counts). Stable identity only, so the same pair in the same state is the same item.",
+  "fields": {
+    "component": {
+      "description": "The component's key: its purl@version.",
+      "type": {
+        "kind": "key",
+        "subject_kind": "security.component"
+      }
+    },
+    "cve_id": {
+      "description": "The vulnerability's key: its CVE id.",
+      "type": {
+        "kind": "key",
+        "subject_kind": "security.vulnerability"
+      }
+    },
+    "inventory": {
+      "description": "The inventory's key: its SBOM's root purl, or the SBOM's workspace path when the SBOM names none.",
+      "type": {
+        "kind": "key",
+        "subject_kind": "security.inventory"
+      }
+    },
+    "occurrence": {
+      "description": "The occurrence's Subject id (the pair of this inventory and component): get security.occurrence/<occurrence>.",
+      "type": {
+        "kind": "string"
+      }
+    },
+    "state": {
+      "description": "Why the pair is here: unjudged (nobody has judged it), or contested (a judgment is on it but none counts).",
+      "type": {
+        "kind": "enum",
+        "members": [
+          "unjudged",
+          "contested"
+        ]
+      }
+    }
+  },
+  "name": "security.exposure-attention",
+  "predecessor_digest": "sha256:2e684d1f4a1edd21dbcac32a1008ee50cd9093a1f5251d5a33b40a1f4f1b0930",
+  "version": 2
+}

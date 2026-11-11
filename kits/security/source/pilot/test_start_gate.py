@@ -1427,3 +1427,233 @@ def test_a_line_for_one_inventory_posts_only_its_pairs_at_its_own_threshold(
         "unread",
     )
     assert {item.occurrences for item in demo_again.values()} == {2}
+
+
+# -- inbox item fields are typed references ---------------------------------------------
+
+PROBE_ITEM_LINE = "security.probe-attention"
+
+
+def _line_state(instance: Any, line: str) -> Any:
+    """One manual run of ``line``, whatever its outcome (``run_line`` asserts success)."""
+
+    from datetime import UTC, datetime
+
+    from cruxible_core.service.procedures.procedure_runs import (
+        LineRunRequest,
+        service_run_playbill_line,
+    )
+    from tests.support.operation_world import actor
+    from tests.test_procedures.test_completeness_transfer import _Clock
+
+    return service_run_playbill_line(
+        instance,
+        path_identity_digest=line,
+        request=LineRunRequest(line=line),
+        actor_context=actor(),
+        caller_rung=2,
+        daemon_clock=_Clock(datetime.now(UTC) + timedelta(seconds=1)),
+    )
+
+
+def _probe_post(instance: Any, fields: Mapping[str, Any], *, contract: str) -> Any:
+    """A Procedure and Line posting one item of ``contract`` with literal ``fields``."""
+
+    spec = {
+        "procedure": PROBE_ITEM_LINE,
+        "description": "Post one literal item (gate probe).",
+        "input": {},
+        "output": {},
+        "returns": {"fields": {}},
+        "hard_caps": {
+            "wall_clock": "PT1M",
+            "provider_calls": 0,
+            "capture_bytes": 0,
+            "items": 10,
+            "read_rows": 10,
+            "repeat_attempts": 1,
+        },
+        "steps": [{"id": "post", "inbox": contract, "fields": dict(fields)}],
+    }
+    submit(
+        instance,
+        {
+            "kind": "change_set",
+            "members": [
+                {"kind": "procedure", "spec": spec},
+                triage.attention_line(PROBE_ITEM_LINE, PROBE_ITEM_LINE),
+            ],
+        },
+        name="probe-item",
+    )
+    return _line_state(instance, PROBE_ITEM_LINE)
+
+
+def test_attention_items_carry_typed_keys_with_the_values_the_worklist_reads(
+    tmp_path: Path,
+) -> None:
+    """The item Contract types inventory, component and cve_id as keys of their kinds.
+    Posting checks each against its kind's identity rule: the posted values are the
+    worklist's own strings, a key in non-canonical form refuses the run
+    (``inbox_item_invalid``), and a canonical key naming no Subject still posts (a key
+    type says what a value refers to, not that the Subject exists)."""
+
+    from test_dependency_gate import query_rows
+
+    item = f"{triage.ATTENTION_ITEM}@{triage.ATTENTION_ITEM_VERSION}"
+    instance = wall_world(tmp_path)
+    run_now(instance, template.START, over_threshold())
+    rows = query_rows(instance, triage.URGENT)
+    posted = attention_items(instance)
+    assert posted
+    by_key = {(r["occurrence"], r["cve_id"]): r for r in rows}
+    for occurrence, cve_id, _state in posted:
+        assert (occurrence, cve_id) in by_key
+
+    from cruxible_core.service.procedures.line_inbox import (
+        service_get_inbox_item,
+        service_list_inbox,
+    )
+    from cruxible_core.storage.cas import BodyAccessContext
+
+    access = BodyAccessContext(principal_id="reader", can_read_body=True)
+    listed = service_list_inbox(
+        instance, line=triage.ATTENTION["unjudged"], limit=200, access=access
+    )
+    for entry in listed.entries:
+        payload = service_get_inbox_item(instance, item=entry.item.item_id, access=access).payload
+        row = by_key[(payload["occurrence"], payload["cve_id"])]
+        assert {name: payload[name] for name in ("inventory", "component", "cve_id")} == {
+            name: row[name] for name in ("inventory", "component", "cve_id")
+        }
+
+    absent = {
+        "inventory": "sboms/nowhere.cdx.json",
+        "component": "pkg:pypi/no-such-package@0.0.1",
+        "cve_id": "CVE-2099-0001",
+        "occurrence": "nowhere",
+        "state": "unjudged",
+    }
+    state = _probe_post(instance, absent, contract=item)
+    assert state.status == "succeeded", state.terminal
+    (entry,) = service_list_inbox(
+        instance, line=PROBE_ITEM_LINE, limit=10, access=access
+    ).entries
+    assert service_get_inbox_item(instance, item=entry.item.item_id, access=access).payload == absent
+
+    # A purl with qualifiers is not the component's canonical key (they are dropped).
+    state = _probe_post(
+        instance,
+        {**absent, "component": "pkg:pypi/no-such-package@0.0.1?arch=x86"},
+        contract=item,
+    )
+    assert (state.status, state.terminal.code) == ("node_refused", "inbox_item_invalid")
+    assert "component: canonical_form_failed" in state.terminal.message
+
+
+def test_the_occurrence_field_stays_a_string_the_subject_id_a_query_reads(
+    tmp_path: Path,
+) -> None:
+    """``subject<security.occurrence>`` takes ``security.occurrence/<id>``; a Query's
+    ``subject_id`` (what the worklist rows and every posted item carry) is the bare
+    id, which that type refuses. Typing the field would change every posted value and
+    so every item's dedupe identity: it stays a string, described."""
+
+    from test_dependency_gate import query_rows
+
+    instance = wall_world(tmp_path)
+    run_now(instance, template.START, over_threshold())
+    row = query_rows(instance, triage.URGENT)[0]
+    assert "/" not in row["occurrence"]
+    submit(
+        instance,
+        {
+            "kind": "change_set",
+            "members": [
+                {
+                    "kind": "contract",
+                    "name": "security.probe-occurrence-item",
+                    "version": 1,
+                    "fields": {"occurrence": f"subject<{inventory.OCCURRENCE}>"},
+                }
+            ],
+        },
+        name="probe-contract",
+    )
+    item = "security.probe-occurrence-item@1"
+    state = _probe_post(instance, {"occurrence": row["occurrence"]}, contract=item)
+    assert (state.status, state.terminal.code) == ("node_refused", "inbox_item_invalid")
+    assert "occurrence: type_mismatch" in state.terminal.message
+    reference = f"{inventory.OCCURRENCE}/{row['occurrence']}"
+    state = _probe_post(instance, {"occurrence": reference}, contract=item)
+    assert state.status == "succeeded", state.terminal
+
+
+def test_items_posted_under_the_untyped_contract_are_resighted_after_the_upgrade(
+    tmp_path: Path,
+) -> None:
+    """An instance on the earlier release posts under ``security.exposure-attention@1``
+    (plain strings). Upgrading the attention Procedure to post ``@2`` together with
+    its Line (as kit add carries it) re-sights the same items: the same item ids and
+    payload bytes, one more sighting each, and a decided item stays decided. Item
+    identity is the Line, posting step and dedupe values, never the Contract version."""
+
+    import copy
+
+    from cruxible_client.contracts.canonical import canonical_bytes
+    from cruxible_core.service.procedures.line_inbox import (
+        service_get_inbox_item,
+        service_list_inbox,
+    )
+    from cruxible_core.storage.cas import BodyAccessContext
+
+    line = triage.ATTENTION["unjudged"]
+    access = BodyAccessContext(principal_id="reader", can_read_body=True)
+
+    def author_attention(version: int) -> None:
+        spec = copy.deepcopy(triage.attention_spec(line))
+        (post,) = [s for s in spec["steps"] if s.get("id") == "post"]
+        post["inbox"] = f"{triage.ATTENTION_ITEM}@{version}"
+        submit(
+            instance,
+            {
+                "kind": "change_set",
+                "members": [
+                    {"kind": "procedure", "spec": spec},
+                    triage.attention_line(
+                        line, line, {"min_epss": triage.ATTENTION_MIN_EPSS}
+                    ),
+                ],
+            },
+            name=f"attention-v{version}",
+        )
+
+    def payloads() -> dict[str, bytes]:
+        listed = service_list_inbox(instance, line=line, limit=200, access=access)
+        return {
+            entry.item.item_id: canonical_bytes(
+                service_get_inbox_item(instance, item=entry.item.item_id, access=access).payload
+            )
+            for entry in listed.entries
+        }
+
+    instance = wall_world(tmp_path)
+    author_attention(1)
+    run_now(instance, template.START, over_threshold())
+    before = attention_items(instance, (line,))
+    before_payloads = payloads()
+    assert before and {item.occurrences for item in before.values()} == {1}
+    decided = next(iter(before.values()))
+    decide(instance, decided)
+
+    author_attention(triage.ATTENTION_ITEM_VERSION)
+    run_now(instance, template.MAINTAIN, over_threshold())
+    after = attention_items(instance, (line,))
+    assert {key: item.item_id for key, item in after.items()} == {
+        key: item.item_id for key, item in before.items()
+    }
+    assert payloads() == before_payloads
+    assert {item.occurrences for item in after.values()} == {2}
+    statuses = {item.item_id: item.status for item in after.values()}
+    assert statuses.pop(decided.item_id) == "acknowledged"
+    assert set(statuses.values()) == {"unread"}

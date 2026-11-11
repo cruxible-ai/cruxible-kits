@@ -48,6 +48,17 @@ Runbook runs them once in that order; its one Trigger, `security.maintain-daily`
 runs when the SBOM changes) under each Line's own enablement
 (`test_start_gate.py`).
 
+What each Line must supply, and what a file it reads must contain, is written
+on the Procedure's params Contract (`<procedure>.params@2`: a description of
+the Contract and of each field), which `cruxible runbook preview security.start`
+lists as each step's needed inputs and `cruxible get
+Contract:security.sbom-import.params` shows. The texts live beside each
+Procedure (`SBOM_PARAMS`, `KEV_PARAMS`, `EPSS_PARAMS`, `OSV_PARAMS`,
+`IMPORT_PARAMS`), written from what the providers and CaptureContracts check.
+Version 1 of each is the undescribed shape core co-proposed from the earlier
+inline params; it stays in the release as version 2's predecessor, so an
+instance that installed it keeps it and adds version 2.
+
 ## Kinds and fields
 
 A plain relationship is a link; a relationship with facts of its own is a pair
@@ -83,7 +94,13 @@ state.
   occurrences, ends first, and writes each occurrence's `scope`. The Mandate
   creates all three kinds and settles `scope`.
 - **One Line per SBOM file.** A Line names only the file's path and its logical
-  source (`cyclonedx.sbom.<name>`).
+  source (`cyclonedx.sbom.<name>`). What the file must contain is the
+  `relative_path` description on `security.sbom-import.params@2`. A generator
+  for the project's ecosystem writes it; for a Python project with a
+  `requirements.txt`:
+  `uvx --from cyclonedx-bom cyclonedx-py requirements requirements.txt --of JSON -o sbom.cdx.json`
+  (no `pyproject.toml` needed; without one the SBOM has no root purl, so the
+  inventory is named by the file's path).
 - **Removal.** `expect: {by: inventory, ends: [header]}`: absence is judged by
   the inventory alone. Core finds that inventory's current occurrences from its
   pair index, so an import costs its own inventory's occurrences, never

@@ -110,6 +110,51 @@ def refs(value: Any) -> Any:
     return value
 
 
+#: The described version of each params Contract a Procedure names. Version 1 is
+#: the shape core co-proposed from the Procedure's inline params (no
+#: descriptions); a Contract version never changes, so the descriptions are
+#: version 2, and version 1 stays in the release as its predecessor. An instance
+#: that installed version 1 then takes version 2 by kit add.
+PARAMS_VERSION = 2
+
+
+def params_contract(procedure: str) -> str:
+    """The params Contract ``procedure`` names: ``<procedure>.params@2``."""
+
+    return f"{procedure}.params@{PARAMS_VERSION}"
+
+
+def params_contract_members(
+    procedure: str, description: str, fields: Mapping[str, tuple[str, str]]
+) -> list[dict[str, Any]]:
+    """``<procedure>.params`` version 1 (types only) and version 2 (with descriptions).
+
+    ``fields`` maps each parameter to its type spelling and what a Line author
+    must supply for it. Version 1 renders the bytes core co-proposed from the
+    inline params, so an instance holding it sees it unchanged.
+    """
+
+    name = f"{procedure}.params"
+    return [
+        {
+            "kind": "contract",
+            "name": name,
+            "version": 1,
+            "fields": {field: spelling for field, (spelling, _text) in fields.items()},
+        },
+        {
+            "kind": "contract",
+            "name": name,
+            "version": PARAMS_VERSION,
+            "description": description,
+            "fields": {
+                field: {"type": spelling, "description": text}
+                for field, (spelling, text) in fields.items()
+            },
+        },
+    ]
+
+
 # -- 1. CaptureKinds ------------------------------------------------------------------
 
 
@@ -310,6 +355,7 @@ def vocabulary() -> dict[str, Any]:
             "fields": {"cve_id": "string"},
         },
         *inventory_vocabulary(),
+        *fetch_params_members(),
     ]
     from inventory import claim_types as inventory_claim_types
 
@@ -461,6 +507,73 @@ def watch_queries(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
 
 # -- 3. Procedures ----------------------------------------------------------------------
 
+_MAX_BYTES = "int{1..33554432}"
+
+#: What a Line on each fetching Procedure supplies, as its params Contract says it.
+KEV_PARAMS = (
+    "What the Line on security.kev-triage fetches: the CISA KEV catalog's URL, the most "
+    "bytes to accept and the source label. It writes KEV fields only for vulnerabilities "
+    "already watched (the ones OSV found affecting an inventoried component).",
+    {
+        "url": (
+            _URL,
+            "HTTP(S) URL of the CISA KEV catalog JSON (the template uses CISA's feed). When "
+            "the Line lists acquisition origins, its origin must be one. The body must hold "
+            "catalogVersion, count and vulnerabilities[], each with cveID and dateAdded "
+            "(dueDate and knownRansomwareCampaignUse optional). The read is complete only "
+            "when the records match count, and only a complete read records a watched CVE "
+            "as not listed.",
+        ),
+        "logical_source": (
+            _SOURCE,
+            "Source label the catalog Capture is recorded under, lowercase (the template "
+            "uses cisa.kev.catalog). Evidence requirements and landing Triggers can name it.",
+        ),
+        "max_bytes": (
+            _MAX_BYTES,
+            "The most bytes the fetch accepts from the origin, 1 to 33554432 (the template "
+            "uses 4194304, 4 MiB). A larger response is refused and the run writes nothing. "
+            "The catalog's CaptureContract holds at most 16 MiB, so a larger value gains "
+            "nothing.",
+        ),
+    },
+)
+EPSS_PARAMS = (
+    "What the Line on security.epss-triage fetches: FIRST's EPSS API URL, the most bytes "
+    "per response and the source label. The Procedure sends the watched CVE ids as the "
+    "cve parameter, at most 100 per request.",
+    {
+        "url": (
+            _URL,
+            "HTTP(S) URL of FIRST's EPSS API endpoint (the template uses "
+            "https://api.first.org/data/v1/epss); the Procedure adds the cve parameter. When "
+            "the Line lists acquisition origins, its origin must be one. Each response must "
+            "be JSON with data[] rows of cve, epss, percentile and date. A failed request "
+            "leaves the run incomplete; a CVE FIRST has not scored gets no score.",
+        ),
+        "logical_source": (
+            _SOURCE,
+            "Source label each response's Capture is recorded under, lowercase (the template "
+            "uses first.epss.api). Evidence requirements and landing Triggers can name it.",
+        ),
+        "max_bytes": (
+            _MAX_BYTES,
+            "The most bytes accepted for each response, 1 to 33554432 (the template uses "
+            "4194304, 4 MiB). A larger response is refused and left out, so the run is "
+            "incomplete. Each response's CaptureContract holds at most 1 MiB.",
+        ),
+    },
+)
+
+
+def fetch_params_members() -> list[dict[str, Any]]:
+    """The KEV and EPSS params Contracts, versions 1 and 2 (``params_contract_members``)."""
+
+    return [
+        *params_contract_members(KEV_PROCEDURE, *KEV_PARAMS),
+        *params_contract_members(EPSS_PROCEDURE, *EPSS_PARAMS),
+    ]
+
 
 def _fetch(alias: str, kind: str) -> dict[str, Any]:
     return {
@@ -489,11 +602,7 @@ def _spec(
             "description": description,
             "input": {},
             "output": {},
-            "params": {
-                "url": _URL,
-                "logical_source": _SOURCE,
-                "max_bytes": "int{1..33554432}",
-            },
+            "parameter_contract": params_contract(name),
             "slots": {
                 "fetch": {
                     "in": f"{operation}.request@1",

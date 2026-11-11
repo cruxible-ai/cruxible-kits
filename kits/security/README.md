@@ -56,7 +56,7 @@ Use Cruxible 0.5 with its daemon running and a Git workspace selected. From a
 checkout of this repository (replace paths for your workspace):
 
 ```sh
-cruxible init --principal-id owner --reviewer-key-dir /outside/workspace/reviewer-keys
+cruxible init --principal-id owner
 # Read the current coordinate, then review the manifest and guidance:
 cruxible orient --json
 # Use coordinate.git_oid as OID for the explicit install:
@@ -66,9 +66,12 @@ cruxible kit status --offline
 
 No Contracts or providers need to be accepted beforehand. Installation governs
 the bundled operation Contracts, installs the providers, and proposes the rest.
-If your approval policy requires review, approve the proposal as a different
-actor and activate it before continuing. `cruxible kit add security:1.3.0` is
-**available only after the registry release**; use the local directory now.
+On a local instance with one owner (approval policy `self_approval_allowed`,
+the default), the owner accepts its own changes and nothing waits for a second
+person. Under `independent_approval_required` (`init
+--require-independent-approval`), a different principal approves each proposal
+before it activates. `cruxible kit add security:1.3.0` is **available only
+after the registry release**; use the local directory now.
 
 `cruxible kit add PATH --json` without `--commit` previews the plan and writes
 nothing.
@@ -78,9 +81,20 @@ submitting. It is a template, never installed or submitted by `kit add`:
 
 - Choose the Line names and update their Mandates and Runbook steps to match.
   Keep `security.start` as the Runbook name if using the commands below.
-- Set the SBOM Line's `relative_path` and logical source. For a demo, copy
+- Set the SBOM Line's `relative_path` (the SBOM file in your workspace) and
+  `logical_source`. What the file must contain is in the description of each
+  input a Line needs, which `cruxible runbook preview security.start` lists per
+  step (`cruxible get Contract:security.sbom-import.params` shows the same
+  text). A generator for your project's ecosystem writes the SBOM; Cruxible
+  does not. For example, for a Python project with a `requirements.txt`:
+
+  ```sh
+  uvx --from cyclonedx-bom cyclonedx-py requirements requirements.txt --of JSON -o sbom.cdx.json
+  ```
+
+  For a demo, copy
   [examples/sboms/log4j-demo-app.cdx.json](examples/sboms/log4j-demo-app.cdx.json)
-  to the template's `sbom.cdx.json` workspace path.
+  to `sbom.cdx.json` instead.
 - Set the one daily cron time in UTC (the `security.maintain-daily` Trigger,
   14:00 UTC as shipped) and each Mandate's `valid_from` and `expires_at` to
   your observation window.
@@ -90,8 +104,9 @@ submitting. It is a template, never installed or submitted by `kit add`:
 cruxible authoring submit automation.json --no-accept --json
 cruxible proposal list --status open
 cruxible proposal review PROPOSAL_ID
-# A second actor, with its own registered principal and signing key:
-cruxible --principal-id reviewer proposal approve PROPOSAL_ID --key /outside/workspace/reviewer-keys/reviewer.ed25519 --yes
+# One owner (self_approval_allowed): your own approval signs and activates it.
+# Under independent_approval_required, a different principal runs this.
+cruxible proposal approve PROPOSAL_ID --yes
 cruxible runbook preview security.start
 # Review the preview separately before running:
 cruxible runbook run security.start
@@ -117,6 +132,10 @@ urgent first): `cruxible next` shows them as `line_inbox_unread`.
 - `security.exposure-attention.contested` posts every pair whose judgment does
   not count (contested, or `affected` beside a justification), with no
   threshold.
+
+Item fields are typed references (`security.exposure-attention@2`):
+`inventory`, `component` and `cve_id` are keys of their Subject kinds, and
+`occurrence` is the occurrence's Subject id.
 
 `security.urgent_exposures` and `security.kev_triage_backlog` stay the whole
 worklist, whatever the threshold. The preview lists `reads_unwritten` for the
@@ -181,10 +200,9 @@ it (`cruxible get Document:security.guidance.hunter`, and so on):
    `cruxible next` lists findings and units whose cited code changed.
 
 The loop needs three principals: the hunter, the verifier and the approver.
-`cruxible init` registers two (owner and reviewer); add the third with
-`cruxible principal add verifier --key-dir /outside/workspace/verifier-keys
---signer-key OWNER_KEY`, which writes its key and `cruxible.env` settings to
-that directory.
+`cruxible init` registers the owner; add the other two with `cruxible principal
+add NAME --key-dir /outside/workspace/NAME-keys --signer-key OWNER_KEY`, which
+writes each key and its `cruxible.env` settings to that directory.
 
 To import a scanner's SARIF file, author a Line for `security.sarif-import`
 yourself (the automation template doesn't include one): bind `read` to

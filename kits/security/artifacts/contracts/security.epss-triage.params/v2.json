@@ -1,0 +1,31 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "What the Line on security.epss-triage fetches: FIRST's EPSS API URL, the most bytes per response and the source label. The Procedure sends the watched CVE ids as the cve parameter, at most 100 per request.",
+  "fields": {
+    "logical_source": {
+      "description": "Source label each response's Capture is recorded under, lowercase (the template uses first.epss.api). Evidence requirements and landing Triggers can name it.",
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    },
+    "max_bytes": {
+      "description": "The most bytes accepted for each response, 1 to 33554432 (the template uses 4194304, 4 MiB). A larger response is refused and left out, so the run is incomplete. Each response's CaptureContract holds at most 1 MiB.",
+      "type": {
+        "kind": "int",
+        "max": 33554432,
+        "min": 1
+      }
+    },
+    "url": {
+      "description": "HTTP(S) URL of FIRST's EPSS API endpoint (the template uses https://api.first.org/data/v1/epss); the Procedure adds the cve parameter. When the Line lists acquisition origins, its origin must be one. Each response must be JSON with data[] rows of cve, epss, percentile and date. A failed request leaves the run incomplete; a CVE FIRST has not scored gets no score.",
+      "type": {
+        "kind": "string",
+        "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://\\S+$"
+      }
+    }
+  },
+  "name": "security.epss-triage.params",
+  "predecessor_digest": "sha256:1f70a5018e707cdb0332bc8315317e64c25eb18a90a4fd4b06264cc775551b80",
+  "version": 2
+}
