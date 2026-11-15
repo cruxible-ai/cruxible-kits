@@ -8,7 +8,7 @@
 # `uv run pytest` therefore downloads no browser and opens no socket.
 [project]
 name = "cruxible-provider-web"
-version = "0.5.0"
+version = "0.7.0"
 description = "Cruxible provider adapters for the web plane: page retrieval, web search, browser-assembled pages and derived readings."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,11 +25,15 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "cruxible-provider-runtime>=0.4.0",
+  "cruxible-provider-runtime>=0.5.0",
   # The HTTP client is base, not an extra: it is how both implementations reach
   # anything at all, and it is how egress gets recorded. An adapter that could
   # not make a request would have no adapter logic left to test.
   "httpx>=0.27",
+  # Imported directly, not only through httpx: the address-pinned transport
+  # supplies its own httpcore network backend, so that a connection opens to the
+  # address the private-address guard checked.
+  "httpcore>=1.0",
   # Extraction is base too, and deliberately so. The heavy-engine split exists
   # to keep a browser, a tensor stack, and an OCR runtime out of the base
   # install; a pure-Python extractor with an lxml wheel is none of those, and
@@ -43,6 +47,11 @@ dependencies = [
 # implementation declares in `requires_extras`, and what the resolver is asked
 # for when that implementation's environment is materialized.
 browser = ["playwright>=1.44"]
+
+[project.urls]
+Homepage = "https://github.com/cruxible-ai/cruxible-providers"
+Documentation = "https://github.com/cruxible-ai/cruxible-providers/blob/main/packages/cruxible-provider-web/README.md"
+Source = "https://github.com/cruxible-ai/cruxible-providers/tree/main/packages/cruxible-provider-web"
 
 [project.entry-points."cruxible.providers"]
 "web.fetch" = "cruxible_provider_web.fetch:WebFetch"

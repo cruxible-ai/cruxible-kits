@@ -8,15 +8,23 @@ recording answered) is the typed coordinate (:mod:`.coordinate`). A reading of
 the document — rendered, extracted, converted — is a different operation,
 ``web.render``, whose output is a derived Capture citing this one.
 
-The adapter never mints a Capture. It returns Capture wire and the executor
-carries it to the CaptureKind; core commits the bytes and never looks inside
-them except through a declared ``extract``.
+The adapter never mints a Capture. It returns the Capture's wire in its
+result's one field, ``capture`` (a Capture is always a named field of the result
+Contract), and the executor carries it to the CaptureKind; core commits the
+bytes and never looks inside them except through a declared ``extract``.
 
 **Egress.** This implementation cannot enumerate its endpoints: the resource is
 named by the caller, which is the whole point of the operation. Its manifest
 therefore declares the experimental ``dynamic:target-from-run-input`` form, and
 what governs is the recording — every request the client issues reaches the
 run's egress recorder through an httpx event hook, redirect hops included.
+
+**Private targets.** ``web.fetch`` refuses, with ``private_or_internal_address``,
+any target whose addresses are loopback, private, link-local, or otherwise not
+publicly routable — on the first request and on every redirect hop — and
+connects only to the addresses it checked, so a name cannot be re-pointed
+between the check and the connection. See :mod:`cruxible_provider_web.addresses`.
+The guard always applies; there is no opt-out.
 
 One reading note about that recording. A request to the reserved
 ``fixture.invalid`` host is served from a recording shipped in this distribution
@@ -42,7 +50,7 @@ from cruxible_provider_runtime.errors import Declined, decline
 from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunContext
 
 from .coordinate import COORDINATE_TYPE, SELECTOR_TYPE, http_coordinate
-from .http import ClientFactory, HttpResponse, ResponseTooLarge, default_client_factory
+from .http import ClientFactory, HttpResponse, ResponseTooLarge, guarded_client_factory
 from .operations import CREDENTIAL_UNAVAILABLE, FETCH_OPERATION, PROVIDER_DECLINED
 
 __all__ = [
@@ -118,10 +126,11 @@ class WebFetch:
     operations = (FETCH_OPERATION,)
 
     def __init__(self, *, client_factory: ClientFactory | None = None) -> None:
-        # The default is the production spelling. The seam exists so a test can
-        # hold the transport still, not so a test can replace the thing under
-        # test: the conformance suite drives this same default.
-        self._client_factory = client_factory or default_client_factory
+        # The default is the production spelling: the guarded, address-pinned
+        # client. The seam exists so a test can hold the transport still, not so
+        # a test can replace the thing under test: the conformance suite drives
+        # this same default.
+        self._client_factory = client_factory or guarded_client_factory
 
     def __call__(self, context: ProviderRunContext) -> ProviderResult:
         try:
@@ -135,22 +144,23 @@ class WebFetch:
         )
         if isinstance(exchanged, ProviderResult):
             return exchanged
-        return ProviderResult.ok(
-            external_capture_result(
-                exchanged.body,
-                source_identity=request.logical_source,
-                coordinate_type=COORDINATE_TYPE,
-                selector_type=SELECTOR_TYPE,
-                coordinate=http_coordinate(
-                    url=request.url,
-                    final_url=exchanged.final_url,
-                    status=exchanged.status_code,
-                    content_type=exchanged.content_type,
-                    response_headers=exchanged.headers,
-                    from_recording=exchanged.from_recording is not None,
-                ),
-                observed_at=datetime.now(UTC),
+        wire = external_capture_result(
+            exchanged.body,
+            source_identity=request.logical_source,
+            coordinate_type=COORDINATE_TYPE,
+            selector_type=SELECTOR_TYPE,
+            coordinate=http_coordinate(
+                url=request.url,
+                final_url=exchanged.final_url,
+                status=exchanged.status_code,
+                content_type=exchanged.content_type,
+                response_headers=exchanged.headers,
+                from_recording=exchanged.from_recording is not None,
             ),
+            observed_at=datetime.now(UTC),
+        )
+        return ProviderResult.ok(
+            {"capture": wire},
             metrics={"byte_count": float(len(exchanged.body))},
             events=recording_events(exchanged, request.url),
         )

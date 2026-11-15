@@ -19,6 +19,14 @@ request, response and websocket events instead, and every endpoint the page
 contacts -- the main frame, a CDN, the API a script queries, a ws/wss stream it
 opens -- reaches the run's egress recorder.
 
+**Private targets.** The URL the run names is vetted before the browser goes
+there, and the address the browser reports for the main-frame response is
+judged before the page is captured; either one on a private, loopback,
+link-local or otherwise non-public address refuses the run
+(``private_or_internal_address``). What the browser contacts in between --
+redirect hops, subresources, script fetches, WebSockets -- is recorded but not
+vetted: see :mod:`.browser`.
+
 A URL on the reserved ``fixture.invalid`` host is answered from a packaged
 recording's post-assembly DOM rather than a browser; the coordinate says
 ``source: packaged-recording`` and the renderer ``recorded:<id>``.
@@ -120,29 +128,28 @@ class WebRenderDom:
                 observed_weight=page_weight_class(len(assembled)),
             )
         recorded = page.engine.startswith("recorded:")
-        return ProviderResult.ok(
-            external_capture_result(
-                assembled,
-                source_identity=logical_source,
-                coordinate_type=COORDINATE_TYPE,
-                selector_type=SELECTOR_TYPE,
-                coordinate=http_coordinate(
-                    url=url,
-                    final_url=page.final_url,
-                    status=page.status_code,
-                    content_type=DOM_MEDIA,
-                    # The main frame's length is not the assembled DOM's; only
-                    # its freshness validators describe these bytes.
-                    response_headers={
-                        name: value
-                        for name, value in page.headers.items()
-                        if name != "content-length"
-                    },
-                    from_recording=recorded,
-                    renderer=page.engine,
-                ),
-                observed_at=datetime.now(UTC),
+        wire = external_capture_result(
+            assembled,
+            source_identity=logical_source,
+            coordinate_type=COORDINATE_TYPE,
+            selector_type=SELECTOR_TYPE,
+            coordinate=http_coordinate(
+                url=url,
+                final_url=page.final_url,
+                status=page.status_code,
+                content_type=DOM_MEDIA,
+                # The main frame's length is not the assembled DOM's; only
+                # its freshness validators describe these bytes.
+                response_headers={
+                    name: value for name, value in page.headers.items() if name != "content-length"
+                },
+                from_recording=recorded,
+                renderer=page.engine,
             ),
+            observed_at=datetime.now(UTC),
+        )
+        return ProviderResult.ok(
+            {"capture": wire},
             metrics={"byte_count": float(len(assembled))},
             events=[{"kind": "recorded_render", "url": url}] if recorded else [],
         )
