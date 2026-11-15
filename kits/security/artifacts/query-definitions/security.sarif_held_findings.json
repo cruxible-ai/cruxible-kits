@@ -5,7 +5,7 @@
     "max_results": 200,
     "max_traversal_depth": 1
   },
-  "description": "Every finding held for one repository: the import's held rows.",
+  "description": "Every finding the instance holds for one repository: the held rows the SARIF import receives.",
   "entry": {
     "binding": "f",
     "subject_kinds": [
@@ -89,8 +89,8 @@
   },
   "result_shape": "subject",
   "row_contract": {
-    "digest": "sha256:20dc02eb3bc2bc9dfcd39d28cea2ad9bff8147b33991c6d0962bd76a31d3eee7",
-    "name": "sarif.held-finding",
+    "digest": "sha256:e3a37bc5dffba5c4386afcb698258507248ff08ab9dbdeba544b6cb68ad46aff",
+    "name": "security.sarif-held-finding",
     "version": 1
   },
   "where": {

@@ -5,7 +5,7 @@
     "max_results": 200,
     "max_traversal_depth": 1
   },
-  "description": "Every finding of one repository with its agents' verdicts and the scans' verification: the code-findings judgment record.",
+  "description": "Every finding of one repository with the agents' verdicts and the scans' verification.",
   "entry": {
     "binding": "f",
     "subject_kinds": [

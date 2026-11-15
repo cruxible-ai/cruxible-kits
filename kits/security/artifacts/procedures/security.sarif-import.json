@@ -14,7 +14,7 @@
         "name": "security.sarif-import.output/v1"
       }
     },
-    "description": "Read one SARIF file from the workspace and write the findings it reports for the Line's repository; a full scan verifies fixes.",
+    "description": "Read one SARIF file from the workspace and write the findings it reports for the Line's repository; only a full scan marks a held finding fixed.",
     "hard_caps": {
       "max_capture_bytes": 33554432,
       "max_items": 100000,
@@ -51,18 +51,8 @@
         },
         "id": "sarif",
         "input": {
-          "coordinate": {
-            "revision": "working"
-          },
-          "coordinate_type": "http-response-v1",
           "logical_source": "$params.logical_source",
-          "relative_path": "$params.relative_path",
-          "replayability": "attested_only",
-          "selector": {
-            "whole": true
-          },
-          "selector_type": "whole-response-v1",
-          "tag": "playbill-workspace-file-source-request-v2"
+          "relative_path": "$params.relative_path"
         },
         "kind": "call",
         "slot": "read"
@@ -90,55 +80,14 @@
       },
       {
         "capture": "$steps.findings.document",
-        "complete_when": {
-          "count_at": "/count"
-        },
-        "fields": {
-          "reported_at": {
-            "at": "reported_at",
-            "presence": "optional"
-          },
-          "rule": {
-            "at": "rule",
-            "presence": "optional"
-          },
-          "severity": {
-            "at": "severity",
-            "presence": "optional"
-          },
-          "tool": {
-            "at": "tool",
-            "presence": "optional"
-          },
-          "verification": {
-            "at": "verification"
-          }
-        },
-        "header": {
-          "covered": {
-            "at": "/covered",
-            "type": "list<string{max_len: 256}>{max_items: 20000}"
-          }
-        },
+        "header": [
+          "covered"
+        ],
         "id": "found",
-        "key": {
-          "locus": {
-            "at": "locus",
-            "type": "key_part<security.finding:locus>"
-          },
-          "repo": {
-            "at": "repo",
-            "type": "key_part<security.finding:repo>"
-          },
-          "weakness": {
-            "at": "weakness",
-            "type": "key_part<security.finding:weakness>"
-          }
-        },
         "kind": "extract",
-        "records": "/findings/*",
+        "records": "findings",
         "row": {
-          "digest": "sha256:89b733667e5379af29230e496b5bf182942cb251b0891be100444d3ed82b7d91",
+          "digest": "sha256:9229fb847659e92322e84ef3dcdc773bcfefa0989749e5329f3f7648132c613e",
           "name": "security.sarif-finding",
           "version": 1
         }
@@ -224,35 +173,23 @@
     },
     "slots": {
       "derive": {
-        "effect": "pure",
-        "in": {
-          "digest": "sha256:62938ed7aeaf7058e926661779c7aa3582a72d93ec1510b22cc0b25933e358ee",
-          "name": "sarif.findings.request",
-          "version": 1
-        },
-        "out": {
-          "digest": "sha256:4ebc62f6842e6c7ff59360554d4a249fd33ae614a8368654eced2a8cd14fd2b9",
-          "name": "sarif.findings.result",
+        "capability": {
+          "digest": "sha256:8b9ead1dac93b805c082e28dd7f59cef36850c69c7404f74a400e2df81f15ab9",
+          "name": "security.sarif.findings",
           "version": 1
         }
       },
       "read": {
-        "effect": "pure",
-        "in": {
-          "digest": "sha256:d9c33d4ac151700c89f5391b66adf73c6e6cddfc199670cd4cb9dc01651f7240",
-          "name": "workspace.file.request",
-          "version": 1
-        },
-        "out": {
-          "digest": "sha256:fe3980a054beed0610045a28a27fbb50c0bad89e91fb5059a76667e34e169dd8",
-          "name": "workspace.file.result",
+        "capability": {
+          "digest": "sha256:b751c693fd6e2203ec5d445faac08d08058c5547f2c7d3a9fc073618daf2f0c2",
+          "name": "workspace.file",
           "version": 1
         }
       }
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:fff06fa6d4509d355074eb64be4f3a8d48c140b60b7aed1357710201da25a241",
+  "definition_digest": "sha256:726f3074a5c813122e636b9e7dc742a41089d295e5b5aba1015ffe70b113b898",
   "identity": {
     "kind": "Procedure",
     "name": "security.sarif-import"

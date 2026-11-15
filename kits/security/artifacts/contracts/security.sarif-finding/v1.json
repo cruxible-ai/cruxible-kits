@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-contract-v1",
-  "description": "One finding the derived document lists, typed in the extract.",
+  "description": "One finding a SARIF findings document lists: its verification and, when the scan gives them, the rule, tool, severity and location that reported it.",
   "fields": {
     "reported_at": {
       "optional": true,

@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-contract-v1",
-  "description": "One KEV catalog record's fields the slice writes.",
+  "description": "One KEV catalog record: when the CVE was added, the moment it counts as listed from, its due date and its known ransomware use.",
   "fields": {
     "date_added": {
       "type": {

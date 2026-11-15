@@ -1,0 +1,17 @@
+{
+  "artifact_format": "cruxible-capability-v1",
+  "description": "Reads this run's SARIF 2.1.0 logs for one repository, with the findings the instance holds for it, and returns one document of findings keyed by repository, weakness and locus, each present or fixed, plus attention records for regressions and results it could not place. Only a full run (every invocation succeeded and the run declares cruxible.coverage full) covers a held finding, and only a covered finding the logs no longer report is fixed: a partial scan marks nothing fixed. A result it cannot key is a location gap and taints its rule, which then covers nothing in this scan. A CVE or GHSA result in a manifest or lockfile is left to the SBOM loop, never a finding.",
+  "effect": "pure",
+  "in": {
+    "digest": "sha256:fa8f724135bdb33274f48bcc62923c920d42ee86e6000f00df48db8b6a1c321a",
+    "name": "security.sarif.findings.request",
+    "version": 1
+  },
+  "name": "security.sarif.findings",
+  "out": {
+    "digest": "sha256:01fdffa828859f77b4bf037875529e03b7460c0a95210124835dd21fa007507c",
+    "name": "security.sarif.findings.result",
+    "version": 1
+  },
+  "version": 1
+}

@@ -58,6 +58,52 @@
     "kind": "CaptureContract",
     "name": "security.kev-catalog"
   },
+  "layout": {
+    "header": {
+      "catalog_version": {
+        "at": "/catalogVersion",
+        "presence": "required"
+      }
+    },
+    "records": {
+      "vulnerabilities": {
+        "at": "/vulnerabilities/*",
+        "count_at": "/count",
+        "fields": {
+          "date_added": {
+            "at": "dateAdded",
+            "parse": "date"
+          },
+          "due_date": {
+            "at": "dueDate",
+            "parse": "date",
+            "presence": "optional"
+          },
+          "listed_from": {
+            "at": "dateAdded",
+            "parse": "date",
+            "project": "utc_start_of_day"
+          },
+          "ransomware_use": {
+            "at": "knownRansomwareCampaignUse",
+            "canonicalize": "claim_type",
+            "presence": "optional"
+          }
+        },
+        "key": {
+          "cve_id": {
+            "at": "cveID",
+            "type": "key_part<security.vulnerability:cve_id>"
+          }
+        },
+        "row": {
+          "digest": "sha256:44ecd4daaa3c0d87a372d2314f5917a547e7ebb1f2e0eb3f6995d1b044316282",
+          "name": "security.kev-record",
+          "version": 1
+        }
+      }
+    }
+  },
   "lifecycle": {
     "predecessor_digest": null,
     "state": "live"

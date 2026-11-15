@@ -14,6 +14,7 @@
       "type": {
         "kind": "string",
         "max_len": 256,
+        "min_len": 1,
         "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"
       }
     },
@@ -27,6 +28,6 @@
     }
   },
   "name": "security.sarif-import.params",
-  "predecessor_digest": "sha256:023f2c5aa5db5f22e54894457aa2de5c85530fe6d3b02ced4a1e04a21c57dab5",
+  "predecessor_digest": "sha256:424929e3d8c703ec6b72100f010652003e639a6fb8871f9f4559d09a20e030b6",
   "version": 2
 }

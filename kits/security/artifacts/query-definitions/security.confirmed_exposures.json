@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "Every occurrence an agent judged affected whose SBOM still lists the component: the confirmed exposures to remediate or escalate, KEV-listed first, then by EPSS score. The fixed versions are in the osv.match document the component's affected_by Claim cites.",
+  "description": "The confirmed exposures to remediate or escalate: every occurrence an agent judged affected whose SBOM still lists the component, KEV-listed first, then by EPSS score. The fixed versions are in the OSV match document the component's affected_by Claim cites.",
   "entry": {
     "binding": "ae",
     "subject_kinds": [

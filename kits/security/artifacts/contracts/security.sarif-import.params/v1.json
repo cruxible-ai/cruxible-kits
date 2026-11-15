@@ -11,6 +11,7 @@
       "type": {
         "kind": "string",
         "max_len": 256,
+        "min_len": 1,
         "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"
       }
     },

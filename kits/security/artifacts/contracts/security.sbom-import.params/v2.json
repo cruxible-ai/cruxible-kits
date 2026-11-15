@@ -14,11 +14,12 @@
       "type": {
         "kind": "string",
         "max_len": 256,
+        "min_len": 1,
         "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"
       }
     }
   },
   "name": "security.sbom-import.params",
-  "predecessor_digest": "sha256:15847ee44e36f885389e9855cab40f62773801d9cd90fed02323b39651aace13",
+  "predecessor_digest": "sha256:a4433bcfb5829a3bee7544dc04056a0ba57230ea38eda4c3b79a119125143beb",
   "version": 2
 }

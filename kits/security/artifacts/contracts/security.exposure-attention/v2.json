@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-contract-v1",
-  "description": "One urgent exposure for an agent to judge: the inventory, the component, the vulnerability, the occurrence's Subject id (get security.occurrence/<occurrence>) and why it is here: unjudged, or contested (a judgment is on the pair but none counts). Stable identity only, so the same pair in the same state is the same item.",
+  "description": "One urgent exposure for an agent to judge: the inventory, the component, the vulnerability, the occurrence's Subject id (get security.occurrence/<occurrence>) and why it is here: unjudged, or contested (a judgment is on the pair but none counts).",
   "fields": {
     "component": {
       "description": "The component's key: its purl@version.",
@@ -41,6 +41,6 @@
     }
   },
   "name": "security.exposure-attention",
-  "predecessor_digest": "sha256:2e684d1f4a1edd21dbcac32a1008ee50cd9093a1f5251d5a33b40a1f4f1b0930",
+  "predecessor_digest": "sha256:f8952a669fcf84a237d78676d88dd2515ea74b11e496ccff42b1512b86bb3669",
   "version": 2
 }

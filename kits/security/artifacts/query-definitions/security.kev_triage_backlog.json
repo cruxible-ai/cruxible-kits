@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "The KEV-listed exposures nobody has judged yet, by EPSS score (pairs under investigation stay).",
+  "description": "The KEV-listed exposures nobody has judged yet, by EPSS score; a pair under investigation stays listed.",
   "entry": {
     "binding": "v",
     "subject_kinds": [

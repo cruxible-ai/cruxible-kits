@@ -5,7 +5,7 @@
     "max_results": 200,
     "max_traversal_depth": 1
   },
-  "description": "The coverage units of one repository an audit should take up: never checked (no status), deferred or blocked. Units whose checked passage changed are next's citation_drifted rows.",
+  "description": "The coverage units of one repository an audit should take up: never checked (no status), deferred or blocked. A checked unit whose passage changed is not here: next lists it as citation_drifted.",
   "entry": {
     "binding": "u",
     "subject_kinds": [

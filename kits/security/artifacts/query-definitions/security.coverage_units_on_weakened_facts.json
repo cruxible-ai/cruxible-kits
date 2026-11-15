@@ -5,7 +5,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "Each security.coverage_unit judgment resting on at least one codebase fact of one repository that holds only partly or not at all, once however many: read it again. The facts behind each are in security.weakened_causes_of_coverage_units.",
+  "description": "The security.coverage_unit judgments to read again: each rests on at least one codebase fact of one repository that holds only partly or not at all, listed once however many. security.weakened_causes_of_coverage_units names the facts.",
   "entry": {
     "binding": "x",
     "subject_kinds": [

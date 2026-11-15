@@ -58,6 +58,59 @@
     "kind": "CaptureContract",
     "name": "security.osv-matches"
   },
+  "layout": {
+    "header": {
+      "queried": {
+        "at": "/queried",
+        "type": "list<string{max_len: 256}>{max_items: 20000}"
+      }
+    },
+    "records": {
+      "affected": {
+        "at": "/affected/*",
+        "count_at": "/count",
+        "fields": {
+          "osv_id": {
+            "at": "osv_id"
+          }
+        },
+        "key": {
+          "cve_id": {
+            "at": "cve_id",
+            "type": "key_part<security.vulnerability:cve_id>"
+          },
+          "purl": {
+            "at": "purl",
+            "type": "key_part<security.component:purl>"
+          }
+        },
+        "row": {
+          "digest": "sha256:435d69a8bd74b0a7d2d4bb5c4b31a593ba7c8d6908dce07f5bad4c55c340222d",
+          "name": "security.osv-affected",
+          "version": 1
+        }
+      },
+      "not_checked": {
+        "at": "/not_checked/*",
+        "fields": {
+          "reason": {
+            "at": "reason"
+          }
+        },
+        "key": {
+          "purl": {
+            "at": "purl",
+            "type": "key_part<security.component:purl>"
+          }
+        },
+        "row": {
+          "digest": "sha256:547d75c18258a54d5c6f5de344c905efbf3e81b265a920dfb557ddf3d00fc963",
+          "name": "security.osv-not-checked",
+          "version": 1
+        }
+      }
+    }
+  },
   "lifecycle": {
     "predecessor_digest": null,
     "state": "live"

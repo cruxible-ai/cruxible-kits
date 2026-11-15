@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "Each security.coverage_unit judgment and a codebase fact of one repository it rests on that holds only partly or not at all: one row per (judgment, fact), the causes behind security.coverage_units_on_weakened_facts.",
+  "description": "One row per security.coverage_unit judgment and weakened codebase fact it rests on (a fact of one repository that holds only partly or not at all): the causes behind security.coverage_units_on_weakened_facts.",
   "entry": {
     "binding": "x",
     "subject_kinds": [

@@ -14,7 +14,7 @@
         "name": "security.sarif-attention.output/v1"
       }
     },
-    "description": "Post the regressions and location gaps of one derived SARIF findings document to the Line inbox.",
+    "description": "Post each regression and location gap in one derived SARIF findings document to the Line's inbox.",
     "hard_caps": {
       "max_capture_bytes": 33554432,
       "max_items": 100000,
@@ -53,42 +53,9 @@
       },
       {
         "capture": "$steps.findings.document",
-        "fields": {
-          "finding": {
-            "at": "finding",
-            "presence": "optional"
-          },
-          "kind": {
-            "at": "kind"
-          },
-          "locus": {
-            "at": "locus",
-            "presence": "optional"
-          },
-          "path": {
-            "at": "path"
-          },
-          "reason": {
-            "at": "reason",
-            "presence": "optional"
-          },
-          "ref": {
-            "at": "ref"
-          },
-          "repo": {
-            "at": "repo"
-          },
-          "rule": {
-            "at": "rule"
-          },
-          "weakness": {
-            "at": "weakness",
-            "presence": "optional"
-          }
-        },
         "id": "attention",
         "kind": "extract",
-        "records": "/attention/*",
+        "records": "attention",
         "row": {
           "digest": "sha256:ab6123ec812fe081ba0c455ba904e0c903efc3f1ebd340707a821de7a9cdf11c",
           "name": "security.sarif-attention-record",
@@ -129,22 +96,16 @@
     "returns": "summary",
     "slots": {
       "derive": {
-        "effect": "pure",
-        "in": {
-          "digest": "sha256:62938ed7aeaf7058e926661779c7aa3582a72d93ec1510b22cc0b25933e358ee",
-          "name": "sarif.findings.request",
-          "version": 1
-        },
-        "out": {
-          "digest": "sha256:4ebc62f6842e6c7ff59360554d4a249fd33ae614a8368654eced2a8cd14fd2b9",
-          "name": "sarif.findings.result",
+        "capability": {
+          "digest": "sha256:8b9ead1dac93b805c082e28dd7f59cef36850c69c7404f74a400e2df81f15ab9",
+          "name": "security.sarif.findings",
           "version": 1
         }
       }
     },
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:54c35b97009fc972948f2191326a11f46d49ede8bfde9f15a8a0200ee143ebf8",
+  "definition_digest": "sha256:71e219f6a577eb221e23441653d5806f02db5e947ea827e9f5038dea95b560ce",
   "identity": {
     "kind": "Procedure",
     "name": "security.sarif-attention"

@@ -5,7 +5,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "The CVE id of every watched vulnerability: EPSS's key list.",
+  "description": "The CVE id of every watched vulnerability: the ids the EPSS Procedure asks about.",
   "entry": {
     "binding": "v",
     "subject_kinds": [
@@ -43,7 +43,7 @@
   },
   "result_shape": "subject",
   "row_contract": {
-    "digest": "sha256:6d00e52f2f26679e63f6fd84b4ea0eeb0665909ebaf82cdaba2f5505b2b69de5",
+    "digest": "sha256:ddf6250fbfcd0793930089dc321b0febdea5482763e0d731d4f5a07266ad05be",
     "name": "security.watched-cve-key",
     "version": 1
   },

@@ -58,6 +58,48 @@
     "kind": "CaptureContract",
     "name": "security.sbom-components"
   },
+  "layout": {
+    "header": {
+      "inventory": {
+        "at": "/inventory",
+        "type": "string{min_len: 1, max_len: 256}"
+      }
+    },
+    "records": {
+      "components": {
+        "at": "/components/*",
+        "count_at": "/count",
+        "fields": {
+          "name": {
+            "at": "name",
+            "presence": "optional"
+          },
+          "named_by": {
+            "at": "named_by"
+          },
+          "scope": {
+            "at": "scope",
+            "canonicalize": "claim_type"
+          },
+          "warning": {
+            "at": "warning",
+            "presence": "optional"
+          }
+        },
+        "key": {
+          "purl": {
+            "at": "purl",
+            "type": "key_part<security.component:purl>"
+          }
+        },
+        "row": {
+          "digest": "sha256:04c4e110e39869026e7e4e74bbf4aca3bba92f21187c4783f544627872af67c6",
+          "name": "security.sbom-component",
+          "version": 1
+        }
+      }
+    }
+  },
   "lifecycle": {
     "predecessor_digest": null,
     "state": "live"

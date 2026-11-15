@@ -10,7 +10,7 @@
       }
     },
     "max_bytes": {
-      "description": "The most bytes the fetch accepts from the origin, 1 to 33554432 (the template uses 4194304, 4 MiB). A larger response is refused and the run writes nothing. The catalog's CaptureContract holds at most 16 MiB, so a larger value gains nothing.",
+      "description": "The most bytes the fetch accepts from the origin, 1 to 33554432 (the template uses 4194304, 4 MiB). A larger response is refused and the run writes nothing. The catalog's CaptureKind holds at most 16 MiB, so a larger value gains nothing.",
       "type": {
         "kind": "int",
         "max": 33554432,

@@ -14,7 +14,7 @@
         "name": "security.kev-triage.output/v1"
       }
     },
-    "description": "Read the CISA KEV catalog and write each watched CVE's catalog membership, dates and ransomware use; a complete read records the unlisted ones.",
+    "description": "Read the CISA KEV catalog and write, for each watched CVE, whether it is listed, its dates and its ransomware use; only a complete read records a CVE as not listed.",
     "hard_caps": {
       "max_capture_bytes": 16777216,
       "max_items": 20000,
@@ -58,47 +58,14 @@
       },
       {
         "capture": "$steps.catalog.capture",
-        "complete_when": {
-          "count_at": "/count"
-        },
-        "fields": {
-          "date_added": {
-            "at": "dateAdded",
-            "parse": "date"
-          },
-          "due_date": {
-            "at": "dueDate",
-            "parse": "date",
-            "presence": "optional"
-          },
-          "listed_from": {
-            "at": "dateAdded",
-            "parse": "date",
-            "project": "utc_start_of_day"
-          },
-          "ransomware_use": {
-            "at": "knownRansomwareCampaignUse",
-            "canonicalize": "claim_type",
-            "presence": "optional"
-          }
-        },
-        "header": {
-          "catalog_version": {
-            "at": "/catalogVersion",
-            "presence": "required"
-          }
-        },
+        "header": [
+          "catalog_version"
+        ],
         "id": "entries",
-        "key": {
-          "cve_id": {
-            "at": "cveID",
-            "type": "key_part<security.vulnerability:cve_id>"
-          }
-        },
         "kind": "extract",
-        "records": "/vulnerabilities/*",
+        "records": "vulnerabilities",
         "row": {
-          "digest": "sha256:4a0615f4aabe5ccc4acc0cbeae98a8712695a59eb3ade3d37faec1770a07dc16",
+          "digest": "sha256:44ecd4daaa3c0d87a372d2314f5917a547e7ebb1f2e0eb3f6995d1b044316282",
           "name": "security.kev-record",
           "version": 1
         }
@@ -177,22 +144,16 @@
     },
     "slots": {
       "fetch": {
-        "effect": "external_read",
-        "in": {
-          "digest": "sha256:1f4eefbeef292080ab075e22d068a4e45f6b01170802f2ca470daa2329444137",
-          "name": "web.fetch.request",
-          "version": 1
-        },
-        "out": {
-          "digest": "sha256:94f256cdc9f9dfb45d8ac2a55e5aaf40bdb64757cbbf21703baeb8bd8d03062f",
-          "name": "web.fetch.result",
+        "capability": {
+          "digest": "sha256:6d7c86ec3867da00c8ecfde5113bafabf96e7f2a2baea7fda914cf3ee6fef6a7",
+          "name": "web.fetch",
           "version": 1
         }
       }
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:14814cf8f353d65e26d6fd6df35b8d1c29853110969166770d16e6939cf6e002",
+  "definition_digest": "sha256:e4b3466288baa08efc6c933828d8f397102bf2cb84db5bca93bd8bb51b4e91ec",
   "identity": {
     "kind": "Procedure",
     "name": "security.kev-triage"

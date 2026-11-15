@@ -77,32 +77,12 @@
       },
       {
         "capture": "$steps.scores_api.captures",
-        "fields": {
-          "date": {
-            "at": "date",
-            "parse": "date"
-          },
-          "percentile": {
-            "at": "percentile",
-            "parse": "decimal"
-          },
-          "score": {
-            "at": "epss",
-            "parse": "decimal"
-          }
-        },
         "id": "scores",
-        "key": {
-          "cve_id": {
-            "at": "cve",
-            "type": "key_part<security.vulnerability:cve_id>"
-          }
-        },
         "kind": "extract",
         "only_keys": "$steps.watch_keys.rows",
-        "records": "/data/*",
+        "records": "scores",
         "row": {
-          "digest": "sha256:c87071597d8c0acb652d8bed03018de5134311ee844347548fa38939be0a2782",
+          "digest": "sha256:7a1bbf372233a0b23b10b0623d43096d01efb524019beaf8f6ae742a363f17b8",
           "name": "security.epss-row",
           "version": 1
         }
@@ -160,22 +140,16 @@
     },
     "slots": {
       "fetch": {
-        "effect": "external_read",
-        "in": {
-          "digest": "sha256:4ef9ca61bfce39d44bcb2ac0a63c98dd05a33e23c015647ebc999f1003a9f535",
-          "name": "web.fetch.pages.request",
-          "version": 1
-        },
-        "out": {
-          "digest": "sha256:106bc80e150787fdcd299bdb17ff777e3bd2b3ca100c729de9dd2ae6fbe97db9",
-          "name": "web.fetch.pages.result",
+        "capability": {
+          "digest": "sha256:b8452ca24e8b140b7ac4d6fc8e8cc41f3008208d6c6cf4230973aadca4a0eaad",
+          "name": "web.fetch.pages",
           "version": 1
         }
       }
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:7d45f8399644da8050e0db4fb6d3e8cccf7108439244eb75accaca3956ae008c",
+  "definition_digest": "sha256:62b8cb777d6aedba8605f8fa78d075000cae6a10cb9fc7cf4c4b9e7c1a5c2da7",
   "identity": {
     "kind": "Procedure",
     "name": "security.epss-triage"

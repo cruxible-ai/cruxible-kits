@@ -10,7 +10,7 @@
       }
     },
     "max_bytes": {
-      "description": "The most bytes accepted for each response, 1 to 33554432 (the template uses 4194304, 4 MiB). A larger response is refused and left out, so the run is incomplete. Each response's CaptureContract holds at most 1 MiB.",
+      "description": "The most bytes accepted for each response, 1 to 33554432 (the template uses 4194304, 4 MiB). A larger response is refused and left out, so the run is incomplete. Each response's CaptureKind holds at most 1 MiB.",
       "type": {
         "kind": "int",
         "max": 33554432,

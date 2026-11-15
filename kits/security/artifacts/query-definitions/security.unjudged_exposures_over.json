@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "The exposures nobody has judged that hold no judgment Claim at all and whose vulnerability is KEV-listed, or has an EPSS score at or above min_epss, or has no EPSS score yet, in every inventory, KEV-listed first, then by EPSS score. A pair scored below min_epss, or whose EPSS score is contested, is not listed here unless KEV-listed; security.unjudged_exposures and security.urgent_exposures keep the whole worklist.",
+  "description": "The exposures, in every inventory, that hold no judgment Claim at all and whose vulnerability is KEV-listed, has an EPSS score at or above min_epss, or has no EPSS score yet; KEV-listed first, then by EPSS score. A pair below min_epss, or whose EPSS score is contested, is listed only when KEV-listed; security.unjudged_exposures and security.urgent_exposures keep the whole worklist.",
   "entry": {
     "binding": "v",
     "subject_kinds": [

@@ -1,0 +1,45 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "This run's SARIF logs (their Capture bytes, passed by core), the findings the instance holds for the repository, the repository (host/owner/repo) and the logical source the derived document is stated under.",
+  "fields": {
+    "held": {
+      "type": {
+        "item": {
+          "contract": {
+            "digest": "sha256:e3a37bc5dffba5c4386afcb698258507248ff08ab9dbdeba544b6cb68ad46aff",
+            "name": "security.sarif-held-finding",
+            "version": 1
+          },
+          "kind": "contract"
+        },
+        "kind": "list",
+        "max_items": 20000
+      }
+    },
+    "logical_source": {
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    },
+    "logs": {
+      "type": {
+        "item": {
+          "capture_kind": "security.sarif-log",
+          "kind": "capture"
+        },
+        "kind": "list",
+        "max_items": 16
+      }
+    },
+    "repo": {
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "pattern": "^[a-z0-9.-]+/[^/\\s]+/[^/\\s]+$"
+      }
+    }
+  },
+  "name": "security.sarif.findings.request",
+  "version": 1
+}

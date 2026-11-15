@@ -58,6 +58,38 @@
     "kind": "CaptureContract",
     "name": "security.epss-scores"
   },
+  "layout": {
+    "records": {
+      "scores": {
+        "at": "/data/*",
+        "fields": {
+          "date": {
+            "at": "date",
+            "parse": "date"
+          },
+          "percentile": {
+            "at": "percentile",
+            "parse": "decimal"
+          },
+          "score": {
+            "at": "epss",
+            "parse": "decimal"
+          }
+        },
+        "key": {
+          "cve_id": {
+            "at": "cve",
+            "type": "key_part<security.vulnerability:cve_id>"
+          }
+        },
+        "row": {
+          "digest": "sha256:7a1bbf372233a0b23b10b0623d43096d01efb524019beaf8f6ae742a363f17b8",
+          "name": "security.epss-row",
+          "version": 1
+        }
+      }
+    }
+  },
   "lifecycle": {
     "predecessor_digest": null,
     "state": "live"

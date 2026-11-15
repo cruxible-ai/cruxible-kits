@@ -5,7 +5,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "Each security.app_exposure judgment resting on at least one codebase fact of one repository that holds only partly or not at all, once however many: read it again. The facts behind each are in security.weakened_causes_of_app_exposures.",
+  "description": "The security.app_exposure judgments to read again: each rests on at least one codebase fact of one repository that holds only partly or not at all, listed once however many. security.weakened_causes_of_app_exposures names the facts.",
   "entry": {
     "binding": "x",
     "subject_kinds": [

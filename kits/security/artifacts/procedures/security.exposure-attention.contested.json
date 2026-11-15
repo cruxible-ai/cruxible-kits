@@ -14,7 +14,7 @@
         "name": "security.exposure-attention.contested.output/v1"
       }
     },
-    "description": "Post one Line inbox item per contested urgent exposure (security.contested_exposures), KEV-listed first, then by EPSS score.",
+    "description": "Post one inbox item per contested urgent exposure (a judgment is on the pair but none counts), from security.contested_exposures, KEV-listed first, then by EPSS score.",
     "hard_caps": {
       "max_capture_bytes": 0,
       "max_items": 20000,
@@ -44,7 +44,7 @@
       },
       {
         "contract": {
-          "digest": "sha256:35ff62263c6f4ed134b78bedd0d11dc1e6c156904053bc58e232c28f5cb97e30",
+          "digest": "sha256:ab0f2fc68ca9908c9ec5956a9faa05865c461cbd64280e1e04607d69f9371515",
           "name": "security.exposure-attention",
           "version": 2
         },
@@ -69,7 +69,7 @@
     "returns": "summary",
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:b6413d88112e58e488cdfb266f675b15f6f87e213232b32f45c11ad2e70ff0d8",
+  "definition_digest": "sha256:e2c698ec6cddb0e629465861adfb0491ea7c8d9318390c4998fc3d1f3bfaa479",
   "identity": {
     "kind": "Procedure",
     "name": "security.exposure-attention.contested"

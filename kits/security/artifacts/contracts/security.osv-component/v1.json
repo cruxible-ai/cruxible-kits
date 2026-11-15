@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-contract-v1",
-  "description": "One inventoried component's purl: an osv.query input.",
+  "description": "One inventoried component's purl: what OSV is asked about.",
   "fields": {
     "purl": {
       "type": {

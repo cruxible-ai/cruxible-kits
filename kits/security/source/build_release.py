@@ -5,9 +5,12 @@
 The kit's own OSV/web sources and frozen locks build offline. The runtime source
 comes from the explicitly selected providers checkout. Provider installation may
 download the registry dependencies pinned by those locks. No tests or private
-accept-tree helpers are used. A fresh publisher accepts the definitions and
-guidance, then production kit build validates the unchanged template against
-that exported closure. Only a successful build replaces the committed release.
+accept-tree helpers are used. A fresh publisher (which holds the base kit from
+``init``) installs the three provider builds, each carrying its own shapes, then
+accepts the definitions and guidance; production kit build validates the
+unchanged template against that exported closure, leaves out every definition
+the base kit owns and records ``requires: base``. Only a successful build
+replaces the committed release.
 
 The release carries both loops: the dependency loop (SBOM, OSV, KEV, EPSS and the
 dependency guidance) and the audit extension (code findings and coverage units,
@@ -35,7 +38,7 @@ PROVIDERS = SOURCE / "providers"
 RELEASE = "1.3.0"  # Unpublished kit version; targets Cruxible 0.5.
 #: The reviewed cruxible-providers commit: the runtime wheel is built from it, and
 #: the vendored web source (``providers/cruxible-provider-web/src``) is its copy.
-PROVIDERS_COMMIT = "034335992cf7f4a312009cd17f3965b19d613fcc"
+PROVIDERS_COMMIT = "b3fa37a669e60033a1591c4c886b6db6ad44ff21"
 PACKAGES = ("security-osv-provider", "cruxible-provider-web", "security-sarif-provider")
 #: The operations each bundled provider must install for the kit's Procedures.
 REQUIRED = {
@@ -43,14 +46,17 @@ REQUIRED = {
     "cruxible-provider-web": {"web.fetch", "web.fetch.pages"},
     "security-sarif-provider": {"sarif.findings"},
 }
+#: The kit this release requires: kit build leaves out what it owns (web., workspace.).
+REQUIRES = {"base": "1.0.0"}
 sys.path.insert(0, str(SOURCE / "pilot"))
+sys.path.insert(0, str(PROVIDERS))
 
+import build_registrations  # noqa: E402
+import capabilities  # noqa: E402
 import definitions as kit  # noqa: E402
 import findings  # noqa: E402
 import install  # noqa: E402
-import osv  # noqa: E402
 import template  # noqa: E402
-import web_contracts  # noqa: E402
 
 
 class Session:
@@ -243,9 +249,23 @@ def check_providers_checkout(checkout: Path) -> None:
         )
 
 
+def check_registrations() -> None:
+    """Refuse a kit provider registration that is not the one the kit's definitions render."""
+    stale = [
+        package
+        for package in build_registrations.PACKAGES
+        if not build_registrations.write(package, check=True)
+    ]
+    if stale:
+        raise RuntimeError(
+            f"stale registration.json in {stale}: run source/providers/build_registrations.py"
+        )
+
+
 def build_providers(root: Path, checkout: Path, env: dict[str, str]) -> list[Path]:
     """Build exact locked sources in scratch, never modifying the checkout."""
     check_providers_checkout(checkout)
+    check_registrations()
     root.mkdir()
     runtime = root / "cruxible-provider-runtime"
     shutil.copytree(
@@ -290,18 +310,11 @@ def build_providers(root: Path, checkout: Path, env: dict[str, str]) -> list[Pat
 
 def build_release(session: Session, projects: list[Path], out: Path) -> None:
     session.initialize()
-    web = PROVIDERS / "cruxible-provider-web/src/cruxible_provider_web"
-    session.submit(
-        "provider-contracts",
-        {
-            "kind": "change_set",
-            "members": [
-                *web_contracts.package_members(web),
-                *osv.provider_contract_members(),
-                *findings.provider_contract_members(),
-            ],
-        },
-    )
+    installed = session.command("kit", "status", "--offline", "--json")
+    held = {item["kit_id"]: item["version"] for item in installed.get("kits", ())}
+    for kit_id, version in REQUIRES.items():
+        if held.get(kit_id) != version:
+            raise RuntimeError(f"the publisher holds {kit_id} {held.get(kit_id)}, not {version}")
     for project in projects:
         wheels = list((project / "dist").glob("*.whl"))
         dependency = next(
@@ -327,15 +340,27 @@ def build_release(session: Session, projects: list[Path], out: Path) -> None:
         }
         if not installed.get("registered") or not required <= ready:
             raise RuntimeError(f"Provider not installed: {installed}")
-    for name, record in {**kit.capture_kinds(), **findings.capture_kinds()}.items():
-        path = session.root / f"capture-kind.{name}.json"
-        path.write_text(json.dumps(record, indent=1) + "\n")
-        session.command(
-            "capture-contract", "propose", "--input", str(path), "--commit", "--json"
-        )
+    # Kinds first, without their layouts: a layout pins row Contracts, and a row may
+    # name a ClaimType whose evidence rules name the kind. The layouts follow the
+    # vocabulary, each a successor that only adds the layout.
+    kinds, layouts = kit.staged_capture_kinds(
+        {**kit.capture_kinds(), **findings.capture_kinds()}
+    )
+
+    def propose_kinds(stage: str, records: dict[str, Any]) -> None:
+        for name, record in records.items():
+            path = session.root / f"{stage}.{name}.json"
+            path.write_text(json.dumps(record, indent=1) + "\n")
+            session.command(
+                "capture-contract", "propose", "--input", str(path), "--commit", "--json"
+            )
+
+    propose_kinds("capture-kind", kinds)
     session.submit("vocabulary", kit.vocabulary())
-    session.submit("procedures", kit.procedures())
+    session.submit("capabilities", capabilities.change_set())
     session.submit("audit-vocabulary", findings.vocabulary())
+    propose_kinds("capture-layout", layouts)
+    session.submit("procedures", kit.procedures())
     session.submit("audit-procedures", findings.procedures())
 
     def store(path: Path) -> str:
@@ -376,6 +401,10 @@ def build_release(session: Session, projects: list[Path], out: Path) -> None:
     for project in projects:
         args.extend(("--provider", str(project)))
     session.command(*args, "--json")
+    built = json.loads((out / "cruxible-kit.json").read_bytes())
+    requires = {item["kit_id"]: item["min_version"] for item in built.get("requires", ())}
+    if requires != REQUIRES:
+        raise RuntimeError(f"kit build recorded requires {requires}, not {REQUIRES}")
 
 
 def refresh_files() -> None:

@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-contract-v1",
-  "description": "One component sbom.components read from an SBOM, with its scope.",
+  "description": "One component an SBOM lists, with its scope.",
   "fields": {
     "name": {
       "optional": true,

@@ -14,7 +14,7 @@
         "name": "security.osv-query.output/v1"
       }
     },
-    "description": "Ask OSV about every inventoried component and write which vulnerabilities OSV lists for its exact purl@version; a vulnerability OSV no longer lists for a component it answered in full retires.",
+    "description": "Ask OSV about every inventoried component and write the vulnerabilities OSV lists for its exact purl@version; for a component OSV answered in full, a vulnerability it no longer lists is retired.",
     "hard_caps": {
       "max_capture_bytes": 67108864,
       "max_items": 50000,
@@ -74,35 +74,14 @@
       },
       {
         "capture": "$steps.matched.document",
-        "complete_when": {
-          "count_at": "/count"
-        },
-        "fields": {
-          "osv_id": {
-            "at": "osv_id"
-          }
-        },
-        "header": {
-          "queried": {
-            "at": "/queried",
-            "type": "list<string{max_len: 256}>{max_items: 20000}"
-          }
-        },
+        "header": [
+          "queried"
+        ],
         "id": "affected",
-        "key": {
-          "cve_id": {
-            "at": "cve_id",
-            "type": "key_part<security.vulnerability:cve_id>"
-          },
-          "purl": {
-            "at": "purl",
-            "type": "key_part<security.component:purl>"
-          }
-        },
         "kind": "extract",
-        "records": "/affected/*",
+        "records": "affected",
         "row": {
-          "digest": "sha256:78e3bcd86138b59ec55cdac71ea154aaf3e26bebdaca1896679c46ba9b39bc35",
+          "digest": "sha256:435d69a8bd74b0a7d2d4bb5c4b31a593ba7c8d6908dce07f5bad4c55c340222d",
           "name": "security.osv-affected",
           "version": 1
         }
@@ -147,35 +126,23 @@
     },
     "slots": {
       "match": {
-        "effect": "pure",
-        "in": {
-          "digest": "sha256:af7b4623f7d4681722e0a3764152080ffbeadac82f9b643fefd1dbd76b2df8af",
-          "name": "osv.match.request",
-          "version": 1
-        },
-        "out": {
-          "digest": "sha256:8dc8e9b5d54e859ff24e5110ebdb1c3c0327f4e9b13a995aae156c7e9c2858e4",
-          "name": "osv.match.result",
+        "capability": {
+          "digest": "sha256:ab2f0583ea0b382f04ed2facbe70bad173d377f3f58beab2f46e3adf3df6f619",
+          "name": "security.osv.match",
           "version": 1
         }
       },
       "query": {
-        "effect": "external_read",
-        "in": {
-          "digest": "sha256:6f410ed449bdf9a724f7daf8df15adbd1ccff56fc45f010e6677ef3f77c0dab5",
-          "name": "osv.query.request",
-          "version": 1
-        },
-        "out": {
-          "digest": "sha256:5cba02d44b4ae86b0bfb011df645080051c5399087a3714b15bc8ed240fcec6d",
-          "name": "osv.query.result",
+        "capability": {
+          "digest": "sha256:f42da97587e9cdb1395e1b29bfb6d71c5c41ec0fd01439353a08a3b930199619",
+          "name": "security.osv.query",
           "version": 1
         }
       }
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:3ea98153c1e19273cb18ef5c06ccd93ce28d193e9e1c815c2a504f11708ce28d",
+  "definition_digest": "sha256:7ea9adbce73567c703cce610b1b9ec73dbca22c81ebe7b5a9f4077830b6bad0b",
   "identity": {
     "kind": "Procedure",
     "name": "security.osv-query"
