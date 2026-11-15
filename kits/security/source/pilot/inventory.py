@@ -57,6 +57,10 @@ from typing import Any
 
 from cruxible_client.contracts.authoring.inputs import ProcedureInput
 from cruxible_core.claims.claim_type_inputs import ClaimTypeInputRecord, lower_claim_type_input
+
+from capabilities import SBOM_COMPONENTS as SBOM_COMPONENTS_CAPABILITY
+from capabilities import WORKSPACE_FILE as WORKSPACE_FILE_CAPABILITY
+from capabilities import capability, pinned_layout
 from definitions import VULN, params_contract, params_contract_members, refs
 
 INVENTORY = "security.inventory"
@@ -108,7 +112,9 @@ PAIR_PARTS: dict[str, tuple[tuple[str, str], ...]] = {
     APP_EXPOSURE: (("occurrence", OCCURRENCE), ("vulnerability", VULN)),
 }
 
-_PATH = 'string{max_len: 256, pattern: "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"}'
+#: ``min_len: 1``: the path is sent as workspace.file@1's ``relative_path``, which is
+#: never empty, and a slot's request is typed against its capability.
+_PATH = 'string{min_len: 1, max_len: 256, pattern: "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"}'
 _SOURCE = 'string{pattern: "^[a-z][a-z0-9_.-]{0,255}$"}'
 _INVENTORY_ID = "string{min_len: 1, max_len: 256}"
 
@@ -117,7 +123,14 @@ _INVENTORY_ID = "string{min_len: 1, max_len: 256}"
 
 
 def _json_kind(
-    name: str, *, shape: str, grade: str, max_bytes: int, depth: int, records: int
+    name: str,
+    *,
+    shape: str,
+    grade: str,
+    max_bytes: int,
+    depth: int,
+    records: int,
+    layout: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "name": name,
@@ -132,7 +145,56 @@ def _json_kind(
             "encoding": "identity",
             "limits": {"decoded_bytes": max_bytes, "depth": depth, "records": records},
         },
+        **({} if layout is None else {"layout": pinned_layout(layout)}),
     }
+
+
+#: The derived SBOM document sbom.components emits (security.sbom.components@1's
+#: result): the inventory as a header, one record per distinct purl, and ``count``,
+#: every component the SBOM lists (unidentified ones included).
+SBOM_COMPONENTS_LAYOUT: dict[str, Any] = {
+    "header": {"inventory": {"at": "/inventory", "type": _INVENTORY_ID}},
+    "records": {
+        "components": {
+            "at": "/components/*",
+            "key": {"purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"}},
+            "row": f"{SBOM_ROW}@1",
+            "fields": {
+                "name": {"at": "name", "presence": "optional"},
+                "scope": {"at": "scope", "canonicalize": "claim_type"},
+                "named_by": {"at": "named_by"},
+                "warning": {"at": "warning", "presence": "optional"},
+            },
+            "count_at": "/count",
+        }
+    },
+}
+#: The derived OSV match document osv.match emits (security.osv.match@1's result):
+#: ``queried`` (the components OSV answered in full), the (component, CVE) pairs
+#: counted by ``/count``, and the components left unchecked with why.
+OSV_MATCHES_LAYOUT: dict[str, Any] = {
+    "header": {
+        "queried": {"at": "/queried", "type": "list<string{max_len: 256}>{max_items: 20000}"}
+    },
+    "records": {
+        "affected": {
+            "at": "/affected/*",
+            "key": {
+                "purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"},
+                "cve_id": {"at": "cve_id", "type": f"key_part<{VULN}:cve_id>"},
+            },
+            "row": "security.osv-affected@1",
+            "fields": {"osv_id": {"at": "osv_id"}},
+            "count_at": "/count",
+        },
+        "not_checked": {
+            "at": "/not_checked/*",
+            "key": {"purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"}},
+            "row": "security.osv-not-checked@1",
+            "fields": {"reason": {"at": "reason"}},
+        },
+    },
+}
 
 
 def capture_kinds() -> dict[str, dict[str, Any]]:
@@ -141,7 +203,8 @@ def capture_kinds() -> dict[str, dict[str, Any]]:
 
     A derived kind takes the ``http_response`` shape: a provider derive returns
     its document as external Capture wire, which ``procedure_output`` does not
-    admit (e2).
+    admit (e2). Both derived kinds declare their layout, the shape the capability
+    promises and every operation serving it carries.
     """
 
     return {
@@ -160,6 +223,7 @@ def capture_kinds() -> dict[str, dict[str, Any]]:
             max_bytes=4 * 1024 * 1024,
             depth=8,
             records=20_000,
+            layout=SBOM_COMPONENTS_LAYOUT,
         ),
         OSV_MATCH_KIND: _json_kind(
             OSV_MATCH_KIND,
@@ -168,6 +232,7 @@ def capture_kinds() -> dict[str, dict[str, Any]]:
             max_bytes=4 * 1024 * 1024,
             depth=16,
             records=100_000,
+            layout=OSV_MATCHES_LAYOUT,
         ),
     }
 
@@ -431,7 +496,7 @@ def vocabulary_members() -> list[dict[str, Any]]:
             "kind": "contract",
             "name": SBOM_ROW,
             "version": 1,
-            "description": "One component sbom.components read from an SBOM, with its scope.",
+            "description": "One component an SBOM lists, with its scope.",
             "fields": {
                 "name": "string{max_len: 256}?",
                 "scope": f"enum_of {SCOPE}",
@@ -464,16 +529,8 @@ def vocabulary_members() -> list[dict[str, Any]]:
 
 
 _SLOTS = {
-    "read": {
-        "in": "workspace.file.request@1",
-        "out": "workspace.file.result@1",
-        "effect": "pure",
-    },
-    "derive": {
-        "in": "sbom.components.request@1",
-        "out": "sbom.components.result@1",
-        "effect": "pure",
-    },
+    "read": {"capability": capability(WORKSPACE_FILE_CAPABILITY)},
+    "derive": {"capability": capability(SBOM_COMPONENTS_CAPABILITY)},
 }
 _CAPS = {
     "wall_clock": "PT2M",
@@ -560,20 +617,8 @@ def sbom_spec() -> dict[str, Any]:
                 {
                     "extract": "listed",
                     "capture": "$steps.derived.document",
-                    "records": "/components/*",
-                    "row": f"{SBOM_ROW}@1",
-                    "key": {"purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"}},
-                    "duplicates": "refuse_key",
-                    "complete_when": {"count_at": "/count"},
-                    "fields": {
-                        "name": {"at": "name", "presence": "optional"},
-                        "scope": {"at": "scope", "canonicalize": "claim_type"},
-                        "named_by": {"at": "named_by"},
-                        "warning": {"at": "warning", "presence": "optional"},
-                    },
-                    "header": {
-                        "inventory": {"at": "/inventory", "type": _INVENTORY_ID},
-                    },
+                    "records": "components",
+                    "header": ["inventory"],
                 },
                 {
                     "id": "write",

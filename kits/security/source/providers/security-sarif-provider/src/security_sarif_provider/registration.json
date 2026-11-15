@@ -1,23 +1,397 @@
 {
- "schema_version": 2,
- "manifest": {
-  "path": "manifest.yaml",
-  "digest": "sha256:313705c481c5727030975eff34395a37bca242e24586c966022f4d1700969639"
- },
- "operations": [
-  {
-   "name": "sarif.findings",
-   "in": "sarif.findings.request@1",
-   "out": "sarif.findings.result@1",
-   "effect": "pure",
-   "refusals": {
-    "provider_declined": {
-     "contract": "sarif.findings.refusal.provider_declined@1",
-     "absorbable": false
+  "schema_version": 3,
+  "manifest": {
+    "path": "manifest.yaml",
+    "digest": "sha256:313705c481c5727030975eff34395a37bca242e24586c966022f4d1700969639"
+  },
+  "operations": [
+    {
+      "name": "sarif.findings",
+      "description": "Reads this run's SARIF 2.1.0 logs for one repository with the findings it holds: one document of findings by repository, weakness and locus, present or fixed, the held findings a full run covers, and attention records for regressions and location gaps.",
+      "source": {
+        "path": "kits/security/source/providers/security-sarif-provider/src/security_sarif_provider/sarif.py",
+        "repository": "https://github.com/cruxible-ai/cruxible-kits"
+      },
+      "serves": [
+        "security.sarif.findings"
+      ],
+      "in": "security.sarif.findings.request@1",
+      "out": "security.sarif.findings.result@1",
+      "effect": "pure",
+      "refusals": {
+        "provider_declined": {
+          "contract": "sarif.findings.refusal.provider_declined@1",
+          "absorbable": false
+        }
+      },
+      "entrypoint": "security_sarif_provider.sarif:SarifFindings"
     }
-   },
-   "entrypoint": "security_sarif_provider.sarif:SarifFindings"
-  }
- ],
- "runtime_requirements": []
+  ],
+  "declares": {
+    "contracts": [
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "sarif.findings.refusal.provider_declined",
+        "version": 1,
+        "description": "Detail of a provider_declined refusal (an unreadable SARIF log or held row, too many logs or results).",
+        "fields": {}
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "security.sarif-attention-record",
+        "version": 1,
+        "description": "One attention record: a regression or a location gap.",
+        "fields": {
+          "finding": {
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          },
+          "kind": {
+            "type": {
+              "kind": "enum",
+              "members": [
+                "location_gap",
+                "regression"
+              ]
+            }
+          },
+          "locus": {
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          },
+          "path": {
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          },
+          "reason": {
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 64
+            }
+          },
+          "ref": {
+            "type": {
+              "kind": "string",
+              "max_len": 512
+            }
+          },
+          "repo": {
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          },
+          "rule": {
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          },
+          "weakness": {
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "security.sarif-finding",
+        "version": 1,
+        "description": "One finding a SARIF findings document lists: its verification and, when the scan gives them, the rule, tool, severity and location that reported it.",
+        "fields": {
+          "reported_at": {
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          },
+          "rule": {
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          },
+          "severity": {
+            "optional": true,
+            "type": {
+              "claim_type": "security.finding.severity",
+              "kind": "enum_of"
+            }
+          },
+          "tool": {
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 64,
+              "pattern": "^[0-9a-z][0-9a-z._-]{0,63}$"
+            }
+          },
+          "verification": {
+            "type": {
+              "claim_type": "security.finding.verification",
+              "kind": "enum_of"
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "security.sarif-held-finding",
+        "version": 1,
+        "description": "One finding the instance holds for the repository: its Subject, its key parts, its verification and the rules that reported it (tool:ruleId).",
+        "fields": {
+          "locus": {
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          },
+          "rules": {
+            "optional": true,
+            "type": {
+              "item": {
+                "kind": "string",
+                "max_len": 256
+              },
+              "kind": "list",
+              "max_items": 64
+            }
+          },
+          "subject_id": {
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          },
+          "subject_kind": {
+            "type": {
+              "kind": "string",
+              "max_len": 64
+            }
+          },
+          "verification": {
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 16
+            }
+          },
+          "weakness": {
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "security.sarif.findings.request",
+        "version": 1,
+        "description": "This run's SARIF logs (their Capture bytes, passed by core), the findings the instance holds for the repository, the repository (host/owner/repo) and the logical source the derived document is stated under.",
+        "fields": {
+          "held": {
+            "type": {
+              "item": {
+                "contract": {
+                  "digest": "sha256:e3a37bc5dffba5c4386afcb698258507248ff08ab9dbdeba544b6cb68ad46aff",
+                  "name": "security.sarif-held-finding",
+                  "version": 1
+                },
+                "kind": "contract"
+              },
+              "kind": "list",
+              "max_items": 20000
+            }
+          },
+          "logical_source": {
+            "type": {
+              "kind": "string",
+              "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+            }
+          },
+          "logs": {
+            "type": {
+              "item": {
+                "capture_kind": "security.sarif-log",
+                "kind": "capture"
+              },
+              "kind": "list",
+              "max_items": 16
+            }
+          },
+          "repo": {
+            "type": {
+              "kind": "string",
+              "max_len": 256,
+              "pattern": "^[a-z0-9.-]+/[^/\\s]+/[^/\\s]+$"
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "security.sarif.findings.result",
+        "version": 1,
+        "description": "One derived JSON document in the layout of CaptureKind security.sarif-findings: covered (the held findings a full run's rules cover: the Claims' expect), findings by repository, weakness and locus with their verification, count, and attention records (regressions and location gaps). It also states the rules that ran, whether every run was full, the tainted rules and tools, and the dependency advisories routed to the SBOM loop.",
+        "fields": {
+          "document": {
+            "type": {
+              "capture_kind": "security.sarif-findings",
+              "kind": "capture"
+            }
+          }
+        }
+      }
+    ],
+    "capture_kinds": [
+      {
+        "name": "security.sarif-findings",
+        "decoding": {
+          "format": "json",
+          "encoding": "identity",
+          "limits": {
+            "decoded_bytes": 8388608,
+            "depth": 16,
+            "records": 100000
+          }
+        },
+        "layout": {
+          "header": {
+            "covered": {
+              "at": "/covered",
+              "type": "list<string{max_len: 256}>{max_items: 20000}"
+            }
+          },
+          "records": {
+            "attention": {
+              "at": "/attention/*",
+              "row": {
+                "name": "security.sarif-attention-record",
+                "version": 1,
+                "digest": "sha256:ab6123ec812fe081ba0c455ba904e0c903efc3f1ebd340707a821de7a9cdf11c"
+              },
+              "fields": {
+                "finding": {
+                  "at": "finding",
+                  "presence": "optional"
+                },
+                "kind": {
+                  "at": "kind"
+                },
+                "locus": {
+                  "at": "locus",
+                  "presence": "optional"
+                },
+                "path": {
+                  "at": "path"
+                },
+                "reason": {
+                  "at": "reason",
+                  "presence": "optional"
+                },
+                "ref": {
+                  "at": "ref"
+                },
+                "repo": {
+                  "at": "repo"
+                },
+                "rule": {
+                  "at": "rule"
+                },
+                "weakness": {
+                  "at": "weakness",
+                  "presence": "optional"
+                }
+              }
+            },
+            "findings": {
+              "at": "/findings/*",
+              "key": {
+                "locus": {
+                  "at": "locus",
+                  "type": "key_part<security.finding:locus>"
+                },
+                "repo": {
+                  "at": "repo",
+                  "type": "key_part<security.finding:repo>"
+                },
+                "weakness": {
+                  "at": "weakness",
+                  "type": "key_part<security.finding:weakness>"
+                }
+              },
+              "row": {
+                "name": "security.sarif-finding",
+                "version": 1,
+                "digest": "sha256:9229fb847659e92322e84ef3dcdc773bcfefa0989749e5329f3f7648132c613e"
+              },
+              "fields": {
+                "reported_at": {
+                  "at": "reported_at",
+                  "presence": "optional"
+                },
+                "rule": {
+                  "at": "rule",
+                  "presence": "optional"
+                },
+                "severity": {
+                  "at": "severity",
+                  "presence": "optional"
+                },
+                "tool": {
+                  "at": "tool",
+                  "presence": "optional"
+                },
+                "verification": {
+                  "at": "verification"
+                }
+              },
+              "count_at": "/count"
+            }
+          }
+        }
+      },
+      {
+        "name": "security.sarif-log",
+        "decoding": {
+          "format": "json",
+          "encoding": "identity",
+          "limits": {
+            "decoded_bytes": 16777216,
+            "depth": 64,
+            "records": 100000
+          }
+        }
+      }
+    ],
+    "built_against": [
+      {
+        "kind": "Capability",
+        "name": "security.sarif.findings",
+        "version": 1,
+        "digest": "sha256:8b9ead1dac93b805c082e28dd7f59cef36850c69c7404f74a400e2df81f15ab9"
+      },
+      {
+        "kind": "CaptureKind",
+        "name": "security.sarif-findings",
+        "digest": "sha256:a9aac1535282692d8521127e099059454ffe69358292efc72d7acccc1915136a"
+      }
+    ]
+  },
+  "runtime_requirements": []
 }

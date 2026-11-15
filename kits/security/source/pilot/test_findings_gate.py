@@ -23,7 +23,15 @@ from typing import Any
 
 import pytest
 
-from test_pilot_gate import accepted, changed, kit_world, submit, summary, write_file
+from test_pilot_gate import (
+    accepted,
+    assert_extracts_resolve_as_recorded,
+    changed,
+    kit_world,
+    submit,
+    summary,
+    write_file,
+)
 
 import findings  # noqa: E402
 
@@ -53,28 +61,16 @@ def encode(document: Mapping[str, Any] | bytes) -> bytes:
 
 
 def _sarif_build(instance: Any) -> Any:
-    from cruxible_client.contracts.providers import (
-        ProviderLocalDistributionPin,
-        ProviderLocalEnvBackendPin,
-    )
-    from cruxible_core.providers.package_metadata import read_package_registration
-    from cruxible_core.service.procedures.provider_installation import tree_contract_digests
+    """A build of security-sarif-provider as an install lowers it (its own carried shapes)."""
 
-    digests = tree_contract_digests(instance.tree_at(instance.accepted_coordinate().git_oid))
-    registration = read_package_registration(findings.PROVIDER_ROOT)
-    return registration.provider_definition(
-        distribution=ProviderLocalDistributionPin(
-            name=registration.manifest.distribution.name,
-            version=registration.manifest.distribution.version,
-            filename="security_sarif_provider-0.1.0.dev0-py3-none-any.whl",
-            sha256="sha256:" + "5a" * 32,
-        ),
-        local_env=ProviderLocalEnvBackendPin(
-            lock_sha256="sha256:" + "b" * 64,
-            materialization_digests={"linux-cp311": "sha256:" + "c" * 64},
-        ),
+    from test_pilot_gate import package_build
+
+    del instance
+    return package_build(
+        findings.PROVIDER_ROOT,
+        wheel="security_sarif_provider",
+        sha="5a",
         control_domain=findings.PROVIDER_PACKAGE,
-        operations=registration.pinned_operations(digests),
     )
 
 
@@ -86,31 +82,18 @@ def findings_world(
     """The whole kit plus the code-findings vocabulary, provider, Procedures and Lines."""
 
     from cruxible_client.contracts.authoring.inputs import ProcedureInput
-    from cruxible_client.contracts.capture_contract_inputs import (
-        CaptureContractInputRecord,
-        lower_capture_contract_input,
-    )
-    from cruxible_client.contracts.captures import capture_contract_path, render_capture_contract
     from tests.core_support._identity_support import accept_tree
     from tests.support.operation_world import NOW, author, build_files
 
+    from definitions import staged_capture_kinds
+    from test_pilot_gate import accept_capture_kinds
+
+    # kit_world holds every kit kind (the SARIF ones without their layout yet).
     instance = kit_world(tmp_path)
-    submit(
-        instance,
-        {"kind": "change_set", "members": findings.provider_contract_members()},
-        name="sarif-contracts",
-    )
     accept_tree(instance, build_files(_sarif_build(instance)), name="sarif-build")
-    kinds = {
-        capture_contract_path(name): render_capture_contract(
-            lower_capture_contract_input(
-                CaptureContractInputRecord.model_validate(record), named=True
-            )
-        )
-        for name, record in findings.capture_kinds().items()
-    }
-    accept_tree(instance, kinds, name="sarif-kinds")
     submit(instance, findings.vocabulary(), name="findings-vocabulary")
+    _kinds, layouts = staged_capture_kinds(findings.capture_kinds())
+    accept_capture_kinds(instance, layouts, name="sarif-layouts")
     for index, member in enumerate(findings.procedures()["members"]):
         author(instance, ProcedureInput.model_validate(member), name=f"findings-procedure-{index}")
     submit(instance, findings.automation(scans, now=NOW), name="findings-automation")
@@ -970,3 +953,13 @@ def test_work_is_linear_and_flat_per_finding(tmp_path: Path) -> None:
     report = __import__("os").environ.get("FINDINGS_WORK_COUNTS")
     if report:
         Path(report).write_text(json.dumps(measured, indent=1) + "\n")
+
+
+def test_the_sarif_thin_extracts_resolve_to_the_specs_they_replaced(tmp_path: Path) -> None:
+    """Both SARIF EXTRACT nodes read through security.sarif-findings' layout exactly as
+    the full nodes they replaced."""
+
+    instance = findings_world(tmp_path)
+    assert_extracts_resolve_as_recorded(
+        instance, (findings.IMPORT_PROCEDURE, findings.ATTENTION_PROCEDURE)
+    )

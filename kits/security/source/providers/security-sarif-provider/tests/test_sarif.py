@@ -567,13 +567,12 @@ def test_registration_names_the_operation_and_its_manifest_digest() -> None:
     assert registration["manifest"]["digest"] == "sha256:" + hashlib.sha256(manifest).hexdigest()
 
 
-def test_shipped_contracts_match_their_declarations() -> None:
-    pytest.importorskip("cruxible_client")
-    sys.path.insert(0, str(HERE.parent))
-    import build_registration
-    from cruxible_client.contracts.shapes import render_contract
+def test_the_registration_carries_exactly_what_the_kit_renders() -> None:
+    """The carried Contracts and kinds are the kit's own (``build_registrations.py``)."""
 
-    root = HERE.parent / "src" / "security_sarif_provider" / "contracts"
-    for contract in build_registration.contracts():
-        shipped = (root / contract.name / f"v{contract.version}.json").read_bytes()
-        assert shipped == render_contract(contract), contract.name
+    pytest.importorskip("cruxible_core")
+    pytest.importorskip("cruxible_provider_runtime")
+    sys.path.insert(0, str(HERE.parents[1]))
+    import build_registrations
+
+    assert build_registrations.write("security-sarif-provider", check=True)

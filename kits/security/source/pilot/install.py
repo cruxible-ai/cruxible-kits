@@ -3,16 +3,19 @@
 Every step is an ordinary governed write the instance's approval policy admits
 (an owner with self-approval lands each at once):
 
-1. the Contracts cruxible-provider-web's operations pin (``web_contracts.py``);
-2. ``provider install`` of the web wheel (its lock and the runtime wheel beside it);
-3. the Contracts security-osv-provider's operations pin, and ``provider install``
-   of its wheel (``--osv-wheel``/``--osv-lock``; batch 2, the dependency loop);
-4. the CaptureKinds (``capture-contract propose``);
-5. vocabulary, Procedures, vulnerability Subjects and the Lines/Mandates
-   (``authoring submit`` of the change sets ``definitions.py`` writes);
-6. the dependency-judgment guidance Document (``../guidance/dependency.md``,
+The instance already holds the base kit (``cruxible init`` installs it): the
+file read and web fetch capabilities the Procedures' slots name.
+
+1. ``provider install`` of the web wheel (its lock and the runtime wheel beside it)
+   and of security-osv-provider (``--osv-wheel``/``--osv-lock``); each carries
+   its own copies of the shapes it serves, so nothing is accepted first;
+2. every CaptureKind, without its layout (``capture-contract propose``);
+3. the vocabulary and the kit's capabilities (``authoring submit``), then the
+   dependency kinds' layouts (each a successor that only adds the layout);
+4. Procedures, vulnerability Subjects and the Lines/Mandates;
+5. the dependency-judgment guidance Document (``../guidance/dependency.md``,
    K-CF2a), which guides the two justification ClaimTypes;
-7. with ``--sarif-wheel``, code findings and the audit guidance and reference
+6. with ``--sarif-wheel``, code findings and the audit guidance and reference
    Documents (see the blocks at the end).
 
 A ``seed.json`` (own-word affected_by, labelled seed) is NOT installed here: it is
@@ -40,7 +43,6 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import definitions as kit  # noqa: E402
-import web_contracts  # noqa: E402
 
 
 def cruxible(*args: str) -> str:
@@ -70,19 +72,6 @@ def main() -> None:
     parser.add_argument("--sarif-lock", type=Path, default=None, help="its uv.lock")
     args = parser.parse_args()
 
-    contracts = args.payloads / "web-contracts.json"
-    contracts.write_text(
-        json.dumps(
-            {
-                "kind": "change_set",
-                "rationale": "The Contracts cruxible-provider-web's operations pin, as shipped.",
-                "members": web_contracts.members(args.providers),
-            },
-            indent=1,
-        )
-        + "\n"
-    )
-    submit(contracts)
     web = next(args.wheels.glob("cruxible_provider_web-*.whl"))
     runtime = next(args.wheels.glob("cruxible_provider_runtime-*.whl"))
     installed = json.loads(
@@ -105,7 +94,6 @@ def main() -> None:
         raise SystemExit(f"web.fetch is not installed: {installed}")
     print(f"provider: {installed['build']} (web.fetch installed)")
     # -- Batch 2, dependency loop: security-osv-provider (sbom.components, osv.*).
-    submit(args.payloads / "osv-contracts.json")
     installed = json.loads(
         cruxible(
             "provider",
@@ -126,11 +114,13 @@ def main() -> None:
     if not (installed["registered"] and all(ready.get(name) for name in wanted)):
         raise SystemExit(f"security-osv-provider is not installed: {installed}")
     print(f"provider: {installed['build']} ({', '.join(wanted)} installed)")
-    for name in kit.capture_kinds():
-        path = args.payloads / f"capture-kind.{name}.json"
-        cruxible("capture-contract", "propose", "--input", str(path), "--commit")
-        print(f"capture kind {name}: accepted")
-    for name in ("vocabulary", "procedures", "watch", "automation"):
+    propose_kinds(sorted(args.payloads.glob("capture-kind.*.json")))
+    for name in ("vocabulary", "capabilities"):
+        submit(args.payloads / f"{name}.json")
+    propose_kinds(
+        [args.payloads / f"capture-layout.{name}.json" for name in kit.capture_kinds()]
+    )
+    for name in ("procedures", "watch", "automation"):
         submit(args.payloads / f"{name}.json")
     install_guidance(args.payloads, names=DEPENDENCY_GUIDANCE, references=False)
     if args.sarif_wheel is not None:
@@ -140,8 +130,8 @@ def main() -> None:
 # -- Code findings (kit batch 2, lane 2): SARIF import ------------------------------------
 #
 # ``findings.py OUT_DIR --scan NAME=host/owner/repo=RELATIVE_PATH`` writes these
-# payloads into the same directory: the Contracts security-sarif-provider pins
-# (``sarif-contracts.json``), its two CaptureKinds, and the findings vocabulary,
+# payloads into the same directory: the layout of the derived findings kind (the
+# kinds themselves are in definitions.py's payloads), and the findings vocabulary,
 # Procedures and Lines. The provider wheel and its lock come from the package
 # (``uv lock`` then ``uv build`` in source/providers/security-sarif-provider).
 #
@@ -150,10 +140,18 @@ def main() -> None:
 # file (the ``workspace_file`` family, D1).
 
 
+def propose_kinds(paths: Sequence[Path]) -> None:
+    """``capture-contract propose`` each record: a kind, or the layout its successor adds."""
+
+    for path in paths:
+        if path.is_file():
+            cruxible("capture-contract", "propose", "--input", str(path), "--commit")
+            print(f"{path.stem}: accepted")
+
+
 def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Path) -> None:
     import findings
 
-    submit(payloads / "sarif-contracts.json")
     installed = json.loads(
         cruxible(
             "provider",
@@ -172,11 +170,9 @@ def install_findings(payloads: Path, wheel: Path, lock: Path | None, runtime: Pa
     if not (installed["registered"] and ready.get("sarif.findings")):
         raise SystemExit(f"sarif.findings is not installed: {installed}")
     print(f"provider: {installed['build']} (sarif.findings installed)")
-    for name in findings.capture_kinds():
-        path = payloads / f"capture-kind.{name}.json"
-        cruxible("capture-contract", "propose", "--input", str(path), "--commit")
-        print(f"capture kind {name}: accepted")
-    for name in ("findings-vocabulary", "findings-procedures", "findings-automation"):
+    submit(payloads / "findings-vocabulary.json")
+    propose_kinds([payloads / f"capture-layout.{name}.json" for name in findings.capture_kinds()])
+    for name in ("findings-procedures", "findings-automation"):
         submit(payloads / f"{name}.json")
     install_guidance(payloads)
 

@@ -268,9 +268,9 @@ def weakened_causes_spec(kind: str) -> dict[str, Any]:
 
     return {
         "query": WEAKENED_CAUSES[kind],
-        "description": f"Each {kind} judgment and a codebase fact of one repository it rests "
-        "on that holds only partly or not at all: one row per (judgment, fact), the causes "
-        f"behind {ON_WEAKENED[kind]}.",
+        "description": f"One row per {kind} judgment and weakened codebase fact it rests on "
+        "(a fact of one repository that holds only partly or not at all): the causes behind "
+        f"{ON_WEAKENED[kind]}.",
         **_weakened(kind),
         "row": f"{RESTING_ROW}@1",
         "fields": _resting_fields(),
@@ -284,9 +284,9 @@ def on_weakened_spec(kind: str) -> dict[str, Any]:
 
     return {
         "query": ON_WEAKENED[kind],
-        "description": f"Each {kind} judgment resting on at least one codebase fact of one "
-        "repository that holds only partly or not at all, once however many: read it again. "
-        f"The facts behind each are in {WEAKENED_CAUSES[kind]}.",
+        "description": f"The {kind} judgments to read again: each rests on at least one "
+        "codebase fact of one repository that holds only partly or not at all, listed once "
+        f"however many. {WEAKENED_CAUSES[kind]} names the facts.",
         **_weakened(kind),
         "row": f"{DEPENDENT_ROW}@1",
         "fields": [{"judgment_kind": "j.subject_kind"}, {"judgment": "j.subject_id"}],

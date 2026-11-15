@@ -301,32 +301,45 @@ class Replay:
 # -- the world: exactly the kit's payloads -------------------------------------------
 
 
-def _web_build(instance: Any, checkout: Path, *, sha: str = "5e") -> Any:
-    """A build of the web package as an install lowers it, pinned to the accepted Contracts."""
+def package_build(root: Path, *, wheel: str, sha: str, control_domain: str) -> Any:
+    """A build of the provider package at ``root`` as an install lowers it.
+
+    Registration schema 3: every operation is pinned to its own carried copies
+    (``declares``), so the build needs nothing from the instance.
+    """
 
     from cruxible_client.contracts.providers import (
         ProviderLocalDistributionPin,
         ProviderLocalEnvBackendPin,
     )
     from cruxible_core.providers.package_metadata import read_package_registration
-    from cruxible_core.service.procedures.provider_installation import tree_contract_digests
 
-    root = checkout / "packages/cruxible-provider-web/src/cruxible_provider_web"
-    digests = tree_contract_digests(instance.tree_at(instance.accepted_coordinate().git_oid))
     registration = read_package_registration(root)
     return registration.provider_definition(
         distribution=ProviderLocalDistributionPin(
             name=registration.manifest.distribution.name,
             version=registration.manifest.distribution.version,
-            filename=f"cruxible_provider_web-{sha}-py3-none-any.whl",
+            filename=f"{wheel}-{sha}-py3-none-any.whl",
             sha256="sha256:" + sha * 32,
         ),
         local_env=ProviderLocalEnvBackendPin(
             lock_sha256="sha256:" + "b" * 64,
             materialization_digests={"linux-cp311": "sha256:" + "c" * 64},
         ),
+        control_domain=control_domain,
+        operations=registration.pinned_operations(),
+    )
+
+
+def _web_build(instance: Any, checkout: Path, *, sha: str = "5e") -> Any:
+    """A build of the providers checkout's web package (it carries its own shapes)."""
+
+    del instance
+    return package_build(
+        checkout / "packages/cruxible-provider-web/src/cruxible_provider_web",
+        wheel="cruxible_provider_web",
+        sha=sha,
         control_domain="cruxible-provider-web",
-        operations=registration.pinned_operations(digests),
     )
 
 
@@ -335,6 +348,37 @@ def _install_build(instance: Any, build: Any) -> None:
     from tests.support.operation_world import build_files
 
     accept_tree(instance, build_files(build), name="web-build-" + build.identity.name[-8:])
+
+
+def accept_capture_kinds(
+    instance: Any, records: Mapping[str, Mapping[str, Any]], *, name: str
+) -> None:
+    """Accept each CaptureKind record: a new kind, or a patch of the held one (a layout)."""
+
+    from cruxible_client.contracts.capture_contract_inputs import (
+        CaptureContractInputRecord,
+        lower_capture_contract_input,
+    )
+    from cruxible_client.contracts.captures import (
+        capture_contract_path,
+        parse_capture_contract,
+        render_capture_contract,
+    )
+    from tests.core_support._identity_support import accept_tree
+
+    tree = instance.tree_at(instance.accepted_coordinate().git_oid)
+    files: dict[str, bytes] = {}
+    for kind, record in records.items():
+        path = capture_contract_path(kind)
+        previous = parse_capture_contract(tree[path], path=path) if path in tree else None
+        files[path] = render_capture_contract(
+            lower_capture_contract_input(
+                CaptureContractInputRecord.model_validate(record),
+                predecessor=previous,
+                named=True,
+            )
+        )
+    accept_tree(instance, files, name=name)
 
 
 def submit(instance: Any, payload: Mapping[str, Any], *, name: str) -> None:
@@ -400,41 +444,30 @@ def kit_world(
     vulnerability Subjects, and (``automation``) the Lines (one SBOM import Line
     per ``sboms``)."""
 
-    from cruxible_client.contracts.capture_contract_inputs import (
-        CaptureContractInputRecord,
-        lower_capture_contract_input,
-    )
-    from cruxible_client.contracts.captures import capture_contract_path, render_capture_contract
-    from tests.core_support._identity_support import accept_tree
+    import capabilities
+    import dependency_replay
+    import findings
     from tests.core_support._support import initialize_local
-    from web_contracts import members as web_contract_members
 
     checkout = require_provider_checkout()
+    # The base kit (web.fetch, web.fetch.pages, workspace.file) lands at creation.
     instance, owner = initialize_local(tmp_path)
     OWNERS[instance.root] = owner
     workspace(tmp_path)
-    submit(
-        instance,
-        {"kind": "change_set", "members": web_contract_members(checkout)},
-        name="web-contracts",
-    )
+    # Each provider build carries its own copies of the shapes it serves.
     _install_build(instance, _web_build(instance, checkout))
-    # -- Batch 2, dependency loop: security-osv-provider's Contracts and build.
-    import dependency_replay
-    import osv
-
-    submit(instance, osv.provider_contracts(), name="osv-contracts")
     _install_build(instance, dependency_replay.provider_build(instance))
-    kinds = {
-        capture_contract_path(name): render_capture_contract(
-            lower_capture_contract_input(
-                CaptureContractInputRecord.model_validate(record), named=True
-            )
-        )
-        for name, record in kit.capture_kinds().items()
-    }
-    accept_tree(instance, kinds, name="capture-kinds")
+    # Every kit kind first (the capabilities name the SARIF kinds too), then the
+    # vocabulary and capabilities, then the layouts whose rows are accepted by then.
+    kinds, layouts = kit.staged_capture_kinds({**kit.capture_kinds(), **findings.capture_kinds()})
+    accept_capture_kinds(instance, kinds, name="capture-kinds")
     submit(instance, kit.vocabulary(), name="vocabulary")
+    submit(instance, capabilities.change_set(), name="capabilities")
+    accept_capture_kinds(
+        instance,
+        {name: layouts[name] for name in kit.capture_kinds() if name in layouts},
+        name="capture-layouts",
+    )
     # One Procedure per authoring (the test helper accepts what one lowering
     # changed; the served daemon path takes kit.procedures() as one change set).
     from cruxible_client.contracts.authoring.inputs import ProcedureInput
@@ -590,6 +623,77 @@ def record(catalog: dict[str, Any], cve_id: str) -> dict[str, Any]:
 
 
 # -- the gate ---------------------------------------------------------------------------
+
+
+#: Each EXTRACT node as the kit ran it before its kinds declared layouts: the full
+#: spec the thin node must still resolve to (``fixtures/extracts/<procedure>.<id>.json``).
+EXTRACTS = FIXTURES / "extracts"
+
+
+def assert_extracts_resolve_as_recorded(instance: Any, procedures: Iterable[str]) -> None:
+    """Every EXTRACT node of ``procedures``, as accepted (thin, row pinned), resolves
+    through its kind's accepted layout to the recorded full spec, field for field.
+
+    The one difference allowed is the row's digest: the row Contracts' descriptions
+    were reworded with the layouts, so the pin moved while the row's name, version
+    and fields did not (the resolved spec carries the same fields and rules).
+    """
+
+    from cruxible_client.contracts.capabilities import capability_path, parse_capability
+    from cruxible_client.contracts.captures import capture_contract_path, parse_capture_contract
+    from cruxible_client.contracts.procedures.artifacts import procedure_path
+    from cruxible_client.contracts.procedures.extract import ExtractNode
+    from cruxible_client.contracts.procedures.layout_extract import (
+        LayoutExtractNode,
+        resolve_layout_extract,
+    )
+    from cruxible_client.contracts.shapes import ListType, tree_contract_resolver
+
+    tree = instance.tree_at(instance.accepted_coordinate().git_oid)
+    resolve = tree_contract_resolver(tree)
+
+    def expand(node: Mapping[str, Any]) -> dict[str, Any]:
+        out = dict(node)
+        out["node_id"] = out.pop("id")
+        out.setdefault("as", out["node_id"])
+        return out
+
+    def comparable(node: ExtractNode) -> dict[str, Any]:
+        wire = node.model_dump(mode="json", by_alias=True)
+        wire["row"] = {key: wire["row"][key] for key in ("name", "version")}
+        return wire
+
+    checked: list[str] = []
+    for name in procedures:
+        document = json.loads(tree[procedure_path(name)])
+        definition = document["definition"]
+        nodes = {node["id"]: node for node in definition["nodes"]}
+        for node in definition["nodes"]:
+            if node["kind"] != "extract":
+                continue
+            label = f"{name}.{node['id']}"
+            _, alias, field = node["capture"].split(".")
+            call = nodes[alias]
+            kind_path = capture_contract_path(call["captures"][field]["target"]["name"])
+            layout = parse_capture_contract(tree[kind_path], path=kind_path).layout
+            pin = definition["slots"][call["slot"]]["capability"]
+            path = capability_path(pin["name"], pin["version"])
+            out = resolve(parse_capability(tree[path], path=path).out)
+            assert out is not None, label
+            thin = LayoutExtractNode.model_validate(expand(node))
+            assert thin.row is not None, f"{label}: acceptance pins the row"
+            resolved = resolve_layout_extract(
+                thin,
+                layout,
+                reads_list=isinstance(out.fields[field].type, ListType),
+                pinned_row=resolve(thin.row),
+            )
+            recorded = ExtractNode.model_validate(
+                expand(json.loads((EXTRACTS / f"{label}.json").read_bytes()))
+            )
+            assert comparable(resolved) == comparable(recorded), label
+            checked.append(label)
+    assert checked, procedures
 
 
 @pytest.mark.parametrize("exchange_id", ["kev-catalog", "epss-api"])
@@ -965,3 +1069,22 @@ def test_epss_with_nothing_watched_asks_nothing_and_writes_nothing(tmp_path: Pat
     assert state.status == "succeeded", state.terminal
     assert state.completeness is None
     assert not state.findings
+
+
+def test_each_thin_extract_resolves_to_the_spec_it_replaced(tmp_path: Path) -> None:
+    """The four dependency-loop EXTRACT nodes read through their kinds' layouts exactly
+    as the full nodes they replaced (the SARIF two: ``test_findings_gate``)."""
+
+    import osv
+    from inventory import SBOM_PROCEDURE
+
+    instance = kit_world(tmp_path, automation=False)
+    procedures = (SBOM_PROCEDURE, kit.KEV_PROCEDURE, kit.EPSS_PROCEDURE, osv.OSV_PROCEDURE)
+    assert_extracts_resolve_as_recorded(instance, procedures)
+    assert sorted(path.stem for path in EXTRACTS.glob("*.json")) == sorted(
+        [
+            *(f"{name}.{node}" for name, node in zip(procedures, ("listed", "entries", "scores", "affected"))),
+            "security.sarif-attention.attention",
+            "security.sarif-import.found",
+        ]
+    )

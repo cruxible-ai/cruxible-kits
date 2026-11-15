@@ -128,30 +128,14 @@ class RecordedOsv:
 
 
 def provider_build(instance: Any, *, sha: str = "d1") -> Any:
-    """A build of security-osv-provider as an install lowers it, pinned to the
-    accepted Contracts (the same lowering the web build gets in the gate)."""
+    """A build of security-osv-provider as an install lowers it (its own carried shapes)."""
 
-    from cruxible_client.contracts.providers import (
-        ProviderLocalDistributionPin,
-        ProviderLocalEnvBackendPin,
-    )
-    from cruxible_core.providers.package_metadata import read_package_registration
-    from cruxible_core.service.procedures.provider_installation import tree_contract_digests
+    from test_pilot_gate import package_build
 
-    root = PROVIDER / "src" / "security_osv_provider"
-    digests = tree_contract_digests(instance.tree_at(instance.accepted_coordinate().git_oid))
-    registration = read_package_registration(root)
-    return registration.provider_definition(
-        distribution=ProviderLocalDistributionPin(
-            name=registration.manifest.distribution.name,
-            version=registration.manifest.distribution.version,
-            filename=f"security_osv_provider-{sha}-py3-none-any.whl",
-            sha256="sha256:" + sha * 32,
-        ),
-        local_env=ProviderLocalEnvBackendPin(
-            lock_sha256="sha256:" + "b" * 64,
-            materialization_digests={"linux-cp311": "sha256:" + "c" * 64},
-        ),
+    del instance
+    return package_build(
+        PROVIDER / "src" / "security_osv_provider",
+        wheel="security_osv_provider",
+        sha=sha,
         control_domain="security-osv-provider",
-        operations=registration.pinned_operations(digests),
     )

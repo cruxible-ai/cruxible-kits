@@ -44,6 +44,9 @@ from typing import Any
 from cruxible_client.contracts.authoring.inputs import ChangeSetInput, ProcedureInput
 from cruxible_core.claims.claim_type_inputs import ClaimTypeInputRecord, lower_claim_type_input
 
+from capabilities import HELD_ROW, SARIF_FINDINGS as SARIF_FINDINGS_CAPABILITY
+from capabilities import WORKSPACE_FILE as WORKSPACE_FILE_CAPABILITY
+from capabilities import capability, pinned_layout
 from definitions import FINDINGS, params_contract, params_contract_members, refs
 
 FINDING = "security.finding"
@@ -58,7 +61,6 @@ ATTENTION_ITEM = "security.sarif-attention"
 #: key parts as references and describes each field; version 1 stays accepted as its
 #: predecessor. Item identity is the Line, posting step and ``ref``, so it holds.
 ATTENTION_ITEM_VERSION = 2
-HELD_ROW = "sarif.held-finding"
 HELD_QUERY = "security.sarif_held_findings"
 VERDICTS_QUERY = "security.finding_verdicts"
 VERDICT_ROW = "security.finding-verdict"
@@ -103,7 +105,8 @@ JUSTIFICATIONS = [
     "test_or_dead_code",
 ]
 
-_PATH = 'string{max_len: 256, pattern: "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"}'
+#: ``min_len: 1``: sent as workspace.file@1's ``relative_path``, which is never empty.
+_PATH = 'string{min_len: 1, max_len: 256, pattern: "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"}'
 _SOURCE = 'string{pattern: "^[a-z][a-z0-9_.-]{0,255}$"}'
 _REPO_PATTERN = "^[a-z0-9.-]+/[^/\\s]+/[^/\\s]+$"
 _REPO = f'string{{max_len: 256, pattern: "{_REPO_PATTERN.replace(chr(92), chr(92) * 2)}"}}'
@@ -156,8 +159,53 @@ def capture_kinds() -> dict[str, dict[str, Any]]:
             "max_bytes": 8 * 1024 * 1024,
             "selector_privacy": "direct_allowed",
             "decoding": _json_decoding(8 * 1024 * 1024, 100_000, 16),
+            "layout": pinned_layout(FINDINGS_LAYOUT),
         },
     }
+
+
+def _key(part: str) -> dict[str, Any]:
+    return {"at": part, "type": f"key_part<{FINDING}:{part}>"}
+
+
+#: The derived findings document sarif.findings emits (security.sarif.findings@1's
+#: result): ``covered`` (the held findings a full run's rules cover), the findings by
+#: (repo, weakness, locus) counted by ``/count``, and the attention records.
+FINDINGS_LAYOUT: dict[str, Any] = {
+    "header": {
+        "covered": {"at": "/covered", "type": "list<string{max_len: 256}>{max_items: 20000}"}
+    },
+    "records": {
+        "findings": {
+            "at": "/findings/*",
+            "key": {"repo": _key("repo"), "weakness": _key("weakness"), "locus": _key("locus")},
+            "row": f"{FINDING_ROW}@1",
+            "fields": {
+                "verification": {"at": "verification"},
+                "rule": {"at": "rule", "presence": "optional"},
+                "tool": {"at": "tool", "presence": "optional"},
+                "severity": {"at": "severity", "presence": "optional"},
+                "reported_at": {"at": "reported_at", "presence": "optional"},
+            },
+            "count_at": "/count",
+        },
+        "attention": {
+            "at": "/attention/*",
+            "row": f"{ATTENTION_ROW}@1",
+            "fields": {
+                "kind": {"at": "kind"},
+                "ref": {"at": "ref"},
+                "repo": {"at": "repo"},
+                "rule": {"at": "rule"},
+                "path": {"at": "path"},
+                "weakness": {"at": "weakness", "presence": "optional"},
+                "locus": {"at": "locus", "presence": "optional"},
+                "finding": {"at": "finding", "presence": "optional"},
+                "reason": {"at": "reason", "presence": "optional"},
+            },
+        },
+    },
+}
 
 
 # -- 2. Vocabulary ----------------------------------------------------------------------
@@ -450,30 +498,6 @@ def claim_types() -> list[Any]:
     ]
 
 
-def provider_contract_members(root: Path = PROVIDER_ROOT) -> list[dict[str, Any]]:
-    """The Contracts security-sarif-provider ships, as authoring members (nested last)."""
-
-    from cruxible_client.contracts.shapes import parse_contract, render_type
-
-    out = []
-    for path in sorted((root / "contracts").rglob("*.json")):
-        member = "contracts/" + path.relative_to(root / "contracts").as_posix()
-        contract = parse_contract(path.read_bytes(), path=member)
-        item: dict[str, Any] = {
-            "kind": "contract",
-            "name": contract.name,
-            "version": contract.version,
-            "fields": {
-                name: render_type(field.type) + ("?" if field.optional else "")  # type: ignore[arg-type]
-                for name, field in contract.fields.items()
-            },
-        }
-        if contract.description:
-            item["description"] = contract.description
-        out.append(item)
-    return sorted(out, key=lambda item: 1 if "@" in json.dumps(item["fields"]) else 0)
-
-
 def vocabulary() -> dict[str, Any]:
     """Row and inbox Contracts, the ClaimTypes, the finding and coverage-unit
     SubjectKinds and their Queries."""
@@ -483,7 +507,8 @@ def vocabulary() -> dict[str, Any]:
             "kind": "contract",
             "name": FINDING_ROW,
             "version": 1,
-            "description": "One finding the derived document lists, typed in the extract.",
+            "description": "One finding a SARIF findings document lists: its verification and, "
+            "when the scan gives them, the rule, tool, severity and location that reported it.",
             "fields": {
                 "verification": f"enum_of {FINDING}.verification",
                 "rule": "string{max_len: 256}?",
@@ -645,7 +670,8 @@ def vocabulary() -> dict[str, Any]:
             "kind": "query_definition",
             "query_definition": {
                 "query": HELD_QUERY,
-                "description": "Every finding held for one repository: the import's held rows.",
+                "description": "Every finding the instance holds for one repository: the held "
+                "rows the SARIF import receives.",
                 "params": {"repo": "string"},
                 "from": {"f": FINDING},
                 "where": "f.repo == $repo",
@@ -664,8 +690,8 @@ def vocabulary() -> dict[str, Any]:
             "kind": "query_definition",
             "query_definition": {
                 "query": VERDICTS_QUERY,
-                "description": "Every finding of one repository with its agents' verdicts and "
-                "the scans' verification: the code-findings judgment record.",
+                "description": "Every finding of one repository with the agents' verdicts and "
+                "the scans' verification.",
                 "params": {"repo": "string"},
                 "from": {"f": FINDING},
                 "where": "f.repo == $repo",
@@ -688,8 +714,8 @@ def vocabulary() -> dict[str, Any]:
             "query_definition": {
                 "query": COVERAGE_PLAN_QUERY,
                 "description": "The coverage units of one repository an audit should take "
-                "up: never checked (no status), deferred or blocked. Units whose checked "
-                "passage changed are next's citation_drifted rows.",
+                "up: never checked (no status), deferred or blocked. A checked unit whose "
+                "passage changed is not here: next lists it as citation_drifted.",
                 "params": {"repo": "string"},
                 "from": {"u": UNIT},
                 "where": "u.repo == $repo and (not exists u.status or u.status in ("
@@ -746,12 +772,8 @@ def vocabulary() -> dict[str, Any]:
 
 
 _SLOTS = {
-    "read": {"in": "workspace.file.request@1", "out": "workspace.file.result@1", "effect": "pure"},
-    "derive": {
-        "in": "sarif.findings.request@1",
-        "out": "sarif.findings.result@1",
-        "effect": "pure",
-    },
+    "read": {"capability": capability(WORKSPACE_FILE_CAPABILITY)},
+    "derive": {"capability": capability(SARIF_FINDINGS_CAPABILITY)},
 }
 _CAPS = {
     "wall_clock": "PT5M",
@@ -794,10 +816,6 @@ IMPORT_PARAMS = (
 )
 
 
-def _key(part: str) -> dict[str, Any]:
-    return {"at": part, "type": f"key_part<{FINDING}:{part}>"}
-
-
 def import_spec() -> dict[str, Any]:
     """``security.sarif-import``: one SARIF file's findings for the Line's repository."""
 
@@ -838,7 +856,7 @@ def import_spec() -> dict[str, Any]:
         {
             "procedure": IMPORT_PROCEDURE,
             "description": "Read one SARIF file from the workspace and write the findings it "
-            "reports for the Line's repository; a full scan verifies fixes.",
+            "reports for the Line's repository; only a full scan marks a held finding fixed.",
             "input": {},
             "output": {},
             "parameter_contract": params_contract(IMPORT_PROCEDURE),
@@ -869,27 +887,8 @@ def import_spec() -> dict[str, Any]:
                 {
                     "extract": "found",
                     "capture": "$steps.findings.document",
-                    "records": "/findings/*",
-                    "row": f"{FINDING_ROW}@1",
-                    "key": {
-                        "repo": _key("repo"),
-                        "weakness": _key("weakness"),
-                        "locus": _key("locus"),
-                    },
-                    "fields": {
-                        "verification": {"at": "verification"},
-                        "rule": {"at": "rule", "presence": "optional"},
-                        "tool": {"at": "tool", "presence": "optional"},
-                        "severity": {"at": "severity", "presence": "optional"},
-                        "reported_at": {"at": "reported_at", "presence": "optional"},
-                    },
-                    "header": {
-                        "covered": {
-                            "at": "/covered",
-                            "type": "list<string{max_len: 256}>{max_items: 20000}",
-                        },
-                    },
-                    "complete_when": {"count_at": "/count"},
+                    "records": "findings",
+                    "header": ["covered"],
                 },
                 {
                     "id": "write",
@@ -922,8 +921,8 @@ def attention_spec() -> dict[str, Any]:
     return refs(
         {
             "procedure": ATTENTION_PROCEDURE,
-            "description": "Post the regressions and location gaps of one derived SARIF "
-            "findings document to the Line inbox.",
+            "description": "Post each regression and location gap in one derived SARIF "
+            "findings document to the Line's inbox.",
             "input": {},
             "output": {},
             "params": {"logical_source": _SOURCE, "repo": _REPO},
@@ -946,19 +945,7 @@ def attention_spec() -> dict[str, Any]:
                 {
                     "extract": "attention",
                     "capture": "$steps.findings.document",
-                    "records": "/attention/*",
-                    "row": f"{ATTENTION_ROW}@1",
-                    "fields": {
-                        "kind": {"at": "kind"},
-                        "ref": {"at": "ref"},
-                        "repo": {"at": "repo"},
-                        "rule": {"at": "rule"},
-                        "path": {"at": "path"},
-                        "weakness": {"at": "weakness", "presence": "optional"},
-                        "locus": {"at": "locus", "presence": "optional"},
-                        "finding": {"at": "finding", "presence": "optional"},
-                        "reason": {"at": "reason", "presence": "optional"},
-                    },
+                    "records": "attention",
                 },
                 {
                     "id": "post",
@@ -1162,23 +1149,15 @@ def write_all(
     scans: Sequence[tuple[str, str, str]],
     now: datetime,
 ) -> list[Path]:
+    from definitions import staged_capture_kinds
+
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
-    contracts = out / "sarif-contracts.json"
-    contracts.write_text(
-        json.dumps(
-            {
-                "kind": "change_set",
-                "rationale": "The Contracts security-sarif-provider's operation pins, as shipped.",
-                "members": provider_contract_members(),
-            },
-            indent=1,
-        )
-        + "\n"
-    )
-    written.append(contracts)
-    for name, record in capture_kinds().items():
-        path = out / f"capture-kind.{name}.json"
+    # The kinds themselves are in definitions.write_all's payloads; their layouts
+    # follow the findings vocabulary, which holds their rows.
+    _, layouts = staged_capture_kinds(capture_kinds())
+    for name, record in layouts.items():
+        path = out / f"capture-layout.{name}.json"
         path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
         written.append(path)
     for name, payload in (

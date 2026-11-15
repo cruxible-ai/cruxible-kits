@@ -25,12 +25,11 @@ agent reads them (D-R44: nothing reacts to their change).
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
+from capabilities import OSV_MATCH, OSV_QUERY, capability
 from definitions import VULN, params_contract, params_contract_members, refs
 from inventory import COMPONENT, DEPENDENCY_PROVIDER, OCCURRENCE, OSV_MATCH_KIND, OSV_SOURCE
 
@@ -43,14 +42,6 @@ OSV_ROW = "security.osv-affected"
 OSV_RESPONSE_KIND = "security.osv-response"
 OSV_ORIGIN = "https://api.osv.dev"
 AFFECTED_BY = COMPONENT + ".affected_by"
-#: The provider package's source tree (its Contracts ship with the kit).
-PROVIDER_ROOT = (
-    Path(__file__).resolve().parents[1]
-    / "providers"
-    / DEPENDENCY_PROVIDER
-    / "src"
-    / "security_osv_provider"
-)
 
 
 # -- CaptureKinds -----------------------------------------------------------------------
@@ -78,47 +69,6 @@ def capture_kinds() -> dict[str, dict[str, Any]]:
     }
 
 
-# -- The provider's Contracts -----------------------------------------------------------
-
-
-def provider_contract_members(root: Path = PROVIDER_ROOT) -> list[dict[str, Any]]:
-    """The Contracts security-osv-provider's operations pin, as authoring members."""
-
-    from cruxible_client.contracts.shapes import parse_contract, render_type
-
-    out: list[dict[str, Any]] = []
-    for path in sorted((root / "contracts").rglob("*.json")):
-        member = "contracts/" + path.relative_to(root / "contracts").as_posix()
-        contract = parse_contract(path.read_bytes(), path=member)
-        fields: dict[str, Any] = {}
-        for name, field in contract.fields.items():
-            spelling = render_type(field.type) + ("?" if field.optional else "")
-            fields[name] = (
-                {"type": spelling, "description": field.description}
-                if field.description
-                else spelling
-            )
-        item: dict[str, Any] = {
-            "kind": "contract",
-            "name": contract.name,
-            "version": contract.version,
-            "fields": fields,
-        }
-        if contract.description:
-            item["description"] = contract.description
-        out.append(item)
-    # Nested Contracts first: a member names name@N of one accepted or earlier in the set.
-    return sorted(out, key=lambda item: 1 if "@" in json.dumps(item["fields"]) else 0)
-
-
-def provider_contracts() -> dict[str, Any]:
-    return {
-        "kind": "change_set",
-        "rationale": "The Contracts security-osv-provider's operations pin, as shipped.",
-        "members": provider_contract_members(),
-    }
-
-
 # -- Vocabulary -------------------------------------------------------------------------
 
 
@@ -126,8 +76,8 @@ def provider_contracts() -> dict[str, Any]:
 #: component is inventoried while an occurrence of it holds a visible scope (R3).
 COMPONENTS_SPEC: dict[str, Any] = {
     "query": OSV_COMPONENTS,
-    "description": "Every component some inventory holds (an occurrence with a scope), one "
-    "row each: what OSV is asked.",
+    "description": "Every component some inventory holds (an occurrence with a scope), once "
+    "each: the components OSV is asked about.",
     "from": {"c": COMPONENT},
     "hops": [{"o": f"{OCCURRENCE}{{component: c}}! with scope"}],
     "row": f"{OSV_COMPONENT_ROW}@1",
@@ -143,15 +93,15 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "kind": "contract",
             "name": OSV_COMPONENT_ROW,
             "version": 1,
-            "description": "One inventoried component's purl: an osv.query input.",
+            "description": "One inventoried component's purl: what OSV is asked about.",
             "fields": {"purl": "string{max_len: 256}"},
         },
         {
             "kind": "contract",
             "name": OSV_ROW,
             "version": 1,
-            "description": "One (component, CVE) pair osv.match found, with its advisory (the "
-            "versions OSV lists as fixed stay in the cited document).",
+            "description": "One (component, CVE) pair the OSV match found, with its OSV "
+            "advisory id; the versions OSV lists as fixed stay in the cited document.",
             "fields": {"osv_id": "string{max_len: 128}"},
         },
         {
@@ -184,23 +134,15 @@ def osv_spec() -> dict[str, Any]:
     return refs(
         {
             "procedure": OSV_PROCEDURE,
-            "description": "Ask OSV about every inventoried component and write which "
-            "vulnerabilities OSV lists for its exact purl@version; a vulnerability OSV no "
-            "longer lists for a component it answered in full retires.",
+            "description": "Ask OSV about every inventoried component and write the "
+            "vulnerabilities OSV lists for its exact purl@version; for a component OSV answered "
+            "in full, a vulnerability it no longer lists is retired.",
             "input": {},
             "output": {},
             "parameter_contract": params_contract(OSV_PROCEDURE),
             "slots": {
-                "query": {
-                    "in": "osv.query.request@1",
-                    "out": "osv.query.result@1",
-                    "effect": "external_read",
-                },
-                "match": {
-                    "in": "osv.match.request@1",
-                    "out": "osv.match.result@1",
-                    "effect": "pure",
-                },
+                "query": {"capability": capability(OSV_QUERY)},
+                "match": {"capability": capability(OSV_MATCH)},
             },
             "hard_caps": {
                 "wall_clock": "PT5M",
@@ -234,21 +176,8 @@ def osv_spec() -> dict[str, Any]:
                 {
                     "extract": "affected",
                     "capture": "$steps.matched.document",
-                    "records": "/affected/*",
-                    "row": f"{OSV_ROW}@1",
-                    "key": {
-                        "purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"},
-                        "cve_id": {"at": "cve_id", "type": f"key_part<{VULN}:cve_id>"},
-                    },
-                    "duplicates": "refuse_key",
-                    "complete_when": {"count_at": "/count"},
-                    "fields": {"osv_id": {"at": "osv_id"}},
-                    "header": {
-                        "queried": {
-                            "at": "/queried",
-                            "type": "list<string{max_len: 256}>{max_items: 20000}",
-                        }
-                    },
+                    "records": "affected",
+                    "header": ["queried"],
                 },
                 {
                     "id": "write",
@@ -354,6 +283,3 @@ def automation(
         )
     return members
 
-
-if __name__ == "__main__":
-    print(json.dumps(provider_contracts(), indent=1))

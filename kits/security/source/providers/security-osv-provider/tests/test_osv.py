@@ -432,10 +432,24 @@ def test_registration_names_each_operation_and_its_entrypoint(operation: str) ->
     module, _, name = entry["entrypoint"].partition(":")
     assert operation in getattr(importlib.import_module(module), name).operations
     assert entry["effect"] == ("external_read" if operation == osv.QUERY else "pure")
+    carried = {(item["name"], item["version"]) for item in registration["declares"]["contracts"]}
     for contract in (entry["in"], entry["out"]):
         cname, _, version = contract.partition("@")
-        assert (root / "contracts" / cname / f"v{version}.json").is_file()
+        assert (cname, int(version)) in carried
+    assert entry["serves"] == [entry["in"].removesuffix(".request@1")]
     import hashlib
 
     manifest = (root / "manifest.yaml").read_bytes()
     assert registration["manifest"]["digest"] == "sha256:" + hashlib.sha256(manifest).hexdigest()
+
+
+def test_the_registration_carries_exactly_what_the_kit_renders() -> None:
+    """The carried Contracts and kinds are the kit's own (``build_registrations.py``)."""
+
+    import sys
+
+    pytest.importorskip("cruxible_core")
+    sys.path.insert(0, str(HERE.parents[1]))
+    import build_registrations
+
+    assert build_registrations.write("security-osv-provider", check=True)

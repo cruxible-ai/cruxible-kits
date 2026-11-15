@@ -165,8 +165,11 @@ def set_holds(instance: Any, tmp_path: Path, fact: str, value: str, *, contend: 
 
 
 def located_sources(instance: Any, claim: Any) -> set[str]:
-    """The catalog names of the workspace files a Claim's independent citations read
-    (an own-words citation's body is the write's own, with no file)."""
+    """The catalog names of the workspace files a Claim's citations locate: a file a
+    citation reads, or the file own words are located in (one self-source citation
+    whose source names the section's file, since core's Claim law v4 revision 3)."""
+
+    from cruxible_client.contracts.source_references import ExternalSourceReference
 
     from cruxible_client.contracts.captures import parse_capture_envelope
     from cruxible_client.contracts.cas_contracts import BodyAccessContext
@@ -177,7 +180,12 @@ def located_sources(instance: Any, claim: Any) -> set[str]:
             instance.body_store().read(citation.capture_digest, access=access)
         ).source.source_identity
         for citation in claim.backing.citations
-        if citation.origin == "independent"
+        if isinstance(
+            parse_capture_envelope(
+                instance.body_store().read(citation.capture_digest, access=access)
+            ).source,
+            ExternalSourceReference,
+        )
     }
 
 
@@ -203,11 +211,11 @@ def test_one_write_records_a_fact_its_notes_and_the_code_it_rests_on(tmp_path: P
     assert [d.written for d in outcome.docs] == [True]
     claims = {c.statement.predicate: c for c in changed_claims(instance, outcome)}
     # holds cites the code passage alone; category cites the notes section, as own words
-    # with a located copy of the section it wrote.
+    # located in the section it wrote (one citation: the located own-words Capture).
     assert _cited_sources(instance, claims[FACT + ".holds"]) == {"gate-app.db"}
     assert {c.origin for c in claims[FACT + ".holds"].backing.citations} == {"independent"}
     category = claims[FACT + ".category"]
-    assert {c.origin for c in category.backing.citations} == {"self_source", "independent"}
+    assert {c.origin for c in category.backing.citations} == {"self_source"}
     assert located_sources(instance, category) == {"gate-app.facts"}
     (fact,) = created(outcome, FACT)
     (row,) = query_rows(instance, facts.FACTS_QUERY, repo=REPO)

@@ -210,8 +210,8 @@ URGENT_SPEC: dict[str, Any] = {
 BACKLOG_SPEC: dict[str, Any] = {
     **URGENT_SPEC,
     "query": BACKLOG,
-    "description": "The KEV-listed exposures nobody has judged yet, by EPSS score (pairs "
-    "under investigation stay).",
+    "description": "The KEV-listed exposures nobody has judged yet, by EPSS score; a pair "
+    "under investigation stays listed.",
     "where": f"exists v.kev_date_added and {_NOT_JUDGED}",
     "order": ["-v.epss_score"],
 }
@@ -259,9 +259,9 @@ APP_JUDGMENTS_SPEC: dict[str, Any] = {
 #: occurrence must still hold a scope (its SBOM still lists the component).
 CONFIRMED_SPEC: dict[str, Any] = {
     "query": CONFIRMED,
-    "description": "Every occurrence an agent judged affected whose SBOM still lists the "
-    "component: the confirmed exposures to remediate or escalate, KEV-listed first, then by "
-    "EPSS score. The fixed versions are in the osv.match document the component's "
+    "description": "The confirmed exposures to remediate or escalate: every occurrence an "
+    "agent judged affected whose SBOM still lists the component, KEV-listed first, then by "
+    "EPSS score. The fixed versions are in the OSV match document the component's "
     "affected_by Claim cites.",
     "from": {"ae": APP_EXPOSURE},
     "hops": [
@@ -327,10 +327,10 @@ PAIR_WITHOUT_JUDGMENT_SPEC: dict[str, Any] = {
     **URGENT_SPEC,
     "query": PAIR_WITHOUT_JUDGMENT,
     "description": "The exposures nobody has judged whose judgment pair exists but holds no "
-    "judgment Claim: a judgment was withdrawn (the pair stays as history), or the pair was "
-    "created before any judgment (for instance linked to a codebase fact with rests_on). "
-    "A Query sees no history, so it cannot tell the two apart. A judgment whose cited code "
-    "changed still stands: next lists it.",
+    "judgment Claim: either a judgment was withdrawn (the pair stays as history) or the pair "
+    "was created before any judgment, for instance to link a codebase fact with rests_on. A "
+    "Query sees no history, so the rows cannot tell the two apart. A judgment whose cited "
+    "code changed still stands; next lists it, not this Query.",
     "where": f"not ({_ANY_JUDGMENT}) and ({_PAIR_EXISTS})",
 }
 #: The worklist split by why a pair is there, for the attention Line (one inbox
@@ -355,25 +355,25 @@ UNJUDGED_SPEC: dict[str, Any] = {
 #: such pair stays in ``security.unjudged_exposures`` and ``security.urgent_exposures``.
 _URGENT_ENOUGH = "(exists v.kev_date_added or v.epss_score >= $min_epss or not exists v.epss_score)"
 _OVER_RULE = (
-    "whose vulnerability is KEV-listed, or has an EPSS score at or above min_epss, or has "
-    "no EPSS score yet"
+    "whose vulnerability is KEV-listed, has an EPSS score at or above min_epss, or has no "
+    "EPSS score yet"
 )
 UNJUDGED_OVER_SPEC: dict[str, Any] = {
     **UNJUDGED_SPEC,
     "query": UNJUDGED_OVER,
-    "description": "The exposures nobody has judged that hold no judgment Claim at all and "
-    f"{_OVER_RULE}, in every inventory, KEV-listed first, then by EPSS score. A pair scored "
-    "below min_epss, or whose EPSS score is contested, is not listed here unless KEV-listed; "
-    "security.unjudged_exposures and security.urgent_exposures keep the whole worklist.",
+    "description": "The exposures, in every inventory, that hold no judgment Claim at all "
+    f"and {_OVER_RULE}; KEV-listed first, then by EPSS score. A pair below min_epss, or whose "
+    "EPSS score is contested, is listed only when KEV-listed; security.unjudged_exposures and "
+    "security.urgent_exposures keep the whole worklist.",
     "params": {"min_epss": "decimal"},
     "where": f"not ({_ANY_JUDGMENT}) and {_URGENT_ENOUGH}",
 }
 UNJUDGED_OVER_IN_SPEC: dict[str, Any] = {
     **UNJUDGED_OVER_SPEC,
     "query": UNJUDGED_OVER_IN,
-    "description": "security.unjudged_exposures_over for one inventory (its inventory_id): "
-    f"the exposures nobody has judged, holding no judgment Claim, {_OVER_RULE}, KEV-listed "
-    "first, then by EPSS score.",
+    "description": "The exposures in one inventory (inventory_id) that hold no judgment Claim "
+    f"and {_OVER_RULE}; KEV-listed first, then by EPSS score. "
+    "security.unjudged_exposures_over for one inventory.",
     "params": {"inventory": "string", "min_epss": "decimal"},
     "where": f"not ({_ANY_JUDGMENT}) and {_URGENT_ENOUGH} and i.inventory_id == $inventory",
 }
@@ -479,7 +479,7 @@ def vocabulary_members() -> list[dict[str, Any]]:
         "One urgent exposure for an agent to judge: the inventory, the component, the "
         "vulnerability, the occurrence's Subject id (get security.occurrence/<occurrence>) "
         "and why it is here: unjudged, or contested (a judgment is on the pair but none "
-        "counts). Stable identity only, so the same pair in the same state is the same item."
+        "counts)."
     )
     state_type = "enum[" + ", ".join(f'"{s}"' for s in ATTENTION_STATES) + "]"
     members += [
@@ -543,27 +543,25 @@ _ATTENTION_PROCEDURES: dict[str, tuple[str, str, dict[str, str], str]] = {
         "unjudged",
         UNJUDGED_OVER,
         {"min_epss": "decimal{0..1}"},
-        "Post one Line inbox item per exposure nobody has judged whose vulnerability is "
-        "KEV-listed, or has an EPSS score at or above the Line's min_epss, or has no EPSS "
-        f"score yet ({UNJUDGED_OVER}), in every inventory, KEV-listed first, then by EPSS "
-        "score.",
+        "Post one inbox item per exposure, in every inventory, that nobody has judged and "
+        "whose vulnerability is KEV-listed, has an EPSS score at or above min_epss, or has no "
+        f"EPSS score yet ({UNJUDGED_OVER}); KEV-listed first, then by EPSS score.",
     ),
     ATTENTION_IN_INVENTORY: (
         "unjudged",
         UNJUDGED_OVER_IN,
         {"inventory": "string", "min_epss": "decimal{0..1}"},
-        "Post one Line inbox item per exposure nobody has judged in the Line's inventory "
-        "whose vulnerability is KEV-listed, or has an EPSS score at or above the Line's "
-        f"min_epss, or has no EPSS score yet ({UNJUDGED_OVER_IN}), KEV-listed first, then by "
-        "EPSS score.",
+        "Post one inbox item per exposure in the Line's inventory that nobody has judged and "
+        "whose vulnerability is KEV-listed, has an EPSS score at or above min_epss, or has no "
+        f"EPSS score yet ({UNJUDGED_OVER_IN}); KEV-listed first, then by EPSS score.",
     ),
     ATTENTION["contested"]: (
         "contested",
         CONTESTED,
         {},
         # As before the threshold: the contested Procedure is unchanged.
-        f"Post one Line inbox item per contested urgent exposure ({CONTESTED}), KEV-listed "
-        "first, then by EPSS score.",
+        "Post one inbox item per contested urgent exposure (a judgment is on the pair but "
+        f"none counts), from {CONTESTED}, KEV-listed first, then by EPSS score.",
     ),
 }
 

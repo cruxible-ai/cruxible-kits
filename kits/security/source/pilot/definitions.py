@@ -3,15 +3,21 @@
 Every definition the slice installs, as the authoring payloads a fresh instance
 accepts, in order:
 
-1. ``capture-kinds/*.json``: the two CaptureKinds (``capture-contract propose``)
-   whose bytes are the origin's JSON body, verbatim (D-R25), decoded as JSON;
+1. ``capture-kind.*.json``: the CaptureKinds (``capture-contract propose``),
+   KEV's and EPSS's bytes the origin's JSON body, verbatim (D-R25), decoded as
+   JSON; their layouts wait (``capture-layout.*.json``, step 3);
 2. ``vocabulary.json``: row Contracts, the ClaimTypes, the two SubjectKinds and
-   the watched-vulnerabilities Query, as one change set;
-3. ``procedures.json``: ``security.kev-triage`` and ``security.epss-triage``;
-4. ``automation.json``: the consumer's Lines and Mandates (a kit carries no
+   the watched-vulnerabilities Query, as one change set; ``capabilities.json``:
+   the kit's capabilities (``capabilities.py``);
+3. ``capture-layout.*.json``: each read kind's layout, a successor that only
+   adds it (a layout pins row Contracts the vocabulary holds);
+4. ``procedures.json``: ``security.kev-triage`` and ``security.epss-triage``,
+   their ``fetch`` slot naming the base kit's ``web.fetch@1`` /
+   ``web.fetch.pages@1``, each EXTRACT a thin node over its kind's layout;
+5. ``automation.json``: the consumer's Lines and Mandates (a kit carries no
    authority; the instance that adopts it authors these; the kit's automation
    template adds the Runbooks and their one daily Trigger, ``template.py``);
-5. ``watch.json``: the vulnerability Subjects (state, not kit); the KEV Line
+6. ``watch.json``: the vulnerability Subjects (state, not kit); the KEV Line
    creates the ``security.catalog/cisa-kev`` Subject on its first run.
 
 Batch 1 (``inventory.py``) adds the SBOM import and redefines the watch list:
@@ -52,6 +58,10 @@ from typing import Any
 from cruxible_client.contracts.authoring.inputs import ChangeSetInput, ProcedureInput
 from cruxible_client.contracts.refs import ref_from_graph_text
 from cruxible_core.claims.claim_type_inputs import ClaimTypeInputRecord, lower_claim_type_input
+
+from capabilities import WEB_FETCH as WEB_FETCH_CAPABILITY
+from capabilities import WEB_FETCH_PAGES as WEB_FETCH_PAGES_CAPABILITY
+from capabilities import capability, pinned_layout
 
 VULN = "security.vulnerability"
 CATALOG = "security.catalog"
@@ -159,9 +169,17 @@ def params_contract_members(
 
 
 def capture_kinds() -> dict[str, dict[str, Any]]:
-    """One CaptureKind per origin document; the bytes are the body, decoded as JSON."""
+    """One CaptureKind per origin document; the bytes are the body, decoded as JSON.
 
-    def kind(name: str, *, max_bytes: int, records: int) -> dict[str, Any]:
+    A kind an EXTRACT reads declares its layout: the header fields and record
+    sets of the document, which the Procedure's thin EXTRACT node names
+    (``layout`` here, rows pinned by ``capabilities.pinned_layout``). KEV's and
+    EPSS's layouts state the origin's format as the kit reads it.
+    """
+
+    def kind(
+        name: str, *, max_bytes: int, records: int, layout: dict[str, Any]
+    ) -> dict[str, Any]:
         return {
             "name": name,
             "shape": "http_response",
@@ -176,17 +194,85 @@ def capture_kinds() -> dict[str, dict[str, Any]]:
                 "encoding": "identity",
                 "limits": {"decoded_bytes": max_bytes, "depth": 16, "records": records},
             },
+            "layout": pinned_layout(layout),
         }
 
     from inventory import capture_kinds as inventory_kinds
     from osv import capture_kinds as osv_kinds
 
     return {
-        KEV_KIND: kind(KEV_KIND, max_bytes=16 * 1024 * 1024, records=100_000),
-        EPSS_KIND: kind(EPSS_KIND, max_bytes=1024 * 1024, records=1_000),
+        KEV_KIND: kind(
+            KEV_KIND, max_bytes=16 * 1024 * 1024, records=100_000, layout=KEV_LAYOUT
+        ),
+        EPSS_KIND: kind(EPSS_KIND, max_bytes=1024 * 1024, records=1_000, layout=EPSS_LAYOUT),
         **inventory_kinds(),
         **osv_kinds(),
     }
+
+
+#: The CISA KEV catalog: its version, and one record per listed CVE, counted by
+#: ``/count``. ``listed_from`` reads the same ``dateAdded`` as the moment the
+#: listing takes effect: 00:00 UTC that day (D-R29), for listed_in's effective_from.
+KEV_LAYOUT: dict[str, Any] = {
+    "header": {"catalog_version": {"at": "/catalogVersion", "presence": "required"}},
+    "records": {
+        "vulnerabilities": {
+            "at": "/vulnerabilities/*",
+            "key": {"cve_id": {"at": "cveID", "type": f"key_part<{VULN}:cve_id>"}},
+            "row": f"{KEV_ROW}@1",
+            "fields": {
+                "date_added": {"at": "dateAdded", "parse": "date"},
+                "listed_from": {"at": "dateAdded", "parse": "date", "project": "utc_start_of_day"},
+                "due_date": {"at": "dueDate", "parse": "date", "presence": "optional"},
+                "ransomware_use": {
+                    "at": "knownRansomwareCampaignUse",
+                    "canonicalize": "claim_type",
+                    "presence": "optional",
+                },
+            },
+            "count_at": "/count",
+        }
+    },
+}
+#: One FIRST EPSS API answer: one record per scored CVE. No count: a page's own
+#: ``/total`` cannot speak for the merged pages a list extract reads.
+EPSS_LAYOUT: dict[str, Any] = {
+    "records": {
+        "scores": {
+            "at": "/data/*",
+            "key": {"cve_id": {"at": "cve", "type": f"key_part<{VULN}:cve_id>"}},
+            "row": f"{EPSS_ROW}@1",
+            "fields": {
+                "score": {"at": "epss", "parse": "decimal"},
+                "percentile": {"at": "percentile", "parse": "decimal"},
+                "date": {"at": "date", "parse": "date"},
+            },
+        }
+    }
+}
+
+
+def staged_capture_kinds(
+    kinds: Mapping[str, Mapping[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """``(kinds without their layouts, each layout as a successor patch)``.
+
+    A layout pins its row Contracts, and a row may name a ClaimType that names
+    the kind in its evidence rules, so an instance accepts the kinds first, the
+    vocabulary next, and the layouts last (each a successor that only adds the
+    layout).
+    """
+
+    first = {
+        name: {key: value for key, value in record.items() if key != "layout"}
+        for name, record in kinds.items()
+    }
+    layouts = {
+        name: {"name": name, "layout": record["layout"]}
+        for name, record in kinds.items()
+        if record.get("layout") is not None
+    }
+    return first, layouts
 
 
 # -- 2. Vocabulary ----------------------------------------------------------------------
@@ -320,7 +406,8 @@ def vocabulary() -> dict[str, Any]:
             "kind": "contract",
             "name": KEV_ROW,
             "version": 1,
-            "description": "One KEV catalog record's fields the slice writes.",
+            "description": "One KEV catalog record: when the CVE was added, the moment it counts "
+            "as listed from, its due date and its known ransomware use.",
             "fields": {
                 "date_added": "date",
                 "listed_from": "datetime",
@@ -332,7 +419,7 @@ def vocabulary() -> dict[str, Any]:
             "kind": "contract",
             "name": EPSS_ROW,
             "version": 1,
-            "description": "One EPSS API record, typed in the extract (D-R23).",
+            "description": "One EPSS record: a CVE's score, percentile and score date.",
             "fields": {"score": "decimal{0..1}", "percentile": "decimal{0..1}", "date": "date"},
         },
         {
@@ -351,7 +438,8 @@ def vocabulary() -> dict[str, Any]:
             "kind": "contract",
             "name": WATCH_KEY_ROW,
             "version": 1,
-            "description": "One watched vulnerability's CVE id: an extract's only_keys entry.",
+            "description": "One watched vulnerability's CVE id: the EPSS extract keeps only "
+            "records with these ids.",
             "fields": {"cve_id": "string"},
         },
         *inventory_vocabulary(),
@@ -403,7 +491,8 @@ WATCHED_SPEC: dict[str, Any] = {
 WATCH_KEYS_SPEC: dict[str, Any] = {
     **WATCHED_SPEC,
     "query": WATCH_KEYS_QUERY,
-    "description": "The CVE id of every watched vulnerability: EPSS's key list.",
+    "description": "The CVE id of every watched vulnerability: the ids the EPSS Procedure "
+    "asks about.",
     "row": f"{WATCH_KEY_ROW}@1",
     "fields": ["v.cve_id"],
 }
@@ -533,7 +622,7 @@ KEV_PARAMS = (
             _MAX_BYTES,
             "The most bytes the fetch accepts from the origin, 1 to 33554432 (the template "
             "uses 4194304, 4 MiB). A larger response is refused and the run writes nothing. "
-            "The catalog's CaptureContract holds at most 16 MiB, so a larger value gains "
+            "The catalog's CaptureKind holds at most 16 MiB, so a larger value gains "
             "nothing.",
         ),
     },
@@ -560,7 +649,7 @@ EPSS_PARAMS = (
             _MAX_BYTES,
             "The most bytes accepted for each response, 1 to 33554432 (the template uses "
             "4194304, 4 MiB). A larger response is refused and left out, so the run is "
-            "incomplete. Each response's CaptureContract holds at most 1 MiB.",
+            "incomplete. Each response's CaptureKind holds at most 1 MiB.",
         ),
     },
 )
@@ -594,7 +683,7 @@ def _spec(
     description: str,
     steps: list[dict[str, Any]],
     *,
-    operation: str = "web.fetch",
+    fetch: str = WEB_FETCH_CAPABILITY,
 ) -> dict[str, Any]:
     return refs(
         {
@@ -603,13 +692,7 @@ def _spec(
             "input": {},
             "output": {},
             "parameter_contract": params_contract(name),
-            "slots": {
-                "fetch": {
-                    "in": f"{operation}.request@1",
-                    "out": f"{operation}.result@1",
-                    "effect": "external_read",
-                }
-            },
+            "slots": {"fetch": {"capability": capability(fetch)}},
             "hard_caps": {
                 "wall_clock": "PT5M",
                 "provider_calls": 1,
@@ -628,38 +711,16 @@ def kev_spec() -> dict[str, Any]:
     version = "{$steps.entries.header.catalog_version}"
     return _spec(
         KEV_PROCEDURE,
-        "Read the CISA KEV catalog and write each watched CVE's catalog membership, "
-        "dates and ransomware use; a complete read records the unlisted ones.",
+        "Read the CISA KEV catalog and write, for each watched CVE, whether it is listed, its "
+        "dates and its ransomware use; only a complete read records a CVE as not listed.",
         [
             _fetch("catalog", KEV_KIND),
             {"read": "watched", "query": WATCHED_QUERY},
             {
                 "extract": "entries",
                 "capture": "$steps.catalog.capture",
-                "records": "/vulnerabilities/*",
-                "row": f"{KEV_ROW}@1",
-                "key": {"cve_id": {"at": "cveID", "type": f"key_part<{VULN}:cve_id>"}},
-                "complete_when": {"count_at": "/count"},
-                "duplicates": "refuse_key",
-                "fields": {
-                    "date_added": {"at": "dateAdded", "parse": "date"},
-                    # The same dateAdded, as the moment the listing takes effect:
-                    # 00:00 UTC that day (D-R29), for listed_in's effective_from.
-                    "listed_from": {
-                        "at": "dateAdded",
-                        "parse": "date",
-                        "project": "utc_start_of_day",
-                    },
-                    "due_date": {"at": "dueDate", "parse": "date", "presence": "optional"},
-                    "ransomware_use": {
-                        "at": "knownRansomwareCampaignUse",
-                        "canonicalize": "claim_type",
-                        "presence": "optional",
-                    },
-                },
-                "header": {
-                    "catalog_version": {"at": "/catalogVersion", "presence": "required"},
-                },
+                "records": "vulnerabilities",
+                "header": ["catalog_version"],
             },
             {
                 "id": "write",
@@ -762,15 +823,8 @@ def epss_spec() -> dict[str, Any]:
             {
                 "extract": "scores",
                 "capture": "$steps.scores_api.captures",
-                "records": "/data/*",
-                "row": f"{EPSS_ROW}@1",
-                "key": {"cve_id": {"at": "cve", "type": f"key_part<{VULN}:cve_id>"}},
+                "records": "scores",
                 "only_keys": "$steps.watch_keys.rows",
-                "fields": {
-                    "score": {"at": "epss", "parse": "decimal"},
-                    "percentile": {"at": "percentile", "parse": "decimal"},
-                    "date": {"at": "date", "parse": "date"},
-                },
             },
             {
                 "id": "write",
@@ -802,7 +856,7 @@ def epss_spec() -> dict[str, Any]:
                 ],
             },
         ],
-        operation="web.fetch.pages",
+        fetch=WEB_FETCH_PAGES_CAPABILITY,
     )
 
 
@@ -1025,18 +1079,24 @@ def write_all(
     sboms: Sequence[tuple[str, str]] = (),
     seeds: Sequence[tuple[str, str]] = (),
 ) -> list[Path]:
+    import capabilities
+    import findings
+
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
-    for name, record in capture_kinds().items():
-        path = out / f"capture-kind.{name}.json"
-        path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
-        written.append(path)
+    # Every kit kind (the capabilities name the SARIF kinds too); the SARIF layouts
+    # wait for the findings vocabulary (findings.write_all).
+    kinds, _ = staged_capture_kinds({**capture_kinds(), **findings.capture_kinds()})
+    _, layouts = staged_capture_kinds(capture_kinds())
+    for prefix, records in (("capture-kind", kinds), ("capture-layout", layouts)):
+        for name, record in records.items():
+            path = out / f"{prefix}.{name}.json"
+            path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
+            written.append(path)
     vulnerabilities = list(dict.fromkeys([*watch, *(cve for _purl, cve in seeds)]))
-    import osv
-
     payloads = [
-        ("osv-contracts", osv.provider_contracts()),
         ("vocabulary", vocabulary()),
+        ("capabilities", capabilities.change_set()),
         ("procedures", procedures()),
         ("automation", automation(vulnerabilities, now=now, sboms=sboms)),
         ("watch", watch_subjects(vulnerabilities)),

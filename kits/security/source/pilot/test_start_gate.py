@@ -693,8 +693,9 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
 ) -> None:
     """The real bundle installs without pre-accepting any operation Contracts.
 
-    Kit add governs the providers' Contract closure before registering any
-    build, then accepts the remaining definitions and names the template.
+    Kit add registers each provider build (it carries its own shapes, so no
+    Contract is accepted for it), then accepts the kit's definitions beside the
+    base kit the instance holds from creation, and names the template.
     """
 
     from tests.core_support._support import initialize_local
@@ -714,6 +715,18 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
 
     bundle = read_kit_directory(Path(__file__).resolve().parents[2])
     assert bundle.manifest.owns == ("security.",)
+    # The base kit's definitions (web., workspace.) are required, never carried; so
+    # are the provider-named Contracts the providers now carry themselves.
+    assert [(item.kit_id, item.min_version) for item in bundle.manifest.requires] == [
+        ("base", "1.0.0")
+    ]
+    assert {
+        path.split("/")[1].split(".")[0] for path in bundle.contents() if "/" in path
+    } <= {"security", "playbill"}, sorted(bundle.contents())
+    assert sorted(path for path in bundle.contents() if path.startswith("capabilities/")) == [
+        f"capabilities/security.{name}/v1.json"
+        for name in ("osv.match", "osv.query", "sarif.findings", "sbom.components")
+    ]
     assert bundle.manifest.automation_template == "automation.json"
     assert {p.package for p in bundle.manifest.providers} == {
         "security-osv-provider",
@@ -792,8 +805,9 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
         provider_path(provider.build) in tree for provider in bundle.manifest.providers
     )
     with consumer.accepted_history_reader() as history:
-        # One Contract change, one registration per provider (three), one kit change.
-        assert int(history.sequence) - before_generation == 5
+        # One registration per provider (three), one kit change. Registration schema 3:
+        # each provider carries its own shapes, so no Contract change precedes them.
+        assert int(history.sequence) - before_generation == 4
 
     from cruxible_core.service.runbook_preview import service_preview_runbook
 

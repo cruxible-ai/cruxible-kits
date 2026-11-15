@@ -595,12 +595,90 @@ def test_a_refutation_cites_its_own_words_section(tmp_path: Path) -> None:
     (row,) = query_rows(instance, findings.VERDICTS_QUERY, repo=REPO)
     assert (row["verdict"], row["justification"]) == ("not_exploitable", "no_boundary_crossed")
     claims = {c.statement.predicate: c for c in changed_claims(instance, outcome)}
-    # Own words: the self-source copy, located by a copy of the section it wrote.
+    # Own words, located in the section it wrote: one self-source citation whose
+    # source is the notes file.
+    from test_facts_gate import located_sources
+
     origins = {c.origin for c in claims[FINDING + ".verdict"].backing.citations}
-    assert origins == {"self_source", "independent"}, origins
+    assert origins == {"self_source"}, origins
+    assert located_sources(instance, claims[FINDING + ".verdict"]) == {"gate-app.notes"}
 
 
 PROBE = "security.probe-judgment"
+#: The record set the status probe adds to security.sarif-findings: the findings read
+#: as coverage units (locus as surface, weakness as concern).
+PROBE_RECORDS = "probe_units"
+
+
+def _status_probe_world(tmp_path: Path) -> Any:
+    """The kit, the findings vocabulary and a SARIF findings kind grown by one reading.
+
+    A reading the layout lacks is another record set over the same path, added to
+    the kind by ordinary authoring. An operation serving security.sarif.findings
+    binds only when its carried copy of the kind covers the instance's layout, so
+    the probe installs a build of the SARIF package whose copy has the grown layout
+    (no Line binds the shipped build here).
+    """
+
+    import shutil
+    import sys
+
+    from cruxible_provider_runtime.registration import write_registration
+    from tests.core_support._identity_support import accept_tree
+    from tests.support.operation_world import build_files
+
+    import capabilities
+    from capabilities import pinned_layout
+    from definitions import staged_capture_kinds
+    from test_pilot_gate import accept_capture_kinds, kit_world, package_build
+
+    sys.path.insert(0, str(findings.PROVIDER_ROOT.parents[2]))
+    import build_registrations
+
+    findings_set = findings.FINDINGS_LAYOUT["records"]["findings"]
+    grown = pinned_layout(
+        {
+            **findings.FINDINGS_LAYOUT,
+            "records": {
+                **findings.FINDINGS_LAYOUT["records"],
+                PROBE_RECORDS: {
+                    **findings_set,
+                    "key": {
+                        part: {"at": at, "type": f"key_part<{UNIT}:{part}>"}
+                        for part, at in (
+                            ("repo", "repo"),
+                            ("surface", "locus"),
+                            ("concern", "weakness"),
+                        )
+                    },
+                },
+            },
+        }
+    )
+    package = tmp_path / "probe-provider" / findings.PROVIDER_ROOT.name
+    shutil.copytree(findings.PROVIDER_ROOT, package)
+    contracts, kinds, _built_against = capabilities.provider_shapes()
+    write_registration(
+        package,
+        contracts=[*contracts, *build_registrations.PACKAGES[findings.PROVIDER_PACKAGE]["refusals"]],
+        capture_kinds=[
+            {**kind, "layout": grown} if kind["name"] == findings.FINDINGS_KIND else kind
+            for kind in kinds
+        ],
+    )
+    instance = kit_world(tmp_path)
+    build = package_build(
+        package, wheel="security_sarif_provider", sha="7b", control_domain=findings.PROVIDER_PACKAGE
+    )
+    accept_tree(instance, build_files(build), name="probe-build")
+    submit(instance, findings.vocabulary(), name="findings-vocabulary")
+    _kinds, layouts = staged_capture_kinds(findings.capture_kinds())
+    accept_capture_kinds(
+        instance,
+        {**layouts, findings.FINDINGS_KIND: {"name": findings.FINDINGS_KIND, "layout": grown}},
+        name="probe-layouts",
+    )
+    return instance
 
 
 def _probe_line(instance: Any, predicate: str) -> str:
@@ -615,13 +693,11 @@ def _probe_line(instance: Any, predicate: str) -> str:
     spec["procedure"] = PROBE
     write_step = spec["steps"][-1]
     if predicate == UNIT + ".status":
-        # Each scanned finding read as a unit: its locus the surface, its weakness the concern.
+        # Each scanned finding read as a unit: its locus the surface, its weakness the
+        # concern, through the probe's own record set (``_status_probe_world``).
         write_step.pop("expect")
         (extract,) = [step for step in spec["steps"] if step.get("extract") == "found"]
-        extract["key"] = {
-            part: {"at": at, "type": f"key_part<{UNIT}:{part}>"}
-            for part, at in (("repo", "repo"), ("surface", "locus"), ("concern", "weakness"))
-        }
+        extract["records"] = PROBE_RECORDS
         write_step["subject"] = refs(
             {
                 "kind": UNIT,
@@ -655,7 +731,9 @@ def _probe_line(instance: Any, predicate: str) -> str:
     "predicate", [UNIT + ".status", FINDING + ".verdict"], ids=["status", "verdict"]
 )
 def test_a_mandate_cannot_settle_a_judgment(tmp_path: Path, predicate: str) -> None:
-    instance = audit_world(tmp_path)
+    instance = (
+        _status_probe_world(tmp_path) if predicate == UNIT + ".status" else audit_world(tmp_path)
+    )
     line = _probe_line(instance, predicate)
     head = instance.accepted_coordinate()
     write_file(tmp_path, SEMGREP, json.dumps(sarif("semgrep-gate-app-vulnerable.sarif")).encode())
