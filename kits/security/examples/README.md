@@ -8,8 +8,9 @@ These are inputs for the Cruxible 0.5 dependency kit:
 | `sboms/cruxible-env.cdx.json` | A recorded Python environment inventory, not a statement of your current environment |
 | `sboms/env_sbom.py` | Write an inventory from the Python environment running it |
 
-Install the local kit directory first, then copy the template and example into
-your attached Git workspace:
+Install the local kit directory first (the instance must hold the base kit,
+which `cruxible init` installs), then copy the template and example into your
+attached Git workspace:
 
 ```sh
 cp /path/to/cruxible-kits/kits/security/automation.json automation.json

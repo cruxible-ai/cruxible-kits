@@ -12,18 +12,20 @@ Queries, provider and guidance, never their Lines.
 
 | File | What |
 |---|---|
-| `definitions.py` | Every authoring payload, in install order: CaptureKinds, the provider Contracts, vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates), and state (catalog, vulnerabilities, seeds) |
+| `definitions.py` | Every authoring payload, in install order: CaptureKinds (their layouts staged after the vocabulary), vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates), and state (catalog, vulnerabilities, seeds); the KEV and EPSS layouts |
+| `capabilities.py` | The kit's four capabilities and their request and result Contracts, and the offline rendering the kit providers' registrations copy (`../providers/build_registrations.py`) |
 | `template.py` | The automation template (`../../automation.json`): the Lines and Mandates, the `security.start` and `security.maintain` Runbooks, and the one daily Trigger `security.maintain-daily` aimed at `security.maintain` |
 | `inventory.py` | The SBOM import, the inventory and component kinds, the pair kinds (occurrence, exposure, app_exposure) and their ClaimTypes, and `affected_by` (with its inverse) |
-| `osv.py` | The OSV Procedure and Line, the OSV response kind and the provider's Contracts as an authoring change set |
+| `osv.py` | The OSV Procedure and Line, and the OSV response kind |
 | `triage.py` | The triage, confirmed and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `affected_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
 | `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines; security audits: the coverage unit, `found_in` and the audit Queries |
 | `facts.py` | Codebase facts: `security.code_fact` (keyed by repo and topic; `category`, `holds`), `rests_on` on findings, app exposures and coverage units, and their Queries |
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
 | `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py`, `test_audit_gate.py`, `test_facts_gate.py`, `test_start_gate.py` | The gate, run on recorded real bytes |
-| `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive), with its recorded OSV exchanges |
-| `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure) and its SARIF test data |
+| `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive), serving the kit's capabilities of the same names under `security.`, with its recorded OSV exchanges |
+| `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure), serving `security.sarif.findings`, and its SARIF test data |
+| `../providers/build_registrations.py` | Writes both kit providers' `registration.json` (schema 3) from the kit's definitions |
 | `../guidance/dependency.md` | Judging a dependency exposure: the review guidance the two justifications and the app-level verdict point to |
 
 ## The chain
@@ -40,6 +42,47 @@ flowchart LR
   pkg["package judgment (one write)<br/>affected_by none of V<br/>+ exposure.justification"] --> aff
   app["app judgment (one write)<br/>app_exposure.justification<br/>or verdict = affected"] --> occ
 ```
+
+## Capabilities, layouts and the base kit
+
+A Procedure slot names a capability, never a Contract pair. The file read
+(`workspace.file@1`) and the web fetches (`web.fetch@1`, `web.fetch.pages@1`)
+are the base kit's: the kit requires `base` 1.0.0 and carries none of their
+definitions (`kit build` leaves them out). The kit owns four:
+
+| Capability | Effect | Sends | Gets back |
+|---|---|---|---|
+| `security.osv.query@1` | external_read | components, logical source | OSV's responses, `list<capture<security.osv-response>>` |
+| `security.osv.match@1` | pure | responses, components, logical source | `capture<security.osv-matches>` |
+| `security.sbom.components@1` | pure | `capture<security.cyclonedx-sbom>`, path, logical source | `capture<security.sbom-components>` |
+| `security.sarif.findings@1` | pure | `list<capture<security.sarif-log>>`, held findings, repo, logical source | `capture<security.sarif-findings>` |
+
+The kinds an EXTRACT reads declare their layout: header fields and named record
+sets (path, key, row Contract, field rules, count). KEV's and EPSS's state the
+origin's format; the three derived kinds' state the document the capability
+promises, and an operation serving it binds only when its carried copy of the
+layout covers the instance's. Each EXTRACT step names a record set and header
+fields and nothing else (`{capture, records, header}`, plus `only_keys` for
+EPSS); `fixtures/extracts/` holds the full specs they replaced, and two gate
+tests check each node still resolves to its spec field for field. The raw kinds
+only a derive reads (`security.osv-response`, `security.cyclonedx-sbom`,
+`security.sarif-log`) declare no layout.
+
+| Kind | Header | Record sets |
+|---|---|---|
+| `security.kev-catalog` | `catalog_version` | `vulnerabilities` (counted) |
+| `security.epss-scores` | none | `scores` |
+| `security.osv-matches` | `queried` | `affected` (counted), `not_checked` |
+| `security.sbom-components` | `inventory` | `components` (counted) |
+| `security.sarif-findings` | `covered` | `findings` (counted), `attention` |
+
+A reading a layout lacks is another record set over the same path, added to the
+kind by ordinary authoring. For a derived kind that also needs a provider whose
+carried copy declares it: a grown layout stops every Line whose operation's copy
+lacks the new record set (`cruxible.line.binding_unfit`), until a covering build
+is installed (`test_audit_gate.py`'s status probe does exactly this).
+
+## Running the Lines
 
 Lines depend on each other only through state (D-R35). Run the SBOM import
 Lines, then OSV, then KEV and EPSS. The automation template's `security.start`
@@ -79,8 +122,9 @@ never change (a new identity is a new pair).
 
 ## SBOM import: one Procedure (K-B1-G1, D-R46 R3)
 
-`security.sbom-import`: fetch the SBOM through core's builtin `workspace.file`
-→ derive `sbom.components` → extract `/components/*` → claims. It reads no
+`security.sbom-import`: read the SBOM through core's builtin `workspace.file`
+(the call sends only `relative_path` and `logical_source`) → derive
+`sbom.components` → extract the `components` record set → claims. It reads no
 state.
 
 - **The inventory's name (K-B1-5).** `sbom.components` names the inventory by
@@ -127,7 +171,8 @@ state.
 `security.osv-query`: read every inventoried component (a component some
 occurrence holds a scope for) → fetch `osv.query` (a list of Captures: one
 `POST /v1/querybatch` per 1000 components, then one `GET /v1/vulns/{id}` per
-advisory named) → derive `osv.match` → extract `/affected/*` → claims.
+advisory named) → derive `osv.match` → extract the `affected` record set →
+claims.
 
 - **`affected_by`** creates each vulnerability OSV names by value
   (`create: if_absent`). OSV's own version matching decides; the kit has no
@@ -339,8 +384,8 @@ flowchart LR
   held["security.sarif_held_findings<br/>(the repository's findings)"] --> derive
   file["SARIF file (workspace.file)"] --> derive["sarif.findings (derive, pure)"]
   derive --> doc["security.sarif-findings"]
-  doc -->|"security.sarif-import.NAME: extract /findings/*"| finding["security.finding Claims"]
-  doc -->|"landing: security.sarif-attention.NAME, extract /attention/*"| inbox["Line inbox"]
+  doc -->|"security.sarif-import.NAME: extract findings"| finding["security.finding Claims"]
+  doc -->|"landing: security.sarif-attention.NAME, extract attention"| inbox["Line inbox"]
 ```
 
 | ClaimType on `security.finding` | Role | Written by |
@@ -474,7 +519,7 @@ notes document a Claim cites.
   nothing and is complete (`test_epss_with_nothing_watched_asks_nothing_and_writes_nothing`;
   `security.start` on an inventory nothing affects:
   `test_start_on_an_inventory_nothing_affects_completes_and_asks_epss_nothing`).
-- **The provider lock.** `security-osv-provider` has no committed `uv.lock`:
-  `cruxible-provider-runtime` 0.4.0 is not on PyPI yet. The scratch instance
-  locks it against the providers checkout and installs the runtime wheel as a
-  transferred dependency.
+- **The provider runtime.** `cruxible-provider-runtime` 0.5.0 is not on PyPI
+  yet: each kit provider's committed `uv.lock` names it by path, and the release
+  bundles its wheel, built from the recorded providers commit, as a transferred
+  dependency.

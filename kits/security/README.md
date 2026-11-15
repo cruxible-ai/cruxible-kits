@@ -8,7 +8,9 @@ automation, all by ordinary authoring. Facts copied from sources settle
 automatically; judgments always need review.
 
 This local release is kit version **1.3.0**, built for Cruxible **0.5** and
-provider protocol **2**. It covers two loops:
+provider protocol **2**. It requires the base kit (`base` 1.0.0, which
+`cruxible init` installs) for reading workspace files and fetching web pages.
+It covers two loops:
 
 | Loop | What it does |
 |---|---|
@@ -35,6 +37,7 @@ stays unknown; it never means unaffected or clean.
 | `security.code_fact` | One thing true of a repository's code that security judgments rest on (`repo`, `topic`), with its `category` and whether it `holds`, citing the code that decides it |
 | `rests_on` (findings, app exposures, coverage units), `security.code_facts`, `security.*_resting_on`, `security.*_on_weakened_facts`, `security.weakened_causes_of_*` | Which judgments rest on which facts; a repository's facts; what to look at again when a fact changes or stops holding (core does not bring those judgments back by itself) |
 | `security.sarif-import`, `security.sarif-attention` | Procedures that turn a SARIF file into findings, and post regressions and location gaps to an inbox |
+| `security.osv.query`, `security.osv.match`, `security.sbom.components`, `security.sarif.findings` | The capabilities the Procedures' provider slots name: what each call sends and gets back. A derived document's fields are declared on its CaptureKind (`security.osv-matches`, `security.sbom-components`, `security.sarif-findings`), so any provider that returns that layout can serve the slot |
 | `security.guidance.dependency` | Governed guidance for dependency judgments |
 | `security.guidance.hunter`, `.verifier`, `.coverage` | Governed guidance for reporting findings, judging them, and keeping coverage |
 
@@ -43,10 +46,13 @@ auth, client side, cloud, AI and LLM, memory safety and more), starting from
 [reference/attack-classes.md](reference/attack-classes.md). They are plain
 files for the reader; the kit doesn't install them.
 
-The bundled `security-osv-provider` serves `sbom.components`, `osv.query` and
-`osv.match`; bundled `cruxible-provider-web` serves the KEV/EPSS HTTP reads;
-bundled `security-sarif-provider` serves `sarif.findings` (pure: no network,
-no clock). All carry registration schema 2, frozen locks and their runtime
+The bundled `security-osv-provider` serves `security.sbom.components`,
+`security.osv.query` and `security.osv.match`; bundled `cruxible-provider-web`
+0.7.0 serves the base kit's `web.fetch` and `web.fetch.pages` (the KEV and EPSS
+reads); bundled `security-sarif-provider` serves `security.sarif.findings`
+(pure: no network, no clock). The SBOM and SARIF files are read by core's
+builtin `workspace.file`. Each provider carries registration schema 3 (its own
+copies of the Contracts and layouts it serves), a frozen lock and its runtime
 dependency wheel. Provider installation can download the registry dependencies
 pinned by those locks.
 
@@ -64,8 +70,11 @@ cruxible kit add /path/to/cruxible-kits/kits/security --commit --at OID --json
 cruxible kit status --offline
 ```
 
-No Contracts or providers need to be accepted beforehand. Installation governs
-the bundled operation Contracts, installs the providers, and proposes the rest.
+The base kit must be installed first; a new instance holds it from `init`, and
+`cruxible kit status --offline` shows `base`. Without it, `kit add` refuses with
+the repair `cruxible kit add base`. Nothing else needs to be accepted beforehand:
+installation installs the three providers (each carries its own copies of the
+shapes it serves) and proposes the kit's definitions.
 On a local instance with one owner (approval policy `self_approval_allowed`,
 the default), the owner accepts its own changes and nothing waits for a second
 person. Under `independent_approval_required` (`init
@@ -199,10 +208,12 @@ it (`cruxible get Document:security.guidance.hunter`, and so on):
 3. `security.coverage_plan` lists units never checked, deferred or blocked;
    `cruxible next` lists findings and units whose cited code changed.
 
-The loop needs three principals: the hunter, the verifier and the approver.
-`cruxible init` registers the owner; add the other two with `cruxible principal
-add NAME --key-dir /outside/workspace/NAME-keys --signer-key OWNER_KEY`, which
-writes each key and its `cruxible.env` settings to that directory.
+The loop needs three agents: the hunter, the verifier and the approver. On a
+local instance approval is an honor system: the three may sign as the one
+principal `cruxible init` registers. Where you want separate principals, add
+them with `cruxible principal add NAME --key-dir /outside/workspace/NAME-keys
+--signer-key OWNER_KEY`, which writes each key and its `cruxible.env` settings
+to that directory.
 
 To import a scanner's SARIF file, author a Line for `security.sarif-import`
 yourself (the automation template doesn't include one): bind `read` to
