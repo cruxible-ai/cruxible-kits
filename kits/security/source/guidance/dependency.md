@@ -54,10 +54,10 @@ ANCHOR is the exact passage you relied on, found once in the file. Catalogue the
 (`cruxible files add NAME PATH`). When that passage changes, `next` lists the judgment as
 `citation_drifted`, so it gets judged again. Cite the narrowest passage that decides the
 judgment: a whole file reopens it on every edit, and no citation never reopens it. A change
-cites one piece of evidence: put longer
-reasoning in the write's `because` or a notes file beside the code. Cite a notes section or
-your own words instead only when no code passage carries the judgment; both are admitted, but
-neither drifts with the code. A low EPSS score, no KEV listing or a quiet advisory is not a
+cites one piece of evidence. `because` is one line of at most 280 characters; reasoning that
+needs more goes in a section of a notes file beside the code. Cite that section or your own
+words instead of the code only when no code passage carries the judgment; both are admitted,
+but neither drifts with the code. A low EPSS score, no KEV listing or a quiet advisory is not a
 reason. When the judgment rests on how the code works beyond the passage you cite (a
 `security.code_fact` in `security.code_facts`, such as which helper all logging goes
 through), link the pair to it with `rests_on` in the write that sets the judgment, not
@@ -107,12 +107,13 @@ stays in the worklists and in neither track record until one value is settled.
 
 ## Review
 
-Write a judgment with `accept: never`. A different agent, under its own principal, approves it
-after reading this guidance and trying once to break it: re-read the cited code, look for
-another path to the vulnerable code (or, for `affected`, check the path really reaches it),
-check the control really applies. Reject a write that sets both a verdict of `affected` and a
-justification. Never approve your own judgment. No Mandate settles a justification or a
-verdict.
+Write a judgment with `accept: never`. A different agent reviews and approves it after reading
+this guidance and trying once to break it: re-read the cited code, look for another path to the
+vulnerable code (or, for `affected`, check the path really reaches it), check the control
+really applies. Reject a write that sets both a verdict of `affected` and a justification.
+Never approve your own judgment. On a local instance approval is an honor system: the
+reviewing agent may sign as the same principal, and uses a second principal only where the
+instance has one. No Mandate settles a justification or a verdict.
 
 To withdraw one, retire its justification (or its `affected` verdict) and, for a
 package-level one, its none in one write (one `retire` change each). The pair Subject stays

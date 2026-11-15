@@ -7,8 +7,8 @@ Adapted from cloudflare/security-audit-skill (MIT).
 
 A verdict is your judgment of a finding someone else reported, on evidence you checked
 yourself. Your job is to try to refute it. If you reported it, stop and hand it to
-another agent. Write as your own principal (a third one beside the reporter and the
-approver: `cruxible principal add`). Judge it before reading other agents' verdicts or attestations on it.
+another agent: the reporter, the verifier and the approver are three different agents.
+Judge it before reading other agents' verdicts or attestations on it.
 
 ## The bar for `confirmed`
 
@@ -48,7 +48,8 @@ validation hints are part of this bar.
 Write your reasoning as a new section of the finding's notes file
 (`security/findings/<repo>/<finding-key>.md`) in the same write as the verdict, and cite
 that section (`{kind: section, ref: ID}`): a section the write itself appends counts as
-your own words. A one-line `because` is enough only for a plain refutation.
+your own words. `because` is one line of at most 280 characters, and enough on its own only
+for a plain refutation.
 
 - **Confirmed:** `verdict` cites the observed run output (file evidence
   `path#<quoted result line>` on the output file or test log); `severity` cites your
@@ -105,12 +106,13 @@ it feels.
 
 ## Review
 
-Write the verdict with `accept: never`. A different agent, under its own principal,
-approves it after reading this guidance and trying once more to break it: re-read the
-cited code, rerun the check, look for the control you missed. Neither the reporter nor the
-verifier approves. A revision that strengthens the verdict or changes the trace, the
-result or the severity is a new judgment and needs an approver who took no part in the
-earlier one. No Mandate settles a verdict.
+Write the verdict with `accept: never`. A different agent approves it after reading this
+guidance and trying once more to break it: re-read the cited code, rerun the check, look
+for the control you missed. Neither the reporter nor the verifier approves. A revision that
+strengthens the verdict or changes the trace, the result or the severity is a new judgment
+and needs an approver who took no part in the earlier one. On a local instance approval is
+an honor system: the three agents may sign as the same principal, and use separate
+principals only where the instance has them. No Mandate settles a verdict.
 
 When the cited code changes (`cruxible next` lists the finding's `reported_at` as
 `citation_drifted`), re-judge it before relying on the verdict.
