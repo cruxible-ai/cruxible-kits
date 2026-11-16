@@ -1,0 +1,35 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "The OSV advisories with no CVE alias in one match document, summarised: how many (advisory, component) pairs, the first 20 in component then advisory order, and the digest of the whole set.",
+  "fields": {
+    "count": {
+      "type": {
+        "kind": "int",
+        "max": 1000000,
+        "min": 1
+      }
+    },
+    "sample": {
+      "type": {
+        "item": {
+          "contract": {
+            "digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b",
+            "name": "security.osv-unkeyed-record",
+            "version": 1
+          },
+          "kind": "contract"
+        },
+        "kind": "list",
+        "max_items": 20
+      }
+    },
+    "set_digest": {
+      "type": {
+        "kind": "string",
+        "max_len": 80
+      }
+    }
+  },
+  "name": "security.osv-unkeyed-summary",
+  "version": 1
+}
