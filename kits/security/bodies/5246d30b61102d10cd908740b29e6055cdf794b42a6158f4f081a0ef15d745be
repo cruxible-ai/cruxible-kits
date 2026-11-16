@@ -39,7 +39,8 @@ judgment whose cited code changed comes back through `next` on its own (`citatio
 not through the inbox.
 
 An OSV advisory with no CVE id yet arrives in the `security.osv-unkeyed` inbox instead: one
-item per advisory and component (`osv_id`, `purl`). There is no vulnerability Subject and no
+item per advisory and component (`osv_id`, `purl`); past the first thousand pairs, in the
+inboxes of its page Lines (`security.osv-unkeyed.2` and on), once enabled. There is no vulnerability Subject and no
 pair to judge, because everything here is keyed by CVE id. Read the advisory
 (`https://osv.dev/vulnerability/<osv_id>`) and decide: remediate, or `ack` the item. When OSV
 lists a CVE for it, the next OSV run records an ordinary `affected_by` and the pair joins the
@@ -59,8 +60,18 @@ Cite the code you read as the judgment's evidence:
 `"evidence": {"kind": "file", "file": "PATH#ANCHOR"}` on the justification or verdict change, where
 ANCHOR is the exact passage you relied on, found once in the file. Catalogue the file first
 (`cruxible files add NAME PATH`). When that passage changes, `next` lists the judgment as
-`citation_drifted`, so it gets judged again. Cite the narrowest passage that decides the
-judgment: a whole file reopens it on every edit, and no citation never reopens it. A change
+`citation_drifted`. Cite the narrowest passage that decides the judgment: a whole file
+reopens it on every edit, and no citation never reopens it.
+
+A quoted code line (`--evidence-file PATH#TEXT`) is a pointer for reviewers: it shows where
+to look. It is not a witness that the judgment still holds. Only a change to those exact
+bytes reopens it, and a judgment that depends on code elsewhere can go false while the
+quoted line stays the same: `vulnerable_code_not_in_execute_path` because a function is
+never called stops holding when a new caller appears in another file. When a check decides
+the judgment, cite the check's result where one exists: a scanner's findings imported
+through `security.sarif-import`, or the output file of a bounded local check (file evidence
+on its result line), so running the check again moves the evidence. Prose (the advisory, a
+notes section with your reasoning) keeps quote and section citations. A change
 cites one piece of evidence. `because` is one line of at most 280 characters; reasoning that
 needs more goes in a section of a notes file beside the code. Cite that section or your own
 words instead of the code only when no code passage carries the judgment; both are admitted,
@@ -118,9 +129,10 @@ Write a judgment with `accept: never`. A different agent reviews and approves it
 this guidance and trying once to break it: re-read the cited code, look for another path to the
 vulnerable code (or, for `affected`, check the path really reaches it), check the control
 really applies. Reject a write that sets both a verdict of `affected` and a justification.
-Never approve your own judgment. On a local instance approval is an honor system: the
-reviewing agent may sign as the same principal, and uses a second principal only where the
-instance has one. No Mandate settles a justification or a verdict.
+Never approve your own judgment: the reviewer acts as its own principal (the kit's default
+setup has a `reviewer` principal, normally a subagent using the CLI as `reviewer`). On an
+instance one person runs with self-approval, that person approves. No Mandate settles a
+justification or a verdict.
 
 To withdraw one, retire its justification (or its `affected` verdict) and, for a
 package-level one, its none in one write (one `retire` change each). The pair Subject stays

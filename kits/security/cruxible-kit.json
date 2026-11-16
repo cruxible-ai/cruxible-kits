@@ -33,7 +33,7 @@
       "path": "capture-contracts/security.kev-catalog.json"
     },
     {
-      "artifact_digest": "sha256:bc557f0bdb2579f37eadbbe6f0b443078ecfc1184ae8969629a5565739e352d0",
+      "artifact_digest": "sha256:2e987294cfbfb824572e73f9b3794ef22880b65c112bc811fba7916e41cdc6f2",
       "path": "capture-contracts/security.osv-matches.json"
     },
     {
@@ -373,7 +373,7 @@
       "path": "contracts/security.osv-query.params/v2.json"
     },
     {
-      "artifact_digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b",
+      "artifact_digest": "sha256:44aba2625d75459d1e53e7df987eddb8788ca256cfe4de896d8340b806d33dbe",
       "path": "contracts/security.osv-unkeyed-record/v1.json"
     },
     {
@@ -383,6 +383,14 @@
     {
       "artifact_digest": "sha256:9b475a083acd63c1445f00f1b994033dc7082502aacd527fc50d7c986a85463e",
       "path": "contracts/security.osv-unkeyed.output/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:d0e786a89dc1919c3983e7fa2b6bacf0bf8633c6909d4ed3990c04ace6525c70",
+      "path": "contracts/security.osv-unkeyed.params/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:524bc64ade2578b8faa8ae3963e8c75266040ddfd624d99f6af7df31d53506a7",
+      "path": "contracts/security.osv-unkeyed.params/v2.json"
     },
     {
       "artifact_digest": "sha256:d0d1b8644467c0fa259dd8e6f3ad0d5e63dd5a2dab139357d82e63e4671f8767",
@@ -513,15 +521,15 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:680485b24c7f99172be4160c749297e25fec1c4e4e84134a8762fab65bd45e24",
+      "artifact_digest": "sha256:04b57074cf2a68fc188fef407975e515949a318f1fb59acc56ada6bdf138c455",
       "path": "documents/security.guidance.dependency.json"
     },
     {
-      "artifact_digest": "sha256:e4c24657e3ccb9d95b618a8a9ace49cb885d631cc8debeac91ec06c84c3ccc26",
+      "artifact_digest": "sha256:32914dbffcaf4cbf7c7cebcdb0410fe2f0701c66a6ba6f144fcf0ce68c651ec2",
       "path": "documents/security.guidance.hunter.json"
     },
     {
-      "artifact_digest": "sha256:2e09e50caf0ec0c31e43a391309f883b57bed0b4e4d9cd67743f4bc1407237dd",
+      "artifact_digest": "sha256:95b3f5dcb0214e52f94e393876177478e2e352ed2630a53751674b748d372258",
       "path": "documents/security.guidance.verifier.json"
     },
     {
@@ -549,7 +557,7 @@
       "path": "procedures/security.osv-query.json"
     },
     {
-      "artifact_digest": "sha256:227a5bd1c832bc1e715b641e44804cab192161cc88a15e0ae02384a6104df2d2",
+      "artifact_digest": "sha256:b3395592dbc99aad686e2b17cd7c44e6af9f9ef315ee07749f49edbc632b5574",
       "path": "procedures/security.osv-unkeyed.json"
     },
     {
@@ -730,12 +738,12 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:06ae6a91a508ce0240ec2ca5cbae65ec543979f4c3872117366f50967414fb65"
+      "sha256": "sha256:76a70553a450f987a47659eb57d4cf1f781e75471caa418f56e36b8956251806"
     },
     {
       "path": "automation.json",
       "role": "reference",
-      "sha256": "sha256:5aacfd6dc6d92b7cc2c310e9c18d88963e10dbe02d1f23e474485fc3354cc497"
+      "sha256": "sha256:fe113f1b8cba44f5b7d16bf52458aecdaafdeea480362b871630bce93000fed9"
     },
     {
       "path": "examples/README.md",
@@ -825,12 +833,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5b1e93a005c680b1709f9c58c6fba03ef8ff87f9ec4b38b1b7fab6fb04891be8",
-      "generation_root": "sha256:144bed8092ed3062c467fb2d56c82667e5a8243bffd7861301872b3b782225bd",
-      "git_oid": "409a2eae9ace7a23b9096645f9f54dc17cb4967e",
-      "semantic_root": "sha256:5e3ce856f72f2c602d5bbeb54f46b22aa327ec53a11915252e36b976ba64c831",
+      "generation_root": "sha256:a03a4ec82419d31baf1a5df4bd5c6068f02e69d879460fb11a48ecefc369c190",
+      "git_oid": "6f69a4d4474b1bc45e0ae842bce701f9e53296b0",
+      "semantic_root": "sha256:2c3ae441f132025938167b551b85c21174adbf38994986239ced6cc31a8830c3",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_eb93092226d641ed",
+    "instance_id": "inst_46b0eff3744d4bfe",
     "principal_id": "owner"
   },
   "providers": [
@@ -881,7 +889,7 @@
       "version": "0.1.0.dev0",
       "wheel": {
         "filename": "security_osv_provider-0.1.0.dev0-py3-none-any.whl",
-        "sha256": "sha256:0690478c4929a89f95417e6a74967de42ea4ba2a4478fefd9c3edf7870e53992"
+        "sha256": "sha256:fd9763883766aa282baa7f94121e8e54d001fd6412496285cd8bb46ba3c1bef6"
       }
     },
     {

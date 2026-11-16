@@ -115,12 +115,15 @@
           "osv_id": {
             "at": "osv_id"
           },
+          "page": {
+            "at": "page"
+          },
           "purl": {
             "at": "purl"
           }
         },
         "row": {
-          "digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b",
+          "digest": "sha256:44aba2625d75459d1e53e7df987eddb8788ca256cfe4de896d8340b806d33dbe",
           "name": "security.osv-unkeyed-record",
           "version": 1
         }

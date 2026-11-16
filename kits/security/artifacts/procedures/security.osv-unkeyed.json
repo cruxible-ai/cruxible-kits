@@ -14,10 +14,10 @@
         "name": "security.osv-unkeyed.output/v1"
       }
     },
-    "description": "Post each OSV advisory with no CVE alias in one derived OSV match document to the Line's inbox, one item per advisory and component: no Claim records it until OSV lists a CVE for it.",
+    "description": "Post each OSV advisory with no CVE alias on one page of a derived OSV match document to the Line's inbox, one item per advisory and component: no Claim records it until OSV lists a CVE for it.",
     "hard_caps": {
       "max_capture_bytes": 4194304,
-      "max_items": 20000,
+      "max_items": 1000,
       "max_provider_calls": 1,
       "max_read_rows": 1,
       "max_repeat_attempts": 1,
@@ -56,10 +56,35 @@
         "kind": "extract",
         "records": "unkeyed",
         "row": {
-          "digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b",
+          "digest": "sha256:44aba2625d75459d1e53e7df987eddb8788ca256cfe4de896d8340b806d33dbe",
           "name": "security.osv-unkeyed-record",
           "version": 1
         }
+      },
+      {
+        "id": "paged",
+        "kind": "transform",
+        "spec": {
+          "input": "$steps.unkeyed.records",
+          "tag": "cruxible-transform-filter-spec-v1",
+          "where": {
+            "left": {
+              "$ref": "item",
+              "path": [
+                "fields",
+                "page"
+              ]
+            },
+            "op": "eq",
+            "right": {
+              "$ref": "param",
+              "path": [
+                "page"
+              ]
+            }
+          }
+        },
+        "transform_kind": "filter"
       },
       {
         "contract": {
@@ -75,12 +100,18 @@
           "osv_id": "$item.fields.osv_id",
           "purl": "$item.fields.purl"
         },
-        "for_each": "$steps.unkeyed.records",
+        "for_each": "$steps.paged.records",
         "id": "post",
         "kind": "post_inbox",
         "max_items": 1000
       }
     ],
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-unkeyed.params/v2"
+      }
+    },
     "returns": "summary",
     "slots": {
       "match": {
@@ -93,7 +124,7 @@
     },
     "terminal_capability": 1
   },
-  "definition_digest": "sha256:569b7bebeb8205ee4d4a4de203f87371f5c00adcdfe6fdbab596e4a228c92a34",
+  "definition_digest": "sha256:50885f44e12600e83d51255ae269651101e797585c3c14cf611be05344106dc6",
   "identity": {
     "kind": "Procedure",
     "name": "security.osv-unkeyed"
