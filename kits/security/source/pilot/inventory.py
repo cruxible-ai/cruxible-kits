@@ -172,8 +172,9 @@ SBOM_COMPONENTS_LAYOUT: dict[str, Any] = {
 #: The derived OSV match document osv.match emits (security.osv.match@1's result):
 #: ``queried`` (the components OSV answered in full), the (component, CVE) pairs
 #: counted by ``/count``, the components left unchecked with why, and the
-#: advisories that name no CVE yet (``unkeyed``: component, advisory id and the
-#: page whose OSV unkeyed Line posts it to its inbox).
+#: advisories that name no CVE yet (``unkeyed``: component and advisory id) with
+#: their one-record summary (``unkeyed_summary``: count, sample and set digest,
+#: which the OSV unkeyed Line posts to its inbox).
 OSV_MATCHES_LAYOUT: dict[str, Any] = {
     "header": {
         "queried": {"at": "/queried", "type": "list<string{max_len: 256}>{max_items: 20000}"}
@@ -199,10 +200,16 @@ OSV_MATCHES_LAYOUT: dict[str, Any] = {
         "unkeyed": {
             "at": "/unkeyed/*",
             "row": "security.osv-unkeyed-record@1",
+            "fields": {"purl": {"at": "purl"}, "osv_id": {"at": "osv_id"}},
+        },
+        # None when there are no unkeyed pairs, else one record.
+        "unkeyed_summary": {
+            "at": "/unkeyed_summary/*",
+            "row": "security.osv-unkeyed-summary@1",
             "fields": {
-                "purl": {"at": "purl"},
-                "osv_id": {"at": "osv_id"},
-                "page": {"at": "page"},
+                "count": {"at": "count"},
+                "sample": {"at": "sample"},
+                "set_digest": {"at": "set_digest"},
             },
         },
     },

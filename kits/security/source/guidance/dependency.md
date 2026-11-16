@@ -38,13 +38,14 @@ worklist pairs that exist with no judgment on them (withdrawn, or created before
 judgment whose cited code changed comes back through `next` on its own (`citation_drifted`),
 not through the inbox.
 
-An OSV advisory with no CVE id yet arrives in the `security.osv-unkeyed` inbox instead: one
-item per advisory and component (`osv_id`, `purl`); past the first thousand pairs, in the
-inboxes of its page Lines (`security.osv-unkeyed.2` and on), once enabled. There is no vulnerability Subject and no
-pair to judge, because everything here is keyed by CVE id. Read the advisory
-(`https://osv.dev/vulnerability/<osv_id>`) and decide: remediate, or `ack` the item. When OSV
-lists a CVE for it, the next OSV run records an ordinary `affected_by` and the pair joins the
-worklist; the item is no longer posted.
+OSV advisories with no CVE id yet arrive as one item in the `security.osv-unkeyed` inbox
+instead: `count`, a `sample` of the first 20 (`osv_id`, `purl`), and `matches`, the OSV match
+document whose `unkeyed` list holds them all (`cruxible get Capture:<matches>`). There is no
+vulnerability Subject and no pair to judge, because everything here is keyed by CVE id. Read
+each advisory (`https://osv.dev/vulnerability/<osv_id>`) and decide: remediate, or `ack` the
+item. The same set on a later run is the item seen again; a changed set is a new item. When
+OSV lists a CVE for an advisory, the next OSV run records an ordinary `affected_by` and the
+pair joins the worklist.
 
 ## The bar
 

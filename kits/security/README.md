@@ -36,7 +36,7 @@ stays unknown; it never means unaffected or clean.
 | `security.finding_verdicts`, `security.coverage_plan`, `security.findings_by_unit` | Audit worklists: findings with their verdicts, units to take up next, findings per unit |
 | `security.code_fact` | One thing true of a repository's code that security judgments rest on (`repo`, `topic`), with its `category` and whether it `holds`, citing the code that decides it |
 | `rests_on` (findings, app exposures, coverage units), `security.code_facts`, `security.*_resting_on`, `security.*_on_weakened_facts`, `security.weakened_causes_of_*` | Which judgments rest on which facts; a repository's facts; what to look at again when a fact changes or stops holding (core does not bring those judgments back by itself) |
-| `security.osv-unkeyed` | The Procedure that posts each OSV advisory with no CVE id yet to an inbox, since no Claim can record it |
+| `security.osv-unkeyed` | The Procedure that posts one inbox item when OSV lists advisories with no CVE id yet (no Claim can record them), pointing at the match document that lists them |
 | `security.sarif-import`, `security.sarif-attention` | Procedures that turn a SARIF file into findings, and post regressions and location gaps to an inbox |
 | `security.osv.query`, `security.osv.match`, `security.sbom.components`, `security.sarif.findings` | The capabilities the Procedures' provider slots name: what each call sends and gets back. A derived document's fields are declared on its CaptureKind (`security.osv-matches`, `security.sbom-components`, `security.sarif-findings`), so any provider that returns that layout can serve the slot |
 | `security.guidance.dependency` | Governed guidance for dependency judgments |
@@ -185,28 +185,32 @@ Item fields are typed references (`security.exposure-attention@2`):
 `occurrence` is the occurrence's Subject id.
 
 OSV advisories with no CVE id yet (a GHSA or PYSEC advisory with no CVE alias)
-arrive in a separate inbox, `security.osv-unkeyed`. Every finding is keyed by
-its CVE id, so such an advisory has no vulnerability Subject, no Claim and no
-worklist row; instead the `security.osv-unkeyed` Line posts one
-`security.osv-unkeyed@1` item per advisory and component: `osv_id` (read it at
-`https://osv.dev/vulnerability/<osv_id>`) and `purl` (the component's key). Read
-the advisory and decide (upgrade, or `ack` the item). The Line is not a Runbook
-step: its own Trigger, `security.osv-matches-landed`, runs it whenever the OSV
-step lands its result, so it posts only while it is enabled (the `line enable`
-above). One run posts at most 1,000 items, so it posts the first thousand pairs
-(by component, then advisory) and the template carries a Line per further page:
-`security.osv-unkeyed.2` for pairs 1,001 to 2,000, and so on to
-`security.osv-unkeyed.20`, which takes every pair past 19,000. A page Line
-runs only once enabled; when a run reports its page full (1,000 items
-posted), enable the next one (`cruxible line enable security.osv-unkeyed.2`).
-When an earlier pair leaves, later pairs move up one place, so a pair on a page
-boundary is posted again as a new item by the neighbouring page's Line. It changes no accepted state. A rerun that finds the same advisory still
-without a CVE sees the same item again. When OSV later lists a CVE for the
-advisory, the next OSV run records it as an ordinary `affected_by` finding (on
-the worklist like any other) and the item is no longer posted; it stays in the
-inbox as it was (core does not withdraw inbox items). If the Line was not
-enabled when OSV ran, enable it and rerun OSV (`cruxible line run
-security.osv-query`, or the next daily run): that result posts them.
+get one summary item in a separate inbox, `security.osv-unkeyed`. Every finding
+is keyed by its CVE id, so such an advisory has no vulnerability Subject, no
+Claim and no worklist row. When an OSV result lists any, the
+`security.osv-unkeyed` Line posts ONE `security.osv-unkeyed@1` item, however
+many there are: `count` (the advisory and component pairs), `sample` (the first
+20 pairs: `osv_id`, read it at `https://osv.dev/vulnerability/<osv_id>`, and
+`purl`), `matches` (the OSV match document holding every pair under `unkeyed`:
+`cruxible get Capture:<matches>`) and `set_digest` (the SHA-256 of the whole
+set, the item's identity). Read the list and the advisories and decide (upgrade,
+or `ack` the item). A rerun that finds the same set sees the same item again; a
+set that changes (an advisory gains a CVE, a new one appears) is a new item, and
+the old one stays in the inbox as it was (core does not withdraw inbox items).
+An advisory that gains a CVE becomes an ordinary `affected_by` finding on the
+next OSV run (on the worklist like any other). The Line is not a Runbook step:
+its own Trigger, `security.osv-matches-landed`, runs it whenever the OSV step
+lands its result, so it posts only while it is enabled (the `line enable`
+above). It changes no accepted state. If the Line was not enabled when OSV ran,
+enable it and rerun OSV (`cruxible line run security.osv-query`, or the next
+daily run): that result posts the item.
+
+An inbox item is a call for attention, not storage. When the list an author
+wants seen already exists as state (a Query) or as evidence (a Capture, such as
+the OSV match document), post one summary item that points at it (a count, a
+short sample, the Query name or the Capture), keyed by what changes when the
+list does. Post one item per element only when each needs its own decision and
+that decision is recorded nowhere else.
 
 `security.urgent_exposures` and `security.kev_triage_backlog` stay the whole
 worklist, whatever the threshold. The preview lists `reads_unwritten` for the

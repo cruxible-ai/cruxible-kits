@@ -131,7 +131,7 @@
         "artifact_format": "cruxible-contract-v1",
         "name": "security.osv-unkeyed-record",
         "version": 1,
-        "description": "One OSV advisory with no CVE alias that lists a component: the component's purl, the advisory id, and the page (1-20, a thousand pairs each in component then advisory order; page 20 holds the rest) whose Line posts it.",
+        "description": "One OSV advisory with no CVE alias that lists a component: the component's purl and the advisory id.",
         "fields": {
           "osv_id": {
             "type": {
@@ -139,17 +139,45 @@
               "max_len": 128
             }
           },
-          "page": {
-            "type": {
-              "kind": "int",
-              "max": 20,
-              "min": 1
-            }
-          },
           "purl": {
             "type": {
               "kind": "string",
               "max_len": 256
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "security.osv-unkeyed-summary",
+        "version": 1,
+        "description": "The OSV advisories with no CVE alias in one match document, summarised: how many (advisory, component) pairs, the first 20 in component then advisory order, and the digest of the whole set.",
+        "fields": {
+          "count": {
+            "type": {
+              "kind": "int",
+              "max": 1000000,
+              "min": 1
+            }
+          },
+          "sample": {
+            "type": {
+              "item": {
+                "contract": {
+                  "digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b",
+                  "name": "security.osv-unkeyed-record",
+                  "version": 1
+                },
+                "kind": "contract"
+              },
+              "kind": "list",
+              "max_items": 20
+            }
+          },
+          "set_digest": {
+            "type": {
+              "kind": "string",
+              "max_len": 80
             }
           }
         }
@@ -404,17 +432,33 @@
               "row": {
                 "name": "security.osv-unkeyed-record",
                 "version": 1,
-                "digest": "sha256:44aba2625d75459d1e53e7df987eddb8788ca256cfe4de896d8340b806d33dbe"
+                "digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b"
               },
               "fields": {
                 "osv_id": {
                   "at": "osv_id"
                 },
-                "page": {
-                  "at": "page"
-                },
                 "purl": {
                   "at": "purl"
+                }
+              }
+            },
+            "unkeyed_summary": {
+              "at": "/unkeyed_summary/*",
+              "row": {
+                "name": "security.osv-unkeyed-summary",
+                "version": 1,
+                "digest": "sha256:8b710318b5c25272bfb8d5019341bfc427cc08fe16756307a4a89c8fd05a1f83"
+              },
+              "fields": {
+                "count": {
+                  "at": "count"
+                },
+                "sample": {
+                  "at": "sample"
+                },
+                "set_digest": {
+                  "at": "set_digest"
                 }
               }
             }
@@ -510,7 +554,7 @@
       {
         "kind": "CaptureKind",
         "name": "security.osv-matches",
-        "digest": "sha256:8cf6a1e6c4aee5470f648485acdaaa66cc6d7dd9e9eabf7916d948e3d7390687"
+        "digest": "sha256:b408886ecc22b23615fc8262a4150f6200db6c316ecaa4b800446faa1a20e43c"
       },
       {
         "kind": "CaptureKind",

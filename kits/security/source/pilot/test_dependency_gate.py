@@ -427,9 +427,8 @@ def advisory_without_cve(request: Any) -> tuple[int, bytes]:
     return 200, json.dumps(record).encode()
 
 
-def run_unkeyed(instance: Any, upstream: Any, *, minute: int = 0, page: int = 1) -> Any:
-    """Run page ``page``'s unkeyed Line as its Trigger does: on the OSV run's derived
-    match document."""
+def run_unkeyed(instance: Any, upstream: Any, *, minute: int = 0) -> Any:
+    """Run the unkeyed Line as its Trigger does: on the OSV run's derived match document."""
 
     from cruxible_core.service.procedures.procedure_runs import (
         LineRunRequest,
@@ -447,19 +446,19 @@ def run_unkeyed(instance: Any, upstream: Any, *, minute: int = 0, page: int = 1)
     ]
     state = service_run_playbill_line(
         instance,
-        path_identity_digest=osv.unkeyed_line(page),
-        request=LineRunRequest(line=osv.unkeyed_line(page)),
+        path_identity_digest=osv.UNKEYED_LINE,
+        request=LineRunRequest(line=osv.UNKEYED_LINE),
         actor_context=actor(),
         caller_rung=2,
         daemon_clock=_Clock(NOW + timedelta(minutes=minute)),
-        trigger_fire=TriggerFire(trigger=osv.unkeyed_trigger(page), event=event),
+        trigger_fire=TriggerFire(trigger=osv.UNKEYED_TRIGGER, event=event),
     )
     assert state.status == "succeeded", state.terminal
     return state
 
 
-def unkeyed_items(instance: Any, page: int = 1) -> list[Any]:
-    """Every item page ``page``'s unkeyed Line posted (at most 200)."""
+def unkeyed_items(instance: Any) -> list[Any]:
+    """Every item the unkeyed Line posted."""
 
     from cruxible_core.service.procedures.line_inbox import (
         service_get_inbox_item,
@@ -468,9 +467,7 @@ def unkeyed_items(instance: Any, page: int = 1) -> list[Any]:
     from cruxible_core.storage.cas import BodyAccessContext
 
     access = BodyAccessContext(principal_id="reader", can_read_body=True)
-    listed = service_list_inbox(
-        instance, line=osv.unkeyed_line(page), limit=200, access=access
-    )
+    listed = service_list_inbox(instance, line=osv.UNKEYED_LINE, limit=200, access=access)
     assert not listed.truncated
     return [
         service_get_inbox_item(instance, item=entry.item.item_id, access=access)
@@ -482,9 +479,10 @@ def test_an_advisory_with_no_cve_reaches_the_inbox_until_osv_names_its_cve(
     tmp_path: Path,
 ) -> None:
     """An advisory with no CVE alias writes nothing (no vulnerability to key) and
-    posts one inbox item; the same data again posts nothing new (the item is seen
-    again); once the advisory names its CVE, the finding is an ordinary affected_by
-    Claim and the item is no longer posted (it stays in the inbox as it was)."""
+    posts one summary item pointing at the match document; the same set again
+    posts nothing new (the item is seen again); once the advisory names its CVE,
+    the finding is an ordinary affected_by Claim and no item is posted (the old
+    one stays in the inbox as it was)."""
 
     instance = world(tmp_path)
     unkeyed = OSV({API_ADVISORY: advisory_without_cve})
@@ -498,9 +496,14 @@ def test_an_advisory_with_no_cve_reaches_the_inbox_until_osv_names_its_cve(
     )
     assert summary(posted, "post_inbox").emitted == 1
     (item,) = unkeyed_items(instance)
-    assert item.payload == {"osv_id": API_ADVISORY_ID, "purl": API}
-    # Page 2's Line finds nothing on a one-pair page 1.
-    assert summary(run_unkeyed(instance, first, minute=1, page=2), "post_inbox").emitted == 0
+    payload = dict(item.payload)
+    assert (payload.pop("count"), payload.pop("sample")) == (
+        1,
+        [{"osv_id": API_ADVISORY_ID, "purl": API}],
+    )
+    assert sorted(payload) == ["matches", "set_digest"]
+    # The full list is in the match document the item names, readable by get.
+    assert get(instance, f"Capture:{payload['matches']}") is not None
     assert (item.item.status, item.item.occurrences) == ("unread", 1)
 
     # The same data again: the same item, seen again, nothing new.
@@ -550,53 +553,49 @@ def many_unkeyed(count: int) -> Any:
     return OSV(overrides)
 
 
-def test_unkeyed_pairs_past_the_first_thousand_post_from_the_next_page(
+def test_a_thousand_unkeyed_pairs_are_one_item_and_a_changed_set_a_new_one(
     tmp_path: Path,
 ) -> None:
-    """One run posts at most 1,000 inbox items: 1,005 unkeyed pairs are pages 1 and 2
-    of the match document, page 1's Line posts the first thousand (component then
-    advisory order) and page 2's Line the last five, so none is out of reach."""
+    """1,005 unkeyed pairs post one item (count 1005, a 20-pair sample), not 1,005:
+    the list is evidence in the match document. A set that changes is a new item."""
 
     instance = world(tmp_path)
-    upstream = run_osv(instance, many_unkeyed(335))
-    first = run_unkeyed(instance, upstream, minute=1)
-    assert summary(first, "extract").records == 1005
-    assert summary(first, "post_inbox").emitted == osv.UNKEYED_MAX_ITEMS
-    second = run_unkeyed(instance, upstream, minute=2, page=2)
-    assert summary(second, "post_inbox").emitted == 5
-    tail = sorted((i.payload["purl"], i.payload["osv_id"]) for i in unkeyed_items(instance, 2))
-    assert tail == [(SLF4J, f"GHSA-test-{n:04d}-xxxx") for n in range(330, 335)]
-    assert summary(run_unkeyed(instance, upstream, minute=3, page=3), "post_inbox").emitted == 0
+    first = run_unkeyed(instance, run_osv(instance, many_unkeyed(335)), minute=1)
+    assert summary(first, "post_inbox").emitted == 1
+    (item,) = unkeyed_items(instance)
+    assert item.payload["count"] == 1005
+    assert item.payload["sample"] == [
+        {"osv_id": f"GHSA-test-{n:04d}-xxxx", "purl": API} for n in range(osv.UNKEYED_SAMPLE)
+    ]
+
+    changed = run_osv(instance, many_unkeyed(334), minute=2)
+    assert summary(run_unkeyed(instance, changed, minute=3), "post_inbox").emitted == 1
+    items = {i.item.item_id: i for i in unkeyed_items(instance)}
+    assert len(items) == 2
+    (new,) = [i for key, i in items.items() if key != item.item.item_id]
+    assert new.payload["count"] == 1002
+    assert new.payload["set_digest"] != item.payload["set_digest"]
 
 
 def test_the_unkeyed_line_runs_on_the_osv_match_landing() -> None:
-    """Each unkeyed Line binds its triggering Capture (the match call is substituted,
-    never re-run), observes only, posts its own page, and its Trigger names the OSV
-    Line's source."""
+    """The unkeyed Line binds its triggering Capture (the match call is substituted,
+    never re-run), observes only, and its Trigger names the OSV Line's source."""
 
     members = {
         (m["kind"], m["name"]): m for m in kit.automation([], now=NOW)["members"]
     }
-    source = members[("line", osv.OSV_LINE)]["parameters"]["logical_source"]
-    assert osv.unkeyed_line(1) == osv.UNKEYED_LINE
-    for page in range(1, osv.UNKEYED_PAGES + 1):
-        line = members[("line", osv.unkeyed_line(page))]
-        assert (line["trigger_input"], line["max_authority"], line["parameters"]) == (
-            "matched.document",
-            "observe",
-            {"page": page},
-        )
-        assert not [
-            m for m in members.values() if m.get("line_name") == osv.unkeyed_line(page)
-            and m["kind"] == "procedure_mandate"
-        ]
-        trigger = members[("trigger", osv.unkeyed_trigger(page))]
-        assert trigger["line_name"] == osv.unkeyed_line(page)
-        assert trigger["schedule"] == {
-            "kind": "capture_landing",
-            "capture_contract": inventory.OSV_MATCH_KIND,
-            "logical_sources": [source],
-        }
+    line = members[("line", osv.UNKEYED_LINE)]
+    assert (line["trigger_input"], line["max_authority"]) == ("matched.document", "observe")
+    assert not [
+        m for m in members.values() if m.get("line_name") == osv.UNKEYED_LINE
+        and m["kind"] == "procedure_mandate"
+    ]
+    trigger = members[("trigger", osv.UNKEYED_TRIGGER)]
+    assert trigger["schedule"] == {
+        "kind": "capture_landing",
+        "capture_contract": inventory.OSV_MATCH_KIND,
+        "logical_sources": [members[("line", osv.OSV_LINE)]["parameters"]["logical_source"]],
+    }
 
 
 # -- judgments (D-R46 R4, K-B2-J1) and the track record (K-B2-TR) ---------------------

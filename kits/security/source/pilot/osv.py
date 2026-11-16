@@ -13,15 +13,18 @@ read's absence (K-B1-4, K-B2-G4). A component is asked about while some
 inventory holds it: an occurrence of it with a live ``scope``.
 
 An advisory with no CVE alias keys no vulnerability, so it writes no Claim: the
-derived document lists it under ``unkeyed``. A second Procedure and Line,
-``security.osv-unkeyed``, runs on that document's landing (a
-``capture_landing`` Trigger; the match call is substituted, never re-run, as
-``security.sarif-attention`` does) and posts one inbox item per (advisory,
-component). A Procedure has one terminal, so the claims and this inbox egress
-are two Procedures composed through the derived Capture. When OSV later lists a
-CVE alias, the next run writes the ordinary ``affected_by`` finding and the
-advisory leaves ``unkeyed``, so the item is no longer posted (it stays in the
-inbox as it was; core does not withdraw inbox items).
+derived document lists it under ``unkeyed``, with a one-record
+``unkeyed_summary``. A second Procedure and Line, ``security.osv-unkeyed``, runs
+on that document's landing (a ``capture_landing`` Trigger; the match call is
+substituted, never re-run, as ``security.sarif-attention`` does) and posts that
+summary as ONE inbox item (count, the first 20 pairs, the match document, the
+set's digest as its identity): the list already exists as evidence, so the item
+calls for attention and points at it. A Procedure has one terminal, so the
+claims and this inbox egress are two Procedures composed through the derived
+Capture. When OSV later lists a CVE alias, the next run writes the ordinary
+``affected_by`` finding and the advisory leaves ``unkeyed``: the set changes, so
+the next item is a new one (the old one stays as it was; core does not withdraw
+inbox items).
 
 An agent's package-level not_affected judgment is "affected_by none of V",
 normative, on V's own unit (K-B2-J1): OSV's next observation of V cannot
@@ -60,29 +63,10 @@ UNKEYED_PROCEDURE = UNKEYED
 UNKEYED_LINE = UNKEYED
 UNKEYED_ITEM = UNKEYED
 UNKEYED_ROW = "security.osv-unkeyed-record"
+UNKEYED_SUMMARY_ROW = "security.osv-unkeyed-summary"
 UNKEYED_TRIGGER = "security.osv-matches-landed"
-#: The most items one unkeyed run posts (core's ceiling for a declared max_items):
-#: the match document numbers its unkeyed pairs in pages of this size (the
-#: provider's UNKEYED_PAGE_SIZE), and one Line posts each page.
-UNKEYED_MAX_ITEMS = 1000
-#: The unkeyed pages, one Line and Trigger each (the provider's UNKEYED_PAGES):
-#: 20,000 pairs, the most components the OSV query takes. The last page holds
-#: every pair past the ones before it, so its run reports any it cannot post.
-UNKEYED_PAGES = 20
-
-
-def unkeyed_line(page: int) -> str:
-    """The Line that posts unkeyed page ``page``: page 1 is ``security.osv-unkeyed``."""
-
-    return UNKEYED_LINE if page == 1 else f"{UNKEYED_LINE}.{page}"
-
-
-def unkeyed_trigger(page: int) -> str:
-    """The landing Trigger of page ``page``'s Line."""
-
-    return UNKEYED_TRIGGER if page == 1 else f"{UNKEYED_TRIGGER}.{page}"
-
-
+#: How many pairs the summary samples (the provider's UNKEYED_SAMPLE).
+UNKEYED_SAMPLE = 20
 #: Where a reader looks an advisory up by its id.
 OSV_ADVISORY_PAGE = "https://osv.dev/vulnerability/"
 
@@ -152,31 +136,50 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "name": UNKEYED_ROW,
             "version": 1,
             "description": "One OSV advisory with no CVE alias that lists a component: the "
-            "component's purl, the advisory id, and the page (1-20, a thousand pairs each in "
-            "component then advisory order; page 20 holds the rest) whose Line posts it.",
+            "component's purl and the advisory id.",
+            "fields": {"purl": "string{max_len: 256}", "osv_id": "string{max_len: 128}"},
+        },
+        {
+            "kind": "contract",
+            "name": UNKEYED_SUMMARY_ROW,
+            "version": 1,
+            "description": "The OSV advisories with no CVE alias in one match document, "
+            "summarised: how many (advisory, component) pairs, the first "
+            f"{UNKEYED_SAMPLE} in component then advisory order, and the digest of the "
+            "whole set.",
             "fields": {
-                "purl": "string{max_len: 256}",
-                "osv_id": "string{max_len: 128}",
-                "page": f"int{{1..{UNKEYED_PAGES}}}",
+                "count": "int{1..1000000}",
+                "sample": f"list<{UNKEYED_ROW}@1>{{max_items: {UNKEYED_SAMPLE}}}",
+                "set_digest": "string{max_len: 80}",
             },
         },
         {
             "kind": "contract",
             "name": UNKEYED_ITEM,
             "version": 1,
-            "description": "An OSV advisory that lists a component but names no CVE yet, so it "
-            "is no vulnerability Subject and no finding: read it and decide. When OSV lists a "
-            "CVE for it, the next OSV run records the ordinary affected_by finding and this "
-            "item is no longer posted.",
+            "description": "OSV lists advisories with no CVE id yet for some components: no "
+            "vulnerability Subject, Claim or worklist row records them. Read the full list in "
+            "the match document (`matches`), read each advisory and decide. The same set on a "
+            "later run is this item seen again; a changed set is a new item.",
             "fields": {
-                "osv_id": {
-                    "type": "string{max_len: 128}",
-                    "description": "The OSV advisory id (GHSA-..., PYSEC-..., ...): read it at "
-                    f"{OSV_ADVISORY_PAGE}<osv_id>.",
+                "count": {
+                    "type": "int{1..1000000}",
+                    "description": "How many (advisory, component) pairs the match document "
+                    "lists.",
                 },
-                "purl": {
-                    "type": f"key<{COMPONENT}>",
-                    "description": "The component's key: its purl@version.",
+                "sample": {
+                    "type": f"list<{UNKEYED_ROW}@1>{{max_items: {UNKEYED_SAMPLE}}}",
+                    "description": f"The first {UNKEYED_SAMPLE} pairs, by component then "
+                    f"advisory: osv_id (read it at {OSV_ADVISORY_PAGE}<osv_id>) and purl.",
+                },
+                "matches": {
+                    "type": f"capture<{OSV_MATCH_KIND}>",
+                    "description": "The OSV match document holding every pair, in its unkeyed "
+                    "list: read it with `cruxible get Capture:<digest>`.",
+                },
+                "set_digest": {
+                    "type": "string{max_len: 80}",
+                    "description": "The SHA-256 of the whole set of pairs: the item's identity.",
                 },
             },
         },
@@ -185,7 +188,6 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "query_definition": subject_shaped(COMPONENTS_SPEC, claim_types),
         },
         *params_contract_members(OSV_PROCEDURE, *OSV_PARAMS),
-        *params_contract_members(UNKEYED_PROCEDURE, *UNKEYED_PARAMS),
     ]
 
 
@@ -202,21 +204,6 @@ OSV_PARAMS = (
             "Source label OSV's responses and the derived match document are recorded "
             "under, lowercase (the template uses osv.dev.query). Evidence requirements and "
             "landing Triggers can name it.",
-        ),
-    },
-)
-
-
-#: What each unkeyed Line supplies: the page of the match document it posts.
-UNKEYED_PARAMS = (
-    "What a Line on security.osv-unkeyed needs: the page of the OSV match document's "
-    "advisories with no CVE alias it posts. One run posts at most 1,000 inbox items, so "
-    "the pairs are numbered in pages of 1,000 and each page has its own Line.",
-    {
-        "page": (
-            f"int{{1..{UNKEYED_PAGES}}}",
-            "The page this Line posts (1 for the first thousand pairs in component then "
-            f"advisory order, 2 for the next, ...; page {UNKEYED_PAGES} holds the rest).",
         ),
     },
 )
@@ -301,26 +288,27 @@ def osv_spec() -> dict[str, Any]:
 
 
 def unkeyed_spec() -> dict[str, Any]:
-    """``security.osv-unkeyed``: each advisory with no CVE alias to the Line inbox.
+    """``security.osv-unkeyed``: one inbox item when OSV lists advisories with no CVE alias.
 
     It runs on the landing of the OSV Line's derived match document: the Trigger
     substitutes that Capture for the match call, so nothing is fetched or
     re-derived (the call's input is never evaluated; it is typed against the
-    capability's request only). One item per (advisory, component): seen again
-    while OSV still lists the advisory with no CVE, no longer posted once it
-    names one. Each Line posts one page of the document's pairs (``page``), since
-    one run posts at most 1,000 inbox items.
+    capability's request only). An inbox item is a call for attention, not
+    storage: the full list is evidence in the match document, so the run posts
+    one summary item (count, a sample, the document, the set's digest), keyed by
+    the set's digest: the same set again is the item seen again, a changed set a
+    new item. No unkeyed pairs, no item.
     """
 
     return refs(
         {
             "procedure": UNKEYED_PROCEDURE,
-            "description": "Post each OSV advisory with no CVE alias on one page of a derived "
-            "OSV match document to the Line's inbox, one item per advisory and component: no "
-            "Claim records it until OSV lists a CVE for it.",
+            "description": "When a derived OSV match document lists advisories with no CVE "
+            "alias, post one summary item to the Line's inbox: how many (advisory, component) "
+            "pairs, a sample, and the document holding them all. No Claim records them until "
+            "OSV lists a CVE.",
             "input": {},
             "output": {},
-            "parameter_contract": params_contract(UNKEYED_PROCEDURE),
             # Inbox egress is the terminal; the run's own value is empty.
             "returns": {"fields": {}},
             "slots": {"match": {"capability": capability(OSV_MATCH)}},
@@ -328,7 +316,7 @@ def unkeyed_spec() -> dict[str, Any]:
                 "wall_clock": "PT5M",
                 "provider_calls": 1,
                 "capture_bytes": 4 * 1024 * 1024,
-                "items": UNKEYED_MAX_ITEMS,
+                "items": 1,
                 "read_rows": 1,
                 "repeat_attempts": 1,
             },
@@ -342,30 +330,20 @@ def unkeyed_spec() -> dict[str, Any]:
                 {
                     "extract": "unkeyed",
                     "capture": "$steps.matched.document",
-                    "records": "unkeyed",
-                },
-                {
-                    "transform": "paged",
-                    "kind": "filter",
-                    "spec": {
-                        "input": "$steps.unkeyed.records",
-                        "where": {
-                            "op": "eq",
-                            "left": "$item.fields.page",
-                            "right": "$params.page",
-                        },
-                    },
+                    "records": "unkeyed_summary",
                 },
                 {
                     "id": "post",
                     "inbox": f"{UNKEYED_ITEM}@1",
-                    "for_each": "$steps.paged.records",
+                    "for_each": "$steps.unkeyed.records",
                     "fields": {
-                        "osv_id": "$item.fields.osv_id",
-                        "purl": "$item.fields.purl",
+                        "count": "$item.fields.count",
+                        "sample": "$item.fields.sample",
+                        "matches": "$steps.matched.document",
+                        "set_digest": "$item.fields.set_digest",
                     },
-                    "dedupe_key": ["osv_id", "purl"],
-                    "max_items": UNKEYED_MAX_ITEMS,
+                    "dedupe_key": ["set_digest"],
+                    "max_items": 1,
                 },
             ],
         }
@@ -455,35 +433,30 @@ def automation(
 
 
 def unkeyed_automation() -> list[dict[str, Any]]:
-    """One unkeyed Line per page (inbox egress only: ``observe``, no Mandate) and
-    the Trigger that runs it on each landing of the derived match document under
-    the OSV Line's logical source. Only an enabled Line runs: page 1 covers the
-    first thousand pairs, and each further page is enabled when the one before it
-    fills."""
+    """The unkeyed Line (inbox egress only: ``observe``, no Mandate) and the Trigger
+    that runs it on each landing of the derived match document under the OSV
+    Line's logical source."""
 
-    members: list[dict[str, Any]] = []
-    for page in range(1, UNKEYED_PAGES + 1):
-        members += [
-            {
-                "kind": "line",
-                "name": unkeyed_line(page),
-                "procedure_name": UNKEYED_PROCEDURE,
-                "bindings": {"match": f"{DEPENDENCY_PROVIDER}#osv.match"},
-                "parameters": {"page": page},
-                "trigger_input": "matched.document",
-                "acquisition": {"matched.document": {}},
-                "max_authority": "observe",
+    return [
+        {
+            "kind": "line",
+            "name": UNKEYED_LINE,
+            "procedure_name": UNKEYED_PROCEDURE,
+            "bindings": {"match": f"{DEPENDENCY_PROVIDER}#osv.match"},
+            "parameters": {},
+            "trigger_input": "matched.document",
+            "acquisition": {"matched.document": {}},
+            "max_authority": "observe",
+        },
+        {
+            "kind": "trigger",
+            "name": UNKEYED_TRIGGER,
+            "line_name": UNKEYED_LINE,
+            "schedule": {
+                "kind": "capture_landing",
+                "capture_contract": OSV_MATCH_KIND,
+                "logical_sources": [OSV_SOURCE],
             },
-            {
-                "kind": "trigger",
-                "name": unkeyed_trigger(page),
-                "line_name": unkeyed_line(page),
-                "schedule": {
-                    "kind": "capture_landing",
-                    "capture_contract": OSV_MATCH_KIND,
-                    "logical_sources": [OSV_SOURCE],
-                },
-            },
-        ]
-    return members
+        },
+    ]
 
