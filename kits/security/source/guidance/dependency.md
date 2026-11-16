@@ -15,8 +15,12 @@ can actually be reached here, and to show why.
 - **The occurrence** (`security.occurrence`: inventory, component) is how one inventory holds
   it. Most reasons a vulnerability doesn't apply are about this use, not the package.
 
-Read the advisory and the fix versions in the `osv.match` document OSV's `affected_by` Claim
-cites (each record's `fixed`), then the code that uses the package.
+OSV's `affected_by` Claim cites the `osv.match` document (`cruxible get <claim> --detail
+evidence` names it as `CAP-...`). That document holds only the advisory id, the CVE ids and
+the fixed versions (each `affected` record's `fixed`); its bytes are base64 in `capture
+read`'s JSON: `cruxible capture read CAP-... | jq -r .material.body_access.body_base64 |
+base64 -d`. Read the advisory itself at `https://osv.dev/vulnerability/<osv_id>`, then the
+code that uses the package.
 
 ## Where the work arrives
 
@@ -40,7 +44,8 @@ not through the inbox.
 
 OSV advisories with no CVE id yet arrive as one item in the `security.osv-unkeyed` inbox
 instead: `count`, a `sample` of the first 20 (`osv_id`, `purl`), and `matches`, the OSV match
-document whose `unkeyed` list holds them all (`cruxible get Capture:<matches>`). There is no
+document whose `unkeyed` list holds them all (`cruxible capture read <matches>`, decoded as
+above). There is no
 vulnerability Subject and no pair to judge, because everything here is keyed by CVE id. Read
 each advisory (`https://osv.dev/vulnerability/<osv_id>`) and decide: remediate, or `ack` the
 item. The same set on a later run is the item seen again; a changed set is a new item. When
@@ -59,8 +64,9 @@ evidence. Name:
 
 Cite the code you read as the judgment's evidence:
 `"evidence": {"kind": "file", "file": "PATH#ANCHOR"}` on the justification or verdict change, where
-ANCHOR is the exact passage you relied on, found once in the file. Catalogue the file first
-(`cruxible files add NAME PATH`). When that passage changes, `next` lists the judgment as
+PATH is the file's registered name or its workspace path (the write catalogues a cited file)
+and ANCHOR is the exact line you relied on, found once in the file. As below, the quote is a
+pointer for reviewers. When that line changes, `next` lists the judgment as
 `citation_drifted`. Cite the narrowest passage that decides the judgment: a whole file
 reopens it on every edit, and no citation never reopens it.
 

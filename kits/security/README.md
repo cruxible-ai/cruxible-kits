@@ -81,7 +81,11 @@ refuses with the repair `cruxible kit add base`. Nothing else needs to be
 accepted beforehand: installation installs the three providers (each carries
 its own copies of the shapes it serves) and proposes the kit's definitions.
 `cruxible kit add security:1.3.0` is **available only after the registry
-release**; use the local directory now.
+release**; use the local directory now. The same holds for a refusal whose
+repair is `cruxible kit add security` (`requires_missing`, from something that
+requires this kit): that command fetches the registry release, which does not
+exist yet, so run `cruxible kit add /path/to/cruxible-kits/kits/security`
+instead.
 
 `cruxible kit add PATH --json` without `--commit` previews the plan and writes
 nothing.
@@ -131,7 +135,10 @@ submitting. It is a template, never installed or submitted by `kit add`:
   input a Line needs, which `cruxible runbook preview security.start` lists per
   step (`cruxible get Contract:security.sbom-import.params` shows the same
   text). A generator for your project's ecosystem writes the SBOM; Cruxible
-  does not. For example, for a Python project with a `requirements.txt`:
+  does not, and the SBOM covers only what its generator read: anything it did
+  not read is never asked about and never shows as clean. For example, for a
+  Python project with a `requirements.txt` (`cyclonedx-py requirements` reads
+  only the root `requirements.txt`, not other requirement files or a lock):
 
   ```sh
   uvx --from cyclonedx-bom cyclonedx-py requirements requirements.txt --of JSON -o sbom.cdx.json
@@ -192,7 +199,7 @@ Claim and no worklist row. When an OSV result lists any, the
 many there are: `count` (the advisory and component pairs), `sample` (the first
 20 pairs: `osv_id`, read it at `https://osv.dev/vulnerability/<osv_id>`, and
 `purl`), `matches` (the OSV match document holding every pair under `unkeyed`:
-`cruxible get Capture:<matches>`) and `set_digest` (the SHA-256 of the whole
+`cruxible capture read <matches>`, below) and `set_digest` (the SHA-256 of the whole
 set, the item's identity). Read the list and the advisories and decide (upgrade,
 or `ack` the item). A rerun that finds the same set sees the same item again; a
 set that changes (an advisory gains a CVE, a new one appears) is a new item, and
@@ -204,6 +211,13 @@ lands its result, so it posts only while it is enabled (the `line enable`
 above). It changes no accepted state. If the Line was not enabled when OSV ran,
 enable it and rerun OSV (`cruxible line run security.osv-query`, or the next
 daily run): that result posts the item.
+
+The match document's bytes are base64 in `capture read`'s JSON: `cruxible
+capture read <matches> | jq -r .material.body_access.body_base64 | base64 -d |
+jq .unkeyed` prints every pair (`cruxible get Capture:<matches>` shows the
+Capture's metadata). The document holds advisory ids, their CVE ids and fixed
+versions only; read each advisory itself at
+`https://osv.dev/vulnerability/<osv_id>`.
 
 An inbox item is a call for attention, not storage. When the list an author
 wants seen already exists as state (a Query) or as evidence (a Capture, such as
@@ -248,10 +262,16 @@ real: OSV uses `api.osv.dev`, KEV uses `www.cisa.gov`, and EPSS uses
 After the initial run, one Trigger keeps the facts current:
 `security.maintain-daily` runs the `security.maintain` Runbook (OSV, then KEV,
 then EPSS, then the two attention Lines) once a day, and each OSV result runs
-`security.osv-unkeyed` through its own Trigger. Each step runs under its Line's own enablement, so
-enable each of those Lines with `cruxible line enable NAME`; a step whose Line
-is not enabled stops the run there, and the Runbook never adds authority of its
-own. Editing a Line disables it again. The SBOM import is not on the clock: the
+`security.osv-unkeyed` through its own Trigger. Each step runs under its Line's
+own enablement, and the Runbook never adds authority of its own: a step whose
+Line is not enabled stops the run there. Enable all seven Lines with `cruxible
+line enable NAME`: `security.sbom-import.app`, `security.osv-query`,
+`security.kev-triage`, `security.epss-triage`,
+`security.exposure-attention.unjudged`, `security.exposure-attention.contested`
+and `security.osv-unkeyed`. `cruxible next` lists any of them you have not
+enabled as `line_not_enabled`; that row is expected for a Line you chose to
+leave off (for example the SBOM import, if you only ever run it by hand with
+`line run`). Editing a Line disables it again. The SBOM import is not on the clock: the
 SBOM changes when the repository does, so rerun `cruxible runbook run
 security.start` (or `cruxible line run security.sbom-import.app`) with fresh
 SBOM bytes. Renew Mandates before expiry and review Procedure upgrades.
@@ -264,6 +284,11 @@ The kit ships one daily Trigger, `security.maintain-daily`, at 14:00 UTC
 UTC. To change it, edit the Trigger's `expression` before submitting the
 template, or later revise the Trigger with an ordinary authoring change set
 (the same member with a new expression) and have it reviewed like any other.
+The Trigger fires only while the daemon runs, and an instant missed while it
+was down is not run later. `cruxible next` then shows a
+`trigger_instants_missed` row for `security.maintain-daily` whose repair is
+`cruxible runbook run security.maintain`: run it to catch up.
+
 A run in which nothing upstream changed still fetches OSV, KEV and EPSS and
 records what it read, so it takes time and stored bytes; see the release notes
 for the per-run figure before running it more often than daily.
