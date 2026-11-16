@@ -14,9 +14,9 @@ Queries, provider and guidance, never their Lines.
 |---|---|
 | `definitions.py` | Every authoring payload, in install order: CaptureKinds (their layouts staged after the vocabulary), vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates), and state (catalog, vulnerabilities, seeds); the KEV and EPSS layouts |
 | `capabilities.py` | The kit's four capabilities and their request and result Contracts, and the offline rendering the kit providers' registrations copy (`../providers/build_registrations.py`) |
-| `template.py` | The automation template (`../../automation.json`): the Lines and Mandates, the `security.start` and `security.maintain` Runbooks, and the one daily Trigger `security.maintain-daily` aimed at `security.maintain` |
+| `template.py` | The automation template (`../../automation.json`): the Lines and Mandates, the `security.start` and `security.maintain` Runbooks, the one daily Trigger `security.maintain-daily` aimed at `security.maintain`, and the unkeyed Line's landing Trigger `security.osv-matches-landed` |
 | `inventory.py` | The SBOM import, the inventory and component kinds, the pair kinds (occurrence, exposure, app_exposure) and their ClaimTypes, and `affected_by` (with its inverse) |
-| `osv.py` | The OSV Procedure and Line, and the OSV response kind |
+| `osv.py` | The OSV Procedure and Line, the unkeyed Procedure, Line and Trigger (advisories with no CVE alias to the inbox), and the OSV response kind |
 | `triage.py` | The triage, confirmed and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `affected_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
 | `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines; security audits: the coverage unit, `found_in` and the audit Queries |
 | `facts.py` | Codebase facts: `security.code_fact` (keyed by repo and topic; `category`, `holds`), `rests_on` on findings, app exposures and coverage units, and their Queries |
@@ -35,6 +35,7 @@ flowchart LR
   sbom["SBOM file (workspace)"] -->|security.sbom-import.NAME| occ["security.occurrence (inventory, component)<br/>scope"]
   occ --> osvq["security.osv-query<br/>(osv.query + osv.match)"]
   osvq --> aff["component.affected_by"]
+  osvq -->|"landing Trigger"| unk["security.osv-unkeyed<br/>(advisories with no CVE: inbox)"]
   occ --> watch["security.watched_vulnerabilities<br/>(Query join)"]
   aff --> watch
   watch --> kev["security.kev-triage"]
@@ -72,7 +73,7 @@ only a derive reads (`security.osv-response`, `security.cyclonedx-sbom`,
 |---|---|---|
 | `security.kev-catalog` | `catalog_version` | `vulnerabilities` (counted) |
 | `security.epss-scores` | none | `scores` |
-| `security.osv-matches` | `queried` | `affected` (counted), `not_checked` |
+| `security.osv-matches` | `queried` | `affected` (counted), `not_checked`, `unkeyed` |
 | `security.sbom-components` | `inventory` | `components` (counted) |
 | `security.sarif-findings` | `covered` | `findings` (counted), `attention` |
 
@@ -89,7 +90,8 @@ Lines, then OSV, then KEV and EPSS. The automation template's `security.start`
 Runbook runs them once in that order; its one Trigger, `security.maintain-daily`
 (cron `0 14 * * *`), runs `security.maintain` (OSV, KEV, EPSS; the SBOM import
 runs when the SBOM changes) under each Line's own enablement
-(`test_start_gate.py`).
+(`test_start_gate.py`). `security.osv-unkeyed` is no Runbook step: it binds its
+triggering Capture, so its own Trigger runs it on each OSV result.
 
 What each Line must supply, and what a file it reads must contain, is written
 on the Procedure's params Contract (`<procedure>.params@2`: a description of
@@ -166,7 +168,7 @@ state.
   it held.
 - **Nested components** are flattened by the derive.
 
-## OSV: one Procedure (K-B1-3, K-B1-4)
+## OSV: two Procedures (K-B1-3, K-B1-4)
 
 `security.osv-query`: read every inventoried component (a component some
 occurrence holds a scope for) → fetch `osv.query` (a list of Captures: one
@@ -193,6 +195,18 @@ claims.
 - **The Line** settles `affected_by` on the extracted record and its retirement
   on absence, may create `security.vulnerability` Subjects, and routes
   `held_disagrees` to its inbox.
+- **Advisories with no CVE alias** (a GHSA or PYSEC id OSV has no CVE for yet)
+  key no vulnerability, so no Claim records them: `osv.match` lists each as an
+  `unkeyed` record (purl, advisory id). `security.osv-unkeyed` (`osv.unkeyed_spec`)
+  posts them to its Line inbox as `security.osv-unkeyed@1` items (`osv_id`,
+  `purl`; one per advisory and component, at most 1000 per run). It runs on the
+  landing of the match document (the `capture_landing` Trigger
+  `security.osv-matches-landed` on `osv.dev.query`; the match call is substituted,
+  never re-run, as for `security.sarif-attention`): a Procedure has one terminal,
+  so the claims and this inbox egress are two Procedures composed through the
+  derived Capture. Its Line observes only and has no Mandate. When OSV lists a
+  CVE for the advisory, the next OSV run writes the ordinary `affected_by` and
+  the item is no longer posted; it stays in the inbox as it was.
 
 ## Distro coverage and "not checked" (K-B1-6)
 

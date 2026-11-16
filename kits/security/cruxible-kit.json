@@ -710,12 +710,12 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:735e7a47aa8c0c713210941e67edcd2bc759e9612d4cedc87cc64f5978300d7f"
+      "sha256": "sha256:06ae6a91a508ce0240ec2ca5cbae65ec543979f4c3872117366f50967414fb65"
     },
     {
       "path": "automation.json",
       "role": "reference",
-      "sha256": "sha256:1032451447f92174aa0b6af40f9681b38755d7c790deac4dd0be95e66b1ba93a"
+      "sha256": "sha256:5aacfd6dc6d92b7cc2c310e9c18d88963e10dbe02d1f23e474485fc3354cc497"
     },
     {
       "path": "examples/README.md",

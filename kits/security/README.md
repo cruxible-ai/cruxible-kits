@@ -36,6 +36,7 @@ stays unknown; it never means unaffected or clean.
 | `security.finding_verdicts`, `security.coverage_plan`, `security.findings_by_unit` | Audit worklists: findings with their verdicts, units to take up next, findings per unit |
 | `security.code_fact` | One thing true of a repository's code that security judgments rest on (`repo`, `topic`), with its `category` and whether it `holds`, citing the code that decides it |
 | `rests_on` (findings, app exposures, coverage units), `security.code_facts`, `security.*_resting_on`, `security.*_on_weakened_facts`, `security.weakened_causes_of_*` | Which judgments rest on which facts; a repository's facts; what to look at again when a fact changes or stops holding (core does not bring those judgments back by itself) |
+| `security.osv-unkeyed` | The Procedure that posts each OSV advisory with no CVE id yet to an inbox, since no Claim can record it |
 | `security.sarif-import`, `security.sarif-attention` | Procedures that turn a SARIF file into findings, and post regressions and location gaps to an inbox |
 | `security.osv.query`, `security.osv.match`, `security.sbom.components`, `security.sarif.findings` | The capabilities the Procedures' provider slots name: what each call sends and gets back. A derived document's fields are declared on its CaptureKind (`security.osv-matches`, `security.sbom-components`, `security.sarif-findings`), so any provider that returns that layout can serve the slot |
 | `security.guidance.dependency` | Governed guidance for dependency judgments |
@@ -117,6 +118,8 @@ cruxible proposal review PROPOSAL_ID
 # Under independent_approval_required, a different principal runs this.
 cruxible proposal approve PROPOSAL_ID --yes
 cruxible runbook preview security.start
+# Posts OSV advisories with no CVE id (below) when the OSV step lands its result:
+cruxible line enable security.osv-unkeyed
 # Review the preview separately before running:
 cruxible runbook run security.start
 cruxible query --name security.urgent_exposures
@@ -145,6 +148,23 @@ urgent first): `cruxible next` shows them as `line_inbox_unread`.
 Item fields are typed references (`security.exposure-attention@2`):
 `inventory`, `component` and `cve_id` are keys of their Subject kinds, and
 `occurrence` is the occurrence's Subject id.
+
+OSV advisories with no CVE id yet (a GHSA or PYSEC advisory with no CVE alias)
+arrive in a separate inbox, `security.osv-unkeyed`. Every finding is keyed by
+its CVE id, so such an advisory has no vulnerability Subject, no Claim and no
+worklist row; instead the `security.osv-unkeyed` Line posts one
+`security.osv-unkeyed@1` item per advisory and component: `osv_id` (read it at
+`https://osv.dev/vulnerability/<osv_id>`) and `purl` (the component's key). Read
+the advisory and decide (upgrade, or `ack` the item). The Line is not a Runbook
+step: its own Trigger, `security.osv-matches-landed`, runs it whenever the OSV
+step lands its result, so it posts only while it is enabled (the `line enable`
+above). It changes no accepted state. A rerun that finds the same advisory still
+without a CVE sees the same item again. When OSV later lists a CVE for the
+advisory, the next OSV run records it as an ordinary `affected_by` finding (on
+the worklist like any other) and the item is no longer posted; it stays in the
+inbox as it was (core does not withdraw inbox items). If the Line was not
+enabled when OSV ran, enable it and rerun OSV (`cruxible line run
+security.osv-query`, or the next daily run): that result posts them.
 
 `security.urgent_exposures` and `security.kev_triage_backlog` stay the whole
 worklist, whatever the threshold. The preview lists `reads_unwritten` for the
@@ -181,7 +201,8 @@ real: OSV uses `api.osv.dev`, KEV uses `www.cisa.gov`, and EPSS uses
 
 After the initial run, one Trigger keeps the facts current:
 `security.maintain-daily` runs the `security.maintain` Runbook (OSV, then KEV,
-then EPSS, then the two attention Lines) once a day. Each step runs under its Line's own enablement, so
+then EPSS, then the two attention Lines) once a day, and each OSV result runs
+`security.osv-unkeyed` through its own Trigger. Each step runs under its Line's own enablement, so
 enable each of those Lines with `cruxible line enable NAME`; a step whose Line
 is not enabled stops the run there, and the Runbook never adds authority of its
 own. Editing a Line disables it again. The SBOM import is not on the clock: the
@@ -236,7 +257,7 @@ observations without another approval after you approve the template:
 | `security.osv-query` | `security.osv-query-settle` | Create vulnerability Subjects; create/revise component `affected_by` on extracted records; retire on complete answered absence |
 | `security.kev-triage` | `security.kev-triage-settle` | Create/revise `listed_in` on extracted/absent records; create/revise KEV dates on extracted records and retire dates on absence; create/revise ransomware use on extracted records |
 | `security.epss-triage` | `security.epss-triage-settle` | Create/revise EPSS score, percentile and date from extracted records |
-| `security.exposure-attention.unjudged`, `.contested` (and any per-inventory Line you add) | none (`max_authority: observe`) | Nothing: they only post inbox items, and change no accepted state |
+| `security.exposure-attention.unjudged`, `.contested` (and any per-inventory Line you add), `security.osv-unkeyed` | none (`max_authority: observe`) | Nothing: they only post inbox items, and change no accepted state |
 
 No Mandate settles `security.exposure.justification`,
 `security.app_exposure.justification` or `security.app_exposure.verdict`. Read
