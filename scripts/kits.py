@@ -179,7 +179,10 @@ def check() -> int:
             failures += 1
             print(f"FAIL {directory.name}: {error}", file=sys.stderr)
             continue
-        print(f"ok   {directory.name} {bundle.manifest.version} {first}")
+        print(
+            f"ok   {directory.name} {bundle.manifest.version} "
+            f"content {bundle.manifest.content_digest} image {first}"
+        )
     return 1 if failures else 0
 
 
