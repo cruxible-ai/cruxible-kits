@@ -36,8 +36,8 @@ belongs in a document section the Claim cites.
 ## Install and first answers
 
 ```sh
-cruxible kit add car-parts:1.2.0                  # preview
-cruxible kit add car-parts:1.2.0 --commit --at OID
+cruxible kit add car-parts:2.0.0                  # preview
+cruxible kit add car-parts:2.0.0 --commit --at OID
 cruxible set catalog.vehicle/honda-civic-2019 make Honda --because "Acme catalog 2026."
 cruxible set catalog.part/bp-1142 title "Front brake pads" --because "Acme catalog 2026."
 cruxible add catalog.part/bp-1142 fits catalog.vehicle/honda-civic-2019 --because "Acme catalog 2026."
@@ -48,7 +48,7 @@ The kit carries definitions only: no values, Lines or automation.
 
 ## Upgrading
 
-1.2.0 carries 1.1.0's definitions in the formats Cruxible 0.5 reads
+2.0.0 carries 1.1.0's definitions in the formats Cruxible 0.5 reads
 (ClaimType `cruxible-claim-type-v11`, SubjectKind `cruxible-subject-kind-v2`,
 QueryDefinition `cruxible-query-definition-v3`); 1.1.0 and earlier do not
 install on 0.5. The fields, kinds, cardinality and evidence rules are the same,

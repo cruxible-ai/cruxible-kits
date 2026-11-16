@@ -20,7 +20,7 @@ from cruxible_client.contracts.claim_type_inputs import (
 )
 
 KIT_ID = "car-parts"
-VERSION = "1.2.0"
+VERSION = "2.0.0"
 OWNS = ("catalog.",)
 
 PART = "catalog.part"

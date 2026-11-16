@@ -105,7 +105,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:00aadb9ee394df64536cf5659b6e54c5057e6c105618760d44d8fb18a81c26f8"
+      "sha256": "sha256:71eaac4861a1df8357dec1ebc73542b825a1d391f2463997896d8b88f7b4c460"
     }
   ],
   "kit_id": "car-parts",
@@ -115,14 +115,14 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5b1e93a005c680b1709f9c58c6fba03ef8ff87f9ec4b38b1b7fab6fb04891be8",
-      "generation_root": "sha256:ac55ffcfaf60eb271262410780c616387f02d41b8c90dbbac697c084d4cadef9",
-      "git_oid": "cda7a40c1d03cf60409bcbee1d7890d2693a9ced",
-      "semantic_root": "sha256:17f54d68c76db9473de68ee1813be86a4f2b75357365c730b1bce74ad8ee9a8e",
+      "generation_root": "sha256:c921a5523e9171ddf0eed3461375ef09f6f8dc7cc3f3cd99f7472d8b2241f598",
+      "git_oid": "34f5e2a690f7e819ed528d203d6c7ab2e2be44aa",
+      "semantic_root": "sha256:6090afec799ac5dc89adbfd2966b6c1a29bde8c1765b378df4a133d2d08a322c",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_99bf591d02ff4c56",
+    "instance_id": "inst_de98fea953864570",
     "principal_id": "owner"
   },
   "tag": "playbill-kit-manifest-v1",
-  "version": "1.2.0"
+  "version": "2.0.0"
 }
