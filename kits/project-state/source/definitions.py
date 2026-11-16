@@ -3,9 +3,14 @@
 Rebuild the kit from here with
 ``python scripts/build_kit.py kits/project-state SCRATCH`` (see that script).
 Each ClaimType is a ``ClaimTypeInputRecord`` lowered with the client's
-``lower_claim_type_input``. 1.0.0 declared no SubjectKinds, defaults or
-descriptions; this keeps it so, stating ``evidence_requirement: self`` (the rules
-decide, as 1.0.0's types had no requirement of their own).
+``lower_claim_type_input``. 1.0.0's fields keep its lack of defaults and
+descriptions, stating ``evidence_requirement: self`` (the rules decide, as 1.0.0's
+types had no requirement of their own).
+
+1.0.0 declared no SubjectKinds; Cruxible 0.5 creates a Subject only of a declared
+kind. 2.0.0 declares each kind, keyed by a new ``slug`` key ClaimType: every kind
+is named by a short slug in the project's own files (batch, card and decision
+ids, roadmap item names), so none is minted.
 
 Where the current core cannot say what 1.0.0 said:
 
@@ -18,7 +23,8 @@ Where the current core cannot say what 1.0.0 said:
   ClaimType holds at most 256 characters. ``dev.decision.ruling``,
   ``dev.law.text`` and ``dev.program.prose`` become strings of at most 256
   characters that keep their file rule, so the full prose is the passage a Claim
-  cites; every other free-text string 1.0.0 left unbounded is bounded at 256.
+  cites, as a short summary citing a Document section; every other free-text
+  string 1.0.0 left unbounded is bounded at 256.
 """
 
 from __future__ import annotations
@@ -31,7 +37,7 @@ from cruxible_client.contracts.claim_type_inputs import (
 )
 
 KIT_ID = "project-state"
-VERSION = "1.1.0"
+VERSION = "2.0.0"
 OWNS = ("dev.", "project.")
 
 SELF = "playbill.coordinator-self-source-v1"
@@ -125,9 +131,38 @@ def _attributed(
     return _type(predicate, value, roles, [_self("attributed-author-account", roles)], **more)
 
 
+#: Each kind and what one is; each is keyed by its ``slug``.
+KINDS = (
+    ("dev.batch", "A batch of work dispatched, reviewed and landed, named by its slug."),
+    ("dev.card", "A review card, named by its slug."),
+    ("dev.decision", "A decision, named by its slug."),
+    ("dev.law", "A standing project law, named by its slug."),
+    ("dev.product_feedback", "A product feedback finding, named by its slug."),
+    ("dev.recommendation", "A recommendation, named by its slug."),
+    ("dev.roadmap_item", "A roadmap item, named by its slug."),
+    ("dev.track", "A track of work batches belong to, named by its slug."),
+)
+
+
+def _slug(kind: str) -> dict[str, Any]:
+    """A kind's key: the slug that names it; a key needs no evidence rules."""
+
+    return {
+        "predicate": f"{kind}.slug",
+        "cardinality": "one",
+        "value": _text(),
+        "default_role": "normative",
+        "permitted_roles": NORMATIVE,
+        "evidence_requirement": "self",
+        "evidence_admission_policy": {"rules": []},
+        "description": "The slug; its key.",
+    }
+
+
 def claim_type_records() -> list[dict[str, Any]]:
     both = ["normative", "observation"]
     return [
+        *(_slug(kind) for kind, _ in KINDS),
         _reported("dev.batch.belongs_to_track", _subjects("dev.track")),
         _reported("dev.batch.blocked_by", _subjects("dev.batch"), cardinality="many"),
         _reported("dev.batch.landed_at", {"kind": "string", "pattern": SHA, "max_len": 40}),
@@ -230,11 +265,21 @@ def change_set() -> dict[str, Any]:
     ]
     return {
         "kind": "change_set",
-        "rationale": f"project-state {VERSION}: the 1.0.0 definitions in the current formats.",
+        "rationale": f"project-state {VERSION}: the 1.0.0 definitions in the current formats, "
+        "with a SubjectKind per kind keyed by its slug.",
         "members": [
             *(
                 {"kind": "claim_type", "claim_type": t.model_dump(mode="json", by_alias=True)}
                 for t in claim_types
+            ),
+            *(
+                {
+                    "kind": "subject_kind",
+                    "name": kind,
+                    "description": description,
+                    "keys": [f"{kind}.slug"],
+                }
+                for kind, description in KINDS
             ),
             {"kind": "query_definition", "query_definition": ROADMAP_MEMBERSHIP},
         ],

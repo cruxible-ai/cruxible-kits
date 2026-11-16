@@ -13,7 +13,7 @@ kits/<id>/
 ## Using a kit
 
 ```sh
-cruxible kit add project-state:1.1.0   # proposes the diff for this instance
+cruxible kit add project-state:2.0.0   # proposes the diff for this instance
 cruxible kit status
 ```
 

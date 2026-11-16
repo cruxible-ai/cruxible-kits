@@ -17,6 +17,10 @@
       "path": "claim-types/dev.batch/landed_at.json"
     },
     {
+      "artifact_digest": "sha256:b35355779d39a97854dabc904d7d03af5ab73c1983538031651b001c34be8ee4",
+      "path": "claim-types/dev.batch/slug.json"
+    },
+    {
       "artifact_digest": "sha256:9d57862a458fdddc15c51886cb803cd8001ad53788734bdca1b4be42d8fcc788",
       "path": "claim-types/dev.batch/state.json"
     },
@@ -41,6 +45,10 @@
       "path": "claim-types/dev.card/lane.json"
     },
     {
+      "artifact_digest": "sha256:92cecf2300114131cc62a552642faff754a5818b09faf781f577acec347f3177",
+      "path": "claim-types/dev.card/slug.json"
+    },
+    {
       "artifact_digest": "sha256:23708de65cffd21e8191cf527664115de8a9f4ae60cfff1ba226b0dced77df0c",
       "path": "claim-types/dev.decision/decided_in.json"
     },
@@ -49,12 +57,20 @@
       "path": "claim-types/dev.decision/ruling.json"
     },
     {
+      "artifact_digest": "sha256:37ec4ab8e9b08a8837291ca84cffad512a4c21d0dd0b63cf43d2b0dcd96fb0a9",
+      "path": "claim-types/dev.decision/slug.json"
+    },
+    {
       "artifact_digest": "sha256:349e1544e6b0d7ef8e6816156b5eb16c50ae7d47017a21199509f2f513d49905",
       "path": "claim-types/dev.decision/standing.json"
     },
     {
       "artifact_digest": "sha256:e0cbc0b8847e69c2fee0d93fb6577d214f64f3b55001bace701730fd446c3d87",
       "path": "claim-types/dev.law/origin.json"
+    },
+    {
+      "artifact_digest": "sha256:717b215de9918d47ba3ceade3d25d40fdc19e116edf1e1a2f0788e9e3f546877",
+      "path": "claim-types/dev.law/slug.json"
     },
     {
       "artifact_digest": "sha256:e33716516634f639406c3b6436c19c24441b9682838dcf5518bc7eef12c9341b",
@@ -69,6 +85,10 @@
       "path": "claim-types/dev.product_feedback/follow_up.json"
     },
     {
+      "artifact_digest": "sha256:86c9df1eafed9cccf5017eda8f7e8eba152939344d0eef7602cdc1bce3f787fd",
+      "path": "claim-types/dev.product_feedback/slug.json"
+    },
+    {
       "artifact_digest": "sha256:c6a47d21f0eb7729d31496628cb5b45080520f8e225ba7f538828e7aa716ec98",
       "path": "claim-types/dev.program/prose.json"
     },
@@ -79,6 +99,10 @@
     {
       "artifact_digest": "sha256:98f03c5a45efdb31e27df25e89608d5b4cef45a31d20ac6d3e3f82b369fb1f44",
       "path": "claim-types/dev.recommendation/rule.json"
+    },
+    {
+      "artifact_digest": "sha256:037c0dddaecd059e18783f1e923bec57e0d401503fa399173c32f88d2aaf9c8c",
+      "path": "claim-types/dev.recommendation/slug.json"
     },
     {
       "artifact_digest": "sha256:b719bc7612d7d9febfde12b14c218ae0962ea18396c985dbede197a8140ca97a",
@@ -121,6 +145,10 @@
       "path": "claim-types/dev.roadmap_item/refines.json"
     },
     {
+      "artifact_digest": "sha256:ed23d63daa0cbda6b1db5f08f6c5db67b3b15d28d33e90969e5b3816bfe16ec4",
+      "path": "claim-types/dev.roadmap_item/slug.json"
+    },
+    {
       "artifact_digest": "sha256:e314db0edcd3bfab5378ebf5d8ce9b02d80536889277615e9944123010f38a06",
       "path": "claim-types/dev.roadmap_item/strategic_bucket.json"
     },
@@ -129,19 +157,55 @@
       "path": "claim-types/dev.roadmap_item/task_title.json"
     },
     {
+      "artifact_digest": "sha256:639e64d64db8df4ad02a1bce959d05a51df9bf42e79fceab2aabb612747c43a9",
+      "path": "claim-types/dev.track/slug.json"
+    },
+    {
       "artifact_digest": "sha256:c3af2b388f72f0071979575df4df3307ba9c80ee95fab75e9773d8e11a870853",
       "path": "claim-types/dev.track/status.json"
     },
     {
       "artifact_digest": "sha256:cd8dadd9b5d032d9f8e9b801280264cdd0cf15c8471029107a6c0ddd91d35660",
       "path": "query-definitions/project.roadmap-membership.json"
+    },
+    {
+      "artifact_digest": "sha256:2130e6a4716b98b72e222c5281efebd3c365177e0ee2491a5d96760d916914b9",
+      "path": "subject-kinds/dev.batch.json"
+    },
+    {
+      "artifact_digest": "sha256:8b858f3ef4cc1782ff7674d168efb1459728f34d1e95b49cfb79e8e9988629ed",
+      "path": "subject-kinds/dev.card.json"
+    },
+    {
+      "artifact_digest": "sha256:be13de492c33ca92b077823278e234f9b86e83a820c5882f1ed108f891a5f6f6",
+      "path": "subject-kinds/dev.decision.json"
+    },
+    {
+      "artifact_digest": "sha256:acf677d2f7710a2dd97da4fea4ffc1158a8103ee0cd1e1705168567a1de0e829",
+      "path": "subject-kinds/dev.law.json"
+    },
+    {
+      "artifact_digest": "sha256:a86f5f830bfed24d307971e4632399a297b5cf0af88d46bf8b82cf8dd42bb0ae",
+      "path": "subject-kinds/dev.product_feedback.json"
+    },
+    {
+      "artifact_digest": "sha256:b1097db887f7b8371558ebc437fb16759c16b541607f36d432c0d367c034d4cb",
+      "path": "subject-kinds/dev.recommendation.json"
+    },
+    {
+      "artifact_digest": "sha256:f836257e18a28b26a8c2ce35857f383b50f5ed78d53de42a35d1be34a0dfd90b",
+      "path": "subject-kinds/dev.roadmap_item.json"
+    },
+    {
+      "artifact_digest": "sha256:b6d195955dd5cb20c5a248d7562b485d4843fe8e2660ae5968d85c1a6a6aec8e",
+      "path": "subject-kinds/dev.track.json"
     }
   ],
   "files": [
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:ca338d1d8154731b32c562ff2f899364377bf960b71c30ff9335feb7e53ca376"
+      "sha256": "sha256:555d5bf91b0cd883175e86675bafcb0fe10ec15297758277abcc5db9be3e18b4"
     }
   ],
   "kit_id": "project-state",
@@ -152,14 +216,14 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5b1e93a005c680b1709f9c58c6fba03ef8ff87f9ec4b38b1b7fab6fb04891be8",
-      "generation_root": "sha256:85c0781560b68c200ebad959e6cb55835b52d01fb77fc6dc71d95e3eba8eca37",
-      "git_oid": "3b8993ac8f48622e907965b3175f6c6c306266b5",
-      "semantic_root": "sha256:79d9428f7551a1a97300a505376a988969726919bb5b7147f82a5c9770ecf027",
+      "generation_root": "sha256:018784cefba196466d8b1dcb6fadd48d0148afad9e28ce48118fdf40992ca87d",
+      "git_oid": "0ce1a34c66e569ae9e94f415f5879ebbf18c7d93",
+      "semantic_root": "sha256:91fa9064514c1fb32d7fc8d312410fcf812e2edcad3cc728720cffe9e395441c",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_936fb134e28d473a",
+    "instance_id": "inst_35be581a65af4322",
     "principal_id": "owner"
   },
   "tag": "playbill-kit-manifest-v1",
-  "version": "1.1.0"
+  "version": "2.0.0"
 }

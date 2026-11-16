@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A review card, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "dev.card"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "dev.card.slug",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}
