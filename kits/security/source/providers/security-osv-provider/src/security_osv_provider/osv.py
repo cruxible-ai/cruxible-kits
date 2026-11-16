@@ -4,7 +4,8 @@
 component purl@version it is given: ``POST /v1/querybatch`` (at most
 ``BATCH`` components a request), then ``GET /v1/vulns/{id}`` for every advisory
 a batch names (OSV's batch answer carries ids only; the record carries the CVE
-aliases). It returns every response VERBATIM, one member of the output's
+aliases), ``FETCH_CONCURRENCY`` at a time, the answers kept in sorted advisory
+order. It returns every response VERBATIM, one member of the output's
 Capture list each; how a response was obtained (method, URL, status, content
 type, the request's digest and the purls a batch asked about) is the member's
 coordinate, never inside the bytes (D-R25/D-R26). Version matching is OSV's
@@ -50,7 +51,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import threading
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import Any
 
@@ -69,6 +72,9 @@ MATCH = "osv.match"
 BATCH = 1000
 #: The most advisory records one run reads (each is one Capture).
 MAX_RECORDS = 1000
+#: How many advisory GETs are in flight at once. The answers are returned in
+#: sorted advisory order whatever order they arrive in.
+FETCH_CONCURRENCY = 8
 #: The most fixed versions one (component, CVE) pair carries, and their length.
 MAX_FIXED = 32
 MAX_VERSION_LEN = 64
@@ -175,16 +181,23 @@ class OsvQuery:
         missing = 0
         timeout = max(5.0, context.budgets.wall_clock_seconds * 0.4)
 
-        def record(request: httpx.Request) -> None:
-            context.egress.record(str(request.url))
+        # Advisory GETs run on worker threads; the recorder is a plain list.
+        egress_lock = threading.Lock()
 
-        with httpx.Client(
-            base_url=OSV_API,
-            timeout=timeout,
-            headers={"user-agent": USER_AGENT},
-            transport=self._transport_factory(),
-            event_hooks={"request": [record]},
-        ) as client:
+        def record(request: httpx.Request) -> None:
+            with egress_lock:
+                context.egress.record(str(request.url))
+
+        def new_client() -> httpx.Client:
+            return httpx.Client(
+                base_url=OSV_API,
+                timeout=timeout,
+                headers={"user-agent": USER_AGENT},
+                transport=self._transport_factory(),
+                event_hooks={"request": [record]},
+            )
+
+        with new_client() as client:
             found: set[str] = set()
             for start in range(0, len(asked), BATCH):
                 chunk = asked[start : start + BATCH]
@@ -223,13 +236,14 @@ class OsvQuery:
                     PROVIDER_DECLINED,
                     f"OSV names {len(found)} advisories; one run reads at most {MAX_RECORDS}",
                 )
-            for advisory in sorted(found):
-                try:
-                    response = client.get(f"/v1/vulns/{advisory}")
-                except httpx.HTTPError:
+            for advisory, fetched in zip(
+                ordered := sorted(found), self._fetch_advisories(ordered, new_client), strict=True
+            ):
+                if fetched is None:
                     # The derive reads the components naming it as advisory_unreadable.
                     missing += 1
                     continue
+                response, observed_at = fetched
                 responses.append(
                     _member(
                         response.content,
@@ -239,7 +253,7 @@ class OsvQuery:
                         status=response.status_code,
                         content_type=response.headers.get("content-type", ""),
                         request_body=None,
-                        observed_at=self._clock(),
+                        observed_at=observed_at,
                         advisory=advisory,
                     )
                 )
@@ -252,6 +266,38 @@ class OsvQuery:
                 "missing": float(missing),
             },
         )
+
+    def _fetch_advisories(
+        self, advisories: Sequence[str], new_client: Callable[[], httpx.Client]
+    ) -> list[tuple[httpx.Response, datetime] | None]:
+        """GET each advisory, ``FETCH_CONCURRENCY`` at a time, answers in input order.
+
+        Each worker thread uses its own client. An advisory with no response at
+        all is ``None``; a response with an error status is still a member.
+        """
+
+        local = threading.local()
+        clients: list[httpx.Client] = []
+        clients_lock = threading.Lock()
+
+        def fetch(advisory: str) -> tuple[httpx.Response, datetime] | None:
+            client = getattr(local, "client", None)
+            if client is None:
+                client = local.client = new_client()
+                with clients_lock:
+                    clients.append(client)
+            try:
+                response = client.get(f"/v1/vulns/{advisory}")
+            except httpx.HTTPError:
+                return None
+            return response, self._clock()
+
+        try:
+            with ThreadPoolExecutor(max_workers=FETCH_CONCURRENCY) as pool:
+                return list(pool.map(fetch, advisories))
+        finally:
+            for client in clients:
+                client.close()
 
 
 def _json(content: bytes) -> Any:

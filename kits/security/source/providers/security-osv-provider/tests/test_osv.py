@@ -140,6 +140,73 @@ def test_each_response_is_one_member_verbatim() -> None:
     assert len(responses) == 1 + 9
 
 
+class SlowRecorded(Recorded):
+    """Recorded, with advisory GETs answered in reverse order of arrival.
+
+    Each advisory GET waits until ``FETCH_CONCURRENCY`` of them are in flight
+    (or a short timeout), so the test sees the concurrency, and the later ones
+    answer first.
+    """
+
+    def __init__(self, overrides: Mapping[str, tuple[int, bytes]] | None = None) -> None:
+        super().__init__(overrides)
+        import threading
+
+        self.lock = threading.Lock()
+        self.in_flight = 0
+        self.peak = 0
+        self.gate = threading.Barrier(osv.FETCH_CONCURRENCY)
+
+    def transport(self) -> httpx.MockTransport:
+        import threading
+        import time
+
+        inner = super().transport()
+
+        def handle(request: httpx.Request) -> httpx.Response:
+            if "/v1/vulns/" not in str(request.url):
+                return inner.handle_request(request)
+            with self.lock:
+                self.in_flight += 1
+                self.peak = max(self.peak, self.in_flight)
+                order = self.in_flight
+            try:
+                self.gate.wait(timeout=0.5)
+            except threading.BrokenBarrierError:
+                pass
+            # Later arrivals answer first.
+            time.sleep(0.01 * (osv.FETCH_CONCURRENCY - order % osv.FETCH_CONCURRENCY))
+            try:
+                return inner.handle_request(request)
+            finally:
+                with self.lock:
+                    self.in_flight -= 1
+
+        return httpx.MockTransport(handle)
+
+
+def test_advisories_are_fetched_concurrently_and_returned_in_sorted_order() -> None:
+    """Concurrent GETs change only the wait: the members, their order and the
+    recorded egress are what one-at-a-time fetching returns."""
+
+    purls, sequential = _synthetic(20)
+    expected = query(purls, sequential)
+    _purls, slow = _synthetic(20)
+    concurrent = SlowRecorded(slow.overrides)
+    ctx = context({"components": purls, "logical_source": "osv.dev.query"}, osv.QUERY)
+    result = osv.OsvQuery(transport_factory=concurrent.transport)(ctx)
+    assert result.status == "ok" and result.incomplete_captures == []
+    responses = list(result.output["responses"])
+    assert concurrent.peak == osv.FETCH_CONCURRENCY
+    strip = lambda members: [  # noqa: E731
+        {k: v for k, v in m.items() if k != "observed_at"} for m in members
+    ]
+    assert strip(responses) == strip(expected)
+    advisories = [r["coordinate"]["url"].rsplit("/", 1)[-1] for r in responses[1:]]
+    assert advisories == sorted(advisories) and len(advisories) == 20
+    assert ctx.egress.observed() == [osv.OSV_API]
+
+
 def test_log4j_demo_app_reaches_log4shell_and_its_siblings() -> None:
     components = sbom_purls("log4j-demo-app.cdx.json")
     _content, document = derive(query(components, Recorded()), components)
