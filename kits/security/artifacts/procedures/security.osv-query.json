@@ -134,7 +134,7 @@
       },
       "query": {
         "capability": {
-          "digest": "sha256:f42da97587e9cdb1395e1b29bfb6d71c5c41ec0fd01439353a08a3b930199619",
+          "digest": "sha256:ca605cd0876ef311f60b13964913a8b96536f182138f515aa893acdf8b700aef",
           "name": "security.osv.query",
           "version": 1
         }
@@ -142,7 +142,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:7ea9adbce73567c703cce610b1b9ec73dbca22c81ebe7b5a9f4077830b6bad0b",
+  "definition_digest": "sha256:5fc0eb17eef8049cf81cca409de73e397610d0b8b38aca964f71378fbb737d72",
   "identity": {
     "kind": "Procedure",
     "name": "security.osv-query"

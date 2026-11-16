@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-capability-v1",
-  "description": "Asks OSV.dev which advisories affect each component (purl@version) and returns every response verbatim, one Capture each. OSV does the version matching; distro packages are never asked.",
+  "description": "Asks OSV.dev which advisories affect each component (purl@version) and returns every response as canonical JSON, one Capture each. OSV does the version matching; distro packages are never asked.",
   "effect": "external_read",
   "in": {
     "digest": "sha256:dc317950f92ce175d69ca0c30ff013d11c89aac8ea5087a6470f52ae508416da",
@@ -9,7 +9,7 @@
   },
   "name": "security.osv.query",
   "out": {
-    "digest": "sha256:08bdfde8171f81409cc8b977953143d5904c604a026b5774f2a4b3fc0f8799ab",
+    "digest": "sha256:e36fce5e52b76ec23fe6d372775cd9ebe0fddb131af1ad4fea8614de95126113",
     "name": "security.osv.query.result",
     "version": 1
   },

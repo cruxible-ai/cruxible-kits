@@ -1,0 +1,22 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "An OSV advisory that lists a component but names no CVE yet, so it is no vulnerability Subject and no finding: read it and decide. When OSV lists a CVE for it, the next OSV run records the ordinary affected_by finding and this item is no longer posted.",
+  "fields": {
+    "osv_id": {
+      "description": "The OSV advisory id (GHSA-..., PYSEC-..., ...): read it at https://osv.dev/vulnerability/<osv_id>.",
+      "type": {
+        "kind": "string",
+        "max_len": 128
+      }
+    },
+    "purl": {
+      "description": "The component's key: its purl@version.",
+      "type": {
+        "kind": "key",
+        "subject_kind": "security.component"
+      }
+    }
+  },
+  "name": "security.osv-unkeyed",
+  "version": 1
+}

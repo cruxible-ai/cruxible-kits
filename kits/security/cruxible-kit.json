@@ -5,7 +5,7 @@
       "path": "capabilities/security.osv.match/v1.json"
     },
     {
-      "artifact_digest": "sha256:f42da97587e9cdb1395e1b29bfb6d71c5c41ec0fd01439353a08a3b930199619",
+      "artifact_digest": "sha256:ca605cd0876ef311f60b13964913a8b96536f182138f515aa893acdf8b700aef",
       "path": "capabilities/security.osv.query/v1.json"
     },
     {
@@ -33,7 +33,7 @@
       "path": "capture-contracts/security.kev-catalog.json"
     },
     {
-      "artifact_digest": "sha256:e02bd825426074c2c749387341d39059fbab4a835ec3b0453f926451eb4f2cec",
+      "artifact_digest": "sha256:bc557f0bdb2579f37eadbbe6f0b443078ecfc1184ae8969629a5565739e352d0",
       "path": "capture-contracts/security.osv-matches.json"
     },
     {
@@ -373,6 +373,22 @@
       "path": "contracts/security.osv-query.params/v2.json"
     },
     {
+      "artifact_digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b",
+      "path": "contracts/security.osv-unkeyed-record/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:036a2625a2d28c66d5a5f30d46a3b41936b93d6c2f9f0276001a854378911813",
+      "path": "contracts/security.osv-unkeyed.input/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:9b475a083acd63c1445f00f1b994033dc7082502aacd527fc50d7c986a85463e",
+      "path": "contracts/security.osv-unkeyed.output/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:d0d1b8644467c0fa259dd8e6f3ad0d5e63dd5a2dab139357d82e63e4671f8767",
+      "path": "contracts/security.osv-unkeyed/v1.json"
+    },
+    {
       "artifact_digest": "sha256:d14d5ac608aa69b6b2a6eb1cbec4fa558ea398b19e415759d4ce6b09a5164a97",
       "path": "contracts/security.osv.match.request/v1.json"
     },
@@ -385,7 +401,7 @@
       "path": "contracts/security.osv.query.request/v1.json"
     },
     {
-      "artifact_digest": "sha256:08bdfde8171f81409cc8b977953143d5904c604a026b5774f2a4b3fc0f8799ab",
+      "artifact_digest": "sha256:e36fce5e52b76ec23fe6d372775cd9ebe0fddb131af1ad4fea8614de95126113",
       "path": "contracts/security.osv.query.result/v1.json"
     },
     {
@@ -497,7 +513,7 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:fe812172bbef68240bc6567e93b524eb77eb3d333c0ac83bcf9432a88e91c7d9",
+      "artifact_digest": "sha256:680485b24c7f99172be4160c749297e25fec1c4e4e84134a8762fab65bd45e24",
       "path": "documents/security.guidance.dependency.json"
     },
     {
@@ -529,8 +545,12 @@
       "path": "procedures/security.kev-triage.json"
     },
     {
-      "artifact_digest": "sha256:c7171c52434a5adf037a29dcd02b9f66e51b99de0373d8bdd392aff708adcf06",
+      "artifact_digest": "sha256:71f40b8d473b7aeac74841c6939ecf86c98469a96bab57d932c719412b44a25f",
       "path": "procedures/security.osv-query.json"
+    },
+    {
+      "artifact_digest": "sha256:227a5bd1c832bc1e715b641e44804cab192161cc88a15e0ae02384a6104df2d2",
+      "path": "procedures/security.osv-unkeyed.json"
     },
     {
       "artifact_digest": "sha256:e3ded5f0ac2dd89b6ab17da404c59151e216b07706da8a4bba69d42036e02a7c",
@@ -804,13 +824,13 @@
   ],
   "provenance": {
     "coordinate": {
-      "compiler_digest": "sha256:f537406e1e88e7a0d5ebd1950156c03723dff0569fe29a1a7fa41585c8823680",
-      "generation_root": "sha256:2abe0a576664d943df066c7c90cb890b103cb03b96f8a83ccad7eac4bc42a4b4",
-      "git_oid": "56b0c1883979c182598e905b20c7498536d8cef4",
-      "semantic_root": "sha256:aa0b71cd825fba064fff4b9f4ba27696d0b918f99dd7560197d71ec8fe278284",
+      "compiler_digest": "sha256:5b1e93a005c680b1709f9c58c6fba03ef8ff87f9ec4b38b1b7fab6fb04891be8",
+      "generation_root": "sha256:144bed8092ed3062c467fb2d56c82667e5a8243bffd7861301872b3b782225bd",
+      "git_oid": "409a2eae9ace7a23b9096645f9f54dc17cb4967e",
+      "semantic_root": "sha256:5e3ce856f72f2c602d5bbeb54f46b22aa327ec53a11915252e36b976ba64c831",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_040a695324394f2a",
+    "instance_id": "inst_eb93092226d641ed",
     "principal_id": "owner"
   },
   "providers": [
@@ -861,7 +881,7 @@
       "version": "0.1.0.dev0",
       "wheel": {
         "filename": "security_osv_provider-0.1.0.dev0-py3-none-any.whl",
-        "sha256": "sha256:555b2f0d82ebc702c5fc295761672c252af7f5bcf01f60359b49695b8e4bfcd8"
+        "sha256": "sha256:0690478c4929a89f95417e6a74967de42ea4ba2a4478fefd9c3edf7870e53992"
       }
     },
     {

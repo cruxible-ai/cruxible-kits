@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-contract-v1",
-  "description": "OSV's responses, verbatim, one Capture each: every POST /v1/querybatch (at most 1000 components) and every GET /v1/vulns/{id} a batch names. A request that got no response at all is left out and the call is marked incomplete; a response with an error status is still a member.",
+  "description": "OSV's responses as canonical JSON (sorted keys, no spaces; a body that is not JSON stays verbatim), one Capture each: every POST /v1/querybatch (at most 1000 components) and every GET /v1/vulns/{id} a batch names. A request that got no response at all is left out and the call is marked incomplete; a response with an error status is still a member.",
   "fields": {
     "responses": {
       "type": {

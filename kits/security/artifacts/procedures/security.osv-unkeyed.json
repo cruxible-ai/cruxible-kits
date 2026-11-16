@@ -1,0 +1,101 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
+  "definition": {
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-unkeyed.input/v1"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-unkeyed.output/v1"
+      }
+    },
+    "description": "Post each OSV advisory with no CVE alias in one derived OSV match document to the Line's inbox, one item per advisory and component: no Claim records it until OSV lists a CVE for it.",
+    "hard_caps": {
+      "max_capture_bytes": 4194304,
+      "max_items": 20000,
+      "max_provider_calls": 1,
+      "max_read_rows": 1,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000
+      }
+    },
+    "name": "security.osv-unkeyed",
+    "nodes": [
+      {
+        "fields": {},
+        "id": "summary",
+        "kind": "project"
+      },
+      {
+        "captures": {
+          "document": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.osv-matches"
+            }
+          }
+        },
+        "id": "matched",
+        "input": {
+          "components": [],
+          "logical_source": "osv.dev.query",
+          "responses": []
+        },
+        "kind": "call",
+        "slot": "match"
+      },
+      {
+        "capture": "$steps.matched.document",
+        "id": "unkeyed",
+        "kind": "extract",
+        "records": "unkeyed",
+        "row": {
+          "digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b",
+          "name": "security.osv-unkeyed-record",
+          "version": 1
+        }
+      },
+      {
+        "contract": {
+          "digest": "sha256:d0d1b8644467c0fa259dd8e6f3ad0d5e63dd5a2dab139357d82e63e4671f8767",
+          "name": "security.osv-unkeyed",
+          "version": 1
+        },
+        "dedupe_key": [
+          "osv_id",
+          "purl"
+        ],
+        "fields": {
+          "osv_id": "$item.fields.osv_id",
+          "purl": "$item.fields.purl"
+        },
+        "for_each": "$steps.unkeyed.records",
+        "id": "post",
+        "kind": "post_inbox",
+        "max_items": 1000
+      }
+    ],
+    "returns": "summary",
+    "slots": {
+      "match": {
+        "capability": {
+          "digest": "sha256:ab2f0583ea0b382f04ed2facbe70bad173d377f3f58beab2f46e3adf3df6f619",
+          "name": "security.osv.match",
+          "version": 1
+        }
+      }
+    },
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:569b7bebeb8205ee4d4a4de203f87371f5c00adcdfe6fdbab596e4a228c92a34",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.osv-unkeyed"
+  }
+}
