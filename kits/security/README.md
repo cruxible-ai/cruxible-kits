@@ -110,7 +110,7 @@ submitting. It is a template, never installed or submitted by `kit add`:
 - Review the settlement scopes below before adopting them.
 
 ```sh
-cruxible authoring submit automation.json --no-accept --json
+cruxible authoring submit automation.json --no-accept --brief
 cruxible proposal list --status open
 cruxible proposal review PROPOSAL_ID
 # One owner (self_approval_allowed): your own approval signs and activates it.
