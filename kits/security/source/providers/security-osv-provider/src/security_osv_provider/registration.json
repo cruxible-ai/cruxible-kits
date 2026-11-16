@@ -129,6 +129,26 @@
       },
       {
         "artifact_format": "cruxible-contract-v1",
+        "name": "security.osv-unkeyed-record",
+        "version": 1,
+        "description": "One OSV advisory with no CVE alias that lists a component: the component's purl and the advisory id.",
+        "fields": {
+          "osv_id": {
+            "type": {
+              "kind": "string",
+              "max_len": 128
+            }
+          },
+          "purl": {
+            "type": {
+              "kind": "string",
+              "max_len": 256
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
         "name": "security.osv.match.request",
         "version": 1,
         "description": "This run's OSV responses (their Capture bytes, passed by core), the components the run asked about, and the logical source the derived document is stated under.",
@@ -371,6 +391,22 @@
                   "at": "reason"
                 }
               }
+            },
+            "unkeyed": {
+              "at": "/unkeyed/*",
+              "row": {
+                "name": "security.osv-unkeyed-record",
+                "version": 1,
+                "digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b"
+              },
+              "fields": {
+                "osv_id": {
+                  "at": "osv_id"
+                },
+                "purl": {
+                  "at": "purl"
+                }
+              }
             }
           }
         }
@@ -464,7 +500,7 @@
       {
         "kind": "CaptureKind",
         "name": "security.osv-matches",
-        "digest": "sha256:099827ad9f8c5c630178d5ad400009ad315b738a7838c8ac929299c50b98838b"
+        "digest": "sha256:558882b54bd6b22f89de082aaf7f2f6ab03614feb493021573a50881a1034515"
       },
       {
         "kind": "CaptureKind",

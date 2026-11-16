@@ -165,9 +165,9 @@ def accepted_names(instance: Any, directory: str) -> dict[str, Any]:
 
 
 def test_the_template_adopts_two_runbooks_and_one_daily_trigger(tmp_path: Path) -> None:
-    """Adopting the template yields exactly one Trigger, aimed at security.maintain on
-    one cron schedule, and two Runbooks: start (SBOM, OSV, KEV, EPSS) and maintain
-    (no SBOM import)."""
+    """Adopting the template yields two Runbooks, start (SBOM, OSV, KEV, EPSS) and
+    maintain (no SBOM import), the one daily Trigger, aimed at security.maintain on
+    one cron schedule, and the unkeyed Line's landing Trigger (no Runbook step)."""
 
     instance = kit_world(tmp_path, automation=False)
     seeded = accepted_names(instance, "triggers")  # core's own internal-action Triggers
@@ -180,8 +180,16 @@ def test_the_template_adopts_two_runbooks_and_one_daily_trigger(tmp_path: Path) 
         if name not in seeded
     }
     runbooks = accepted_names(instance, "runbooks")
-    assert set(triggers) == {template.MAINTAIN_TRIGGER}, sorted(triggers)
+    assert set(triggers) == {template.MAINTAIN_TRIGGER, osv.UNKEYED_TRIGGER}, sorted(
+        triggers
+    )
     assert set(runbooks) == {template.START, template.MAINTAIN}, sorted(runbooks)
+    landing = triggers.pop(osv.UNKEYED_TRIGGER)
+    assert landing["target"] == {
+        "kind": "line",
+        "line": {"target": {"kind": "Line", "name": osv.UNKEYED_LINE}},
+    }
+    assert landing["schedule"]["kind"] == "capture_landing"
     (trigger,) = triggers.values()
     assert trigger["target"] == {
         "kind": "runbook",
@@ -195,6 +203,49 @@ def test_the_template_adopts_two_runbooks_and_one_daily_trigger(tmp_path: Path) 
     assert lines(template.START) == list(template.START_LINES)
     assert lines(template.MAINTAIN) == list(template.MAINTAIN_LINES)
     assert template.START_LINES[0] not in template.MAINTAIN_LINES
+    assert osv.UNKEYED_LINE not in template.START_LINES
+
+
+def test_start_posts_each_osv_advisory_with_no_cve_through_the_landing_trigger(
+    tmp_path: Path,
+) -> None:
+    """With the unkeyed Line enabled, security.start's OSV step lands the match
+    document, the Line's own Trigger matches that landing, and its run posts the
+    advisory OSV lists with no CVE alias to the inbox: one item, no Claim."""
+
+    from datetime import UTC, datetime
+
+    from cruxible_core.consumers.lines import LINE_ARMS
+    from cruxible_core.service.procedures.line_inbox import (
+        service_get_inbox_item,
+        service_list_inbox,
+    )
+    from cruxible_core.storage.cas import BodyAccessContext
+    from test_dependency_gate import API, API_ADVISORY, API_ADVISORY_ID, advisory_without_cve
+    from test_pilot_gate import EpssOrigin
+
+    instance = adopted_world(tmp_path, DEMO_SBOM.read_bytes())
+    enable(instance, osv.UNKEYED_LINE, now=datetime.now(UTC))
+    replay = Replay(
+        {kit.KEV_URL: fixture_bytes("kev-catalog")},
+        osv=dependency_replay.RecordedOsv({API_ADVISORY: advisory_without_cve}),
+        epss=EpssOrigin(),
+    )
+    seeded = run_runbook(instance, replay, template.START)
+    assert seeded.status == "completed", seeded
+
+    at = datetime.now(UTC)
+    LINE_ARMS.match(instance, now=at, daemon_id="kit-start-gate")
+    (work,) = LINE_ARMS.due(instance, now=at)
+    LINE_ARMS.run(KitManager(instance, replay), "fixture", work, now=at)
+
+    access = BodyAccessContext(principal_id="reader", can_read_body=True)
+    listed = service_list_inbox(instance, line=osv.UNKEYED_LINE, limit=200, access=access)
+    payloads = [
+        service_get_inbox_item(instance, item=entry.item.item_id, access=access).payload
+        for entry in listed.entries
+    ]
+    assert payloads == [{"osv_id": API_ADVISORY_ID, "purl": API}]
 
 
 class KitManager:

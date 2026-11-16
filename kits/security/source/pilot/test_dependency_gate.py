@@ -409,6 +409,135 @@ def test_osv_asks_only_about_components_some_inventory_holds(tmp_path: Path) -> 
     assert sorted(r["purl"] for r in rows) == [API, CORE]
 
 
+# -- advisories with no CVE alias reach the inbox ------------------------------------------
+
+#: log4j-api's one advisory (it names API_CVE).
+API_ADVISORY_ID = "GHSA-qv9r-c865-cp47"
+API_ADVISORY = f"https://api.osv.dev/v1/vulns/{API_ADVISORY_ID}"
+
+
+def advisory_without_cve(request: Any) -> tuple[int, bytes]:
+    """log4j-api's recorded advisory before a CVE was assigned: no CVE alias."""
+
+    del request
+    index = json.loads((dependency_replay.RECORDINGS / "index.json").read_text())["exchanges"]
+    (item,) = [i for i in index if i["url"] == API_ADVISORY]
+    record = json.loads((dependency_replay.RECORDINGS / item["body"]).read_bytes())
+    record["aliases"] = []
+    return 200, json.dumps(record).encode()
+
+
+def run_unkeyed(instance: Any, upstream: Any, *, minute: int = 0) -> Any:
+    """Run the unkeyed Line as its Trigger does: on the OSV run's derived match document."""
+
+    from cruxible_core.service.procedures.procedure_runs import (
+        LineRunRequest,
+        TriggerFire,
+        service_run_playbill_line,
+    )
+    from tests.support.operation_world import actor
+    from tests.test_procedures.test_completeness_transfer import _Clock
+
+    (call,) = (node for node in upstream.nodes if node.node == "matched")
+    (event,) = [
+        o.capture_event
+        for o in upstream.outcomes
+        if o.event_kind == "produced_capture" and o.node_id == call.node
+    ]
+    state = service_run_playbill_line(
+        instance,
+        path_identity_digest=osv.UNKEYED_LINE,
+        request=LineRunRequest(line=osv.UNKEYED_LINE),
+        actor_context=actor(),
+        caller_rung=2,
+        daemon_clock=_Clock(NOW + timedelta(minutes=minute)),
+        trigger_fire=TriggerFire(trigger=osv.UNKEYED_TRIGGER, event=event),
+    )
+    assert state.status == "succeeded", state.terminal
+    return state
+
+
+def unkeyed_items(instance: Any) -> list[Any]:
+    """Every item the unkeyed Line posted."""
+
+    from cruxible_core.service.procedures.line_inbox import (
+        service_get_inbox_item,
+        service_list_inbox,
+    )
+    from cruxible_core.storage.cas import BodyAccessContext
+
+    access = BodyAccessContext(principal_id="reader", can_read_body=True)
+    listed = service_list_inbox(instance, line=osv.UNKEYED_LINE, limit=200, access=access)
+    assert not listed.truncated
+    return [
+        service_get_inbox_item(instance, item=entry.item.item_id, access=access)
+        for entry in listed.entries
+    ]
+
+
+def test_an_advisory_with_no_cve_reaches_the_inbox_until_osv_names_its_cve(
+    tmp_path: Path,
+) -> None:
+    """An advisory with no CVE alias writes nothing (no vulnerability to key) and
+    posts one inbox item; the same data again posts nothing new (the item is seen
+    again); once the advisory names its CVE, the finding is an ordinary affected_by
+    Claim and the item is no longer posted (it stays in the inbox as it was)."""
+
+    instance = world(tmp_path)
+    unkeyed = OSV({API_ADVISORY: advisory_without_cve})
+    first = run_osv(instance, unkeyed)
+    assert affected(instance) == {CORE: CORE_CVES, API: set(), SLF4J: set()}
+
+    posted = run_unkeyed(instance, first, minute=1)
+    assert (summary(posted, "extract").records, summary(posted, "extract").invalid_records) == (
+        1,
+        0,
+    )
+    assert summary(posted, "post_inbox").emitted == 1
+    (item,) = unkeyed_items(instance)
+    assert item.payload == {"osv_id": API_ADVISORY_ID, "purl": API}
+    assert (item.item.status, item.item.occurrences) == ("unread", 1)
+
+    # The same data again: the same item, seen again, nothing new.
+    again = run_osv(instance, OSV({API_ADVISORY: advisory_without_cve}), minute=2)
+    run_unkeyed(instance, again, minute=3)
+    (seen,) = unkeyed_items(instance)
+    assert (seen.item.item_id, seen.item.status, seen.item.occurrences) == (
+        item.item.item_id,
+        "unread",
+        2,
+    )
+
+    # OSV names the CVE: an ordinary finding, and nothing posted.
+    keyed = run_osv(instance, minute=4)
+    assert affected(instance)[API] == {API_CVE}
+    late = run_unkeyed(instance, keyed, minute=5)
+    assert summary(late, "post_inbox").emitted == 0
+    (kept,) = unkeyed_items(instance)
+    assert (kept.item.item_id, kept.item.occurrences) == (item.item.item_id, 2)
+
+
+def test_the_unkeyed_line_runs_on_the_osv_match_landing() -> None:
+    """The unkeyed Line binds its triggering Capture (the match call is substituted,
+    never re-run), observes only, and its Trigger names the OSV Line's source."""
+
+    members = {
+        (m["kind"], m["name"]): m for m in kit.automation([], now=NOW)["members"]
+    }
+    line = members[("line", osv.UNKEYED_LINE)]
+    assert (line["trigger_input"], line["max_authority"]) == ("matched.document", "observe")
+    assert not [
+        m for m in members.values() if m.get("line_name") == osv.UNKEYED_LINE
+        and m["kind"] == "procedure_mandate"
+    ]
+    trigger = members[("trigger", osv.UNKEYED_TRIGGER)]
+    assert trigger["schedule"] == {
+        "kind": "capture_landing",
+        "capture_contract": inventory.OSV_MATCH_KIND,
+        "logical_sources": [members[("line", osv.OSV_LINE)]["parameters"]["logical_source"]],
+    }
+
+
 # -- judgments (D-R46 R4, K-B2-J1) and the track record (K-B2-TR) ---------------------
 
 

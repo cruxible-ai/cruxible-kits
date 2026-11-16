@@ -12,6 +12,17 @@ settles ``affected_by`` on the extracted record and retires it on a complete
 read's absence (K-B1-4, K-B2-G4). A component is asked about while some
 inventory holds it: an occurrence of it with a live ``scope``.
 
+An advisory with no CVE alias keys no vulnerability, so it writes no Claim: the
+derived document lists it under ``unkeyed``. A second Procedure and Line,
+``security.osv-unkeyed``, runs on that document's landing (a
+``capture_landing`` Trigger; the match call is substituted, never re-run, as
+``security.sarif-attention`` does) and posts one inbox item per (advisory,
+component). A Procedure has one terminal, so the claims and this inbox egress
+are two Procedures composed through the derived Capture. When OSV later lists a
+CVE alias, the next run writes the ordinary ``affected_by`` finding and the
+advisory leaves ``unkeyed``, so the item is no longer posted (it stays in the
+inbox as it was; core does not withdraw inbox items).
+
 An agent's package-level not_affected judgment is "affected_by none of V",
 normative, on V's own unit (K-B2-J1): OSV's next observation of V cannot
 override it and is reported as ``held_disagrees``, which this Line routes to
@@ -42,6 +53,18 @@ OSV_ROW = "security.osv-affected"
 OSV_RESPONSE_KIND = "security.osv-response"
 OSV_ORIGIN = "https://api.osv.dev"
 AFFECTED_BY = COMPONENT + ".affected_by"
+#: The advisories with no CVE alias, to the Line inbox (one Procedure, Line and
+#: inbox item Contract of this name), on the derived match document's landing.
+UNKEYED = "security.osv-unkeyed"
+UNKEYED_PROCEDURE = UNKEYED
+UNKEYED_LINE = UNKEYED
+UNKEYED_ITEM = UNKEYED
+UNKEYED_ROW = "security.osv-unkeyed-record"
+UNKEYED_TRIGGER = "security.osv-matches-landed"
+#: The most items one unkeyed run posts (core's ceiling for a declared max_items).
+UNKEYED_MAX_ITEMS = 1000
+#: Where a reader looks an advisory up by its id.
+OSV_ADVISORY_PAGE = "https://osv.dev/vulnerability/"
 
 
 # -- CaptureKinds -----------------------------------------------------------------------
@@ -103,6 +126,34 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "description": "One (component, CVE) pair the OSV match found, with its OSV "
             "advisory id; the versions OSV lists as fixed stay in the cited document.",
             "fields": {"osv_id": "string{max_len: 128}"},
+        },
+        {
+            "kind": "contract",
+            "name": UNKEYED_ROW,
+            "version": 1,
+            "description": "One OSV advisory with no CVE alias that lists a component: the "
+            "component's purl and the advisory id.",
+            "fields": {"purl": "string{max_len: 256}", "osv_id": "string{max_len: 128}"},
+        },
+        {
+            "kind": "contract",
+            "name": UNKEYED_ITEM,
+            "version": 1,
+            "description": "An OSV advisory that lists a component but names no CVE yet, so it "
+            "is no vulnerability Subject and no finding: read it and decide. When OSV lists a "
+            "CVE for it, the next OSV run records the ordinary affected_by finding and this "
+            "item is no longer posted.",
+            "fields": {
+                "osv_id": {
+                    "type": "string{max_len: 128}",
+                    "description": "The OSV advisory id (GHSA-..., PYSEC-..., ...): read it at "
+                    f"{OSV_ADVISORY_PAGE}<osv_id>.",
+                },
+                "purl": {
+                    "type": f"key<{COMPONENT}>",
+                    "description": "The component's key: its purl@version.",
+                },
+            },
         },
         {
             "kind": "query_definition",
@@ -208,10 +259,71 @@ def osv_spec() -> dict[str, Any]:
     )
 
 
+def unkeyed_spec() -> dict[str, Any]:
+    """``security.osv-unkeyed``: each advisory with no CVE alias to the Line inbox.
+
+    It runs on the landing of the OSV Line's derived match document: the Trigger
+    substitutes that Capture for the match call, so nothing is fetched or
+    re-derived (the call's input is never evaluated; it is typed against the
+    capability's request only). One item per (advisory, component): seen again
+    while OSV still lists the advisory with no CVE, no longer posted once it
+    names one.
+    """
+
+    return refs(
+        {
+            "procedure": UNKEYED_PROCEDURE,
+            "description": "Post each OSV advisory with no CVE alias in one derived OSV match "
+            "document to the Line's inbox, one item per advisory and component: no Claim "
+            "records it until OSV lists a CVE for it.",
+            "input": {},
+            "output": {},
+            # Inbox egress is the terminal; the run's own value is empty.
+            "returns": {"fields": {}},
+            "slots": {"match": {"capability": capability(OSV_MATCH)}},
+            "hard_caps": {
+                "wall_clock": "PT5M",
+                "provider_calls": 1,
+                "capture_bytes": 4 * 1024 * 1024,
+                "items": 20_000,
+                "read_rows": 1,
+                "repeat_attempts": 1,
+            },
+            "steps": [
+                {
+                    "call": "matched",
+                    "slot": "match",
+                    "captures": {"document": OSV_MATCH_KIND},
+                    "input": {"responses": [], "components": [], "logical_source": OSV_SOURCE},
+                },
+                {
+                    "extract": "unkeyed",
+                    "capture": "$steps.matched.document",
+                    "records": "unkeyed",
+                },
+                {
+                    "id": "post",
+                    "inbox": f"{UNKEYED_ITEM}@1",
+                    "for_each": "$steps.unkeyed.records",
+                    "fields": {
+                        "osv_id": "$item.fields.osv_id",
+                        "purl": "$item.fields.purl",
+                    },
+                    "dedupe_key": ["osv_id", "purl"],
+                    "max_items": UNKEYED_MAX_ITEMS,
+                },
+            ],
+        }
+    )
+
+
 def procedure_members() -> list[dict[str, Any]]:
     from cruxible_client.contracts.authoring.inputs import ProcedureInput
 
-    members = [{"kind": "procedure", "spec": osv_spec()}]
+    members = [
+        {"kind": "procedure", "spec": osv_spec()},
+        {"kind": "procedure", "spec": unkeyed_spec()},
+    ]
     for member in members:
         ProcedureInput.model_validate(member)
     return members
@@ -236,7 +348,9 @@ def automation(
     *, now: datetime, findings: Sequence[str], settle: bool = True
 ) -> list[dict[str, Any]]:
     """The OSV Line (the consumer's) and its Mandates; the template's maintenance
-    Runbook runs it daily."""
+    Runbook runs it daily. Then the unkeyed Line and its Trigger: it runs on each
+    landing of the OSV Line's derived match document, so it is no Runbook step (a
+    Line that binds its triggering Capture runs only on an event)."""
 
     valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
     expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
@@ -281,5 +395,35 @@ def automation(
                 ],
             }
         )
+    members += unkeyed_automation()
     return members
+
+
+def unkeyed_automation() -> list[dict[str, Any]]:
+    """The unkeyed Line (inbox egress only: ``observe``, no Mandate) and the Trigger
+    that runs it on each landing of the derived match document under the OSV
+    Line's logical source."""
+
+    return [
+        {
+            "kind": "line",
+            "name": UNKEYED_LINE,
+            "procedure_name": UNKEYED_PROCEDURE,
+            "bindings": {"match": f"{DEPENDENCY_PROVIDER}#osv.match"},
+            "parameters": {},
+            "trigger_input": "matched.document",
+            "acquisition": {"matched.document": {}},
+            "max_authority": "observe",
+        },
+        {
+            "kind": "trigger",
+            "name": UNKEYED_TRIGGER,
+            "line_name": UNKEYED_LINE,
+            "schedule": {
+                "kind": "capture_landing",
+                "capture_contract": OSV_MATCH_KIND,
+                "logical_sources": [OSV_SOURCE],
+            },
+        },
+    ]
 

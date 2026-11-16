@@ -1,6 +1,6 @@
 {
  "kind": "change_set",
- "rationale": "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS Lines and their Mandates, and the two observe-only attention Lines that post exposures to the inbox (unjudged pairs KEV-listed, with an EPSS score at or above min_epss, 0.1 as shipped, or not yet scored; contested pairs); the security.start Runbook that seeds a fresh instance; and the security.maintain Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, EPSS, attention; the SBOM import runs when the SBOM changes). Tailor the Line names, the SBOM path, the cron time, the attention threshold and the Mandate dates before submitting.",
+ "rationale": "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS Lines and their Mandates, and the two observe-only attention Lines that post exposures to the inbox (unjudged pairs KEV-listed, with an EPSS score at or above min_epss, 0.1 as shipped, or not yet scored; contested pairs); the observe-only OSV unkeyed Line and its Trigger security.osv-matches-landed, which post each OSV advisory with no CVE alias to the inbox whenever the OSV Line's match document lands; the security.start Runbook that seeds a fresh instance; and the security.maintain Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, EPSS, attention; the SBOM import runs when the SBOM changes). Tailor the Line names, the SBOM path, the cron time, the attention threshold and the Mandate dates before submitting.",
  "members": [
   {
    "kind": "line",
@@ -388,6 +388,32 @@
   },
   {
    "kind": "line",
+   "name": "security.osv-unkeyed",
+   "procedure_name": "security.osv-unkeyed",
+   "bindings": {
+    "match": "security-osv-provider#osv.match"
+   },
+   "parameters": {},
+   "trigger_input": "matched.document",
+   "acquisition": {
+    "matched.document": {}
+   },
+   "max_authority": "observe"
+  },
+  {
+   "kind": "trigger",
+   "name": "security.osv-matches-landed",
+   "line_name": "security.osv-unkeyed",
+   "schedule": {
+    "kind": "capture_landing",
+    "capture_contract": "security.osv-matches",
+    "logical_sources": [
+     "osv.dev.query"
+    ]
+   }
+  },
+  {
+   "kind": "line",
    "name": "security.exposure-attention.unjudged",
    "procedure_name": "security.exposure-attention.unjudged",
    "bindings": {},
@@ -409,7 +435,7 @@
   {
    "kind": "runbook",
    "name": "security.start",
-   "description": "Seed a fresh instance: import the SBOM, ask OSV what affects it, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures.",
+   "description": "Seed a fresh instance: import the SBOM, ask OSV what affects it, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures. OSV advisories with no CVE id are posted to the inbox by security.osv-unkeyed, which its Trigger security.osv-matches-landed runs on each OSV result once the Line is enabled.",
    "steps": [
     {
      "line": "security.sbom-import.app"
@@ -434,7 +460,7 @@
   {
    "kind": "runbook",
    "name": "security.maintain",
-   "description": "Daily refresh: ask OSV what affects the inventory, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures.",
+   "description": "Daily refresh: ask OSV what affects the inventory, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures. OSV advisories with no CVE id are posted to the inbox by security.osv-unkeyed, which its Trigger security.osv-matches-landed runs on each OSV result once the Line is enabled.",
    "steps": [
     {
      "line": "security.osv-query"

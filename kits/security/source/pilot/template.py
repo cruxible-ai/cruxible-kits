@@ -2,7 +2,8 @@
 
 One change set the adopter tailors and submits as their own reviewed change: the
 dependency loop's Lines (one SBOM import, OSV, KEV and EPSS) and their Mandates,
-two Runbooks, and one daily Trigger.
+the attention Lines, two Runbooks, one daily Trigger, and the Trigger that runs
+the OSV unkeyed Line.
 
 ``security.start`` seeds a fresh instance in the order the Lines' reads and
 writes imply:
@@ -22,12 +23,18 @@ writes imply:
    and one per pair whose judgment does not count (no threshold). The whole
    worklist stays in ``security.urgent_exposures``.
 
+``security.osv-unkeyed`` is no step: it binds its triggering Capture, which a
+Runbook step cannot supply. Its own Trigger, ``security.osv-matches-landed``,
+runs it on each landing of step 2's derived match document, so it posts one
+inbox item per advisory with no CVE alias (no Claim can key one) right after
+the OSV step, under its own enablement.
+
 ``security.maintain`` is the daily refresh: steps 2-5 without the SBOM import
 (the SBOM changes when the repository changes, not on a clock). The one Trigger,
 ``security.maintain-daily``, fires it at 14:00 UTC; each step runs under its
 Line's own enablement, so a Line nobody enabled stops the run. Each Line fetches
-its own source (no landing Trigger sits between a fetch and its triage in this
-form). Nothing here is installed by ``kit add``.
+its own source; the one landing Trigger is the unkeyed Line's, which fetches
+nothing. Nothing here is installed by ``kit add``.
 
     python template.py           # rewrite ../../automation.json
     python template.py --check   # fail when it is out of date
@@ -73,6 +80,11 @@ START_LINES = (
 )
 #: The daily refresh: the seeding order without the SBOM import.
 MAINTAIN_LINES = START_LINES[1:]
+#: Both Runbooks: where OSV's advisories with no CVE id go (no step of either).
+UNKEYED_NOTE = (
+    f"OSV advisories with no CVE id are posted to the inbox by {osv.UNKEYED_LINE}, which "
+    f"its Trigger {osv.UNKEYED_TRIGGER} runs on each OSV result once the Line is enabled."
+)
 
 
 def template() -> dict[str, Any]:
@@ -87,7 +99,8 @@ def template() -> dict[str, Any]:
                 "and EPSS for what it found, then post to the inbox the pairs nobody has "
                 "judged that are KEV-listed, have an EPSS score at or above the attention "
                 "Line's min_epss or have no EPSS score yet, and the pairs whose judgment "
-                "does not count. The whole worklist stays in security.urgent_exposures."
+                "does not count. The whole worklist stays in security.urgent_exposures. "
+                + UNKEYED_NOTE
             ),
             "steps": [{"line": line} for line in START_LINES],
         },
@@ -99,7 +112,7 @@ def template() -> dict[str, Any]:
                 "what it found, then post to the inbox the pairs nobody has judged that are "
                 "KEV-listed, have an EPSS score at or above the attention Line's min_epss or "
                 "have no EPSS score yet, and the pairs whose judgment does not count. The "
-                "whole worklist stays in security.urgent_exposures."
+                "whole worklist stays in security.urgent_exposures. " + UNKEYED_NOTE
             ),
             "steps": [{"line": line} for line in MAINTAIN_LINES],
         },
@@ -118,6 +131,9 @@ def template() -> dict[str, Any]:
             "Lines and their Mandates, and the two observe-only attention Lines that post "
             "exposures to the inbox (unjudged pairs KEV-listed, with an EPSS score at or "
             "above min_epss, 0.1 as shipped, or not yet scored; contested pairs); the "
+            "observe-only OSV unkeyed Line and its Trigger security.osv-matches-landed, "
+            "which post each OSV advisory with no CVE alias to the inbox whenever the OSV "
+            "Line's match document lands; the "
             "security.start Runbook that seeds a fresh instance; and the security.maintain "
             "Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, "
             "EPSS, attention; the SBOM import runs when the SBOM changes). Tailor the Line "

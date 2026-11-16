@@ -171,7 +171,9 @@ SBOM_COMPONENTS_LAYOUT: dict[str, Any] = {
 }
 #: The derived OSV match document osv.match emits (security.osv.match@1's result):
 #: ``queried`` (the components OSV answered in full), the (component, CVE) pairs
-#: counted by ``/count``, and the components left unchecked with why.
+#: counted by ``/count``, the components left unchecked with why, and the
+#: advisories that name no CVE yet (``unkeyed``: component and advisory id, which
+#: the OSV unkeyed Line posts to its inbox).
 OSV_MATCHES_LAYOUT: dict[str, Any] = {
     "header": {
         "queried": {"at": "/queried", "type": "list<string{max_len: 256}>{max_items: 20000}"}
@@ -192,6 +194,12 @@ OSV_MATCHES_LAYOUT: dict[str, Any] = {
             "key": {"purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"}},
             "row": "security.osv-not-checked@1",
             "fields": {"reason": {"at": "reason"}},
+        },
+        # No key: one component may have several advisories with no CVE alias.
+        "unkeyed": {
+            "at": "/unkeyed/*",
+            "row": "security.osv-unkeyed-record@1",
+            "fields": {"purl": {"at": "purl"}, "osv_id": {"at": "osv_id"}},
         },
     },
 }
