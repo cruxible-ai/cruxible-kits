@@ -106,8 +106,8 @@ submitting. It is a template, never installed or submitted by `kit add`:
   [examples/sboms/log4j-demo-app.cdx.json](examples/sboms/log4j-demo-app.cdx.json)
   to `sbom.cdx.json` instead.
 - Set the one daily cron time in UTC (the `security.maintain-daily` Trigger,
-  14:00 UTC as shipped) and each Mandate's `valid_from` and `expires_at` to
-  your observation window.
+  14:00 UTC as shipped; see [Schedule](#schedule)) and each Mandate's
+  `valid_from` and `expires_at` to your observation window.
 - Review the settlement scopes below before adopting them.
 
 ```sh
@@ -216,6 +216,18 @@ own. Editing a Line disables it again. The SBOM import is not on the clock: the
 SBOM changes when the repository does, so rerun `cruxible runbook run
 security.start` (or `cruxible line run security.sbom-import.app`) with fresh
 SBOM bytes. Renew Mandates before expiry and review Procedure upgrades.
+
+### Schedule
+
+The kit ships one daily Trigger, `security.maintain-daily`, at 14:00 UTC
+(`"schedule": {"kind": "cron", "expression": "0 14 * * *"}` in
+`automation.json`). The expression is standard five-field cron, always read in
+UTC. To change it, edit the Trigger's `expression` before submitting the
+template, or later revise the Trigger with an ordinary authoring change set
+(the same member with a new expression) and have it reviewed like any other.
+A run in which nothing upstream changed still fetches OSV, KEV and EPSS and
+records what it read, so it takes time and stored bytes; see the release notes
+for the per-run figure before running it more often than daily.
 
 ## The audit loop
 
