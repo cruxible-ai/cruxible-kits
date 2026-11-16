@@ -57,7 +57,13 @@ for a plain refutation.
 - **Refuted:** `verdict` and `justification` cite your reasoning section.
 
 Cite the narrowest passage that decides the judgment: a whole file reopens it on every
-edit, and no citation never reopens it.
+edit, and no citation never reopens it. A quoted code line (`path#<quoted line>`) is a
+pointer for reviewers, not a witness that the verdict still holds: it reopens the verdict
+only when those bytes change, and a refutation that depends on code elsewhere (`not_reachable`
+because nothing calls the function) can go false while the quoted line stays the same. When a
+check decides the verdict, cite the check's result where one exists (a scanner's findings
+imported through `security.sarif-import`, or your local check's output file); your
+reasoning section keeps its section citation.
 
 | Outcome | Write | The section says |
 |---|---|---|

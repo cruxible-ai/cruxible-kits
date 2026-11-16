@@ -278,6 +278,16 @@ it (`cruxible get Document:security.guidance.hunter`, and so on):
 3. `security.coverage_plan` lists units never checked, deferred or blocked;
    `cruxible next` lists findings and units whose cited code changed.
 
+A quoted code line (`--evidence-file PATH#TEXT`) is a pointer for reviewers,
+not a witness that resurfaces a judgment: `next` reopens the judgment only when
+those exact bytes change, and a judgment that depends on code elsewhere (a
+dependency `not_affected` because a function is never called, a finding
+refuted as `not_reachable`) can go false while the quoted line stays the same.
+Such a code-dependent judgment cites a check result where one exists: a
+scanner's findings imported through `security.sarif-import` (below), or the
+output file of a bounded local check. Prose (an advisory, a notes section with
+the reasoning) keeps quote and section citations.
+
 The loop needs three agents: the hunter, the verifier and the approver. In
 the default setup the approver is the `reviewer` principal (see
 [Review](#review-a-second-agent-approves)): the verifier's write is its own

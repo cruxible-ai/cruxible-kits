@@ -60,8 +60,18 @@ Cite the code you read as the judgment's evidence:
 `"evidence": {"kind": "file", "file": "PATH#ANCHOR"}` on the justification or verdict change, where
 ANCHOR is the exact passage you relied on, found once in the file. Catalogue the file first
 (`cruxible files add NAME PATH`). When that passage changes, `next` lists the judgment as
-`citation_drifted`, so it gets judged again. Cite the narrowest passage that decides the
-judgment: a whole file reopens it on every edit, and no citation never reopens it. A change
+`citation_drifted`. Cite the narrowest passage that decides the judgment: a whole file
+reopens it on every edit, and no citation never reopens it.
+
+A quoted code line (`--evidence-file PATH#TEXT`) is a pointer for reviewers: it shows where
+to look. It is not a witness that the judgment still holds. Only a change to those exact
+bytes reopens it, and a judgment that depends on code elsewhere can go false while the
+quoted line stays the same: `vulnerable_code_not_in_execute_path` because a function is
+never called stops holding when a new caller appears in another file. When a check decides
+the judgment, cite the check's result where one exists: a scanner's findings imported
+through `security.sarif-import`, or the output file of a bounded local check (file evidence
+on its result line), so running the check again moves the evidence. Prose (the advisory, a
+notes section with your reasoning) keeps quote and section citations. A change
 cites one piece of evidence. `because` is one line of at most 280 characters; reasoning that
 needs more goes in a section of a notes file beside the code. Cite that section or your own
 words instead of the code only when no code passage carries the judgment; both are admitted,

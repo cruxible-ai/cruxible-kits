@@ -73,7 +73,10 @@ boundary it crosses.
    - `reported_by` = `audit`, citing the code.
 
    Cite the narrowest passage that decides the judgment: a whole file reopens it on every
-   edit, and no citation never reopens it.
+   edit, and no citation never reopens it. A quoted code line is a pointer for reviewers,
+   not a witness: it reopens the finding only when those bytes change. Where a check
+   decides what you claim (a scanner's findings imported through `security.sarif-import`,
+   a local check's output file), cite its result.
 5. **Link it:** `found_in` → the coverage unit you were working; `rests_on` → each
    codebase fact the finding rests on (below).
 6. **Leave `verdict`, `severity` and `justification` alone.**
