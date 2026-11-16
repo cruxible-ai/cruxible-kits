@@ -137,7 +137,7 @@
       },
       "read": {
         "capability": {
-          "digest": "sha256:b751c693fd6e2203ec5d445faac08d08058c5547f2c7d3a9fc073618daf2f0c2",
+          "digest": "sha256:bf3721f916492c908d0db48103a457caad6b2f58c6ad0babc92470a0fdccea5e",
           "name": "workspace.file",
           "version": 1
         }
@@ -145,7 +145,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:b2006fb5d118a2e87aa23a55c411b93b1c8b4f1fafa41c553aaa2806678d3290",
+  "definition_digest": "sha256:377ad3dbda740c9e69406247bac136a7d7df96761e954d309a80cd15b86de895",
   "identity": {
     "kind": "Procedure",
     "name": "security.sbom-import"

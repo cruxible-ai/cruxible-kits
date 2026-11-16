@@ -537,11 +537,11 @@
       "path": "procedures/security.sarif-attention.json"
     },
     {
-      "artifact_digest": "sha256:b1c16f5cf36a792196bb76a237cfdcff63f85805e267d60341b15ceb17e5eaf2",
+      "artifact_digest": "sha256:fa3f7b40b87be47f082bd0cf05d6b33e1449bb23cc9d424f90c9f1afa8fa510c",
       "path": "procedures/security.sarif-import.json"
     },
     {
-      "artifact_digest": "sha256:0a0d6d264da902dd84339e91518aa32449ee72b75524cf4062ccb4c247c78716",
+      "artifact_digest": "sha256:8e2acbdec20c009b456e2c638ede21201ebb9429203f6485f6e1a6bb0698ef07",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -805,12 +805,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:f537406e1e88e7a0d5ebd1950156c03723dff0569fe29a1a7fa41585c8823680",
-      "generation_root": "sha256:b36f0683626b3d969daefe7051f62bc27b294ba58d73ae763ad5c4bd1e98b146",
-      "git_oid": "088c41007fd7f3f01fd8c8c0c3eb841fc8b03c9f",
-      "semantic_root": "sha256:808f9e72c6c0a8da37aecc03a92655e19cd2cc39d21f954b8c0c9ad5edb276f1",
+      "generation_root": "sha256:2abe0a576664d943df066c7c90cb890b103cb03b96f8a83ccad7eac4bc42a4b4",
+      "git_oid": "56b0c1883979c182598e905b20c7498536d8cef4",
+      "semantic_root": "sha256:aa0b71cd825fba064fff4b9f4ba27696d0b918f99dd7560197d71ec8fe278284",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_876d8c5c9d44455d",
+    "instance_id": "inst_040a695324394f2a",
     "principal_id": "owner"
   },
   "providers": [

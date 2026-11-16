@@ -181,7 +181,7 @@
       },
       "read": {
         "capability": {
-          "digest": "sha256:b751c693fd6e2203ec5d445faac08d08058c5547f2c7d3a9fc073618daf2f0c2",
+          "digest": "sha256:bf3721f916492c908d0db48103a457caad6b2f58c6ad0babc92470a0fdccea5e",
           "name": "workspace.file",
           "version": 1
         }
@@ -189,7 +189,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:726f3074a5c813122e636b9e7dc742a41089d295e5b5aba1015ffe70b113b898",
+  "definition_digest": "sha256:5cfd342dced7e04e269d0098ca357d40d23bb9a1d9e9c7b594ef1ab239bec40e",
   "identity": {
     "kind": "Procedure",
     "name": "security.sarif-import"
