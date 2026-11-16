@@ -14,9 +14,9 @@ Queries, provider and guidance, never their Lines.
 |---|---|
 | `definitions.py` | Every authoring payload, in install order: CaptureKinds (their layouts staged after the vocabulary), vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates), and state (catalog, vulnerabilities, seeds); the KEV and EPSS layouts |
 | `capabilities.py` | The kit's four capabilities and their request and result Contracts, and the offline rendering the kit providers' registrations copy (`../providers/build_registrations.py`) |
-| `template.py` | The automation template (`../../automation.json`): the Lines and Mandates, the `security.start` and `security.maintain` Runbooks, the one daily Trigger `security.maintain-daily` aimed at `security.maintain`, and the unkeyed Line's landing Trigger `security.osv-matches-landed` |
+| `template.py` | The automation template (`../../automation.json`): the Lines and Mandates, the `security.start` and `security.maintain` Runbooks, the one daily Trigger `security.maintain-daily` aimed at `security.maintain`, and the unkeyed Lines' landing Triggers (`security.osv-matches-landed` and its pages `.2` to `.20`) |
 | `inventory.py` | The SBOM import, the inventory and component kinds, the pair kinds (occurrence, exposure, app_exposure) and their ClaimTypes, and `affected_by` (with its inverse) |
-| `osv.py` | The OSV Procedure and Line, the unkeyed Procedure, Line and Trigger (advisories with no CVE alias to the inbox), and the OSV response kind |
+| `osv.py` | The OSV Procedure and Line, the unkeyed Procedure and its Lines and Triggers, one per page (advisories with no CVE alias to the inbox), and the OSV response kind |
 | `triage.py` | The triage, confirmed and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `affected_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
 | `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines; security audits: the coverage unit, `found_in` and the audit Queries |
 | `facts.py` | Codebase facts: `security.code_fact` (keyed by repo and topic; `category`, `holds`), `rests_on` on findings, app exposures and coverage units, and their Queries |
@@ -197,11 +197,19 @@ claims.
   `held_disagrees` to its inbox.
 - **Advisories with no CVE alias** (a GHSA or PYSEC id OSV has no CVE for yet)
   key no vulnerability, so no Claim records them: `osv.match` lists each as an
-  `unkeyed` record (purl, advisory id). `security.osv-unkeyed` (`osv.unkeyed_spec`)
-  posts them to its Line inbox as `security.osv-unkeyed@1` items (`osv_id`,
-  `purl`; one per advisory and component, at most 1000 per run). It runs on the
+  `unkeyed` record (purl, advisory id, page). One run posts at most 1,000 inbox
+  items (core's ceiling), so the records are numbered in pages of 1,000 in
+  component then advisory order, and `security.osv-unkeyed` (`osv.unkeyed_spec`,
+  parameter `page`) has one Line per page: `security.osv-unkeyed` for page 1,
+  `security.osv-unkeyed.2` to `.20` for the rest (page 20 holds every pair past
+  19,000, so its run reports any it cannot post). Each posts its page to its Line
+  inbox as `security.osv-unkeyed@1` items (`osv_id`, `purl`; one per advisory
+  and component). A pair moves to the page before when an earlier pair leaves,
+  and a pair on a page boundary is then posted by the neighbouring Line as a new
+  item. Each runs on the
   landing of the match document (the `capture_landing` Trigger
-  `security.osv-matches-landed` on `osv.dev.query`; the match call is substituted,
+  `security.osv-matches-landed` on `osv.dev.query`, `.2` to `.20` for the other
+  pages; the match call is substituted,
   never re-run, as for `security.sarif-attention`): a Procedure has one terminal,
   so the claims and this inbox egress are two Procedures composed through the
   derived Capture. Its Line observes only and has no Mandate. When OSV lists a

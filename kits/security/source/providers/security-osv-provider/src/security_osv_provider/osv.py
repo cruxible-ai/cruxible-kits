@@ -20,13 +20,18 @@ document::
      "not_checked":  [{"purl", "reason"}],
      "affected":     [{"purl", "cve_id", "osv_id", "fixed"?: [version, ...]}],
      "count":        len(affected),
-     "unkeyed":      [{"purl", "osv_id"}]}   # advisories with no CVE alias
+     "unkeyed":      [{"purl", "osv_id", "page"}]}   # advisories with no CVE alias
 
 ``fixed`` is every version OSV's advisories for that CVE list as a ``fixed``
 range event of the component's own package (matched by the advisory's
 ``package.purl``, version and qualifiers dropped), sorted as text: one per
 release line OSV knows. The kit compares no versions (K-B1-3), so it does not
 pick the one above the component's version; agents read the list.
+
+``unkeyed`` is sorted by component, then advisory, and numbered in pages of
+``UNKEYED_PAGE_SIZE`` (``page`` 1, 2, ...): one inbox run posts at most 1,000
+items, so the kit posts each page from its own Line. The last page,
+``UNKEYED_PAGES``, holds every pair past the ones before it.
 
 Distro coverage (K-B1-6): OSV's distro ecosystems (Debian, Ubuntu, Alpine, the
 RPM distributions) are keyed by SOURCE package name, while an SBOM lists binary
@@ -78,6 +83,10 @@ MAX_RECORDS = 1000
 FETCH_CONCURRENCY = 8
 #: The most fixed versions one (component, CVE) pair carries, and their length.
 MAX_FIXED = 32
+#: The unkeyed pairs one page holds (core's ceiling on what one run posts to an
+#: inbox), and the last page: it holds the rest.
+UNKEYED_PAGE_SIZE = 1000
+UNKEYED_PAGES = 20
 MAX_VERSION_LEN = 64
 #: The out Contract's list<capture> field (named in incomplete_captures).
 RESPONSES = "responses"
@@ -447,7 +456,7 @@ def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> 
     fixed: dict[tuple[str, str], set[str]] = {}
     # One fixed-event index per advisory, shared by every component and alias.
     indexes: dict[str, dict[str, tuple[str, ...]]] = {}
-    unkeyed: list[dict[str, str]] = []
+    unkeyed: list[dict[str, Any]] = []
     for purl in asked:
         if purl in unanswered:
             continue
@@ -481,7 +490,10 @@ def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> 
         ],
         "affected": affected,
         "count": len(affected),
-        "unkeyed": unkeyed,
+        "unkeyed": [
+            {**pair, "page": min(index // UNKEYED_PAGE_SIZE + 1, UNKEYED_PAGES)}
+            for index, pair in enumerate(unkeyed)
+        ],
     }
 
 

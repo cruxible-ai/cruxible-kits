@@ -2,8 +2,8 @@
 
 One change set the adopter tailors and submits as their own reviewed change: the
 dependency loop's Lines (one SBOM import, OSV, KEV and EPSS) and their Mandates,
-the attention Lines, two Runbooks, one daily Trigger, and the Trigger that runs
-the OSV unkeyed Line.
+the attention Lines, two Runbooks, one daily Trigger, and the OSV unkeyed Lines
+with their Triggers.
 
 ``security.start`` seeds a fresh instance in the order the Lines' reads and
 writes imply:
@@ -27,13 +27,16 @@ writes imply:
 Runbook step cannot supply. Its own Trigger, ``security.osv-matches-landed``,
 runs it on each landing of step 2's derived match document, so it posts one
 inbox item per advisory with no CVE alias (no Claim can key one) right after
-the OSV step, under its own enablement.
+the OSV step, under its own enablement. One run posts at most 1,000 items, so
+the match document numbers its pairs in pages of 1,000: ``security.osv-unkeyed``
+posts page 1, and ``security.osv-unkeyed.2`` to ``.20`` (Triggers
+``security.osv-matches-landed.2`` to ``.20``) the rest, each once enabled.
 
 ``security.maintain`` is the daily refresh: steps 2-5 without the SBOM import
 (the SBOM changes when the repository changes, not on a clock). The one Trigger,
 ``security.maintain-daily``, fires it at 14:00 UTC; each step runs under its
 Line's own enablement, so a Line nobody enabled stops the run. Each Line fetches
-its own source; the one landing Trigger is the unkeyed Line's, which fetches
+its own source; the landing Triggers are the unkeyed Lines', which fetch
 nothing. Nothing here is installed by ``kit add``.
 
     python template.py           # rewrite ../../automation.json
@@ -83,7 +86,9 @@ MAINTAIN_LINES = START_LINES[1:]
 #: Both Runbooks: where OSV's advisories with no CVE id go (no step of either).
 UNKEYED_NOTE = (
     f"OSV advisories with no CVE id are posted to the inbox by {osv.UNKEYED_LINE}, which "
-    f"its Trigger {osv.UNKEYED_TRIGGER} runs on each OSV result once the Line is enabled."
+    f"its Trigger {osv.UNKEYED_TRIGGER} runs on each OSV result once the Line is enabled "
+    f"(a thousand pairs a run; {osv.unkeyed_line(2)} to .{osv.UNKEYED_PAGES} post the "
+    "next pages once enabled)."
 )
 
 
@@ -131,9 +136,10 @@ def template() -> dict[str, Any]:
             "Lines and their Mandates, and the two observe-only attention Lines that post "
             "exposures to the inbox (unjudged pairs KEV-listed, with an EPSS score at or "
             "above min_epss, 0.1 as shipped, or not yet scored; contested pairs); the "
-            "observe-only OSV unkeyed Line and its Trigger security.osv-matches-landed, "
-            "which post each OSV advisory with no CVE alias to the inbox whenever the OSV "
-            "Line's match document lands; the "
+            "observe-only OSV unkeyed Lines and their Triggers (security.osv-unkeyed and "
+            "security.osv-matches-landed for the first thousand pairs, .2 to .20 for the "
+            "next pages), which post each OSV advisory with no CVE alias to the inbox "
+            "whenever the OSV Line's match document lands; the "
             "security.start Runbook that seeds a fresh instance; and the security.maintain "
             "Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, "
             "EPSS, attention; the SBOM import runs when the SBOM changes). Tailor the Line "

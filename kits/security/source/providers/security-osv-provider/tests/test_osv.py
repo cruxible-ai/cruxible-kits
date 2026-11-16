@@ -456,6 +456,39 @@ def test_one_shared_advisory_costs_linear_work(n: int, monkeypatch: pytest.Monke
     assert calls == {"base": 2 * n, "index": 1}
 
 
+def test_unkeyed_pairs_are_numbered_in_pages_and_the_last_page_holds_the_rest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One inbox run posts at most UNKEYED_PAGE_SIZE items, so each unkeyed pair
+    carries its page in component then advisory order; the last page holds every
+    pair past the pages before it (pages of 2, at most 3, here)."""
+
+    monkeypatch.setattr(osv, "UNKEYED_PAGE_SIZE", 2)
+    monkeypatch.setattr(osv, "UNKEYED_PAGES", 3)
+    purls = [f"pkg:pypi/pkg{i}@1.0" for i in range(4)]
+    ids = ["GHSA-0001", "GHSA-0000"]
+    batch = {"results": [{"vulns": [{"id": i} for i in ids]} for _ in purls]}
+    overrides: dict[str, Any] = {
+        f"{osv.OSV_API}/v1/querybatch": (200, json.dumps(batch).encode())
+    }
+    for advisory in ids:
+        record = {
+            "id": advisory,
+            "aliases": [],
+            "affected": [{"package": {"purl": f"pkg:pypi/pkg{i}"}} for i in range(4)],
+        }
+        overrides[f"{osv.OSV_API}/v1/vulns/{advisory}"] = (200, json.dumps(record).encode())
+    _content, document = derive(query(purls, Recorded(overrides=overrides)), purls)
+    assert [(r["purl"], r["osv_id"], r["page"]) for r in document["unkeyed"]] == [
+        (purl, advisory, page)
+        for (purl, advisory), page in zip(
+            [(p, i) for p in sorted(purls) for i in sorted(ids)],
+            [1, 1, 2, 2, 3, 3, 3, 3],
+            strict=True,
+        )
+    ]
+
+
 def _one_package(n: int) -> tuple[list[str], Recorded]:
     """n versions of ONE package, one advisory listing n fixed events for it."""
 

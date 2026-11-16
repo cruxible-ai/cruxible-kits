@@ -39,7 +39,8 @@ judgment whose cited code changed comes back through `next` on its own (`citatio
 not through the inbox.
 
 An OSV advisory with no CVE id yet arrives in the `security.osv-unkeyed` inbox instead: one
-item per advisory and component (`osv_id`, `purl`). There is no vulnerability Subject and no
+item per advisory and component (`osv_id`, `purl`); past the first thousand pairs, in the
+inboxes of its page Lines (`security.osv-unkeyed.2` and on), once enabled. There is no vulnerability Subject and no
 pair to judge, because everything here is keyed by CVE id. Read the advisory
 (`https://osv.dev/vulnerability/<osv_id>`) and decide: remediate, or `ack` the item. When OSV
 lists a CVE for it, the next OSV run records an ordinary `affected_by` and the pair joins the

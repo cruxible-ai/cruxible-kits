@@ -167,7 +167,8 @@ def accepted_names(instance: Any, directory: str) -> dict[str, Any]:
 def test_the_template_adopts_two_runbooks_and_one_daily_trigger(tmp_path: Path) -> None:
     """Adopting the template yields two Runbooks, start (SBOM, OSV, KEV, EPSS) and
     maintain (no SBOM import), the one daily Trigger, aimed at security.maintain on
-    one cron schedule, and the unkeyed Line's landing Trigger (no Runbook step)."""
+    one cron schedule, and the unkeyed Lines' landing Triggers, one per page (no
+    Runbook step)."""
 
     instance = kit_world(tmp_path, automation=False)
     seeded = accepted_names(instance, "triggers")  # core's own internal-action Triggers
@@ -180,16 +181,19 @@ def test_the_template_adopts_two_runbooks_and_one_daily_trigger(tmp_path: Path) 
         if name not in seeded
     }
     runbooks = accepted_names(instance, "runbooks")
-    assert set(triggers) == {template.MAINTAIN_TRIGGER, osv.UNKEYED_TRIGGER}, sorted(
-        triggers
-    )
+    pages = range(1, osv.UNKEYED_PAGES + 1)
+    assert set(triggers) == {
+        template.MAINTAIN_TRIGGER,
+        *(osv.unkeyed_trigger(page) for page in pages),
+    }, sorted(triggers)
     assert set(runbooks) == {template.START, template.MAINTAIN}, sorted(runbooks)
-    landing = triggers.pop(osv.UNKEYED_TRIGGER)
-    assert landing["target"] == {
-        "kind": "line",
-        "line": {"target": {"kind": "Line", "name": osv.UNKEYED_LINE}},
-    }
-    assert landing["schedule"]["kind"] == "capture_landing"
+    for page in pages:
+        landing = triggers.pop(osv.unkeyed_trigger(page))
+        assert landing["target"] == {
+            "kind": "line",
+            "line": {"target": {"kind": "Line", "name": osv.unkeyed_line(page)}},
+        }
+        assert landing["schedule"]["kind"] == "capture_landing"
     (trigger,) = triggers.values()
     assert trigger["target"] == {
         "kind": "runbook",

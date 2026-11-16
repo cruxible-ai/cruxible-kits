@@ -158,7 +158,14 @@ worklist row; instead the `security.osv-unkeyed` Line posts one
 the advisory and decide (upgrade, or `ack` the item). The Line is not a Runbook
 step: its own Trigger, `security.osv-matches-landed`, runs it whenever the OSV
 step lands its result, so it posts only while it is enabled (the `line enable`
-above). It changes no accepted state. A rerun that finds the same advisory still
+above). One run posts at most 1,000 items, so it posts the first thousand pairs
+(by component, then advisory) and the template carries a Line per further page:
+`security.osv-unkeyed.2` for pairs 1,001 to 2,000, and so on to
+`security.osv-unkeyed.20`, which takes every pair past 19,000. A page Line
+runs only once enabled; when a run reports its page full (1,000 items
+posted), enable the next one (`cruxible line enable security.osv-unkeyed.2`).
+When an earlier pair leaves, later pairs move up one place, so a pair on a page
+boundary is posted again as a new item by the neighbouring page's Line. It changes no accepted state. A rerun that finds the same advisory still
 without a CVE sees the same item again. When OSV later lists a CVE for the
 advisory, the next OSV run records it as an ordinary `affected_by` finding (on
 the worklist like any other) and the item is no longer posted; it stays in the

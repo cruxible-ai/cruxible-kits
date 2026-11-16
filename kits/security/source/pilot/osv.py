@@ -61,8 +61,28 @@ UNKEYED_LINE = UNKEYED
 UNKEYED_ITEM = UNKEYED
 UNKEYED_ROW = "security.osv-unkeyed-record"
 UNKEYED_TRIGGER = "security.osv-matches-landed"
-#: The most items one unkeyed run posts (core's ceiling for a declared max_items).
+#: The most items one unkeyed run posts (core's ceiling for a declared max_items):
+#: the match document numbers its unkeyed pairs in pages of this size (the
+#: provider's UNKEYED_PAGE_SIZE), and one Line posts each page.
 UNKEYED_MAX_ITEMS = 1000
+#: The unkeyed pages, one Line and Trigger each (the provider's UNKEYED_PAGES):
+#: 20,000 pairs, the most components the OSV query takes. The last page holds
+#: every pair past the ones before it, so its run reports any it cannot post.
+UNKEYED_PAGES = 20
+
+
+def unkeyed_line(page: int) -> str:
+    """The Line that posts unkeyed page ``page``: page 1 is ``security.osv-unkeyed``."""
+
+    return UNKEYED_LINE if page == 1 else f"{UNKEYED_LINE}.{page}"
+
+
+def unkeyed_trigger(page: int) -> str:
+    """The landing Trigger of page ``page``'s Line."""
+
+    return UNKEYED_TRIGGER if page == 1 else f"{UNKEYED_TRIGGER}.{page}"
+
+
 #: Where a reader looks an advisory up by its id.
 OSV_ADVISORY_PAGE = "https://osv.dev/vulnerability/"
 
@@ -132,8 +152,13 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "name": UNKEYED_ROW,
             "version": 1,
             "description": "One OSV advisory with no CVE alias that lists a component: the "
-            "component's purl and the advisory id.",
-            "fields": {"purl": "string{max_len: 256}", "osv_id": "string{max_len: 128}"},
+            "component's purl, the advisory id, and the page (1-20, a thousand pairs each in "
+            "component then advisory order; page 20 holds the rest) whose Line posts it.",
+            "fields": {
+                "purl": "string{max_len: 256}",
+                "osv_id": "string{max_len: 128}",
+                "page": f"int{{1..{UNKEYED_PAGES}}}",
+            },
         },
         {
             "kind": "contract",
@@ -160,6 +185,7 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "query_definition": subject_shaped(COMPONENTS_SPEC, claim_types),
         },
         *params_contract_members(OSV_PROCEDURE, *OSV_PARAMS),
+        *params_contract_members(UNKEYED_PROCEDURE, *UNKEYED_PARAMS),
     ]
 
 
@@ -176,6 +202,21 @@ OSV_PARAMS = (
             "Source label OSV's responses and the derived match document are recorded "
             "under, lowercase (the template uses osv.dev.query). Evidence requirements and "
             "landing Triggers can name it.",
+        ),
+    },
+)
+
+
+#: What each unkeyed Line supplies: the page of the match document it posts.
+UNKEYED_PARAMS = (
+    "What a Line on security.osv-unkeyed needs: the page of the OSV match document's "
+    "advisories with no CVE alias it posts. One run posts at most 1,000 inbox items, so "
+    "the pairs are numbered in pages of 1,000 and each page has its own Line.",
+    {
+        "page": (
+            f"int{{1..{UNKEYED_PAGES}}}",
+            "The page this Line posts (1 for the first thousand pairs in component then "
+            f"advisory order, 2 for the next, ...; page {UNKEYED_PAGES} holds the rest).",
         ),
     },
 )
@@ -267,17 +308,19 @@ def unkeyed_spec() -> dict[str, Any]:
     re-derived (the call's input is never evaluated; it is typed against the
     capability's request only). One item per (advisory, component): seen again
     while OSV still lists the advisory with no CVE, no longer posted once it
-    names one.
+    names one. Each Line posts one page of the document's pairs (``page``), since
+    one run posts at most 1,000 inbox items.
     """
 
     return refs(
         {
             "procedure": UNKEYED_PROCEDURE,
-            "description": "Post each OSV advisory with no CVE alias in one derived OSV match "
-            "document to the Line's inbox, one item per advisory and component: no Claim "
-            "records it until OSV lists a CVE for it.",
+            "description": "Post each OSV advisory with no CVE alias on one page of a derived "
+            "OSV match document to the Line's inbox, one item per advisory and component: no "
+            "Claim records it until OSV lists a CVE for it.",
             "input": {},
             "output": {},
+            "parameter_contract": params_contract(UNKEYED_PROCEDURE),
             # Inbox egress is the terminal; the run's own value is empty.
             "returns": {"fields": {}},
             "slots": {"match": {"capability": capability(OSV_MATCH)}},
@@ -285,7 +328,7 @@ def unkeyed_spec() -> dict[str, Any]:
                 "wall_clock": "PT5M",
                 "provider_calls": 1,
                 "capture_bytes": 4 * 1024 * 1024,
-                "items": 20_000,
+                "items": UNKEYED_MAX_ITEMS,
                 "read_rows": 1,
                 "repeat_attempts": 1,
             },
@@ -302,9 +345,21 @@ def unkeyed_spec() -> dict[str, Any]:
                     "records": "unkeyed",
                 },
                 {
+                    "transform": "paged",
+                    "kind": "filter",
+                    "spec": {
+                        "input": "$steps.unkeyed.records",
+                        "where": {
+                            "op": "eq",
+                            "left": "$item.fields.page",
+                            "right": "$params.page",
+                        },
+                    },
+                },
+                {
                     "id": "post",
                     "inbox": f"{UNKEYED_ITEM}@1",
-                    "for_each": "$steps.unkeyed.records",
+                    "for_each": "$steps.paged.records",
                     "fields": {
                         "osv_id": "$item.fields.osv_id",
                         "purl": "$item.fields.purl",
@@ -400,30 +455,35 @@ def automation(
 
 
 def unkeyed_automation() -> list[dict[str, Any]]:
-    """The unkeyed Line (inbox egress only: ``observe``, no Mandate) and the Trigger
-    that runs it on each landing of the derived match document under the OSV
-    Line's logical source."""
+    """One unkeyed Line per page (inbox egress only: ``observe``, no Mandate) and
+    the Trigger that runs it on each landing of the derived match document under
+    the OSV Line's logical source. Only an enabled Line runs: page 1 covers the
+    first thousand pairs, and each further page is enabled when the one before it
+    fills."""
 
-    return [
-        {
-            "kind": "line",
-            "name": UNKEYED_LINE,
-            "procedure_name": UNKEYED_PROCEDURE,
-            "bindings": {"match": f"{DEPENDENCY_PROVIDER}#osv.match"},
-            "parameters": {},
-            "trigger_input": "matched.document",
-            "acquisition": {"matched.document": {}},
-            "max_authority": "observe",
-        },
-        {
-            "kind": "trigger",
-            "name": UNKEYED_TRIGGER,
-            "line_name": UNKEYED_LINE,
-            "schedule": {
-                "kind": "capture_landing",
-                "capture_contract": OSV_MATCH_KIND,
-                "logical_sources": [OSV_SOURCE],
+    members: list[dict[str, Any]] = []
+    for page in range(1, UNKEYED_PAGES + 1):
+        members += [
+            {
+                "kind": "line",
+                "name": unkeyed_line(page),
+                "procedure_name": UNKEYED_PROCEDURE,
+                "bindings": {"match": f"{DEPENDENCY_PROVIDER}#osv.match"},
+                "parameters": {"page": page},
+                "trigger_input": "matched.document",
+                "acquisition": {"matched.document": {}},
+                "max_authority": "observe",
             },
-        },
-    ]
+            {
+                "kind": "trigger",
+                "name": unkeyed_trigger(page),
+                "line_name": unkeyed_line(page),
+                "schedule": {
+                    "kind": "capture_landing",
+                    "capture_contract": OSV_MATCH_KIND,
+                    "logical_sources": [OSV_SOURCE],
+                },
+            },
+        ]
+    return members
 

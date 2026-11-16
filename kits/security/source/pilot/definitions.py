@@ -937,8 +937,9 @@ def automation(
     path) in ``sboms``, and the OSV Lines. ``watch`` is unused: no Line names a CVE.
 
     The automation template (``template.py``) runs OSV, KEV and EPSS on one daily
-    Trigger aimed at its maintenance Runbook. The one Line with a Trigger of its
-    own is ``security.osv-unkeyed``, on each landing of the OSV match document."""
+    Trigger aimed at its maintenance Runbook. The Lines with Triggers of their own
+    are ``security.osv-unkeyed`` and its pages, on each landing of the OSV match
+    document."""
     valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
     expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
     del watch
