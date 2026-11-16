@@ -146,7 +146,14 @@ def test_reordered_keys_store_the_same_bytes_and_non_json_stays_verbatim() -> No
     one = b'{"id": "GHSA-1", "database_specific": {"b": 1, "a": "\\u00e9"}, "aliases": []}'
     two = b'{"aliases":[],"database_specific":{"a":"\xc3\xa9","b":1},"id":"GHSA-1"}'
     assert osv.canonical_json(one) == osv.canonical_json(two) == two
-    for body in (b"<html>502 Bad Gateway</html>", b'{"truncated": ', b"\xff\xfe", b"NaN"):
+    for body in (
+        b"<html>502 Bad Gateway</html>",
+        b'{"truncated": ',
+        b"\xff\xfe",
+        b"NaN",
+        b'{"score": 1e400}',
+        b'{"extra": "\\ud800"}',
+    ):
         assert osv.canonical_json(body) == body
 
 

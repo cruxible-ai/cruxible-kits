@@ -132,11 +132,13 @@ def canonical_json(content: bytes) -> bytes:
 
     try:
         document = json.loads(content.decode("utf-8"), parse_constant=_reject_constant)
-    except (UnicodeDecodeError, ValueError):
+        # An overflowing number (1e400 parses to infinity) or an escaped lone
+        # surrogate cannot be written back faithfully: keep the original bytes.
+        return json.dumps(
+            document, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        ).encode("utf-8")
+    except (UnicodeDecodeError, UnicodeEncodeError, ValueError):
         return content
-    return json.dumps(
-        document, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
-    ).encode("utf-8")
 
 
 def _member(
