@@ -19,12 +19,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - name: Install the kit tooling
-        # cruxible-client ships the artifact library; pinned to a core commit
-        # until a release carries it.
+        # cruxible-client ships the artifact library; the core (cruxible) runs the
+        # format and acceptance checks `kit add` runs. Both pinned to one core
+        # commit until a release carries them.
         run: >-
           uv venv &&
           uv pip install
-          "cruxible-client @ git+https://github.com/cruxible-ai/cruxible@0b8594bd2309c469588663b48ba4fc9b914acbd8#subdirectory=packages/cruxible-client"
+          "cruxible-client @ git+https://github.com/cruxible-ai/cruxible@393057b847a4e627875b5171da81b0bc69e50c5c#subdirectory=packages/cruxible-client"
+          "cruxible @ git+https://github.com/cruxible-ai/cruxible@393057b847a4e627875b5171da81b0bc69e50c5c"
       - name: Check every kit
         run: uv run --no-project python scripts/kits.py check
       - name: Publish new kit versions
