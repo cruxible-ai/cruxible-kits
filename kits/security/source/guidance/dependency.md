@@ -119,9 +119,10 @@ Write a judgment with `accept: never`. A different agent reviews and approves it
 this guidance and trying once to break it: re-read the cited code, look for another path to the
 vulnerable code (or, for `affected`, check the path really reaches it), check the control
 really applies. Reject a write that sets both a verdict of `affected` and a justification.
-Never approve your own judgment. On a local instance approval is an honor system: the
-reviewing agent may sign as the same principal, and uses a second principal only where the
-instance has one. No Mandate settles a justification or a verdict.
+Never approve your own judgment: the reviewer acts as its own principal (the kit's default
+setup has a `reviewer` principal, normally a subagent using the CLI as `reviewer`). On an
+instance one person runs with self-approval, that person approves. No Mandate settles a
+justification or a verdict.
 
 To withdraw one, retire its justification (or its `affected` verdict) and, for a
 package-level one, its none in one write (one `retire` change each). The pair Subject stays

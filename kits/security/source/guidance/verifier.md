@@ -110,9 +110,10 @@ Write the verdict with `accept: never`. A different agent approves it after read
 guidance and trying once more to break it: re-read the cited code, rerun the check, look
 for the control you missed. Neither the reporter nor the verifier approves. A revision that
 strengthens the verdict or changes the trace, the result or the severity is a new judgment
-and needs an approver who took no part in the earlier one. On a local instance approval is
-an honor system: the three agents may sign as the same principal, and use separate
-principals only where the instance has them. No Mandate settles a verdict.
+and needs an approver who took no part in the earlier one. The approver acts as its own
+principal (the kit's default setup has a `reviewer` principal, normally a subagent using the
+CLI as `reviewer`): no agent approves its own proposal. On an instance one person runs with
+self-approval, that person approves. No Mandate settles a verdict.
 
 When the cited code changes (`cruxible next` lists the finding's `reported_at` as
 `citation_drifted`), re-judge it before relying on the verdict.

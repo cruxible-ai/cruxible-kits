@@ -63,28 +63,58 @@ Use Cruxible 0.5 with its daemon running and a Git workspace selected. From a
 checkout of this repository (replace paths for your workspace):
 
 ```sh
-cruxible init --principal-id owner
+cruxible init --principal-id owner \
+  --reviewer-key-dir /outside/workspace/reviewer-keys --require-independent-approval
+# The base kit's proposal from init waits for the reviewer (see Review below):
+cruxible kit status --offline
 # Read the current coordinate, then review the manifest and guidance:
 cruxible orient --json
 # Use coordinate.git_oid as OID for the explicit install:
 cruxible kit add /path/to/cruxible-kits/kits/security --commit --at OID --json
+# The reviewer approves the kit's proposal, then:
 cruxible kit status --offline
 ```
 
-The base kit must be installed first; a new instance holds it from `init`, and
-`cruxible kit status --offline` shows `base`. Without it, `kit add` refuses with
-the repair `cruxible kit add base`. Nothing else needs to be accepted beforehand:
-installation installs the three providers (each carries its own copies of the
-shapes it serves) and proposes the kit's definitions.
-On a local instance with one owner (approval policy `self_approval_allowed`,
-the default), the owner accepts its own changes and nothing waits for a second
-person. Under `independent_approval_required` (`init
---require-independent-approval`), a different principal approves each proposal
-before it activates. `cruxible kit add security:1.3.0` is **available only
-after the registry release**; use the local directory now.
+The base kit must be installed first: `init` proposes it, and once it is
+accepted `cruxible kit status --offline` shows `base`. Without it, `kit add`
+refuses with the repair `cruxible kit add base`. Nothing else needs to be
+accepted beforehand: installation installs the three providers (each carries
+its own copies of the shapes it serves) and proposes the kit's definitions.
+`cruxible kit add security:1.3.0` is **available only after the registry
+release**; use the local directory now.
 
 `cruxible kit add PATH --json` without `--commit` previews the plan and writes
 nothing.
+
+### Review: a second agent approves
+
+An agent never approves its own proposals. `--reviewer-key-dir` adds a second
+principal, `reviewer`, with its key and settings (`cruxible.env`) in that
+directory, outside the workspace; `--require-independent-approval` makes the
+approval policy `independent_approval_required`, so every proposal (the kit's,
+the automation template's, each judgment) activates only once a principal other
+than its author approves it. The reviewer is normally a subagent the working
+agent starts for each proposal. Subagents share the parent session's MCP
+servers, which act as the parent's principal, so the reviewer uses the CLI as
+`reviewer`:
+
+```sh
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal review PROPOSAL_ID
+# Approving activates the proposal once the requirement is met:
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
+```
+
+`CRUXIBLE_PRINCIPAL_ID=reviewer` loads the reviewer's remembered settings (key
+included) for that command only. A person reviewing at their own terminal can
+switch instead with `cruxible context use --principal reviewer`, which changes
+the principal for every command on this instance until `cruxible context use
+--principal owner` switches back. `cruxible next` lists what waits for review
+(`proposal_awaiting_approval`) when read as `reviewer`.
+
+If you want to approve everything yourself, initialize without the reviewer:
+`cruxible init --principal-id owner` leaves the policy `self_approval_allowed`
+(the default), where the owner's own `proposal approve` signs and activates
+each proposal and nothing waits for a second principal.
 
 Copy [automation.json](automation.json) to your workspace and tailor it before
 submitting. It is a template, never installed or submitted by `kit add`:
@@ -113,10 +143,10 @@ submitting. It is a template, never installed or submitted by `kit add`:
 ```sh
 cruxible authoring submit automation.json --no-accept --brief
 cruxible proposal list --status open
-cruxible proposal review PROPOSAL_ID
-# One owner (self_approval_allowed): your own approval signs and activates it.
-# Under independent_approval_required, a different principal runs this.
-cruxible proposal approve PROPOSAL_ID --yes
+# The reviewer (see Review above) reviews and approves it:
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal review PROPOSAL_ID
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
+# (Owner-only setup, self_approval_allowed: `cruxible proposal approve PROPOSAL_ID --yes`.)
 cruxible runbook preview security.start
 # Posts OSV advisories with no CVE id (below) when the OSV step lands its result:
 cruxible line enable security.osv-unkeyed
@@ -248,9 +278,11 @@ it (`cruxible get Document:security.guidance.hunter`, and so on):
 3. `security.coverage_plan` lists units never checked, deferred or blocked;
    `cruxible next` lists findings and units whose cited code changed.
 
-The loop needs three agents: the hunter, the verifier and the approver. On a
-local instance approval is an honor system: the three may sign as the one
-principal `cruxible init` registers. Where you want separate principals, add
+The loop needs three agents: the hunter, the verifier and the approver. In
+the default setup the approver is the `reviewer` principal (see
+[Review](#review-a-second-agent-approves)): the verifier's write is its own
+proposal, and a different principal approves it. The hunter and the verifier
+may both write as the owner. Where you want them as separate principals, add
 them with `cruxible principal add NAME --key-dir /outside/workspace/NAME-keys
 --signer-key OWNER_KEY`, which writes each key and its `cruxible.env` settings
 to that directory.
