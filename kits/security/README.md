@@ -111,6 +111,11 @@ the principal for every command on this instance until `cruxible context use
 --principal owner` switches back. `cruxible next` lists what waits for review
 (`proposal_awaiting_approval`) when read as `reviewer`.
 
+A kit proposal is planned against the instance as it was when `kit add` ran.
+If other writes land before the reviewer approves it, it is stale and the
+approval refuses: run the same `cruxible kit add ... --commit` again (with
+`--at` the new coordinate) and have the reviewer approve the new proposal.
+
 If you want to approve everything yourself, initialize without the reviewer:
 `cruxible init --principal-id owner` leaves the policy `self_approval_allowed`
 (the default), where the owner's own `proposal approve` signs and activates
