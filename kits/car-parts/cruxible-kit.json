@@ -1,103 +1,103 @@
 {
   "artifacts": [
     {
-      "artifact_digest": "sha256:ab6e6a1d57c92944d5262423ea907d0e54837229a84dc677e3a3cac10d2bc8c4",
+      "artifact_digest": "sha256:24934a988a47eb9f6bd485b637b436bafb903572f8e26ab5f36b3d8e80771e47",
       "path": "capture-contracts/playbill.coordinator-self-source-v1.json"
     },
     {
-      "artifact_digest": "sha256:a08c880d5f407015da53b2cb0c0f020076b0224964c73adef33aed3bc5916187",
+      "artifact_digest": "sha256:737038aecb24e2c6cc253bcffdd45984d1a131218e681c169f0347ae2d1a63ca",
       "path": "claim-types/catalog.decision/amends.json"
     },
     {
-      "artifact_digest": "sha256:74d59817c470e7a5eee040806713302251945fd2d3eca58fb4a0f7517cafc94a",
+      "artifact_digest": "sha256:49d6bfa9241d17cae5559aee7fdb5b3b04389578e1abebf1aa2b2a55d7d0890a",
       "path": "claim-types/catalog.decision/governs.json"
     },
     {
-      "artifact_digest": "sha256:4652faa3fa03830952521f28ef13b1bb264f4d3ee1f9739887ba4d8700d6f466",
+      "artifact_digest": "sha256:8b23dc1918b548f8aab8cb5f642397e3b3935af61cf4d19d235133154d0bba82",
       "path": "claim-types/catalog.decision/name.json"
     },
     {
-      "artifact_digest": "sha256:474d19592003c341c657862a80e63a636b1a216e29e404ee1334beceddf8ddbc",
+      "artifact_digest": "sha256:fcdf9e4fd46852bf4359cc43dc91992cfb4b018cb439ccfae1d0790f1b538ce0",
       "path": "claim-types/catalog.decision/status.json"
     },
     {
-      "artifact_digest": "sha256:fbe67158c54f4dc5c3044a7d52b715c06c7bf58e7de03c15ba05c8b719e11c26",
+      "artifact_digest": "sha256:fcb3722e68cac4a1565f084cfa9ce383235023dbdb09a639f05f33948ec21c7e",
       "path": "claim-types/catalog.decision/summary.json"
     },
     {
-      "artifact_digest": "sha256:9e4484032993349b8ae898a60d8cc7b68519c4e3609293b0f3b5b7bb8a05c941",
+      "artifact_digest": "sha256:0bff65f603a7b6b8634d2a6ced172bbeb557588cb88ed5b07ad29e193abd3774",
       "path": "claim-types/catalog.note/about.json"
     },
     {
-      "artifact_digest": "sha256:b44246bda9c27a819493109ce0b80e1e30a30dce1399bcb6de1d85302ad16ae8",
+      "artifact_digest": "sha256:d005159edfad18cbead2c6a90c5b578c5866e6d5bebacdc3c5db87dbdcca7a83",
       "path": "claim-types/catalog.note/name.json"
     },
     {
-      "artifact_digest": "sha256:ec0cc73710393d09defefa91eebc4b3527556e38373b31f0982dea335ce31461",
+      "artifact_digest": "sha256:82493d80dd901bd3a414348806b95758991ce20b0b07956efed027f9924d7505",
       "path": "claim-types/catalog.note/title.json"
     },
     {
-      "artifact_digest": "sha256:172259bc785b0dd4ee97425a0008c8dc8eca44050fba7f2fcb0a16704beb8aa9",
+      "artifact_digest": "sha256:a2e399a9c8076ce1327fff7e2ee7912392248d810be49e36e30b0868384f910a",
       "path": "claim-types/catalog.part/category.json"
     },
     {
-      "artifact_digest": "sha256:87a165ee8c7142edf4d602712aa2a68d76950ba5d0166f41c0d798b4461f340c",
+      "artifact_digest": "sha256:6ccdf282fa5e0b6d6509faf106d13e4e8f9d2bb86aaa073a79a4f7c6109e8288",
       "path": "claim-types/catalog.part/fits.json"
     },
     {
-      "artifact_digest": "sha256:62541c7bac240fde68a7590e08127f539948e4cf98c92427c0534664b0db9965",
+      "artifact_digest": "sha256:86286b2a68b698e398869ab332385a25a558873b7ef5fabf2481c6ad00df6d4a",
       "path": "claim-types/catalog.part/name.json"
     },
     {
-      "artifact_digest": "sha256:8c7c8f5d51f258a739ff8d14466d73fb7fa9dd04de8f023ecb168e9824542ffa",
+      "artifact_digest": "sha256:be7f22e9b346cbfe02e5bb66b25908fe2ccb4a29d723742be24cb5062d0dcc8b",
       "path": "claim-types/catalog.part/price.json"
     },
     {
-      "artifact_digest": "sha256:ceb14ad34ac2fa2098ed51d0fee299457806d9a61e8ddb6a6aa7655c00451f91",
+      "artifact_digest": "sha256:36e7e8145fad9ac2e347775b38e6329a754fe361b9018cf125579dac6d76fc2d",
       "path": "claim-types/catalog.part/replaces.json"
     },
     {
-      "artifact_digest": "sha256:5eb0bd9c12d91a6f3f58a87f6d45742f0a98b07794a87f12d9285c028d4abf6c",
+      "artifact_digest": "sha256:c236ca63d6725fd7d43011303f00e261750523a1069709823cb7a6c6728a4c38",
       "path": "claim-types/catalog.part/title.json"
     },
     {
-      "artifact_digest": "sha256:20e6c435732859142e072cb380b5c1c34e5f8b53d3236a56a7a0f6374f9709d5",
+      "artifact_digest": "sha256:26aec4e85f916e273579baa7e29cdbb3d7e74859b58e81de805bc6e0d9a856b0",
       "path": "claim-types/catalog.part/weight_grams.json"
     },
     {
-      "artifact_digest": "sha256:ae9344e04317baa9956c8c1d8df8be6a0e503871e8b5a9ac2e1031c7d0d4df0c",
+      "artifact_digest": "sha256:99252e0b054d385f8900019bbc1eae6b8a3cb4d46727d1d4e493c7b1b07bbd99",
       "path": "claim-types/catalog.vehicle/make.json"
     },
     {
-      "artifact_digest": "sha256:31388d4abccf4ddcde757a4f5c55656ffb059843742c28a155bdf3194734de91",
+      "artifact_digest": "sha256:22a94806e1e0937ae564d7db7b6b5e18bcb3918fd1c67d883f9c22ab301ba009",
       "path": "claim-types/catalog.vehicle/model.json"
     },
     {
-      "artifact_digest": "sha256:a7883d68c6f336010b6e73e41c6c21886008be41fb1f6c0ebe833ff24ee89ef3",
+      "artifact_digest": "sha256:169a32de867d95087e599c71244e96f548850353b770801e2464c8498ce29ace",
       "path": "claim-types/catalog.vehicle/name.json"
     },
     {
-      "artifact_digest": "sha256:d0ac7a6be3c0d235a8f95768da77d27f2a10bca6ed8e25f418bc098d09ce3d01",
+      "artifact_digest": "sha256:d204e2087c0fc7012d50f1ae7f695c0835e689270674c3bbbc5b4cbf0adb87b6",
       "path": "claim-types/catalog.vehicle/year.json"
     },
     {
-      "artifact_digest": "sha256:0ef5cfacd12ed3336e26c1ac90e285c7fb6aeb024b12db94b8735b40458c50ed",
+      "artifact_digest": "sha256:7817743c7155e65162db30be3966da3be6ad29584357e964bec8ece5aeaf7654",
       "path": "query-definitions/catalog.parts_for_vehicle.json"
     },
     {
-      "artifact_digest": "sha256:581a4fb3ed42f874666f02e24b2e379faba5704be5ab093cefa99e5509cc3296",
+      "artifact_digest": "sha256:5249b0352093c4c9876c097007eb4323b966828aaba6fb4e089570d19f9f18a8",
       "path": "subject-kinds/catalog.decision.json"
     },
     {
-      "artifact_digest": "sha256:d0b090ff2c14c546bd6fbd988f8015bc3afe45d2bfd0fb3b7652e29ba3fe449d",
+      "artifact_digest": "sha256:6a58a1f8921ae1b368870cb5c9fa3c58e956e5e24d43185f5a9c7fcf9ea1fb56",
       "path": "subject-kinds/catalog.note.json"
     },
     {
-      "artifact_digest": "sha256:1d10560952b9b3217828a8b115219db56fe655651be4b01911d809975a4d8c22",
+      "artifact_digest": "sha256:7726cba69e18e1e0aa5c65cba047e8d5798a2bc98280d25ec22f4d6833d24c0e",
       "path": "subject-kinds/catalog.part.json"
     },
     {
-      "artifact_digest": "sha256:d942412504dafe9ab22ba5cd6308063b5734c85e6e1046f1f55d3cd6d9637659",
+      "artifact_digest": "sha256:9cfb50db52cd4635b1f77b7fdbc191c4e0eb72ae83fba39cd2b0e5398f7e77e9",
       "path": "subject-kinds/catalog.vehicle.json"
     }
   ],
@@ -105,7 +105,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:6b4744640e8c5fa6fcc42e8bd8700a97767f28d9cc75b9302372e1919fbe2c67"
+      "sha256": "sha256:00aadb9ee394df64536cf5659b6e54c5057e6c105618760d44d8fb18a81c26f8"
     }
   ],
   "kit_id": "car-parts",
@@ -114,15 +114,15 @@
   ],
   "provenance": {
     "coordinate": {
-      "compiler_digest": "sha256:56542b566100db8fadfd4bfcea8f0fe58e37de444885906f3914ec1cc225d085",
-      "generation_root": "sha256:8f3c486ca100c0529c4692290e6d381d7d46bdd68f0d538979f8b4918f16ba39",
-      "git_oid": "65585bab0e0716fcf92f71ab108118125eb96154",
-      "semantic_root": "sha256:26b8b0d599429566f6411f91ac76fe047ba935828d9d6ad2cbb4655aab8d9083",
+      "compiler_digest": "sha256:5b1e93a005c680b1709f9c58c6fba03ef8ff87f9ec4b38b1b7fab6fb04891be8",
+      "generation_root": "sha256:ac55ffcfaf60eb271262410780c616387f02d41b8c90dbbac697c084d4cadef9",
+      "git_oid": "cda7a40c1d03cf60409bcbee1d7890d2693a9ced",
+      "semantic_root": "sha256:17f54d68c76db9473de68ee1813be86a4f2b75357365c730b1bce74ad8ee9a8e",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_8caac8865a3a490c",
-    "principal_id": "robertmalone"
+    "instance_id": "inst_99bf591d02ff4c56",
+    "principal_id": "owner"
   },
   "tag": "playbill-kit-manifest-v1",
-  "version": "1.1.0"
+  "version": "1.2.0"
 }

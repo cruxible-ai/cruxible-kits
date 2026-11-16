@@ -1,13 +1,19 @@
 {
-  "artifact_format": "cruxible-subject-kind-v1",
+  "artifact_format": "cruxible-subject-kind-v2",
   "description": "A note: a finding, checkpoint or report, named by its slug.",
   "identity": {
     "kind": "SubjectKind",
     "name": "catalog.note"
   },
   "identity_rule": {
-    "keys": [
-      "catalog.note.name"
+    "parts": [
+      {
+        "claim_type": "catalog.note.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
     ],
     "rule": "keys",
     "uniqueness": "unique"

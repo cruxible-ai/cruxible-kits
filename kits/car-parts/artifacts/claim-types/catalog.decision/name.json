@@ -4,26 +4,21 @@
     "freeze_requirements": [],
     "tag": "playbill-claim-admission-policy-v1"
   },
-  "allowed_object_subject_kinds": [],
   "allowed_subject_kinds": [
     "catalog.decision"
   ],
-  "artifact_format": "playbill-claim-type-v8",
-  "attestation_consequence_policy": null,
+  "artifact_format": "cruxible-claim-type-v11",
   "canonical_form": [
-    "nfkc",
-    "trim",
-    "collapse_whitespace",
-    "casefold"
+    "nfc",
+    "trim"
   ],
   "cardinality": "one",
   "default_role": "normative",
   "description": "The slug; its key.",
   "evidence_admission_policy": {
     "rules": [],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
-  "evidence_freshness": null,
   "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
@@ -33,18 +28,27 @@
     "predecessor_digest": null,
     "state": "live"
   },
-  "literal_schema": {
-    "minLength": 1,
-    "type": "string"
-  },
   "member_descriptions": [],
-  "object_kind": "literal",
   "permitted_roles": [
     "normative"
   ],
   "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
   "predicate": "catalog.decision.name",
   "referent_sensitivity": "identity",
+  "requires_complete_input": [],
   "resolution_policy": {
     "cardinality": "one",
     "conflict_result": "unresolved",
@@ -57,6 +61,9 @@
     "tag": "playbill-claim-resolution-policy-v1"
   },
   "revision_evidence": "replace",
-  "slot_policy": null,
-  "subject_scope": null
+  "value": {
+    "kind": "string",
+    "max_len": 256,
+    "min_len": 1
+  }
 }
