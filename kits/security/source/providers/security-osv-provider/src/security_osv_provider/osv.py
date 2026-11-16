@@ -5,8 +5,9 @@ component purl@version it is given: ``POST /v1/querybatch`` (at most
 ``BATCH`` components a request), then ``GET /v1/vulns/{id}`` for every advisory
 a batch names (OSV's batch answer carries ids only; the record carries the CVE
 aliases), ``FETCH_CONCURRENCY`` at a time, the answers kept in sorted advisory
-order. It returns every response VERBATIM, one member of the output's
-Capture list each; how a response was obtained (method, URL, status, content
+order. It returns every response's JSON document in one canonical spelling
+(sorted keys, no spaces; a body that is not JSON stays verbatim), one member
+of the output's Capture list each; how a response was obtained (method, URL, status, content
 type, the request's digest and the purls a batch asked about) is the member's
 coordinate, never inside the bytes (D-R25/D-R26). Version matching is OSV's
 own (K-B1-3): the kit has no version-range code.
@@ -42,7 +43,7 @@ A request that fails in transport (no response at all) is left out of the
 list, and the result names ``responses`` in ``incomplete_captures`` (R-ON2):
 core then marks the call incomplete, positives from the delivered members still
 write, and absence never retires. A response that arrives with an error status
-is still a member, verbatim; the derive reads its status and leaves the
+is still a member; the derive reads its status and leaves the
 components it concerns unanswered.
 """
 
@@ -116,6 +117,28 @@ def _digest(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
+def _reject_constant(name: str) -> Any:
+    raise ValueError(f"non-standard JSON constant {name}")
+
+
+def canonical_json(content: bytes) -> bytes:
+    """The JSON document ``content`` holds, in one spelling: sorted keys, no spaces.
+
+    api.osv.dev serialises one advisory with its keys in varying order, so the
+    same document arrives as different bytes. Stored canonically, an unchanged
+    document is the same Capture content on every run. A body that is not
+    standard UTF-8 JSON (an error page, a truncated answer) stays verbatim.
+    """
+
+    try:
+        document = json.loads(content.decode("utf-8"), parse_constant=_reject_constant)
+    except (UnicodeDecodeError, ValueError):
+        return content
+    return json.dumps(
+        document, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    ).encode("utf-8")
+
+
 def _member(
     content: bytes,
     *,
@@ -129,7 +152,7 @@ def _member(
     purls: Sequence[str] = (),
     advisory: str | None = None,
 ) -> dict[str, Any]:
-    """One response as one Capture-list member: the body verbatim, the rest coordinate.
+    """One response as one Capture-list member: the body as canonical JSON, the rest coordinate.
 
     A member's identity is its request digest (core, a2), so every request
     names a distinct one.
@@ -150,7 +173,7 @@ def _member(
     if advisory is not None:
         coordinate["advisory"] = advisory
     return external_capture_result(
-        content,
+        canonical_json(content),
         source_identity=logical_source,
         coordinate_type=COORDINATE_TYPE,
         coordinate=coordinate,

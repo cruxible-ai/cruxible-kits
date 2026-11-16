@@ -10,8 +10,9 @@ entrypoint_group: cruxible.providers
 supported_protocol_majors: [2]
 implementations:
   # Serves osv.query: POST /v1/querybatch (at most 1000 components per request)
-  # and GET /v1/vulns/{id} for every advisory a batch names. Every response is
-  # returned verbatim as one member of the output's Capture list.
+  # and GET /v1/vulns/{id} for every advisory a batch names, eight at a time.
+  # Every response is returned as canonical JSON (verbatim when not JSON) as one
+  # member of the output's Capture list.
   - entrypoint: "security_osv_provider.osv:OsvQuery"
     backends: [local_env, container]
     requires_extras: []

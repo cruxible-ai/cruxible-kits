@@ -132,12 +132,22 @@ def test_each_response_is_one_member_verbatim() -> None:
     # One batch, then one record per advisory the batch names.
     assert [r["coordinate"]["method"] for r in responses].count("POST") == 1
     batch = next(r for r in responses if r["coordinate"]["method"] == "POST")
-    assert (
-        base64.b64decode(batch["content_base64"])
-        == (RECORDINGS / "batch-log4j-demo-app.body").read_bytes()
-    )
+    recorded = (RECORDINGS / "batch-log4j-demo-app.body").read_bytes()
+    stored = base64.b64decode(batch["content_base64"])
+    assert stored == osv.canonical_json(recorded) and json.loads(stored) == json.loads(recorded)
     assert batch["coordinate"]["purls"] == sorted(components)
     assert len(responses) == 1 + 9
+
+
+def test_reordered_keys_store_the_same_bytes_and_non_json_stays_verbatim() -> None:
+    """api.osv.dev reorders an advisory's keys between requests: the same
+    document must be the same Capture content on every run."""
+
+    one = b'{"id": "GHSA-1", "database_specific": {"b": 1, "a": "\\u00e9"}, "aliases": []}'
+    two = b'{"aliases":[],"database_specific":{"a":"\xc3\xa9","b":1},"id":"GHSA-1"}'
+    assert osv.canonical_json(one) == osv.canonical_json(two) == two
+    for body in (b"<html>502 Bad Gateway</html>", b'{"truncated": ', b"\xff\xfe", b"NaN"):
+        assert osv.canonical_json(body) == body
 
 
 class SlowRecorded(Recorded):

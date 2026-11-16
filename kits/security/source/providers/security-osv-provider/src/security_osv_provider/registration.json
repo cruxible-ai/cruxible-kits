@@ -2,7 +2,7 @@
   "schema_version": 3,
   "manifest": {
     "path": "manifest.yaml",
-    "digest": "sha256:1870f8dc8d44db8f1aedf6b8b5874f902415ad7cfedb16fb6367ed1e5b4c5eaf"
+    "digest": "sha256:d2663eb639511ace906f881af6fbdc652e1fbfc044835144e18c6f0363298f20"
   },
   "operations": [
     {
@@ -28,7 +28,7 @@
     },
     {
       "name": "osv.query",
-      "description": "Asks api.osv.dev about each component (one POST /v1/querybatch per 1000, then GET /v1/vulns/{id} for every advisory named) and returns every response verbatim, one Capture each; distro packages are never asked.",
+      "description": "Asks api.osv.dev about each component (one POST /v1/querybatch per 1000, then GET /v1/vulns/{id} for every advisory named) and returns every response as canonical JSON, one Capture each; distro packages are never asked.",
       "source": {
         "path": "kits/security/source/providers/security-osv-provider/src/security_osv_provider/osv.py",
         "repository": "https://github.com/cruxible-ai/cruxible-kits"
@@ -203,7 +203,7 @@
         "artifact_format": "cruxible-contract-v1",
         "name": "security.osv.query.result",
         "version": 1,
-        "description": "OSV's responses, verbatim, one Capture each: every POST /v1/querybatch (at most 1000 components) and every GET /v1/vulns/{id} a batch names. A request that got no response at all is left out and the call is marked incomplete; a response with an error status is still a member.",
+        "description": "OSV's responses as canonical JSON (sorted keys, no spaces; a body that is not JSON stays verbatim), one Capture each: every POST /v1/querybatch (at most 1000 components) and every GET /v1/vulns/{id} a batch names. A request that got no response at all is left out and the call is marked incomplete; a response with an error status is still a member.",
         "fields": {
           "responses": {
             "type": {
@@ -453,7 +453,7 @@
         "kind": "Capability",
         "name": "security.osv.query",
         "version": 1,
-        "digest": "sha256:f42da97587e9cdb1395e1b29bfb6d71c5c41ec0fd01439353a08a3b930199619"
+        "digest": "sha256:ca605cd0876ef311f60b13964913a8b96536f182138f515aa893acdf8b700aef"
       },
       {
         "kind": "Capability",

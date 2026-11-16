@@ -78,7 +78,7 @@ PACKAGES: dict[str, dict[str, Any]] = {
                 "name": "osv.query",
                 "description": "Asks api.osv.dev about each component (one POST /v1/querybatch "
                 "per 1000, then GET /v1/vulns/{id} for every advisory named) and returns every "
-                "response verbatim, one Capture each; distro packages are never asked.",
+                "response as canonical JSON, one Capture each; distro packages are never asked.",
                 "source": _source("security-osv-provider", "osv"),
                 "serves": [capabilities.OSV_QUERY],
                 "in": capabilities.OSV_QUERY + ".request@1",

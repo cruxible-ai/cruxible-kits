@@ -97,7 +97,8 @@ CONTRACTS: tuple[dict[str, Any], ...] = (
         "kind": "contract",
         "name": OSV_QUERY + ".result",
         "version": 1,
-        "description": "OSV's responses, verbatim, one Capture each: every POST /v1/querybatch "
+        "description": "OSV's responses as canonical JSON (sorted keys, no spaces; a body that is not JSON "
+        "stays verbatim), one Capture each: every POST /v1/querybatch "
         "(at most 1000 components) and every GET /v1/vulns/{id} a batch names. A request that "
         "got no response at all is left out and the call is marked incomplete; a response with "
         "an error status is still a member.",
@@ -184,7 +185,8 @@ CAPABILITIES: tuple[dict[str, Any], ...] = (
         "name": OSV_QUERY,
         "version": 1,
         "description": "Asks OSV.dev which advisories affect each component (purl@version) and "
-        "returns every response verbatim, one Capture each. OSV does the version matching; "
+        "returns every response as canonical JSON, one Capture each. OSV does the version "
+        "matching; "
         "distro packages are never asked.",
         "effect": "external_read",
         "in": OSV_QUERY + ".request@1",
