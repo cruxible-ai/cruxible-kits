@@ -244,21 +244,22 @@ def test_an_agent_finding_and_a_sarif_result_converge_on_one_subject(tmp_path: P
 
 def test_the_file_rule_admits_the_workspace_file_family() -> None:
     """reported_at, rule, reported_by and coverage_unit.status admit any
-    catalogued workspace file (D1); no ClaimType names a file."""
+    catalogued workspace file (D1) through the core's default rule; no ClaimType
+    states a family-only rule or names a file."""
 
-    file_rules = {
-        record["predicate"]: rule
-        for record in findings.claim_type_records()
-        for rule in record.get("evidence_admission_policy", {}).get("rules", [])
-        if rule["rule_id"] == "file"
-    }
-    assert sorted(file_rules) == sorted(
-        [f"{FINDING}.{name}" for name in ("reported_at", "reported_by", "rule", "verdict")]
-        + [f"{UNIT}.status"]
-    )
-    for rule in file_rules.values():
-        assert rule["capture_contract_families"] == ["workspace_file"]
-        assert "capture_contracts" not in rule
+    lowered = {claim_type.predicate: claim_type for claim_type in findings.claim_types()}
+    for name in (
+        *(f"{FINDING}.{field}" for field in ("reported_at", "reported_by", "rule", "verdict")),
+        f"{UNIT}.status",
+    ):
+        (self_rule,) = [
+            rule for rule in lowered[name].evidence_admission_policy.rules
+            if rule.rule_id == "self"
+        ]
+        assert list(self_rule.capture_contract_families) == ["workspace_file"], name
+    for record in findings.claim_type_records():
+        for rule in record.get("evidence_admission_policy", {}).get("rules", []):
+            assert not rule.get("capture_contract_families"), record["predicate"]
     for claim_type in findings.claim_types():
         for rule in claim_type.evidence_admission_policy.rules:
             assert not any(

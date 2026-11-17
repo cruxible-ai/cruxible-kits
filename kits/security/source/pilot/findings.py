@@ -224,24 +224,6 @@ def _rule(rule_id: str, roles: Sequence[str], kind: str) -> dict[str, Any]:
 _MANY = {"cardinality": "many", "eligible_verdicts": ["supported"], "selector": "all"}
 
 
-def _file_rule(roles: Sequence[str]) -> dict[str, Any]:
-    """A workspace-file/section receipt rule (``file``): any catalogued workspace file.
-
-    The family selector (D1) admits a Capture under any accepted foreign-source
-    contract of a catalogued file; the workspace catalog is the boundary. A file
-    never cited through the workspace write path has no accepted contract and
-    is refused.
-    """
-
-    return {
-        "rule_id": "file",
-        "claim_roles": list(roles),
-        "capture_contract_families": ["workspace_file"],
-        "admission": "direct",
-        "subject_binding": "exact_claim_subject",
-    }
-
-
 def _rules(*rules: Any) -> dict[str, Any]:
     flat = [rule for item in rules for rule in (item if isinstance(item, list) else [item])]
     return {"rules": sorted(flat, key=lambda rule: rule["rule_id"].encode("utf-8"))}
@@ -257,10 +239,23 @@ def _scanned(
 ) -> dict:
     """A scanner's observation, cited by the derived findings document.
 
-    With ``agent`` an audit agent's observation is admitted too: a
-    workspace-file receipt of the code at the location (hunter guidance).
+    With ``agent`` an audit agent's observation is admitted too: a workspace file
+    or section citation of the code at the location (hunter guidance). A workspace
+    citation is not captured evidence (a shaped payload), so such a field requires
+    only ``self`` and lists the SARIF contract in ``evidence``; the core's default
+    rule admits the citation.
     """
 
+    if agent:
+        evidence: dict[str, Any] = {
+            "evidence_requirement": "self",
+            "evidence": [FINDINGS_KIND],
+        }
+    else:
+        evidence = {
+            "evidence_requirement": "captured",
+            "evidence_admission_policy": _rules(_rule("sarif", ["observation"], FINDINGS_KIND)),
+        }
     return {
         "predicate": FINDING + "." + predicate,
         "allowed_subject_kinds": [FINDING],
@@ -269,14 +264,17 @@ def _scanned(
         "description": description,
         "permitted_roles": ["observation"],
         "default_role": "observation",
-        "evidence_requirement": "captured",
         "revision_evidence": "replace",
-        "evidence_admission_policy": _rules(
-            _rule("sarif", ["observation"], FINDINGS_KIND),
-            *([_file_rule(["observation"])] if agent else []),
-        ),
+        **evidence,
         **more,
     }
+
+
+def _default_rules(record: dict[str, Any]) -> dict[str, Any]:
+    """The record with no rules stated: the core's default admits own words and
+    workspace file and section citations (a confirmed verdict's observed run output)."""
+
+    return {key: value for key, value in record.items() if key != "evidence_admission_policy"}
 
 
 def _judged(predicate: str, value: dict[str, Any], description: str) -> dict:
@@ -377,8 +375,8 @@ def claim_type_records() -> list[dict[str, Any]]:
                 ]
             },
         },
-        {
-            **_judged(
+        _default_rules(
+            _judged(
                 "verdict",
                 {"kind": "enum", "members": VERDICTS},
                 "An agent's verdict: confirmed (real and exploitable), false_positive (no "
@@ -386,14 +384,8 @@ def claim_type_records() -> list[dict[str, Any]]:
                 "confirmed verdict cites the observed run output (a catalogued test log or "
                 "output file); a refutation cites the agent's own words. Never settled by a "
                 "Mandate.",
-            ),
-            # Own words (self-source), or the observed run output: a Capture of any
-            # catalogued workspace file (the workspace_file family, D1).
-            "evidence_admission_policy": _rules(
-                _rule("self", ["normative"], SELF_SOURCE),
-                _file_rule(["normative"]),
-            ),
-        },
+            )
+        ),
         {
             **_judged(
                 "justification",
@@ -483,10 +475,8 @@ def coverage_claim_type_records() -> list[dict[str, Any]]:
             "default_role": "normative",
             "evidence_requirement": "self",
             "revision_evidence": "replace",
-            "evidence_admission_policy": _rules(
-                _rule("self", ["normative"], SELF_SOURCE),
-                _file_rule(["normative"]),
-            ),
+            # No rules stated: the core's default admits own words and workspace file
+            # and section citations (the passage examined).
         },
     ]
 

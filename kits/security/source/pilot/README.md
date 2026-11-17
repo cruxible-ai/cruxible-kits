@@ -455,9 +455,14 @@ one finding with two reporters. What it checked is state too: a
 | `finding.reported_at`, `.rule`, `.reported_by` (`audit`) | observation | a SARIF scan, or a file receipt of the code at the location (`rule`: the notes file's `Trace` section) |
 | `finding.verdict` | normative, never a Mandate | own words (the reasoning section the same write appends), or a file receipt of the observed run output (confirmed) |
 
-- **File receipts.** The `file` rule admits any catalogued workspace file (a
-  `files.yaml` name): the `workspace_file` family (D1), a Capture under an
-  accepted foreign-source contract. The catalog is the boundary: the writer's
+- **File receipts.** No rule names them: every field that does not require
+  captured evidence takes the core's default rule, which admits own words and
+  any catalogued workspace file or section (a `files.yaml` name; the
+  `workspace_file` family beside the own-words contract). `reported_at`, `rule`
+  and `reported_by` therefore require `self` evidence and list the SARIF contract
+  in `evidence`; `verification` stays SARIF-only (captured). Since core PR #32 a
+  kit authors no family-only rule (`cruxible.claim_type.family_rule_not_authored`).
+  The catalog is the boundary: the writer's
   side refuses an uncatalogued path, and a Capture of a file never cited through
   the workspace write path (no accepted contract) is refused. The write that
   first cites a file installs its contract, and that contract admits the

@@ -62,8 +62,9 @@ boundary it crosses.
    `path#symbol`; `## Local check` if you ran one (command, input, limits, result);
    `## Blocker` if one outside fact decides it (the fact, and a safe way for an owner to
    check it). Write it in its own write first (a docs-only write, or the file catalogued and
-   committed). A section appended in the same write as the Claims counts as your own words,
-   and an observation needs observed evidence, so that write is refused.
+   committed). A section appended in the same write as the Claims counts only as your own
+   words, not as a citation of the trace, so it never reopens the finding when the trace
+   changes.
 4. **Then write what you saw**, in a second write citing the notes file, each Claim with role
    `observation`:
    - `reported_at` (`path:line`), citing the code there (file evidence

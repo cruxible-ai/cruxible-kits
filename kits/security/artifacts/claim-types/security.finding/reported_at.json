@@ -20,20 +20,6 @@
       {
         "admission": "direct",
         "attestation_requirement": "none",
-        "capture_contract_families": [
-          "workspace_file"
-        ],
-        "capture_contracts": [],
-        "claim_roles": [
-          "observation"
-        ],
-        "rule_id": "file",
-        "subject_binding": "exact_claim_subject",
-        "tag": "cruxible-claim-evidence-admission-rule-v4"
-      },
-      {
-        "admission": "direct",
-        "attestation_requirement": "none",
         "capture_contracts": [
           {
             "logical_sources": [],
@@ -47,14 +33,37 @@
         "claim_roles": [
           "observation"
         ],
-        "rule_id": "sarif",
+        "rule_id": "evidence",
+        "subject_binding": "exact_claim_subject",
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
+      },
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contract_families": [
+          "workspace_file"
+        ],
+        "capture_contracts": [
+          {
+            "logical_sources": [],
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "rule_id": "self",
         "subject_binding": "exact_claim_subject",
         "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
     "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
-  "evidence_requirement": "captured",
+  "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
     "name": "security.finding.reported_at"

@@ -101,18 +101,6 @@ def _rule(rule_id: str, roles: Sequence[str], kind: str) -> dict[str, Any]:
     }
 
 
-def _file_rule() -> dict[str, Any]:
-    """Any catalogued workspace file (the ``workspace_file`` family, D1)."""
-
-    return {
-        "rule_id": "file",
-        "claim_roles": ["normative"],
-        "capture_contract_families": ["workspace_file"],
-        "admission": "direct",
-        "subject_binding": "exact_claim_subject",
-    }
-
-
 def fact_claim_type_records() -> list[dict[str, Any]]:
     """The fact's keys, its category and whether it holds."""
 
@@ -157,10 +145,8 @@ def fact_claim_type_records() -> list[dict[str, Any]]:
             "default_role": "normative",
             "evidence_requirement": "self",
             "revision_evidence": "replace",
-            # Rules sorted by rule_id: a notes section (file), or own words (self).
-            "evidence_admission_policy": {
-                "rules": [_file_rule(), _rule("self", ["normative"], SELF_SOURCE)]
-            },
+            # No rules stated: the core's default admits own words and workspace file
+            # and section citations (the notes section).
         },
         {
             "predicate": CODE_FACT + ".holds",
@@ -177,10 +163,11 @@ def fact_claim_type_records() -> list[dict[str, Any]]:
             ],
             "permitted_roles": ["normative"],
             "default_role": "normative",
-            # Evidence required: the code passage, a catalogued workspace file.
-            "evidence_requirement": "captured",
+            # The code passage is a workspace file citation. "captured" now means a
+            # shaped payload only, so the field takes the core's default (own words
+            # and workspace citations); the guidance asks for the passage.
+            "evidence_requirement": "self",
             "revision_evidence": "replace",
-            "evidence_admission_policy": {"rules": [_file_rule()]},
         },
     ]
 

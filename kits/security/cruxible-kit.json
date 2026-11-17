@@ -53,11 +53,11 @@
       "path": "capture-contracts/security.sbom-components.json"
     },
     {
-      "artifact_digest": "sha256:2a357f76923d25c0035bc151601687655fb877128a8728d811352a00de39e3ee",
+      "artifact_digest": "sha256:5930e867f68027f46b020bd462736efe89b4ddc75a25c7038bc840b63cdcd2ff",
       "path": "claim-types/security.app_exposure/justification.json"
     },
     {
-      "artifact_digest": "sha256:5d5abcef32a04849ecf3dab7b4cf07c9047b9002dc10f04cf025b7a6c2a3f781",
+      "artifact_digest": "sha256:1174546d3b3a009804323a7b04a86fe9a5f990325429f44d1c7536c170f23ffb",
       "path": "claim-types/security.app_exposure/occurrence.json"
     },
     {
@@ -65,31 +65,31 @@
       "path": "claim-types/security.app_exposure/rests_on.json"
     },
     {
-      "artifact_digest": "sha256:cf583e28abcb3cf9c9526985bbab70d12e14c8407a90663a040c04b1d38513ff",
+      "artifact_digest": "sha256:ce2094fd8fbe1288b5cb6ddb580cffc2a201cb1851f0915ec67a9335cbb646d9",
       "path": "claim-types/security.app_exposure/verdict.json"
     },
     {
-      "artifact_digest": "sha256:5e4f29b95a5810d62147779e6dfeb14c85e3b1f876e37d54f862b456af1defbb",
+      "artifact_digest": "sha256:471c1d123a8306469bf6915bee555ef251ee0dedc013b5f82b9612667923569b",
       "path": "claim-types/security.app_exposure/vulnerability.json"
     },
     {
-      "artifact_digest": "sha256:3f2357d01380f4798975cc91641bb1263e8409c9fba60d3b42b85e523fe1a4ea",
+      "artifact_digest": "sha256:15c8d4a2970fbff0df0b729fc3a70347e12f07557eed11a79432285e56145a25",
       "path": "claim-types/security.catalog/catalog_id.json"
     },
     {
-      "artifact_digest": "sha256:8d7d50d349384aac4ff06ca1e4e2bfe6e8ef05c0b412a58841ad49e2c3982b44",
+      "artifact_digest": "sha256:f1dd2beecba10480832741b6727afb3c49905d641d3f21e7b08cee73f4f9ecd5",
       "path": "claim-types/security.code_fact/category.json"
     },
     {
-      "artifact_digest": "sha256:a753b6bc1f126d0da0aae31b1dafb42c6b690689d30ac3f8823a03e574db17ca",
+      "artifact_digest": "sha256:326aa919c486fe7170cd29290b7b4dc8876ea04320bc531953513b20145d6879",
       "path": "claim-types/security.code_fact/holds.json"
     },
     {
-      "artifact_digest": "sha256:d8ce33922e966fa98df0a1ca5611eb62c3276132be45a375f2aa8a1f0296d173",
+      "artifact_digest": "sha256:fef382926e312923a173eb605f32e8e7cc7de1d6d83d24c7e7ec7b0adc0eccb9",
       "path": "claim-types/security.code_fact/repo.json"
     },
     {
-      "artifact_digest": "sha256:bf0c499bed552eec945d046e2dcf29b04d8bc5b7e22f93140f23945eb797db40",
+      "artifact_digest": "sha256:67bbf5f750fffa7a15b7774df00f0f0d22b776d207eee757d0a3fc094203abca",
       "path": "claim-types/security.code_fact/topic.json"
     },
     {
@@ -97,15 +97,15 @@
       "path": "claim-types/security.component/affected_by.json"
     },
     {
-      "artifact_digest": "sha256:a773f9540e76a99a781783134d5d8eec2a12b086bdb754ff733dd3a9add625f4",
+      "artifact_digest": "sha256:a4776f1f6821eb6e94067889e7a95f3ba395a2214dd7d53d96366228de365e08",
       "path": "claim-types/security.component/purl.json"
     },
     {
-      "artifact_digest": "sha256:a1c73cd6d2fcd3177da4081f56d3d71e79f044e97623a2f70412c46c3ce01cec",
+      "artifact_digest": "sha256:85332242cd9192f4a99737dcdf5995734c1359bd80e4b6d83d9e95b50e6e11b4",
       "path": "claim-types/security.coverage_unit/concern.json"
     },
     {
-      "artifact_digest": "sha256:4f7612db9f58a0e444c4aadfd776a610a50529a173e05be0434301ce9ab65e5d",
+      "artifact_digest": "sha256:9d2d55d7463391f9c4a8e13270d9da5044870c4203a01bfe94ba2fb1ef7722ef",
       "path": "claim-types/security.coverage_unit/repo.json"
     },
     {
@@ -113,23 +113,23 @@
       "path": "claim-types/security.coverage_unit/rests_on.json"
     },
     {
-      "artifact_digest": "sha256:7d28242e28b2ff859584fcf1b8fdedc8398428ffd01eaeef652caa54efe95589",
+      "artifact_digest": "sha256:00fb01d767c3bcf3a147a10dd05ed937b94531c736097807b40cda8950277e9b",
       "path": "claim-types/security.coverage_unit/status.json"
     },
     {
-      "artifact_digest": "sha256:651e6a5d595e18031c6593387255c000f97bf37504ad4d501155e91e1679b100",
+      "artifact_digest": "sha256:f8ab7b6dae2e2b0853bcc4568afecd55b8679492a975ae9ad70b3a1ac4e193b8",
       "path": "claim-types/security.coverage_unit/surface.json"
     },
     {
-      "artifact_digest": "sha256:85a34c110fd4f7c34d931344a23d6ec3883fe3b72e5edadf2b4abccc1dc8d97b",
+      "artifact_digest": "sha256:3ae1a8534f213678d0b71ea58e97e97eb058d90d973353176e83440b962b452d",
       "path": "claim-types/security.exposure/component.json"
     },
     {
-      "artifact_digest": "sha256:51205590c8d57cc506d4a835f3faed739b6150b1cbbc2a08e8922ae705dbc71d",
+      "artifact_digest": "sha256:19b0a630eae218865daf21d33293f456934e9786bdb76b33607d16f891ed3225",
       "path": "claim-types/security.exposure/justification.json"
     },
     {
-      "artifact_digest": "sha256:02b535a3a854164408cab4e2b44f4571c9593389427c022742543a4ec7beb4b6",
+      "artifact_digest": "sha256:9cbe02338b2a44aa957d742d618883dbaa673484f47f3da163118bc26e7b9029",
       "path": "claim-types/security.exposure/vulnerability.json"
     },
     {
@@ -145,19 +145,19 @@
       "path": "claim-types/security.finding/justification.json"
     },
     {
-      "artifact_digest": "sha256:41794c50540b4511d4bfe994d7e7a31619bfcebed0f26250be8a59a3ac6dc3ed",
+      "artifact_digest": "sha256:ee9bae648ea4694f4aa8c35e06e1ea9450f0f37f8c5fd08dd736e5e130c0c975",
       "path": "claim-types/security.finding/locus.json"
     },
     {
-      "artifact_digest": "sha256:21f290564a47677eba7e7554406939386f38dc0cef56fa4ad9e384b13897d894",
+      "artifact_digest": "sha256:cbcd5b5c0cd276c30bcc406a381e8771041a208d0e186a621e90d15cf62584b3",
       "path": "claim-types/security.finding/repo.json"
     },
     {
-      "artifact_digest": "sha256:fce87e41ea847216bd304d4d7ab113e9f6499a1174ee2236c20b95c0b7272b1c",
+      "artifact_digest": "sha256:7c11d10e5b80a6327e011fcf9b596f2124cf0597b6907facc0388a749d205fc3",
       "path": "claim-types/security.finding/reported_at.json"
     },
     {
-      "artifact_digest": "sha256:1b1653a35a77f3862b32e55741a6f36a9a19074dc2317c88b257023dfdcf5aa7",
+      "artifact_digest": "sha256:6e5e5bac990d6ed3399ddde2860c74f668287d1360604d3f1fe0e1d1390ad8b7",
       "path": "claim-types/security.finding/reported_by.json"
     },
     {
@@ -165,7 +165,7 @@
       "path": "claim-types/security.finding/rests_on.json"
     },
     {
-      "artifact_digest": "sha256:62a076c606a2fafb0be2a136bea9e861dc2fd67ae5a28e7f32124d2dda0dcce7",
+      "artifact_digest": "sha256:88ac11c4da7502a3fe830391477fb753cda669752b22976d63d292469267e5ea",
       "path": "claim-types/security.finding/rule.json"
     },
     {
@@ -173,7 +173,7 @@
       "path": "claim-types/security.finding/severity.json"
     },
     {
-      "artifact_digest": "sha256:0f7e755363b9b92612c75304f7186b96d64972d88274a06659c350796ab1cdb6",
+      "artifact_digest": "sha256:ffc1bdc7898c28f815908645c7c663d0943fd0b00da87fc43f7c87584f073fd8",
       "path": "claim-types/security.finding/verdict.json"
     },
     {
@@ -181,19 +181,19 @@
       "path": "claim-types/security.finding/verification.json"
     },
     {
-      "artifact_digest": "sha256:50ffa3d7791b22a1641d594bb335213dac439b6ec90c6b38fbf9e0648ce46a13",
+      "artifact_digest": "sha256:204052cba57ea100095d2dcf2f99860abd7f9082f316fd2ffca495ecfb67fdc2",
       "path": "claim-types/security.finding/weakness.json"
     },
     {
-      "artifact_digest": "sha256:d9bd62153196066c1aa978270c01df9532a696b1fef267793d907db73dc44e26",
+      "artifact_digest": "sha256:5654fbd4696c4fe42e14ec425de1ca5413ad84c86fdf744e60d929721991ebe3",
       "path": "claim-types/security.inventory/inventory_id.json"
     },
     {
-      "artifact_digest": "sha256:0f43ea0a8f3104dacdc68f383ff32be8e36ca1bfbda1b189509810166de203b7",
+      "artifact_digest": "sha256:e1b526bb6b5ecd34d837e129d6700ef22b5dc6d7dd1a20b5ff10512c04192b2c",
       "path": "claim-types/security.occurrence/component.json"
     },
     {
-      "artifact_digest": "sha256:2497d31ba4e810f043671d3359653547282e69126ae7db68cf34d3f45ce52e12",
+      "artifact_digest": "sha256:caa3bde97b57b12bc2eeaebf8437546074f96c2ba69c8cf2739c93ab26c9224a",
       "path": "claim-types/security.occurrence/inventory.json"
     },
     {
@@ -201,7 +201,7 @@
       "path": "claim-types/security.occurrence/scope.json"
     },
     {
-      "artifact_digest": "sha256:3c8bff4bf143e6c9716bf77437a81b553f2b78945b5632a1c4ec5d0f02113277",
+      "artifact_digest": "sha256:ec95fb6c136e9c994936f4ad8865e48b78ed81b5762784a903f229e2a3ec24a3",
       "path": "claim-types/security.vulnerability/cve_id.json"
     },
     {
@@ -521,7 +521,7 @@
       "path": "documents/security.guidance.dependency.json"
     },
     {
-      "artifact_digest": "sha256:32914dbffcaf4cbf7c7cebcdb0410fe2f0701c66a6ba6f144fcf0ce68c651ec2",
+      "artifact_digest": "sha256:0c38e5a30cdafb43d5f8c6a1d173a46e82fa735a4d6b6878e16b874b8747eef9",
       "path": "documents/security.guidance.hunter.json"
     },
     {
@@ -829,12 +829,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5b1e93a005c680b1709f9c58c6fba03ef8ff87f9ec4b38b1b7fab6fb04891be8",
-      "generation_root": "sha256:5d42f83aa3712b64d5edd13cb0b00da3e60e3509e8b69e654afd9463f343b799",
-      "git_oid": "5a17a05002cbdabb75e82f5d681060ad3fe17631",
-      "semantic_root": "sha256:350a5ee3805d3da86874dba0c3eafa363ba9bc2ca288cdf4078a016afaf21797",
+      "generation_root": "sha256:0b9d6346d0af2ef3479b9fc5b31b46fc2bf73934b136787bf9456e359848e89b",
+      "git_oid": "1d7638229f9e9888404a2c490040d2c8ab07e92d",
+      "semantic_root": "sha256:2b99087713e78248c52b75ccce50c71ad8a0c207b904136ce8f20bb1b7adb8aa",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_1ae71bae4bc54c06",
+    "instance_id": "inst_d8bd5155759a45d3",
     "principal_id": "owner"
   },
   "providers": [

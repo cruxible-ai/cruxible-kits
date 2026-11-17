@@ -16,6 +16,9 @@
       {
         "admission": "direct",
         "attestation_requirement": "none",
+        "capture_contract_families": [
+          "workspace_file"
+        ],
         "capture_contracts": [
           {
             "logical_sources": [],
