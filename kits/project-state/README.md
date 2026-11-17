@@ -35,9 +35,11 @@ Every kind below also has `slug`, its key.
 Roadmap items, recommendations and feedback follow-ups are written in your own
 words. Batch, track, card, decision and law fields are meant to cite a passage
 of a catalogued workspace file (an agent report, a dispatch contract, a friction
-log, the program register); the core admits a workspace citation or your own
-words on any field that does not require captured evidence, so cite where you
-can. Feedback findings take either. Text fields hold at most 256 characters.
+log, the program register). That is guidance, not something the core
+enforces: no field of this kit requires captured evidence, so the core admits
+your own words, or a workspace file or section citation, on every one. Cite
+where you can; a reviewer is who asks for the citation. Feedback findings take
+either. Text fields hold at most 256 characters.
 
 A ruling (`dev.decision.ruling`), a law's text (`dev.law.text`) and program
 prose (`dev.program.prose`) are short summaries; the prose itself lives in a
@@ -50,15 +52,37 @@ cruxible set dev.decision/kit-versions ruling "Kits that changed meaning for 0.5
   --evidence-file "docs/decisions.md#Kits whose meaning changed for 0.5 ship as 2.0.0"
 ```
 
-On a core with `cruxible link`, `--section "docs/decisions.md#Kit versions"`
-cites the whole section the same way.
+`--evidence-file PATH#TEXT` quotes a passage found once in the file, and the
+write catalogues the file if it is not yet. `set` has no option that cites a
+whole section; a write file does (`cruxible write FILE`), naming the section
+by its heading path from the top of the page:
+
+```yaml
+because: "The maintainer's ruling."
+changes:
+  - op: set
+    subject: dev.decision/kit-versions
+    field: standing
+    value: ratified
+    evidence: {kind: section, file: docs/decisions.md, section: [Decisions, Kit versions]}
+```
 
 ## Install
 
+From a checkout of this repository:
+
 ```sh
-cruxible kit add project-state:2.0.0                  # preview
-cruxible kit add project-state:2.0.0 --commit --at OID
+cruxible kit add /path/to/cruxible-kits/kits/project-state                  # preview; prints the coordinate
+cruxible kit add /path/to/cruxible-kits/kits/project-state --commit --at OID
 ```
+
+`cruxible kit add project-state:2.0.0` is available only after the registry
+release; until then it refuses (`cruxible.kit.not_found`), so use the
+directory. The kit carries no providers, so the install is one proposal. With
+one owner and self-approval the commit installs it; under independent approval
+(`cruxible init ... --reviewer-key-dir DIR --require-independent-approval`) it
+waits for the reviewer: `CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal
+approve PROPOSAL_ID --yes`.
 
 ## Upgrading
 
