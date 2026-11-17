@@ -47,15 +47,20 @@ auth, client side, cloud, AI and LLM, memory safety and more), starting from
 [reference/attack-classes.md](reference/attack-classes.md). They are plain
 files for the reader; the kit doesn't install them.
 
-The bundled `security-osv-provider` serves `security.sbom.components`,
-`security.osv.query` and `security.osv.match`; bundled `cruxible-provider-web`
-0.7.0 serves the base kit's `web.fetch` and `web.fetch.pages` (the KEV and EPSS
-reads); bundled `security-sarif-provider` serves `security.sarif.findings`
-(pure: no network, no clock). The SBOM and SARIF files are read by core's
-builtin `workspace.file`. Each provider carries registration schema 3 (its own
-copies of the Contracts and layouts it serves), a frozen lock and its runtime
-dependency wheel. Provider installation can download the registry dependencies
-pinned by those locks.
+The kit needs three providers. Two are its own and ship inside it:
+`security-osv-provider` serves `security.sbom.components`,
+`security.osv.query` and `security.osv.match`, and `security-sarif-provider`
+serves `security.sarif.findings` (pure: no network, no clock). The third is
+general purpose: `cruxible-provider-web` 0.7.0 serves the base kit's
+`web.fetch` and `web.fetch.pages` (the KEV and EPSS reads). General-purpose
+providers are not bundled: the kit names the package at an exact version, and
+`kit add` installs that version from the package index (PyPI unless the
+operator names another), unless a build already installed serves those
+operations. The SBOM and SARIF files are read by core's builtin
+`workspace.file`. Each provider carries registration schema 3 (its own copies
+of the Contracts and layouts it serves) and a frozen lock; installing a
+provider can download the dependencies its lock pins. For a machine with no
+index access, see the isolated-deployment page of the Cruxible docs.
 
 ## Install and first answers
 
@@ -65,21 +70,30 @@ checkout of this repository (replace paths for your workspace):
 ```sh
 cruxible init --principal-id owner \
   --reviewer-key-dir /outside/workspace/reviewer-keys --require-independent-approval
-# The base kit's proposal from init waits for the reviewer (see Review below):
+# init prints the base kit's proposal; the reviewer approves it (see Review below):
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
-# Read the current coordinate, then review the manifest and guidance:
-cruxible orient --json
-# Use coordinate.git_oid as OID for the explicit install:
-cruxible kit add /path/to/cruxible-kits/kits/security --commit --at OID --json
-# The reviewer approves the kit's proposal, then:
+# Preview the install (writes nothing); it prints the coordinate to commit at:
+cruxible kit add /path/to/cruxible-kits/kits/security
+cruxible kit add /path/to/cruxible-kits/kits/security --commit --at OID
+# The commit prints three provider-install proposals. The reviewer approves each:
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
+# Then the kit's definitions are proposed automatically; kit status names that proposal:
+cruxible kit status --offline
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
 ```
 
 The base kit must be installed first: `init` proposes it, and once it is
 accepted `cruxible kit status --offline` shows `base`. Without it, `kit add`
 refuses with the repair `cruxible kit add base`. Nothing else needs to be
-accepted beforehand: installation installs the three providers (each carries
-its own copies of the shapes it serves) and proposes the kit's definitions.
+accepted beforehand. Under independent approval a kit add is four proposals,
+not one: one install proposal for each of the three providers (each carries
+its own copies of the shapes it serves), then the kit's definitions, which
+are proposed automatically, as the kit's author, once the three installs
+have activated, because they are checked against the installed providers.
+The reviewer approves all four. With one owner and self-approval (below) the
+same commit installs everything in one step.
 `cruxible kit add security:1.3.0` is **available only after the registry
 release**; use the local directory now. The same holds for a refusal whose
 repair is `cruxible kit add security` (`requires_missing`, from something that
@@ -87,17 +101,21 @@ requires this kit): that command fetches the registry release, which does not
 exist yet, so run `cruxible kit add /path/to/cruxible-kits/kits/security`
 instead.
 
-`cruxible kit add PATH --json` without `--commit` previews the plan and writes
-nothing.
+`cruxible kit add PATH` without `--commit` previews the plan and writes
+nothing (`--json` for the full plan).
 
 ### Review: a second agent approves
 
 An agent never approves its own proposals. `--reviewer-key-dir` adds a second
 principal, `reviewer`, with its key and settings (`cruxible.env`) in that
 directory, outside the workspace; `--require-independent-approval` makes the
-approval policy `independent_approval_required`, so every proposal (the kit's,
-the automation template's, each judgment) activates only once a principal other
-than its author approves it. The reviewer is normally a subagent the working
+approval policy `independent_approval_required`, so every proposal (the base
+kit's, each provider install, the kit's definitions, the automation
+template's, each judgment) activates only once a principal other than its
+author approves it; the author's own `proposal approve` is refused
+(`cruxible.approval.creator_forbidden`). This cosign between agents is a
+convention, not a security boundary: both keys are files the same OS user can
+read. The reviewer is normally a subagent the working
 agent starts for each proposal. Subagents share the parent session's MCP
 servers, which act as the parent's principal, so the reviewer uses the CLI as
 `reviewer`:
@@ -113,17 +131,28 @@ included) for that command only. A person reviewing at their own terminal can
 switch instead with `cruxible context use --principal reviewer`, which changes
 the principal for every command on this instance until `cruxible context use
 --principal owner` switches back. `cruxible next` lists what waits for review
-(`proposal_awaiting_approval`) when read as `reviewer`.
+(`proposal_awaiting_approval`) when read as `reviewer`, each row with the
+command that approves it (`cruxible proposal approve ID --signer-id
+reviewer`, which also works from the owner's session). On an instance that
+was initialized without a reviewer, add one first and then the policy:
+`cruxible principal add reviewer --key-dir /outside/workspace/reviewer-keys
+--signer-key OWNER_KEY --mode graph_write`, then `cruxible authoring example
+approval-policy > policy.json` and `cruxible authoring submit policy.json`.
 
-A kit proposal is planned against the instance as it was when `kit add` ran.
-If other writes land before the reviewer approves it, it is stale and the
-approval refuses: run the same `cruxible kit add ... --commit` again (with
-`--at` the new coordinate) and have the reviewer approve the new proposal.
+The kit's definitions proposal is planned against the instance as it was when
+it was proposed. If other writes land before the reviewer approves it, it is
+stale and the approval refuses (`readmit_requires_resubmission`): run the same
+`cruxible kit add ... --commit` again (with `--at` the new coordinate), have
+the reviewer approve the new proposal, and withdraw the stale one (`cruxible
+proposal withdraw PROPOSAL_ID --reason TEXT`), which otherwise stays open. A
+provider-install proposal does not go stale this way: its approval lands the
+same change set at the new head and signs that.
 
 If you want to approve everything yourself, initialize without the reviewer:
-`cruxible init --principal-id owner` leaves the policy `self_approval_allowed`
-(the default), where the owner's own `proposal approve` signs and activates
-each proposal and nothing waits for a second principal.
+`cruxible init --principal-id owner` leaves the policy `self_approval_allowed`,
+where `init` installs the base kit, `kit add --commit` installs the kit, and
+the owner's own `proposal approve` signs and activates each proposal; nothing
+waits for a second principal.
 
 Copy [automation.json](automation.json) to your workspace and tailor it before
 submitting. It is a template, never installed or submitted by `kit add`:
@@ -162,7 +191,7 @@ CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible runbook preview security.start
 # Posts OSV advisories with no CVE id (below) when the OSV step lands its result:
 cruxible line enable security.osv-unkeyed
-# Review the preview separately before running:
+# Review the preview separately before running (about half a minute on a 32-component SBOM):
 cruxible runbook run security.start
 cruxible query --name security.urgent_exposures
 cruxible next
@@ -188,8 +217,9 @@ urgent first): `cruxible next` shows them as `line_inbox_unread`.
   threshold.
 
 Item fields are typed references (`security.exposure-attention@2`):
-`inventory`, `component` and `cve_id` are keys of their Subject kinds, and
-`occurrence` is the occurrence's Subject id.
+`inventory`, `component` and `cve_id` are keys of their Subject kinds,
+`occurrence` is the occurrence's Subject id, and `state` says why the pair is
+there (`unjudged` or `contested`).
 
 OSV advisories with no CVE id yet (a GHSA or PYSEC advisory with no CVE alias)
 get one summary item in a separate inbox, `security.osv-unkeyed`. Every finding
@@ -227,9 +257,9 @@ list does. Post one item per element only when each needs its own decision and
 that decision is recorded nowhere else.
 
 `security.urgent_exposures` and `security.kev_triage_backlog` stay the whole
-worklist, whatever the threshold. The preview lists `reads_unwritten` for the
-two attention steps: they read the judgments, which agents write and no Line
-does.
+worklist, whatever the threshold. The preview notes that the two attention
+steps read fields `written by no Line (direct entry only)` (`reads_unwritten`
+in `--json`): they read the judgments, which agents write and no Line does.
 
 To give one inventory its own threshold, add a Line on the
 `security.exposure-attention.unjudged-inventory` Procedure (it reads
@@ -262,13 +292,15 @@ real: OSV uses `api.osv.dev`, KEV uses `www.cisa.gov`, and EPSS uses
 After the initial run, one Trigger keeps the facts current:
 `security.maintain-daily` runs the `security.maintain` Runbook (OSV, then KEV,
 then EPSS, then the two attention Lines) once a day, and each OSV result runs
-`security.osv-unkeyed` through its own Trigger. Each step runs under its Line's
-own enablement, and the Runbook never adds authority of its own: a step whose
-Line is not enabled stops the run there. Enable all seven Lines with `cruxible
+`security.osv-unkeyed` through its own Trigger. In a run the Trigger starts,
+each step runs under its Line's own enablement, and the Runbook never adds
+authority of its own: a step whose Line is not enabled stops the run there.
+(A `runbook run` you start yourself runs every step as you, enabled or not.)
+Enable all seven Lines with `cruxible
 line enable NAME`: `security.sbom-import.app`, `security.osv-query`,
 `security.kev-triage`, `security.epss-triage`,
 `security.exposure-attention.unjudged`, `security.exposure-attention.contested`
-and `security.osv-unkeyed`. `cruxible next` lists any of them you have not
+and `security.osv-unkeyed`. `cruxible next` lists any of them you have never
 enabled as `line_not_enabled`; that row is expected for a Line you chose to
 leave off (for example the SBOM import, if you only ever run it by hand with
 `line run`). Editing a Line disables it again. The SBOM import is not on the clock: the
@@ -290,8 +322,11 @@ was down is not run later. `cruxible next` then shows a
 `cruxible runbook run security.maintain`: run it to catch up.
 
 A run in which nothing upstream changed still fetches OSV, KEV and EPSS and
-records what it read, so it takes time and stored bytes; see the release notes
-for the per-run figure before running it more often than daily.
+records what it read, so it takes time and stored bytes
+<!-- TODO(0.5.0): measured bytes per unchanged run -->; weigh that before
+running it more often than daily. The records are part of the instance: the
+daemon's `exhaust` directory is backed up with the ledger, and no command
+prunes it.
 
 ## The audit loop
 
@@ -322,6 +357,15 @@ scanner's findings imported through `security.sarif-import` (below), or the
 output file of a bounded local check. Prose (an advisory, a notes section with
 the reasoning) keeps quote and section citations.
 
+The citations above are guidance, not something the core enforces. The core
+admits a judgment field's value on its author's own words, or on a workspace
+file or section citation, wherever the field does not require captured
+evidence; of the judgment fields only `security.finding.verification` does
+(a SARIF findings payload), beside the source facts the Lines copy (scope,
+KEV, EPSS). A verdict or justification written with no citation
+is therefore admitted, and it is the reviewer, reading the guidance each
+field's card links, who rejects it.
+
 The loop needs three agents: the hunter, the verifier and the approver. In
 the default setup the approver is the `reviewer` principal (see
 [Review](#review-a-second-agent-approves)): the verifier's write is its own
@@ -329,7 +373,8 @@ proposal, and a different principal approves it. The hunter and the verifier
 may both write as the owner. Where you want them as separate principals, add
 them with `cruxible principal add NAME --key-dir /outside/workspace/NAME-keys
 --signer-key OWNER_KEY`, which writes each key and its `cruxible.env` settings
-to that directory.
+to that directory (a principal that approves also needs `--mode
+graph_write`).
 
 To import a scanner's SARIF file, author a Line for `security.sarif-import`
 yourself (the automation template doesn't include one): bind `read` to
