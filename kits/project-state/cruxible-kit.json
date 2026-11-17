@@ -5,15 +5,15 @@
       "path": "capture-contracts/playbill.coordinator-self-source-v1.json"
     },
     {
-      "artifact_digest": "sha256:802ad97b6a4d68783672562faf08bfa9b3992e69bf676b39ef4b0867dd18b0cc",
+      "artifact_digest": "sha256:d7aee6ef7c290c4a4891fdf156f801562a8f24eafd9f11add317ce1d39deb374",
       "path": "claim-types/dev.batch/belongs_to_track.json"
     },
     {
-      "artifact_digest": "sha256:dea69584ca01e8efe5ba6b69b0943136d2030f467b5c6079dc44c95265d56fb7",
+      "artifact_digest": "sha256:45042be7a96721968ea6cf89990c4f4d3095640302c77518bab317f5fac67017",
       "path": "claim-types/dev.batch/blocked_by.json"
     },
     {
-      "artifact_digest": "sha256:7aa35561d4b370b0da249e6dea27b6340cc96ac8695e901a45ce36590ffea8ad",
+      "artifact_digest": "sha256:ed1133b08cf2516499555e6926b65213413e09430437380292eef4168e3581ba",
       "path": "claim-types/dev.batch/landed_at.json"
     },
     {
@@ -21,27 +21,27 @@
       "path": "claim-types/dev.batch/slug.json"
     },
     {
-      "artifact_digest": "sha256:9d57862a458fdddc15c51886cb803cd8001ad53788734bdca1b4be42d8fcc788",
+      "artifact_digest": "sha256:b340de87504c68c6624bb1331aed3d7b043cd1977f009f861b284cff3a3509e9",
       "path": "claim-types/dev.batch/state.json"
     },
     {
-      "artifact_digest": "sha256:87831594961f05544ab06318f9420dbc5f30e060eaedd1749a82abd06e571e0f",
+      "artifact_digest": "sha256:37b9644626db466965e6015e822547b693c831d4070f9ed63f7f31dee6c07030",
       "path": "claim-types/dev.batch/tip.json"
     },
     {
-      "artifact_digest": "sha256:5ccd0e566cd50d188c242339fac79a7889ed6348ddeb2c329d9138a62c33f9fa",
+      "artifact_digest": "sha256:610693f9f207e40b5ead0d03d913cd298994b47792dd19e933d805fd55496eb9",
       "path": "claim-types/dev.batch/verdict.json"
     },
     {
-      "artifact_digest": "sha256:a7fb80050258ad3432f4a56d295ccc929e92e5dfaaeda7c727938f4c822bc066",
+      "artifact_digest": "sha256:ed41d7e3767c5da7d4bb1ead541d1b7e970c3fe9bdfff33d554468ad64de2398",
       "path": "claim-types/dev.card/closed_by.json"
     },
     {
-      "artifact_digest": "sha256:48ac06cfc0b67bed0dd8883d3278f3af92cb562c2cdaabb14c4a225ccc1d6ca4",
+      "artifact_digest": "sha256:7c716d10f56e99ef106dd30cb5ba9f4cd7418a6870e90164d43428b2c3756a06",
       "path": "claim-types/dev.card/disposition.json"
     },
     {
-      "artifact_digest": "sha256:99341e6d389d8024cf0df7ecb82f32d54a3e42c044acab166743dfcd0839354e",
+      "artifact_digest": "sha256:ebc9c0dd7b20383784acd2152035e819a987226eeead43c58fcda20188b3b126",
       "path": "claim-types/dev.card/lane.json"
     },
     {
@@ -49,11 +49,11 @@
       "path": "claim-types/dev.card/slug.json"
     },
     {
-      "artifact_digest": "sha256:23708de65cffd21e8191cf527664115de8a9f4ae60cfff1ba226b0dced77df0c",
+      "artifact_digest": "sha256:715d3acd68feec8f37a66c0aa89c2c401f6554323f4fee49469db78c4514f9e3",
       "path": "claim-types/dev.decision/decided_in.json"
     },
     {
-      "artifact_digest": "sha256:bcfd2d4568ffac908707e1482d013b0b6f77f41df05041160ad300037261345c",
+      "artifact_digest": "sha256:de1b0bbd230ef5958ff70e6c1ed36b197451dc85c70ac8c2158b221027e07814",
       "path": "claim-types/dev.decision/ruling.json"
     },
     {
@@ -61,11 +61,11 @@
       "path": "claim-types/dev.decision/slug.json"
     },
     {
-      "artifact_digest": "sha256:349e1544e6b0d7ef8e6816156b5eb16c50ae7d47017a21199509f2f513d49905",
+      "artifact_digest": "sha256:911826f28e73a7023c5bb593b25c30ef0dfa3eb756c5ca4cc110cd27bfd98a77",
       "path": "claim-types/dev.decision/standing.json"
     },
     {
-      "artifact_digest": "sha256:e0cbc0b8847e69c2fee0d93fb6577d214f64f3b55001bace701730fd446c3d87",
+      "artifact_digest": "sha256:04be44da10ed96d9e2231775d8665622c5c6fb15797dc111739e456c153ed7e7",
       "path": "claim-types/dev.law/origin.json"
     },
     {
@@ -73,11 +73,11 @@
       "path": "claim-types/dev.law/slug.json"
     },
     {
-      "artifact_digest": "sha256:e33716516634f639406c3b6436c19c24441b9682838dcf5518bc7eef12c9341b",
+      "artifact_digest": "sha256:51d687dd07a3b4226f95ba4617425f83b1075f0706a5f0cb56ae1f6e604b32ac",
       "path": "claim-types/dev.law/text.json"
     },
     {
-      "artifact_digest": "sha256:a882614b706e767577aeb68e36946bf7655a404573a4f9de77313e7190775b89",
+      "artifact_digest": "sha256:ce742f43400e447003399f7ea0f4d62eea328be3a1bb11d685b6d8609159e637",
       "path": "claim-types/dev.product_feedback/finding_text.json"
     },
     {
@@ -89,7 +89,7 @@
       "path": "claim-types/dev.product_feedback/slug.json"
     },
     {
-      "artifact_digest": "sha256:c6a47d21f0eb7729d31496628cb5b45080520f8e225ba7f538828e7aa716ec98",
+      "artifact_digest": "sha256:6aab0c1b9165423d766fdcd2ea655cd4b7accd011fca9e9f7177b78131a6289b",
       "path": "claim-types/dev.program/prose.json"
     },
     {
@@ -161,7 +161,7 @@
       "path": "claim-types/dev.track/slug.json"
     },
     {
-      "artifact_digest": "sha256:c3af2b388f72f0071979575df4df3307ba9c80ee95fab75e9773d8e11a870853",
+      "artifact_digest": "sha256:e24ab3cc66535afbdca0df798b6b18af0cda96cc27bccb09f48e448652db5eed",
       "path": "claim-types/dev.track/status.json"
     },
     {
@@ -216,12 +216,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5b1e93a005c680b1709f9c58c6fba03ef8ff87f9ec4b38b1b7fab6fb04891be8",
-      "generation_root": "sha256:018784cefba196466d8b1dcb6fadd48d0148afad9e28ce48118fdf40992ca87d",
-      "git_oid": "0ce1a34c66e569ae9e94f415f5879ebbf18c7d93",
-      "semantic_root": "sha256:91fa9064514c1fb32d7fc8d312410fcf812e2edcad3cc728720cffe9e395441c",
+      "generation_root": "sha256:f5c670a1addd76b77e5bc6516953e6cdfe991fb1f2deeb1000c67f848aa66e79",
+      "git_oid": "0646fda16b3baa65c865d35034892d36591b01b8",
+      "semantic_root": "sha256:f642ab5341831d977b031ad481c3c38def2a81de807483bf99c93a9b4d68d2e0",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_35be581a65af4322",
+    "instance_id": "inst_14af4e4973e84744",
     "principal_id": "owner"
   },
   "tag": "playbill-kit-manifest-v1",

@@ -16,13 +16,16 @@ Where the current core cannot say what 1.0.0 said:
 
 - 1.0.0's rules each named one workspace file's own source contract
   (``agent-reports``, ``program-register``, ``feedback-*``, ``program-*`` ...).
-  A kit cannot ship an adopter's per-file contracts, so those rules become one
-  ``file`` rule admitting any catalogued workspace file
-  (``capture_contract_families: [workspace_file]``).
+  A kit cannot ship an adopter's per-file contracts, and since core PR #32 it
+  authors no family-only rule either (``cruxible.claim_type.family_rule_not_authored``):
+  those fields state no rules and take the core's default, which admits own
+  words and any catalogued workspace file or section. 1.0.0 admitted only the
+  files; own words are now admitted too, as on every field that does not require
+  captured evidence.
 - ``exact_content`` values are retired (prose lives in Documents), and a string
   ClaimType holds at most 256 characters. ``dev.decision.ruling``,
   ``dev.law.text`` and ``dev.program.prose`` become strings of at most 256
-  characters that keep their file rule, so the full prose is the passage a Claim
+  characters that cite a file, so the full prose is the passage a Claim
   cites, as a short summary citing a Document section; every other free-text
   string 1.0.0 left unbounded is bounded at 256.
 """
@@ -55,33 +58,25 @@ def _self(rule_id: str, roles: list[str]) -> dict[str, Any]:
     }
 
 
-def _file(roles: list[str]) -> dict[str, Any]:
-    return {
-        "rule_id": "file",
-        "claim_roles": roles,
-        "capture_contract_families": ["workspace_file"],
-        "admission": "direct",
-        "attestation_requirement": "none",
-        "subject_binding": "exact_claim_subject",
-    }
-
-
 def _type(
     predicate: str,
     value: dict[str, Any],
     roles: list[str],
-    rules: list[dict[str, Any]],
+    rules: list[dict[str, Any]] | None,
     *,
     cardinality: str = "one",
     **more: Any,
 ) -> dict[str, Any]:
+    """``rules=None`` states none: the core's default admits own words and
+    workspace file and section citations."""
+
     return {
         "predicate": predicate,
         "cardinality": cardinality,
         "value": value,
         "permitted_roles": roles,
         "evidence_requirement": "self",
-        "evidence_admission_policy": {"rules": rules},
+        **({} if rules is None else {"evidence_admission_policy": {"rules": rules}}),
         **more,
     }
 
@@ -108,13 +103,13 @@ def _reported(predicate: str, value: dict[str, Any], **more: Any) -> dict[str, A
     """An observation read from the project's own files (1.0.0: agent reports,
     dispatch contracts, friction logs, the program register)."""
 
-    return _type(predicate, value, OBSERVED, [_file(OBSERVED)], **more)
+    return _type(predicate, value, OBSERVED, None, **more)
 
 
 def _recorded(predicate: str, **more: Any) -> dict[str, Any]:
     """Normative prose a project file states (1.0.0: exact_content from those files)."""
 
-    return _type(predicate, _text(), NORMATIVE, [_file(NORMATIVE)], **more)
+    return _type(predicate, _text(), NORMATIVE, None, **more)
 
 
 def _recommended(predicate: str, value: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -199,7 +194,7 @@ def claim_type_records() -> list[dict[str, Any]]:
             "dev.product_feedback.finding_text",
             _text(),
             both,
-            [_self("attributed-author-account", both), _file(both)],
+            None,
         ),
         _attributed(
             "dev.product_feedback.follow_up",
