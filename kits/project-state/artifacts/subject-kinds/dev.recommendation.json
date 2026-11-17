@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A recommendation, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "dev.recommendation"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "dev.recommendation.slug",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

@@ -13,7 +13,7 @@ kits/<id>/
 ## Using a kit
 
 ```sh
-cruxible kit add project-state:1.0.0   # proposes the diff for this instance
+cruxible kit add project-state:2.0.0   # proposes the diff for this instance
 cruxible kit status
 ```
 
@@ -32,15 +32,18 @@ Supported: Linux x86-64 and macOS on Apple silicon; on Windows, use WSL2.
    content digest, so a docs fix keeps every definition digest (the image digest
    still changes, so a published version needs a patch bump). A skill installs as its
    own `<kit>-<skill>/` directory, so its relative links stay inside the kit's skills.
-3. Open a pull request. CI checks that every kit reads cleanly and packs
-   deterministically, and that a kit's generated reference (a kit with
+3. Open a pull request. CI checks that every kit installs on the pinned core
+   (each artifact parses under the core's current formats and a `kit add`
+   preview in a throwaway instance passes; each refused artifact is named with
+   the core's refusal code), that it packs deterministically, and that a kit's generated reference (a kit with
    `source/reference.py`) matches its definitions, that the
    manifest lists the current inert files, and that skill links resolve once installed.
 4. Publishing (currently started by hand from the Actions tab) pushes each version
    the registry does not hold to `ghcr.io/cruxible-ai/kits/<id>:<version>`. A published version never changes: a
    different build under an existing version fails, so bump the version.
 
-Check locally with `python scripts/kits.py check`, and preview publishing with
+Check locally with `python scripts/kits.py check` (with the core package,
+`cruxible`, importable beside `cruxible-client`), and preview publishing with
 `python scripts/kits.py publish --dry-run`.
 
 ## Security kit for Cruxible 0.5

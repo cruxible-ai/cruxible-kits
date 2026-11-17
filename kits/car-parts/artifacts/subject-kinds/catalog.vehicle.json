@@ -1,13 +1,19 @@
 {
-  "artifact_format": "cruxible-subject-kind-v1",
+  "artifact_format": "cruxible-subject-kind-v2",
   "description": "A vehicle, named make-model-year.",
   "identity": {
     "kind": "SubjectKind",
     "name": "catalog.vehicle"
   },
   "identity_rule": {
-    "keys": [
-      "catalog.vehicle.name"
+    "parts": [
+      {
+        "claim_type": "catalog.vehicle.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
     ],
     "rule": "keys",
     "uniqueness": "unique"

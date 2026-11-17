@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A track of work batches belong to, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "dev.track"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "dev.track.slug",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

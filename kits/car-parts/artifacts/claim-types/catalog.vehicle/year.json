@@ -4,12 +4,11 @@
     "freeze_requirements": [],
     "tag": "playbill-claim-admission-policy-v1"
   },
-  "allowed_object_subject_kinds": [],
   "allowed_subject_kinds": [
     "catalog.vehicle"
   ],
-  "artifact_format": "playbill-claim-type-v7",
-  "attestation_consequence_policy": null,
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [],
   "cardinality": "one",
   "default_role": "observation",
   "description": "The model year.",
@@ -20,6 +19,7 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
+            "logical_sources": [],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
@@ -30,17 +30,13 @@
         "claim_roles": [
           "observation"
         ],
-        "evidence_kinds": [
-          "self_asserted"
-        ],
         "rule_id": "own-words-or-file",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
-  "evidence_freshness": null,
   "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
@@ -50,18 +46,27 @@
     "predecessor_digest": null,
     "state": "live"
   },
-  "literal_schema": {
-    "minimum": 1900,
-    "type": "integer"
-  },
   "member_descriptions": [],
-  "object_kind": "literal",
   "permitted_roles": [
     "observation"
   ],
   "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
   "predicate": "catalog.vehicle.year",
   "referent_sensitivity": "identity",
+  "requires_complete_input": [],
   "resolution_policy": {
     "cardinality": "one",
     "conflict_result": "unresolved",
@@ -74,6 +79,8 @@
     "tag": "playbill-claim-resolution-policy-v1"
   },
   "revision_evidence": "replace",
-  "slot_policy": null,
-  "subject_scope": null
+  "value": {
+    "kind": "int",
+    "min": 1900
+  }
 }
