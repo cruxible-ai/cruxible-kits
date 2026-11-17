@@ -33,10 +33,11 @@ Every kind below also has `slug`, its key.
 | `dev.product_feedback` | `finding_text`, `follow_up` (roadmap items) |
 
 Roadmap items, recommendations and feedback follow-ups are written in your own
-words. Batch, track, card, decision and law fields must cite a passage of a
-catalogued workspace file (an agent report, a dispatch contract, a friction log,
-the program register). Feedback findings take either. Text fields hold at most
-256 characters.
+words. Batch, track, card, decision and law fields are meant to cite a passage
+of a catalogued workspace file (an agent report, a dispatch contract, a friction
+log, the program register); the core admits a workspace citation or your own
+words on any field that does not require captured evidence, so cite where you
+can. Feedback findings take either. Text fields hold at most 256 characters.
 
 A ruling (`dev.decision.ruling`), a law's text (`dev.law.text`) and program
 prose (`dev.program.prose`) are short summaries; the prose itself lives in a
@@ -64,7 +65,7 @@ cruxible kit add project-state:2.0.0 --commit --at OID
 2.0.0 carries 1.0.0's definitions in the formats Cruxible 0.5 reads (ClaimType
 `cruxible-claim-type-v11`, SubjectKind `cruxible-subject-kind-v2`,
 QueryDefinition `cruxible-query-definition-v3`); 1.0.0 does not install on 0.5.
-The fields, cardinality, roles and evidence rules are the same, except where 0.5
+The fields, cardinality and roles are the same, except where 0.5
 has no way to say the old thing:
 
 - 1.0.0 declared no SubjectKinds, and 0.5 creates a Subject only of a declared
@@ -72,8 +73,10 @@ has no way to say the old thing:
 
 - each 1.0.0 rule named one workspace file's own source contract
   (`agent-reports`, `dispatch-contracts`, `friction-log`, `program-register`,
-  `feedback-*`, `program-*`); 2.0.0 has one `file` rule per field admitting any
-  catalogued workspace file, and no longer ships those twenty source contracts;
+  `feedback-*`, `program-*`); 2.0.0 states no rule on those fields, so the
+  core's default admits any catalogued workspace file or section, and own words
+  too (a kit can no longer author a file-only rule), and no longer ships those
+  twenty source contracts;
 - `dev.decision.ruling`, `dev.law.text` and `dev.program.prose` held exact
   file content, which 0.5 retires (prose lives in Documents); they are short
   summaries of at most 256 characters citing the Document section;
