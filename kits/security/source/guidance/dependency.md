@@ -15,6 +15,13 @@ can actually be reached here, and to show why.
 - **The occurrence** (`security.occurrence`: inventory, component) is how one inventory holds
   it. Most reasons a vulnerability doesn't apply are about this use, not the package.
 
+A judgment is made per package release: after an upgrade, the new version's pair is unjudged
+again even when OSV lists the same CVE for it. The vulnerability's card (`cruxible get
+security.vulnerability/<cve id>`) names every pair on it, an earlier version's included after
+that release left the SBOM; `cruxible get <pair> --detail history` shows its value, Claim and
+reason, and `cruxible get <claim> --detail evidence` the file it cites, so re-check that
+reasoning and citation against the new release instead of deriving them again.
+
 OSV's `affected_by` Claim cites the `osv.match` document (`cruxible get <claim> --detail
 evidence` names it as `CAP-...`). That document holds only the advisory id, the CVE ids and
 the fixed versions (each `affected` record's `fixed`); its bytes are base64 in `capture
