@@ -22,6 +22,12 @@ Where the current core cannot say what 1.0.0 said:
   words and any catalogued workspace file or section. 1.0.0 admitted only the
   files; own words are now admitted too, as on every field that does not require
   captured evidence.
+- 1.0.0's authored fields (the roadmap item's recommendation fields, a
+  recommendation's rationale and rule, feedback follow-ups, ``refines`` and
+  ``implementation_state``) admitted only the author's own words. Under the
+  current core a file or section citation is admitted wherever own words are, so
+  they too state no rules and take the core's default. No field of this kit
+  requires captured evidence.
 - ``exact_content`` values are retired (prose lives in Documents), and a string
   ClaimType holds at most 256 characters. ``dev.decision.ruling``,
   ``dev.law.text`` and ``dev.program.prose`` become strings of at most 256
@@ -43,19 +49,7 @@ KIT_ID = "project-state"
 VERSION = "2.0.0"
 OWNS = ("dev.", "project.")
 
-SELF = "playbill.coordinator-self-source-v1"
 SHA = "^[0-9a-f]{40}$"
-
-
-def _self(rule_id: str, roles: list[str]) -> dict[str, Any]:
-    return {
-        "rule_id": rule_id,
-        "claim_roles": roles,
-        "capture_contracts": [SELF],
-        "admission": "direct",
-        "attestation_requirement": "none",
-        "subject_binding": "exact_claim_subject",
-    }
 
 
 def _type(
@@ -113,17 +107,18 @@ def _recorded(predicate: str, **more: Any) -> dict[str, Any]:
 
 
 def _recommended(predicate: str, value: dict[str, Any] | None = None) -> dict[str, Any]:
-    """A roadmap item's authored recommendation field, in the author's own words."""
+    """A roadmap item's authored recommendation field (1.0.0: the author's own words
+    only)."""
 
-    return _type(
-        predicate, value or _text(), NORMATIVE, [_self("author-recommendation", NORMATIVE)]
-    )
+    return _type(predicate, value or _text(), NORMATIVE, None)
 
 
 def _attributed(
     predicate: str, value: dict[str, Any], roles: list[str], **more: Any
 ) -> dict[str, Any]:
-    return _type(predicate, value, roles, [_self("attributed-author-account", roles)], **more)
+    """An authored account (1.0.0: the author's own words only)."""
+
+    return _type(predicate, value, roles, None, **more)
 
 
 #: Each kind and what one is; each is keyed by its ``slug``.
@@ -207,13 +202,13 @@ def claim_type_records() -> list[dict[str, Any]]:
             "dev.recommendation.rationale",
             _text(),
             NORMATIVE,
-            [_self("authored-recommendation", NORMATIVE)],
+            None,
         ),
         _type(
             "dev.recommendation.rule",
             _text(),
             NORMATIVE,
-            [_self("authored-recommendation", NORMATIVE)],
+            None,
         ),
         _recommended(
             "dev.roadmap_item.adoption_state", _enum("proposed", "adopted", "deferred", "rejected")

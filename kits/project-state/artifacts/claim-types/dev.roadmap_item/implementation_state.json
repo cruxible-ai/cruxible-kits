@@ -18,6 +18,9 @@
       {
         "admission": "direct",
         "attestation_requirement": "none",
+        "capture_contract_families": [
+          "workspace_file"
+        ],
         "capture_contracts": [
           {
             "logical_sources": [],
@@ -31,7 +34,7 @@
         "claim_roles": [
           "observation"
         ],
-        "rule_id": "attributed-author-account",
+        "rule_id": "self",
         "subject_binding": "exact_claim_subject",
         "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
