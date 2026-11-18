@@ -101,6 +101,14 @@ has no way to say the old thing:
   core's default admits any catalogued workspace file or section, and own words
   too (a kit can no longer author a file-only rule), and no longer ships those
   twenty source contracts;
+- fifteen authored fields 1.0.0 limited to the writer's own words (the
+  `dev.roadmap_item` recommendation and account fields `task_title`,
+  `justification`, `original_recommendation`, `proposed_release`,
+  `strategic_bucket`, `adoption_state`, `implementation_state`,
+  `completion_criterion`, `audit_baseline`, `historical_audit_class`,
+  `reconciliation_note` and `refines`; `dev.recommendation.rationale` and
+  `.rule`; `dev.product_feedback.follow_up`) take the core's default rule in
+  2.0.0, so a workspace file or section citation is admitted on them as well;
 - `dev.decision.ruling`, `dev.law.text` and `dev.program.prose` held exact
   file content, which 0.5 retires (prose lives in Documents); they are short
   summaries of at most 256 characters citing the Document section;
