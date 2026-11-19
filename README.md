@@ -50,8 +50,11 @@ Check locally with `python scripts/kits.py check` (with the core package,
 
 Use the committed [security directory](kits/security/README.md) for local
 installation. The registry tag becomes available after release.
-[Its release builder](kits/security/source/README.md) rebuilds the dependency
-kit from pilot definitions and schema-2 OSV/web provider sources. Retired
+[Its release builder](kits/security/source/README.md) rebuilds the kit from
+its pilot definitions and the sources of its own OSV and SARIF providers,
+which it bundles with the published provider runtime; the general-purpose web
+provider is named as the published `cruxible-provider-web` 0.7.0, which
+`kit add` installs from the package index. Retired
 1.3 authoring, upgrade gates and persistent self-dogfood recipes have been
 removed; the current pilot gates cover the supported path.
 

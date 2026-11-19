@@ -7,7 +7,7 @@ revise the kit's definitions, add your own, and adapt or replace its
 automation, all by ordinary authoring. Facts copied from sources settle
 automatically; judgments always need review.
 
-This local release is kit version **1.3.0**, built for Cruxible **0.5** and
+This release is kit version **1.3.0**, built for Cruxible **0.5** and
 provider protocol **2**. It requires the base kit (`base` 1.0.0, which
 `cruxible init` installs) for reading workspace files and fetching web pages.
 It covers two loops:
@@ -94,12 +94,13 @@ are proposed automatically, as the kit's author, once the three installs
 have activated, because they are checked against the installed providers.
 The reviewer approves all four. With one owner and self-approval (below) the
 same commit installs everything in one step.
-`cruxible kit add security:1.3.0` is **available only after the registry
-release**; use the local directory now. The same holds for a refusal whose
-repair is `cruxible kit add security` (`requires_missing`, from something that
-requires this kit): that command fetches the registry release, which does not
-exist yet, so run `cruxible kit add /path/to/cruxible-kits/kits/security`
-instead.
+`cruxible kit add security:1.3.0` installs the same release from the registry
+(`ghcr.io/cruxible-ai/kits/security:1.3.0`) once it is published; before
+then it refuses (`cruxible.kit.not_found`), so use the local directory. The
+same holds for a refusal whose repair is `cruxible kit add security`
+(`requires_missing`, from something that requires this kit): that command
+fetches the registry release, so until it is published run `cruxible kit add
+/path/to/cruxible-kits/kits/security` instead.
 
 `cruxible kit add PATH` without `--commit` previews the plan and writes
 nothing (`--json` for the full plan).

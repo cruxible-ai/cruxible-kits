@@ -76,9 +76,9 @@ cruxible kit add /path/to/cruxible-kits/kits/project-state                  # pr
 cruxible kit add /path/to/cruxible-kits/kits/project-state --commit --at OID
 ```
 
-`cruxible kit add project-state:2.0.0` is available only after the registry
-release; until then it refuses (`cruxible.kit.not_found`), so use the
-directory. The kit carries no providers, so the install is one proposal. With
+`cruxible kit add project-state:2.0.0` installs the same release from the
+registry once it is published; before then it refuses
+(`cruxible.kit.not_found`), so use the directory. The kit carries no providers, so the install is one proposal. With
 one owner and self-approval the commit installs it; under independent approval
 (`cruxible init ... --reviewer-key-dir DIR --require-independent-approval`) it
 waits for the reviewer: `CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal
