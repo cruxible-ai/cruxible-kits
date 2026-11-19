@@ -829,22 +829,18 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5b1e93a005c680b1709f9c58c6fba03ef8ff87f9ec4b38b1b7fab6fb04891be8",
-      "generation_root": "sha256:acabd4e7d9843295d1046dea385d036b098f2c1a7ccdeea79b8cfd43a7330c43",
-      "git_oid": "75aad0ad5f2d41bbd5a07073bc0cb3468d031fac",
-      "semantic_root": "sha256:516b03c24bc4200071c217a7354d01f35433bc7fc34ed4148113b8e3863c7c03",
+      "generation_root": "sha256:9563d91159efcb7442a41d274b3aae345f0080a11a1f1b488a6e86a462db129e",
+      "git_oid": "412ae7d8ae117bfd5c79f338a281e923231bad4f",
+      "semantic_root": "sha256:980c21592b16500ed86908f957b5fffa1bf365fd12708ecc5551874ed2f066e4",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_a887891ad1194bf5",
+    "instance_id": "inst_9d580ca115fb40fc",
     "principal_id": "owner"
   },
   "providers": [
     {
-      "dependencies": [
-        {
-          "filename": "cruxible_provider_runtime-0.5.0-py3-none-any.whl",
-          "sha256": "sha256:699e85a6997e311d4cb349e4117720b116d8b1e12916ba46932f9c53248755a2"
-        }
-      ],
+      "delivery": "index",
+      "dependencies": [],
       "lock": {
         "filename": "cruxible-provider-web-0.7.0.uv.lock",
         "sha256": "sha256:bf9ccb3fe9acaa9a4652d885fcc2b649f543958c6dfc1bd2418e8c5674870f83"
@@ -861,14 +857,14 @@
       "version": "0.7.0",
       "wheel": {
         "filename": "cruxible_provider_web-0.7.0-py3-none-any.whl",
-        "sha256": "sha256:283ec0e813932b2edd909848b17cbbe8c4436e7a71e49e927e2bc2d5bce930f2"
+        "sha256": "sha256:fa866f39e2b191c8363f0866c2586f92b521d0c17819db8612305c80a50e49f5"
       }
     },
     {
       "dependencies": [
         {
           "filename": "cruxible_provider_runtime-0.5.0-py3-none-any.whl",
-          "sha256": "sha256:699e85a6997e311d4cb349e4117720b116d8b1e12916ba46932f9c53248755a2"
+          "sha256": "sha256:356e276998f1daff0dc3479ffd57019ad3146f11692a7639de2d357b852acbc3"
         }
       ],
       "lock": {
@@ -892,7 +888,7 @@
       "dependencies": [
         {
           "filename": "cruxible_provider_runtime-0.5.0-py3-none-any.whl",
-          "sha256": "sha256:699e85a6997e311d4cb349e4117720b116d8b1e12916ba46932f9c53248755a2"
+          "sha256": "sha256:356e276998f1daff0dc3479ffd57019ad3146f11692a7639de2d357b852acbc3"
         }
       ],
       "lock": {

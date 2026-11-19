@@ -23,15 +23,28 @@ python source/build_release.py /short/new/scratch --providers-checkout /path/to/
 
 The scratch directory must not exist. Its daemon socket requires a short path.
 Only scratch and this kit directory are written; the core and providers
-checkouts are read-only. `uv` and cached hatchling 1.32.1 are needed: wheels build
-with `uv build --offline`, and the three committed locks are checked, never
-re-resolved. The runtime wheel is built from the explicit providers checkout
-(version 0.5.0 for this release), which must be at the reviewed commit
-`build_release.PROVIDERS_COMMIT` records (`b3fa37a`); the web source vendored
-under `providers/cruxible-provider-web` (0.7.0) must be that commit's
-`src/` byte for byte, and the build refuses otherwise. OSV retains its own
-0.1.0.dev0 identity, as does SARIF (`providers/security-sarif-provider`). Provider installation can fetch locked registry dependencies
-from PyPI. No manual pip install or development environment is created.
+checkouts are read-only. `uv` and cached hatchling 1.32.1 are needed: the kit's
+own providers build with `uv build --offline`, and the three committed locks are
+checked, never re-resolved.
+
+The kit's own providers, OSV and SARIF (each 0.1.0.dev0), are bundled: the kit
+carries their wheels and locks with the published `cruxible-provider-runtime`
+0.5.0 wheel their locks name by path. The general-purpose
+`cruxible-provider-web` 0.7.0 is a published dependency: `kit build
+--default-provider` records the published wheel's sha256 and the lock it embeds,
+the kit carries none of its files, and `kit add` installs it by name from the
+consumer's provider index. The builder downloads both published wheels from PyPI
+into scratch (or reads them from `--published-wheels DIR`) and refuses unless
+each has the sha256 `build_release.PUBLISHED` records and its package files are
+the providers checkout's source byte for byte. That checkout must be at the
+reviewed commit `build_release.PROVIDERS_COMMIT` records (`b3fa37a`); the web
+package vendored under `providers/cruxible-provider-web` (its `src/`,
+`pyproject.toml` and `uv.lock`, which must be the lock the published wheel
+embeds) must be that commit's copy. The runtime wheel also sits beside the web
+wheel in the build's scratch package, so the automation-template check can seed
+the web build the template binds by name. Provider installation fetches locked
+registry dependencies from PyPI. No manual pip install or development
+environment is created.
 
 The builder uses the public CLI to initialize a fresh publisher (which holds the
 base kit from `init`), install the three provider builds, author the CaptureKinds
@@ -53,7 +66,7 @@ a Contract or a layout, run it first:
 ```sh
 python providers/build_registrations.py
 ```
-`SOURCE_DATE_EPOCH` fixes wheel timestamps. The inert-file manifest is refreshed
+`SOURCE_DATE_EPOCH` fixes the kit providers' wheel timestamps. The inert-file manifest is refreshed
 last; command receipts and daemon logs remain under scratch. The daemon is
 stopped even when authoring/building fails.
 
