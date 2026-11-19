@@ -4,16 +4,17 @@
     "freeze_requirements": [],
     "tag": "playbill-claim-admission-policy-v1"
   },
-  "allowed_object_subject_kinds": [],
   "allowed_subject_kinds": [
     "security.finding"
   ],
-  "artifact_format": "playbill-claim-type-v8",
-  "attestation_consequence_policy": null,
-  "canonical_form": [],
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [
+    "nfc",
+    "trim"
+  ],
   "cardinality": "one",
-  "default_role": "normative",
-  "description": "How severe the finding is: a scan's severity (security-severity, else the level) citing its SARIF, or (normative) an analyst's judgment.",
+  "default_role": "observation",
+  "description": "How severe the finding is: a scan's severity (security-severity, else the level), or an agent's normative judgment, which a later scan never overrides.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -25,24 +26,14 @@
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "playbill.coordinator-self-source-v1"
-            }
-          },
-          {
-            "logical_sources": [
-              "security.analysis.evidence"
-            ],
-            "role": "capture-contract",
-            "target": {
-              "kind": "CaptureContract",
-              "name": "security.file-v1"
+              "name": "security.sarif-findings"
             }
           }
         ],
         "claim_roles": [
-          "normative"
+          "observation"
         ],
-        "rule_id": "analyst-judgment",
+        "rule_id": "sarif",
         "subject_binding": "exact_claim_subject",
         "tag": "cruxible-claim-evidence-admission-rule-v4"
       },
@@ -51,27 +42,24 @@
         "attestation_requirement": "none",
         "capture_contracts": [
           {
-            "logical_sources": [
-              "sarif.log"
-            ],
+            "logical_sources": [],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
-              "name": "security.file-v1"
+              "name": "playbill.coordinator-self-source-v1"
             }
           }
         ],
         "claim_roles": [
-          "observation"
+          "normative"
         ],
-        "rule_id": "source-verdict",
+        "rule_id": "self",
         "subject_binding": "exact_claim_subject",
         "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
     "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
-  "evidence_freshness": null,
   "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
@@ -81,24 +69,28 @@
     "predecessor_digest": null,
     "state": "live"
   },
-  "literal_schema": {
-    "enum": [
-      "critical",
-      "high",
-      "low",
-      "medium"
-    ],
-    "type": "string"
-  },
   "member_descriptions": [],
-  "object_kind": "literal",
   "permitted_roles": [
     "normative",
     "observation"
   ],
   "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
   "predicate": "security.finding.severity",
   "referent_sensitivity": "identity",
+  "requires_complete_input": [],
   "resolution_policy": {
     "cardinality": "one",
     "conflict_result": "unresolved",
@@ -111,6 +103,13 @@
     "tag": "playbill-claim-resolution-policy-v1"
   },
   "revision_evidence": "replace",
-  "slot_policy": null,
-  "subject_scope": null
+  "value": {
+    "kind": "enum",
+    "members": [
+      "low",
+      "medium",
+      "high",
+      "critical"
+    ]
+  }
 }

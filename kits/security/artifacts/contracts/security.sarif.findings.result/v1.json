@@ -1,0 +1,14 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One derived JSON document in the layout of CaptureKind security.sarif-findings: covered (the held findings a full run's rules cover: the Claims' expect), findings by repository, weakness and locus with their verification, count, and attention records (regressions and location gaps). It also states the rules that ran, whether every run was full, the tainted rules and tools, and the dependency advisories routed to the SBOM loop.",
+  "fields": {
+    "document": {
+      "type": {
+        "capture_kind": "security.sarif-findings",
+        "kind": "capture"
+      }
+    }
+  },
+  "name": "security.sarif.findings.result",
+  "version": 1
+}

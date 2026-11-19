@@ -1,0 +1,178 @@
+{
+  "artifact_format": "cruxible-capture-contract-v4",
+  "components": {
+    "commitment_canonicalizer": {
+      "target": {
+        "kind": "Contract",
+        "name": "sha256-bytes-v1"
+      }
+    },
+    "coordinate_grammar": null,
+    "coordinate_schemas": [
+      {
+        "target": {
+          "kind": "Contract",
+          "name": "http-response-v1"
+        }
+      }
+    ],
+    "proof_adapter": null,
+    "provenance_rule": {
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.external.daemon-fetched-v1"
+      }
+    },
+    "replay_policy": {
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.external.retained-selection-replay-v1"
+      }
+    },
+    "selector_schemas": [
+      {
+        "target": {
+          "kind": "Contract",
+          "name": "whole-response-v1"
+        }
+      }
+    ],
+    "source_subject_mapping": {
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.external.record-subject-v1"
+      }
+    }
+  },
+  "decoding": {
+    "encoding": "identity",
+    "format": "json",
+    "limits": {
+      "decoded_bytes": 8388608,
+      "depth": 16,
+      "records": 100000
+    }
+  },
+  "epistemic_grade": "derived",
+  "identity": {
+    "kind": "CaptureContract",
+    "name": "security.sarif-findings"
+  },
+  "layout": {
+    "header": {
+      "covered": {
+        "at": "/covered",
+        "type": "list<string{max_len: 256}>{max_items: 20000}"
+      }
+    },
+    "records": {
+      "attention": {
+        "at": "/attention/*",
+        "fields": {
+          "finding": {
+            "at": "finding",
+            "presence": "optional"
+          },
+          "kind": {
+            "at": "kind"
+          },
+          "locus": {
+            "at": "locus",
+            "presence": "optional"
+          },
+          "path": {
+            "at": "path"
+          },
+          "reason": {
+            "at": "reason",
+            "presence": "optional"
+          },
+          "ref": {
+            "at": "ref"
+          },
+          "repo": {
+            "at": "repo"
+          },
+          "rule": {
+            "at": "rule"
+          },
+          "weakness": {
+            "at": "weakness",
+            "presence": "optional"
+          }
+        },
+        "row": {
+          "digest": "sha256:ab6123ec812fe081ba0c455ba904e0c903efc3f1ebd340707a821de7a9cdf11c",
+          "name": "security.sarif-attention-record",
+          "version": 1
+        }
+      },
+      "findings": {
+        "at": "/findings/*",
+        "count_at": "/count",
+        "fields": {
+          "reported_at": {
+            "at": "reported_at",
+            "presence": "optional"
+          },
+          "rule": {
+            "at": "rule",
+            "presence": "optional"
+          },
+          "severity": {
+            "at": "severity",
+            "presence": "optional"
+          },
+          "tool": {
+            "at": "tool",
+            "presence": "optional"
+          },
+          "verification": {
+            "at": "verification"
+          }
+        },
+        "key": {
+          "locus": {
+            "at": "locus",
+            "type": "key_part<security.finding:locus>"
+          },
+          "repo": {
+            "at": "repo",
+            "type": "key_part<security.finding:repo>"
+          },
+          "weakness": {
+            "at": "weakness",
+            "type": "key_part<security.finding:weakness>"
+          }
+        },
+        "row": {
+          "digest": "sha256:9229fb847659e92322e84ef3dcdc773bcfefa0989749e5329f3f7648132c613e",
+          "name": "security.sarif-finding",
+          "version": 1
+        }
+      }
+    }
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "replay": "attested",
+  "retention_erasure_policy": {
+    "body_retention": "required_for_duration",
+    "erasure": "prohibited",
+    "erasure_rule": null,
+    "minimum_retention": {
+      "microseconds": 34560000000000,
+      "tag": "playbill-duration-v1"
+    },
+    "selector_privacy": "direct_allowed"
+  },
+  "selection_budget": {
+    "max_bytes": 8388608,
+    "max_items": 1,
+    "max_rows": 1,
+    "tag": "playbill-capture-selection-budget-v1"
+  },
+  "shape": "http_response"
+}

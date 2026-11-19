@@ -1,0 +1,86 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
+  "definition": {
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.exposure-attention.unjudged.input/v1"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.exposure-attention.unjudged.output/v1"
+      }
+    },
+    "description": "Post one inbox item per exposure, in every inventory, that nobody has judged and whose vulnerability is KEV-listed, has an EPSS score at or above min_epss, or has no EPSS score yet (security.unjudged_exposures_over); KEV-listed first, then by EPSS score.",
+    "hard_caps": {
+      "max_capture_bytes": 0,
+      "max_items": 20000,
+      "max_provider_calls": 0,
+      "max_read_rows": 50000,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000
+      }
+    },
+    "name": "security.exposure-attention.unjudged",
+    "nodes": [
+      {
+        "fields": {},
+        "id": "summary",
+        "kind": "project"
+      },
+      {
+        "id": "pairs",
+        "kind": "read",
+        "parameters": {
+          "min_epss": "$params.min_epss"
+        },
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.unjudged_exposures_over"
+          }
+        }
+      },
+      {
+        "contract": {
+          "digest": "sha256:ab0f2fc68ca9908c9ec5956a9faa05865c461cbd64280e1e04607d69f9371515",
+          "name": "security.exposure-attention",
+          "version": 2
+        },
+        "dedupe_key": [
+          "occurrence",
+          "cve_id",
+          "state"
+        ],
+        "fields": {
+          "component": "$item.component",
+          "cve_id": "$item.cve_id",
+          "inventory": "$item.inventory",
+          "occurrence": "$item.occurrence",
+          "state": "unjudged"
+        },
+        "for_each": "$steps.pairs.rows",
+        "id": "post",
+        "kind": "post_inbox",
+        "max_items": 100
+      }
+    ],
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.exposure-attention.unjudged.params/v1"
+      }
+    },
+    "returns": "summary",
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:f035575b281a948ec945694045c6ed5f2e7cda32e3e957d32ca253050c079398",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.exposure-attention.unjudged"
+  }
+}

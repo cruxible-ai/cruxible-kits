@@ -4,22 +4,23 @@
     "freeze_requirements": [],
     "tag": "playbill-claim-admission-policy-v1"
   },
-  "allowed_object_subject_kinds": [
-    "dev.roadmap_item"
-  ],
   "allowed_subject_kinds": [
     "dev.roadmap_item"
   ],
-  "artifact_format": "playbill-claim-type-v6",
-  "attestation_consequence_policy": null,
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [],
   "cardinality": "many",
   "evidence_admission_policy": {
     "rules": [
       {
         "admission": "direct",
         "attestation_requirement": "none",
+        "capture_contract_families": [
+          "workspace_file"
+        ],
         "capture_contracts": [
           {
+            "logical_sources": [],
             "role": "capture-contract",
             "target": {
               "kind": "CaptureContract",
@@ -30,17 +31,14 @@
         "claim_roles": [
           "normative"
         ],
-        "evidence_kinds": [
-          "self_asserted"
-        ],
-        "rule_id": "attributed-author-account",
+        "rule_id": "self",
         "subject_binding": "exact_claim_subject",
-        "tag": "playbill-claim-evidence-admission-rule-v3"
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
-    "tag": "playbill-claim-evidence-admission-policy-v3"
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
-  "evidence_freshness": null,
+  "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
     "name": "dev.roadmap_item.refines"
@@ -49,14 +47,27 @@
     "predecessor_digest": null,
     "state": "live"
   },
-  "literal_schema": null,
-  "object_kind": "subject",
+  "member_descriptions": [],
   "permitted_roles": [
     "normative"
   ],
   "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
   "predicate": "dev.roadmap_item.refines",
   "referent_sensitivity": "identity",
+  "requires_complete_input": [],
   "resolution_policy": {
     "cardinality": "many",
     "conflict_result": "unresolved",
@@ -68,6 +79,11 @@
     "selector": "all",
     "tag": "playbill-claim-resolution-policy-v1"
   },
-  "slot_policy": null,
-  "subject_scope": null
+  "revision_evidence": "replace",
+  "value": {
+    "kind": "subject",
+    "subject_kinds": [
+      "dev.roadmap_item"
+    ]
+  }
 }

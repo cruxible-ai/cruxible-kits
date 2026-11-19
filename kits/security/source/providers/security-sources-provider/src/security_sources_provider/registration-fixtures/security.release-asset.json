@@ -1,9 +1,0 @@
-[
-  {
-    "canonical_input": {
-      "url": "https://github.com/cruxible-ai/cruxible/releases/download/v0.3.2/agent-release-0.3.2.tar.gz"
-    },
-    "fixture_id": "release-asset-fixture",
-    "measured_bucket_id": "asset=release"
-  }
-]

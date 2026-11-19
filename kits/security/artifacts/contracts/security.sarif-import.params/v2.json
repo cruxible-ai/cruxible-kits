@@ -1,0 +1,33 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "What a Line on security.sarif-import reads: one SARIF file in the workspace, the repository whose results it imports, and the source label it is recorded under; one Line per scanner and repository.",
+  "fields": {
+    "logical_source": {
+      "description": "Source label the SARIF Capture and the derived findings document are recorded under, lowercase: sarif.<scanner> (for example sarif.semgrep). The attention Line's landing Trigger names it, so give each scanner's import its own.",
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    },
+    "relative_path": {
+      "description": "Workspace-relative path of one SARIF 2.1.0 JSON log, at most 1 MiB and 20000 results. Only runs whose versionControlProvenance[0].repositoryUri names the Line's repo are read. A result needs a repository-relative path and a symbol, snippet or primaryLocationLineHash, or it is a location gap, not a finding; a CVE or GHSA result in a manifest is left to the SBOM loop. Only a run with properties cruxible.coverage full, every invocation successful, marks findings fixed. The scanner writes the file; Cruxible does not.",
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "min_len": 1,
+        "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"
+      }
+    },
+    "repo": {
+      "description": "The repository the findings belong to, as host/owner/repo in lowercase (for example github.com/acme/shop). It is part of every finding's key and picks which runs of the log are read: a log with no run of this repository imports nothing.",
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "pattern": "^[a-z0-9.-]+/[^/\\s]+/[^/\\s]+$"
+      }
+    }
+  },
+  "name": "security.sarif-import.params",
+  "predecessor_digest": "sha256:424929e3d8c703ec6b72100f010652003e639a6fb8871f9f4559d09a20e030b6",
+  "version": 2
+}

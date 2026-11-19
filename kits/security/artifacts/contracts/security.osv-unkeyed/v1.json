@@ -1,0 +1,45 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "OSV lists advisories with no CVE id yet for some components: no vulnerability Subject, Claim or worklist row records them. Read the full list in the match document (`matches`), read each advisory and decide. The same set on a later run is this item seen again; a changed set is a new item.",
+  "fields": {
+    "count": {
+      "description": "How many (advisory, component) pairs the match document lists.",
+      "type": {
+        "kind": "int",
+        "max": 1000000,
+        "min": 1
+      }
+    },
+    "matches": {
+      "description": "The OSV match document holding every pair, in its unkeyed list: read it with `cruxible get Capture:<digest>`.",
+      "type": {
+        "capture_kind": "security.osv-matches",
+        "kind": "capture"
+      }
+    },
+    "sample": {
+      "description": "The first 20 pairs, by component then advisory: osv_id (read it at https://osv.dev/vulnerability/<osv_id>) and purl.",
+      "type": {
+        "item": {
+          "contract": {
+            "digest": "sha256:ccc29fb90ceb6aa73a0b87774e699ad5453683f577865ab0f9cc1910aeb8e81b",
+            "name": "security.osv-unkeyed-record",
+            "version": 1
+          },
+          "kind": "contract"
+        },
+        "kind": "list",
+        "max_items": 20
+      }
+    },
+    "set_digest": {
+      "description": "The SHA-256 of the whole set of pairs: the item's identity.",
+      "type": {
+        "kind": "string",
+        "max_len": 80
+      }
+    }
+  },
+  "name": "security.osv-unkeyed",
+  "version": 1
+}

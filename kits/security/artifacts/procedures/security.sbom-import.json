@@ -1,251 +1,153 @@
 {
-  "activation_policy": "drain",
-  "artifact_format": "cruxible-procedure-v3",
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
   "definition": {
-    "budget": {
-      "max_capture_bytes": 16777216,
-      "max_provider_calls": 2,
-      "wall_clock": {
-        "microseconds": 120000000
-      }
-    },
     "contract_in": {
       "target": {
         "kind": "Contract",
-        "name": "security-empty-input"
+        "name": "security.sbom-import.input/v1"
       }
     },
     "contract_out": {
       "target": {
         "kind": "Contract",
-        "name": "security-sbom-summary"
+        "name": "security.sbom-import.output/v1"
       }
     },
-    "description": "Read the CycloneDX SBOM Capture that triggered the Line (security.file-v1) and propose its product and release (created by key, or the held ones), the release's product link, supplier, and one security.release.component observation per component purl the release does not hold yet. Propose-only. Runs as a Line with trigger_input sbom.",
+    "description": "Read one CycloneDX JSON SBOM from the workspace and write each component's occurrence in the inventory it describes, with its scope; a component the SBOM no longer lists has its scope retired.",
     "hard_caps": {
-      "max_capture_bytes": 16777216,
-      "max_items": 5000,
+      "max_capture_bytes": 8388608,
+      "max_items": 40000,
       "max_provider_calls": 2,
+      "max_read_rows": 20000,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
-        "microseconds": 300000000
+        "microseconds": 120000000
       }
     },
     "name": "security.sbom-import",
     "nodes": [
       {
-        "capture_contract": {
-          "target": {
-            "kind": "CaptureContract",
-            "name": "security.file-v1"
+        "captures": {
+          "capture": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.cyclonedx-sbom"
+            }
           }
         },
         "id": "sbom",
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "workspace.file"
-          }
-        },
-        "kind": "source",
-        "provider": {
-          "slot_name": "sbom"
-        },
-        "request": {
-          "coordinate": {
-            "revision": "working"
-          },
-          "coordinate_type": "http-response-v1",
-          "logical_source": "cyclonedx.sbom",
-          "relative_path": "sbom.cdx.json",
-          "replayability": "exact",
-          "selector": {
-            "whole": true
-          },
-          "selector_type": "whole-response-v1",
-          "tag": "playbill-workspace-file-source-request-v2"
-        }
-      },
-      {
-        "id": "releases",
-        "kind": "state_tap",
-        "query": {
-          "target": {
-            "kind": "QueryDefinition",
-            "name": "security.release_inventory"
-          }
-        }
-      },
-      {
-        "id": "parse",
         "input": {
-          "osv_ecosystems": {
-            "apk/alpine": "Alpine",
-            "apk/chainguard": "Chainguard",
-            "apk/wolfi": "Wolfi",
-            "bitnami": "Bitnami",
-            "cargo": "crates.io",
-            "composer": "Packagist",
-            "conan": "ConanCenter",
-            "cran": "CRAN",
-            "deb/debian": "Debian",
-            "deb/ubuntu": "Ubuntu",
-            "gem": "RubyGems",
-            "githubactions": "GitHub Actions",
-            "golang": "Go",
-            "hackage": "Hackage",
-            "hex": "Hex",
-            "maven": "Maven",
-            "npm": "npm",
-            "nuget": "NuGet",
-            "pub": "Pub",
-            "pypi": "PyPI",
-            "rpm/almalinux": "AlmaLinux",
-            "rpm/mageia": "Mageia",
-            "rpm/openeuler": "openEuler",
-            "rpm/opensuse": "openSUSE",
-            "rpm/redhat": "Red Hat",
-            "rpm/rocky-linux": "Rocky Linux",
-            "rpm/suse": "SUSE",
-            "swift": "SwiftURL"
-          },
-          "releases": "$steps.releases.result.rows",
-          "sbom_text": "$steps.sbom.content.text"
-        },
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "security.cyclonedx-components/v1"
-          }
+          "logical_source": "$params.logical_source",
+          "relative_path": "$params.relative_path"
         },
         "kind": "call",
-        "provider": {
-          "slot_name": "parse"
+        "slot": "read"
+      },
+      {
+        "captures": {
+          "document": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.sbom-components"
+            }
+          }
+        },
+        "id": "derived",
+        "input": {
+          "logical_source": "$params.logical_source",
+          "relative_path": "$params.relative_path",
+          "sbom": "$steps.sbom.capture"
+        },
+        "kind": "call",
+        "slot": "derive"
+      },
+      {
+        "capture": "$steps.derived.document",
+        "header": [
+          "inventory"
+        ],
+        "id": "listed",
+        "kind": "extract",
+        "records": "components",
+        "row": {
+          "digest": "sha256:04c4e110e39869026e7e4e74bbf4aca3bba92f21187c4783f544627872af67c6",
+          "name": "security.sbom-component",
+          "version": 1
         }
       },
       {
-        "contract_out": {
-          "target": {
-            "kind": "Contract",
-            "name": "security-sbom-summary"
+        "claims": [
+          {
+            "rationale": "The SBOM at {$params.relative_path} lists {$item.key.purl} with scope {$item.fields.scope} (inventory {$steps.listed.header.inventory}, named by {$item.fields.named_by}).",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.occurrence.scope"
+              }
+            },
+            "value": "$item.fields.scope",
+            "when_absent": "mirror"
           }
+        ],
+        "expect": {
+          "by": "inventory",
+          "ends": [
+            "$steps.listed.header.inventory"
+          ]
         },
-        "fields": {
-          "added": "$steps.parse.added",
-          "changed": "$steps.parse.changed",
-          "components": "$steps.parse.components",
-          "osv_not_indexed": "$steps.parse.osv_not_indexed",
-          "osv_unindexed": "$steps.parse.osv_unindexed",
-          "product": "$steps.parse.product",
-          "skipped": "$steps.parse.skipped",
-          "version": "$steps.parse.version"
-        },
-        "id": "summary",
-        "kind": "project"
-      },
-      {
-        "id": "changed",
-        "kind": "guard",
-        "message": "The SBOM adds nothing inventory lacks.",
-        "on_false": "nochange",
-        "predicate": {
-          "left": {
-            "alias": "parse",
-            "kind": "step",
-            "path": [
-              "changed"
-            ]
+        "for_each": "$steps.listed.records",
+        "id": "write",
+        "kind": "claims",
+        "subject": {
+          "create": "if_absent",
+          "key": {
+            "component": {
+              "create": "if_absent",
+              "key": {
+                "purl": "$item.key.purl"
+              },
+              "kind": "security.component"
+            },
+            "inventory": {
+              "create": "if_absent",
+              "key": {
+                "inventory_id": "$steps.listed.header.inventory"
+              },
+              "kind": "security.inventory"
+            }
           },
-          "operator": "gt",
-          "right": 0
-        },
-        "refusal_code": "no_change"
-      },
-      {
-        "candidate_templates": {
-          "items": "$steps.parse.items"
-        },
-        "id": "propose",
-        "kind": "propose_change_set",
-        "result": "$steps.summary"
-      },
-      {
-        "id": "nochange",
-        "kind": "halt",
-        "reason": "no_change"
+          "kind": "security.occurrence"
+        }
       }
     ],
-    "pin_slots": [
-      {
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "security.cyclonedx-components/v1"
-          }
-        },
-        "slot_name": "parse"
-      },
-      {
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "workspace.file"
-          }
-        },
-        "slot_name": "sbom"
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.sbom-import.params/v2"
       }
-    ],
-    "returns": "summary",
-    "terminal_capability": 2
+    },
+    "slots": {
+      "derive": {
+        "capability": {
+          "digest": "sha256:8ba61aa6486cb5584135d6498c30940346d9dfef225202d2499e289314b90820",
+          "name": "security.sbom.components",
+          "version": 1
+        }
+      },
+      "read": {
+        "capability": {
+          "digest": "sha256:bf3721f916492c908d0db48103a457caad6b2f58c6ad0babc92470a0fdccea5e",
+          "name": "workspace.file",
+          "version": 1
+        }
+      }
+    },
+    "terminal_capability": 3
   },
-  "definition_digest": "sha256:412a88224513ddacf4365db20d37cc3491310c75c12746027bbc113a067fa8af",
+  "definition_digest": "sha256:377ad3dbda740c9e69406247bac136a7d7df96761e954d309a80cd15b86de895",
   "identity": {
     "kind": "Procedure",
     "name": "security.sbom-import"
-  },
-  "owned_contracts": [
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-empty-input"
-      },
-      "schema": {
-        "fields": {}
-      }
-    },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-sbom-summary"
-      },
-      "schema": {
-        "fields": {
-          "added": {
-            "type": "integer"
-          },
-          "changed": {
-            "type": "integer"
-          },
-          "components": {
-            "type": "integer"
-          },
-          "osv_not_indexed": {
-            "type": "json"
-          },
-          "osv_unindexed": {
-            "type": "integer"
-          },
-          "product": {
-            "type": "string"
-          },
-          "skipped": {
-            "type": "integer"
-          },
-          "version": {
-            "type": "string"
-          }
-        }
-      }
-    }
-  ]
+  }
 }

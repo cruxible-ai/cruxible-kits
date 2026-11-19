@@ -3,15 +3,15 @@
   "dedupe": "path",
   "default_budgets": {
     "max_paths": 20000,
-    "max_paths_per_result": 1000,
-    "max_results": 500,
+    "max_paths_per_result": 100,
+    "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "Every release assessed affected, KEV-listed first, then by EPSS score, with the hosts that declare installing it (asset; asset_observed is set when a scan also observed it running there: declared and observed) and the hosts a scan observed running it that declare nothing about it (observed: observed only). A release with both kinds pairs each declaring host with each observed-only one. Scoped to supported, current Claims; missing evidence is not a negative finding.",
+  "description": "Every occurrence (an inventory's component) a vulnerability affects that nobody has judged, KEV-listed first, then by EPSS score; a package-level or app-level not_affected judgment or an affected verdict removes it.",
   "entry": {
-    "binding": "assessment",
+    "binding": "v",
     "subject_kinds": [
-      "security.assessment"
+      "security.vulnerability"
     ]
   },
   "evaluation_policy": {
@@ -37,16 +37,16 @@
     {
       "direction": "descending",
       "key": {
-        "binding": "vulnerability",
+        "binding": "v",
         "kind": "claim_value",
-        "predicate": "security.vulnerability.kev_listed"
+        "predicate": "security.vulnerability.kev_date_added"
       },
-      "value_type": "boolean"
+      "value_type": "string"
     },
     {
       "direction": "descending",
       "key": {
-        "binding": "vulnerability",
+        "binding": "v",
         "kind": "claim_value",
         "predicate": "security.vulnerability.epss_score"
       },
@@ -56,49 +56,17 @@
   "projection": {
     "fields": [
       {
-        "name": "assessment",
-        "value": {
-          "binding": "assessment",
-          "field": "subject_id",
-          "kind": "subject_field"
-        }
-      },
-      {
-        "name": "asset",
-        "value": {
-          "binding": "asset",
-          "field": "subject_id",
-          "kind": "subject_field"
-        }
-      },
-      {
-        "name": "asset_observed",
-        "value": {
-          "binding": "asset_run",
-          "field": "subject_id",
-          "kind": "subject_field"
-        }
-      },
-      {
         "name": "component",
         "value": {
-          "binding": "assessment",
+          "binding": "c",
           "kind": "claim_value",
-          "predicate": "security.assessment.component"
-        }
-      },
-      {
-        "name": "criticality",
-        "value": {
-          "binding": "service",
-          "kind": "claim_value",
-          "predicate": "security.service.criticality"
+          "predicate": "security.component.purl"
         }
       },
       {
         "name": "cve_id",
         "value": {
-          "binding": "vulnerability",
+          "binding": "v",
           "kind": "claim_value",
           "predicate": "security.vulnerability.cve_id"
         }
@@ -106,7 +74,7 @@
       {
         "name": "epss_percentile",
         "value": {
-          "binding": "vulnerability",
+          "binding": "v",
           "kind": "claim_value",
           "predicate": "security.vulnerability.epss_percentile"
         }
@@ -114,270 +82,235 @@
       {
         "name": "epss_score",
         "value": {
-          "binding": "vulnerability",
+          "binding": "v",
           "kind": "claim_value",
           "predicate": "security.vulnerability.epss_score"
         }
       },
       {
-        "name": "internet_exposed",
+        "name": "inventory",
         "value": {
-          "binding": "asset",
+          "binding": "i",
           "kind": "claim_value",
-          "predicate": "security.asset.internet_exposed"
+          "predicate": "security.inventory.inventory_id"
+        }
+      },
+      {
+        "name": "kev_date_added",
+        "value": {
+          "binding": "v",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.kev_date_added"
         }
       },
       {
         "name": "kev_due_date",
         "value": {
-          "binding": "vulnerability",
+          "binding": "v",
           "kind": "claim_value",
           "predicate": "security.vulnerability.kev_due_date"
         }
       },
       {
-        "name": "kev_listed",
+        "name": "kev_ransomware_use",
         "value": {
-          "binding": "vulnerability",
+          "binding": "v",
           "kind": "claim_value",
-          "predicate": "security.vulnerability.kev_listed"
+          "predicate": "security.vulnerability.kev_ransomware_use"
         }
       },
       {
-        "name": "observed",
+        "name": "occurrence",
         "value": {
-          "binding": "observed",
+          "binding": "o",
           "field": "subject_id",
           "kind": "subject_field"
         }
       },
       {
-        "name": "observed_criticality",
+        "name": "scope",
         "value": {
-          "binding": "observed_service",
+          "binding": "o",
           "kind": "claim_value",
-          "predicate": "security.service.criticality"
-        }
-      },
-      {
-        "name": "observed_internet_exposed",
-        "value": {
-          "binding": "observed",
-          "kind": "claim_value",
-          "predicate": "security.asset.internet_exposed"
-        }
-      },
-      {
-        "name": "observed_service",
-        "value": {
-          "binding": "observed_service",
-          "field": "subject_id",
-          "kind": "subject_field"
-        }
-      },
-      {
-        "name": "observed_team",
-        "value": {
-          "binding": "observed_team",
-          "field": "subject_id",
-          "kind": "subject_field"
-        }
-      },
-      {
-        "name": "product_name",
-        "value": {
-          "binding": "release",
-          "kind": "claim_value",
-          "predicate": "security.release.product_name"
-        }
-      },
-      {
-        "name": "release",
-        "value": {
-          "binding": "release",
-          "field": "subject_id",
-          "kind": "subject_field"
-        }
-      },
-      {
-        "name": "service",
-        "value": {
-          "binding": "service",
-          "field": "subject_id",
-          "kind": "subject_field"
-        }
-      },
-      {
-        "name": "status_role",
-        "value": {
-          "binding": "assessment",
-          "field": "role",
-          "kind": "claim_field",
-          "predicate": "security.assessment.status"
-        }
-      },
-      {
-        "name": "team",
-        "value": {
-          "binding": "team",
-          "field": "subject_id",
-          "kind": "subject_field"
-        }
-      },
-      {
-        "name": "version",
-        "value": {
-          "binding": "release",
-          "kind": "claim_value",
-          "predicate": "security.release.version"
-        }
-      },
-      {
-        "name": "vulnerability",
-        "value": {
-          "binding": "vulnerability",
-          "field": "subject_id",
-          "kind": "subject_field"
+          "predicate": "security.occurrence.scope"
         }
       }
     ]
   },
   "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:5d66f7a1b3e4e55821e974c579c51b392fc4a3a71251e669b95e992fcaf8c847",
+    "name": "security.exposure-row",
+    "version": 1
+  },
   "traversal": [
     {
-      "binding": "vulnerability",
-      "direction": "forward",
-      "from_binding": "assessment",
-      "predicate": "security.assessment.vulnerability",
-      "target_subject_kinds": [
-        "security.vulnerability"
-      ]
-    },
-    {
-      "binding": "release",
-      "direction": "forward",
-      "from_binding": "assessment",
-      "predicate": "security.assessment.release",
-      "target_subject_kinds": [
-        "security.release"
-      ]
-    },
-    {
-      "binding": "asset",
+      "binding": "c",
       "direction": "reverse",
-      "from_binding": "release",
-      "predicate": "security.asset.installs",
-      "required": false,
+      "from_binding": "v",
+      "predicate": "security.component.affected_by",
       "target_subject_kinds": [
-        "security.asset"
+        "security.component"
       ]
     },
     {
-      "binding": "asset_run",
-      "direction": "reverse",
-      "from_binding": "release",
-      "predicate": "security.asset.runs",
-      "required": false,
-      "target_subject_kinds": [
-        "security.asset"
-      ],
-      "where": {
-        "kind": "comparison",
-        "left": {
-          "binding": "asset_run",
-          "field": "subject_id",
-          "kind": "subject_field"
-        },
-        "operator": "eq",
-        "right": {
-          "binding": "asset",
-          "field": "subject_id",
-          "kind": "subject_field"
-        },
-        "value_type": "string"
-      }
-    },
-    {
-      "binding": "service",
-      "direction": "forward",
-      "from_binding": "asset",
-      "predicate": "security.asset.serves",
-      "required": false,
-      "target_subject_kinds": [
-        "security.service"
-      ]
-    },
-    {
-      "binding": "team",
-      "direction": "forward",
-      "from_binding": "service",
-      "predicate": "security.service.owned_by",
-      "required": false,
-      "target_subject_kinds": [
-        "security.team"
-      ]
-    },
-    {
-      "binding": "observed",
-      "direction": "reverse",
-      "from_binding": "release",
-      "predicate": "security.asset.runs",
-      "required": false,
-      "target_subject_kinds": [
-        "security.asset"
-      ],
-      "where": {
-        "kind": "not",
-        "operand": {
-          "kind": "comparison",
-          "left": {
-            "binding": "observed",
-            "kind": "claim_value",
-            "predicate": "security.asset.installs"
-          },
-          "operator": "eq",
-          "right": {
-            "binding": "assessment",
-            "kind": "claim_value",
-            "predicate": "security.assessment.release"
-          },
-          "value_type": "subject_reference"
+      "binding": "o",
+      "fact": "security.occurrence.scope",
+      "parts": [
+        {
+          "binding": "c",
+          "part": "security.occurrence.component"
         }
-      }
+      ],
+      "subject_kind": "security.occurrence"
     },
     {
-      "binding": "observed_service",
+      "binding": "i",
       "direction": "forward",
-      "from_binding": "observed",
-      "predicate": "security.asset.serves",
-      "required": false,
+      "from_binding": "o",
+      "predicate": "security.occurrence.inventory",
       "target_subject_kinds": [
-        "security.service"
+        "security.inventory"
       ]
     },
     {
-      "binding": "observed_team",
-      "direction": "forward",
-      "from_binding": "observed_service",
-      "predicate": "security.service.owned_by",
+      "binding": "e",
+      "parts": [
+        {
+          "binding": "c",
+          "part": "security.exposure.component"
+        },
+        {
+          "binding": "v",
+          "part": "security.exposure.vulnerability"
+        }
+      ],
       "required": false,
-      "target_subject_kinds": [
-        "security.team"
-      ]
+      "subject_kind": "security.exposure"
+    },
+    {
+      "binding": "ae",
+      "parts": [
+        {
+          "binding": "o",
+          "part": "security.app_exposure.occurrence"
+        },
+        {
+          "binding": "v",
+          "part": "security.app_exposure.vulnerability"
+        }
+      ],
+      "required": false,
+      "subject_kind": "security.app_exposure"
     }
   ],
   "where": {
-    "kind": "comparison",
-    "left": {
-      "binding": "assessment",
-      "kind": "claim_value",
-      "predicate": "security.assessment.status"
-    },
-    "operator": "eq",
-    "right": {
-      "kind": "literal",
-      "value": "affected"
-    },
-    "value_type": "string"
+    "filters": [
+      {
+        "kind": "membership",
+        "left": {
+          "binding": "e",
+          "kind": "claim_value",
+          "predicate": "security.exposure.justification"
+        },
+        "negated": true,
+        "value_type": "string",
+        "values": [
+          {
+            "kind": "literal",
+            "value": "vulnerable_code_not_present"
+          }
+        ]
+      },
+      {
+        "kind": "not",
+        "operand": {
+          "filters": [
+            {
+              "binding": "ae",
+              "kind": "claim_presence",
+              "negated": true,
+              "predicate": "security.app_exposure.justification"
+            },
+            {
+              "kind": "comparison",
+              "left": {
+                "binding": "ae",
+                "kind": "claim_value",
+                "predicate": "security.app_exposure.verdict"
+              },
+              "operator": "eq",
+              "right": {
+                "kind": "literal",
+                "value": "affected"
+              },
+              "value_type": "string"
+            }
+          ],
+          "kind": "all_of"
+        }
+      },
+      {
+        "kind": "not",
+        "operand": {
+          "filters": [
+            {
+              "filters": [
+                {
+                  "binding": "ae",
+                  "kind": "claim_presence",
+                  "negated": true,
+                  "predicate": "security.app_exposure.verdict"
+                },
+                {
+                  "kind": "comparison",
+                  "left": {
+                    "binding": "ae",
+                    "kind": "claim_value",
+                    "predicate": "security.app_exposure.verdict"
+                  },
+                  "operator": "eq",
+                  "right": {
+                    "kind": "literal",
+                    "value": "not_affected"
+                  },
+                  "value_type": "string"
+                }
+              ],
+              "kind": "any_of"
+            },
+            {
+              "kind": "membership",
+              "left": {
+                "binding": "ae",
+                "kind": "claim_value",
+                "predicate": "security.app_exposure.justification"
+              },
+              "value_type": "string",
+              "values": [
+                {
+                  "kind": "literal",
+                  "value": "component_not_present"
+                },
+                {
+                  "kind": "literal",
+                  "value": "inline_mitigations_already_exist"
+                },
+                {
+                  "kind": "literal",
+                  "value": "vulnerable_code_cannot_be_controlled_by_adversary"
+                },
+                {
+                  "kind": "literal",
+                  "value": "vulnerable_code_not_in_execute_path"
+                }
+              ]
+            }
+          ],
+          "kind": "all_of"
+        }
+      }
+    ],
+    "kind": "all_of"
   }
 }

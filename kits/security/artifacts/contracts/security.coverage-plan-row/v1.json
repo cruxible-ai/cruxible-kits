@@ -1,0 +1,34 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One coverage unit an audit should take up: never checked, deferred or blocked.",
+  "fields": {
+    "concern": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "status": {
+      "optional": true,
+      "type": {
+        "kind": "string"
+      }
+    },
+    "subject_id": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "subject_kind": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "surface": {
+      "type": {
+        "kind": "string"
+      }
+    }
+  },
+  "name": "security.coverage-plan-row",
+  "version": 1
+}

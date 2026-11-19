@@ -1,0 +1,32 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A component's place in one inventory, keyed by (inventory, component); its scope is the membership fact.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.occurrence"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "security.occurrence.inventory",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "security.occurrence.component",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

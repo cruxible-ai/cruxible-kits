@@ -1,0 +1,24 @@
+{
+ "exchanges": [
+  {
+   "id": "kev-catalog",
+   "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "kev-catalog.json",
+   "note": "The CISA KEV catalog 2026.10.30 fetched by web.fetch at 2026-11-02T22:52:38.898380Z, trimmed to the 8 watched listed CVEs and 12 others (count rewritten to match)."
+  },
+  {
+   "id": "epss-api",
+   "url": "https://api.first.org/data/v1/epss?cve=CVE-2021-44228,CVE-2023-4863,CVE-2014-0160,CVE-2017-0144,CVE-2019-0708,CVE-2023-44487,CVE-2022-22965,CVE-2021-26855,CVE-2024-3094,CVE-2023-38545",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json; charset=utf-8"
+   },
+   "body": "epss-api.json",
+   "note": "FIRST's EPSS API answer for the 10 watched CVEs, verbatim, fetched by web.fetch at 2026-11-02T22:53:06.703569Z."
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "fields": {
+    "min_epss": {
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    }
+  },
+  "name": "security.exposure-attention.unjudged.params",
+  "version": 1
+}

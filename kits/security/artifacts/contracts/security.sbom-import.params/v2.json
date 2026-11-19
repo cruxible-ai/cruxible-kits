@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "What a Line on security.sbom-import reads: one SBOM file in the workspace and the source label it is recorded under; one Line per SBOM file. Each component's occurrence takes the CycloneDX scope the SBOM states (required when it states none). A scope other than required, optional or excluded is refused for that component, which keeps the scope it held; a purl listed twice with two scopes writes nothing for that purl.",
+  "fields": {
+    "logical_source": {
+      "description": "Source label the SBOM Capture and its derived component list are recorded under, lowercase (the template uses cyclonedx.sbom.app). Give each SBOM Line its own; evidence requirements and landing Triggers can name it.",
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    },
+    "relative_path": {
+      "description": "Workspace-relative path of one CycloneDX JSON SBOM (bomFormat CycloneDX; tested with spec 1.6): at most 1 MiB and 20000 components, nested at most 16 levels deep. The root component's purl (metadata.component.purl) names the inventory; without one, the inventory is named by this path, so moving the file starts a new inventory. Every component needs a purl: one without is counted but not imported, and the run then retires nothing. A generator for the project's ecosystem writes the file (cyclonedx-py, syft, cdxgen); Cruxible does not.",
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "min_len": 1,
+        "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"
+      }
+    }
+  },
+  "name": "security.sbom-import.params",
+  "predecessor_digest": "sha256:a4433bcfb5829a3bee7544dc04056a0ba57230ea38eda4c3b79a119125143beb",
+  "version": 2
+}

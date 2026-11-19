@@ -1,16 +1,24 @@
 """Check and publish the kits in this repository.
 
-    python scripts/kits.py check               # every kit reads, packs deterministically, lists
-                                               # its inert files, its skills' relative links
-                                               # resolve, and its generated reference is current
+    python scripts/kits.py check               # every kit reads, installs on the core beside
+                                               # this script (kit add's checks, run offline),
+                                               # packs deterministically, lists its inert files,
+                                               # its skills' relative links resolve, and its
+                                               # generated reference is current
     python scripts/kits.py files               # rewrite each manifest's inert-file list
     python scripts/kits.py publish [--dry-run]  # push versions the registry lacks
 
 A kit's inert files are its top-level Markdown (README.md, reference.md), everything
-under ``examples/`` and every agent skill under ``skills/<name>/``. They travel in the
+under ``examples/`` and ``reference/``, every agent skill under ``skills/<name>/`` and the automation
+template its manifest names (``automation_template``, D-R48). They travel in the
 bundle for the kit's reader (``cruxible kit pull`` / ``kit docs``) but stay out of the
 release's content digest, so a docs fix keeps every definition digest; the image digest
 still changes, so a published version needs a patch bump for one.
+
+``check`` needs the core package (``cruxible``) as well as ``cruxible-client``: it
+reads each artifact with the core's parser and previews ``kit add`` in a throwaway
+instance under a temporary directory, so a kit the current core would refuse fails
+here with each refused artifact and the core's refusal code.
 
 A published version is immutable: if the registry already holds a kit's version
 tag, its manifest digest must equal the one this repository builds, and a
@@ -27,11 +35,12 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
-import httpx
 from cruxible_client.artifacts import RegistryClient, pack_artifact, parse_reference
+from cruxible_client.artifacts.registry import RegistryRefusal
 from cruxible_client.contracts.canonical import pretty_canonical_bytes
-from cruxible_client.contracts.kits import KIT_MANIFEST_FILE, KitFile, kit_file_entry
+from cruxible_client.contracts.kits import KIT_MANIFEST_FILE, KitBundle, KitFile, kit_file_entry
 from cruxible_client.kits import KIT_ARTIFACT, kit_skill_directory_name, read_kit_directory
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,14 +66,30 @@ def _reference_problems(directory: Path) -> list[str]:
     return list(module.check(directory))
 
 
-_INERT_DIRECTORIES = ("examples", "skills")
+_INERT_DIRECTORIES = ("examples", "reference", "skills")
 _LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 
 
+def _automation_template(directory: Path) -> str | None:
+    """The automation template the manifest names (D-R48), a kit file at that path."""
+
+    manifest = directory / KIT_MANIFEST_FILE
+    if not manifest.is_file():
+        return None
+    named = json.loads(manifest.read_bytes()).get("automation_template")
+    return named if isinstance(named, str) else None
+
+
 def _inert_paths(directory: Path) -> list[str]:
-    """The kit's inert files: top-level Markdown, ``examples/`` and ``skills/``."""
+    """The kit's inert files: top-level Markdown, ``examples/``, ``reference/``, ``skills/`` and the
+    automation template the manifest names."""
 
     paths = [path.name for path in directory.glob("*.md") if path.is_file()]
+    template = _automation_template(directory)
+    if template is not None:
+        if not (directory / template).is_file():
+            raise ValueError(f"the manifest names automation template {template}, which is missing")
+        paths.append(template)
     for name in _INERT_DIRECTORIES:
         root = directory / name
         if not root.is_dir():
@@ -77,7 +102,7 @@ def _inert_paths(directory: Path) -> list[str]:
                 raise ValueError(f"{relative.as_posix()} is a symbolic link")
             if path.is_file():
                 paths.append(relative.as_posix())
-    return sorted(paths)
+    return sorted(set(paths))
 
 
 def _inert_files(directory: Path) -> tuple[KitFile, ...]:
@@ -139,13 +164,147 @@ def files() -> int:
     return 0
 
 
+def _refusal(error: BaseException) -> str:
+    """A refusal as the daemon's error envelope names it: its code, else its class."""
+
+    code = getattr(error, "error_code", None)
+    return f"{code if isinstance(code, str) else type(error).__name__}: {error}"
+
+
+def _now() -> str:
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+class _CoreCheck:
+    """What ``cruxible kit add`` decides about a kit, run in this process on the core
+    installed beside this script: no daemon, no network.
+
+    Each artifact first goes through the core's own parser for its family (the
+    format check ``kit add`` runs on every bundle), so every refused artifact is
+    named. A kit whose artifacts all parse is then previewed with the core's
+    ``kit add`` service against one throwaway instance (a fresh genesis with the
+    bundled base kit, under a temporary directory), as the CLI previews it:
+    without provider files. The preview evaluates the candidate tree under the
+    acceptance laws. The instance is built once per run (under a second) and a
+    preview changes nothing, so each kit costs only its own preview.
+    """
+
+    def __init__(self) -> None:
+        import logging
+        import tempfile
+
+        import structlog
+
+        if not structlog.is_configured():
+            # The core logs each write's phases; keep the check's output to findings.
+            structlog.configure(
+                wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING)
+            )
+        try:
+            from cruxible_core.claims.closure import parse_dependency_artifact
+            from cruxible_core.service.kits import service_add_kit
+        except ImportError as error:  # environment, not a kit
+            raise RuntimeError(
+                "checking kits against the core needs cruxible (the core package) "
+                "installed beside cruxible-client"
+            ) from error
+        self._parse = parse_dependency_artifact
+        self._add = service_add_kit
+        self._directory = tempfile.TemporaryDirectory(prefix="kit-check-")
+        self._instance: Any = None
+
+    def close(self) -> None:
+        self._directory.cleanup()
+
+    def _world(self) -> Any:
+        if self._instance is None:
+            from cruxible_core.governance.keys import generate_client_principal_key
+            from cruxible_core.runtime.instance import PlaybillInstance
+
+            root = Path(self._directory.name)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            managed = root / "managed"
+            principals = tuple(
+                generate_client_principal_key(
+                    root / f"custody-{name}",
+                    principal_id=name,
+                    kind="ordinary",
+                    forbidden_roots=(workspace, managed),
+                ).principal
+                for name in ("owner", "reviewer")
+            )
+            self._instance = PlaybillInstance.initialize(
+                managed,
+                instance_id="inst_kitcheck",
+                client_principals=principals,
+                workspace_roots=(workspace,),
+                git_object_format="sha256",
+                timestamp=_now(),
+            )
+        return self._instance
+
+    def format_refusals(self, bundle: KitBundle) -> list[str]:
+        """Each artifact the core refuses on reading the bundle, as ``kit add`` reads it."""
+
+        digests = bundle.manifest.digests()
+        refused = []
+        for path, content in bundle.contents().items():
+            try:
+                state = self._parse(path, content)
+                if state is None:
+                    raise ValueError("not a definition artifact")
+                if pretty_canonical_bytes(json.loads(content)) != content:
+                    raise ValueError("not in canonical form")
+                if state.artifact_digest != digests[path]:
+                    raise ValueError("does not match its manifest digest")
+                if state.lifecycle.state != "live" or state.lifecycle.predecessor_digest:
+                    raise ValueError("not a live, lineage-free snapshot")
+            except Exception as error:  # noqa: BLE001 - every refusal is a finding
+                refused.append(f"{path}: {_refusal(error)}")
+        return refused
+
+    def add_refusals(self, bundle: KitBundle) -> list[str]:
+        """What the core's ``kit add`` preview refuses for the whole bundle."""
+
+        from cruxible_client.contracts.kits import KitAddRequest
+        from cruxible_client.kits import kit_automation_template
+
+        try:
+            kit_automation_template(bundle)
+            result = self._add(
+                self._world(),
+                KitAddRequest(bundle=bundle.model_copy(update={"provider_files": ()})),
+                actor_id="owner",
+                timestamp=_now(),
+            )
+        except Exception as error:  # noqa: BLE001 - every refusal is a finding
+            return [f"kit add: {_refusal(error)}"]
+        if result.status in ("blocked", "would_block"):
+            return [f"kit add {result.status}: {result.detail}"]
+        return []
+
+
 def check() -> int:
+    core = _CoreCheck()
+    try:
+        return _check(core)
+    finally:
+        core.close()
+
+
+def _check(core: _CoreCheck) -> int:
     failures = 0
     for directory in _kits():
         try:
             bundle = read_kit_directory(directory)
             if bundle.manifest.kit_id != directory.name:
                 raise ValueError(f"manifest names kit {bundle.manifest.kit_id}")
+            refused = core.format_refusals(bundle) or core.add_refusals(bundle)
+            if refused:
+                raise ValueError("does not install on this core:\n  " + "\n  ".join(refused))
             first = pack_artifact(KIT_ARTIFACT, bundle).digest
             second = pack_artifact(KIT_ARTIFACT, read_kit_directory(directory)).digest
             if first != second:
@@ -162,7 +321,10 @@ def check() -> int:
             failures += 1
             print(f"FAIL {directory.name}: {error}", file=sys.stderr)
             continue
-        print(f"ok   {directory.name} {bundle.manifest.version} {first}")
+        print(
+            f"ok   {directory.name} {bundle.manifest.version} "
+            f"content {bundle.manifest.content_digest} image {first}"
+        )
     return 1 if failures else 0
 
 
@@ -175,8 +337,11 @@ def publish(*, dry_run: bool) -> int:
             ref = parse_reference(f"{NAMESPACE}/{bundle.manifest.kit_id}:{bundle.manifest.version}")
             try:
                 published = registry.pull(ref).digest
-            except httpx.HTTPStatusError as error:
-                if error.response.status_code != 404:
+            except RegistryRefusal as error:
+                # The client answers a missing tag as a typed refusal. Only a 404 means
+                # absent: a 401/403 (anonymous, or credentials without read access)
+                # may hide a published version, so it stops the run.
+                if error.reason != "not_found" or error.status != 404:
                     raise
                 published = None
             if published == image.digest:

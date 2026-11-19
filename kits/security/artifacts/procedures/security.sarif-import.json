@@ -1,31 +1,25 @@
 {
-  "activation_policy": "drain",
-  "artifact_format": "cruxible-procedure-v3",
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
   "definition": {
-    "budget": {
-      "max_capture_bytes": 16777216,
-      "max_provider_calls": 2,
-      "wall_clock": {
-        "microseconds": 120000000
-      }
-    },
     "contract_in": {
       "target": {
         "kind": "Contract",
-        "name": "security-sarif-import-input"
+        "name": "security.sarif-import.input/v1"
       }
     },
     "contract_out": {
       "target": {
         "kind": "Contract",
-        "name": "security-sarif-summary"
+        "name": "security.sarif-import.output/v1"
       }
     },
-    "description": "Read the SARIF log Capture that triggered the Line (security.file-v1) for the Line's repository (parameter repo_ref, host/owner/repo) and propose what changed: each new finding by key (repository, weakness, locus) with the rules and finders that reported it and its severity; rules and finders a held finding lacks; verification fixed for a held finding a full scan of its rules no longer reports, present for a fixed one it reports again. Never a verdict. Halts wrong_repo for another repository's log, no_change when nothing changed. Propose-only. Runs as a Line with trigger_input sarif.",
+    "description": "Read one SARIF file from the workspace and write the findings it reports for the Line's repository; only a full scan marks a held finding fixed.",
     "hard_caps": {
-      "max_capture_bytes": 16777216,
-      "max_items": 5000,
+      "max_capture_bytes": 33554432,
+      "max_items": 100000,
       "max_provider_calls": 2,
+      "max_read_rows": 20000,
       "max_repeat_attempts": 1,
       "max_wall_clock": {
         "microseconds": 300000000
@@ -34,248 +28,170 @@
     "name": "security.sarif-import",
     "nodes": [
       {
-        "capture_contract": {
-          "target": {
-            "kind": "CaptureContract",
-            "name": "security.file-v1"
-          }
-        },
-        "id": "sarif",
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "workspace.file"
-          }
-        },
-        "kind": "source",
-        "provider": {
-          "slot_name": "sarif"
-        },
-        "request": {
-          "coordinate": {
-            "revision": "working"
-          },
-          "coordinate_type": "http-response-v1",
-          "logical_source": "sarif.log",
-          "relative_path": "scan.sarif",
-          "replayability": "exact",
-          "selector": {
-            "whole": true
-          },
-          "selector_type": "whole-response-v1",
-          "tag": "playbill-workspace-file-source-request-v2"
-        }
-      },
-      {
         "id": "held",
-        "kind": "state_tap",
+        "kind": "read",
         "parameters": {
-          "repo_ref": "$input.repo_ref"
+          "repo": "$params.repo"
         },
         "query": {
           "target": {
             "kind": "QueryDefinition",
-            "name": "security.finding_index"
+            "name": "security.sarif_held_findings"
           }
         }
       },
       {
-        "id": "parse",
-        "input": {
-          "held": "$steps.held.result.rows",
-          "repo_ref": "$input.repo_ref",
-          "sarif_text": "$steps.sarif.content.text",
-          "truncated": "$steps.held.truncated"
-        },
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "security.sarif-findings/v1"
+        "captures": {
+          "capture": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.sarif-log"
+            }
           }
+        },
+        "id": "sarif",
+        "input": {
+          "logical_source": "$params.logical_source",
+          "relative_path": "$params.relative_path"
         },
         "kind": "call",
-        "provider": {
-          "slot_name": "parse"
+        "slot": "read"
+      },
+      {
+        "captures": {
+          "document": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.sarif-findings"
+            }
+          }
+        },
+        "id": "findings",
+        "input": {
+          "held": "$steps.held.rows",
+          "logical_source": "$params.logical_source",
+          "logs": [
+            "$steps.sarif.capture"
+          ],
+          "repo": "$params.repo"
+        },
+        "kind": "call",
+        "slot": "derive"
+      },
+      {
+        "capture": "$steps.findings.document",
+        "header": [
+          "covered"
+        ],
+        "id": "found",
+        "kind": "extract",
+        "records": "findings",
+        "row": {
+          "digest": "sha256:9229fb847659e92322e84ef3dcdc773bcfefa0989749e5329f3f7648132c613e",
+          "name": "security.sarif-finding",
+          "version": 1
         }
       },
       {
-        "contract_out": {
-          "target": {
-            "kind": "Contract",
-            "name": "security-sarif-summary"
+        "claims": [
+          {
+            "rationale": "{$item.fields.rule} reports {$item.key.weakness} here.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.finding.rule"
+              }
+            },
+            "value": "$item.fields.rule",
+            "when_absent": "keep"
+          },
+          {
+            "rationale": "{$item.fields.tool} reports {$item.key.weakness} here.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.finding.reported_by"
+              }
+            },
+            "value": "$item.fields.tool",
+            "when_absent": "keep"
+          },
+          {
+            "rationale": "{$item.fields.rule} rates it {$item.fields.severity}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.finding.severity"
+              }
+            },
+            "value": "$item.fields.severity",
+            "when_absent": "keep"
+          },
+          {
+            "rationale": "The scan reports it at {$item.fields.reported_at}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.finding.reported_at"
+              }
+            },
+            "value": "$item.fields.reported_at",
+            "when_absent": "mirror"
+          },
+          {
+            "rationale": "The scan of {$params.relative_path} reads it {$item.fields.verification}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.finding.verification"
+              }
+            },
+            "value": "$item.fields.verification",
+            "when_absent": "keep"
           }
-        },
-        "fields": {
-          "added": "$steps.parse.added",
-          "changed": "$steps.parse.changed",
-          "findings": "$steps.parse.findings",
-          "fixed": "$steps.parse.fixed",
-          "full": "$steps.parse.full",
-          "gaps": "$steps.parse.gaps",
-          "mine": "$steps.parse.mine",
-          "new": "$steps.parse.new",
-          "posted": "$steps.parse.posted",
-          "regressed": "$steps.parse.regressed",
-          "repo_ref": "$steps.parse.repo_ref",
-          "results": "$steps.parse.results",
-          "revisions": "$steps.parse.revisions",
-          "routed_to_assessment": "$steps.parse.routed_to_assessment",
-          "tools": "$steps.parse.tools"
-        },
-        "id": "summary",
-        "kind": "project"
-      },
-      {
-        "id": "mine",
-        "kind": "guard",
-        "message": "The landed SARIF log has no run of the Line's repository.",
-        "on_false": "other",
-        "predicate": {
-          "left": {
-            "alias": "parse",
-            "kind": "step",
-            "path": [
-              "mine"
-            ]
+        ],
+        "expect": "$steps.found.header.covered",
+        "for_each": "$steps.found.records",
+        "id": "write",
+        "kind": "claims",
+        "subject": {
+          "create": "if_absent",
+          "key": {
+            "locus": "$item.key.locus",
+            "repo": "$item.key.repo",
+            "weakness": "$item.key.weakness"
           },
-          "operator": "gt",
-          "right": 0
-        },
-        "refusal_code": "wrong_repo"
-      },
-      {
-        "id": "changed",
-        "kind": "guard",
-        "message": "The scan reports nothing the held findings lack.",
-        "on_false": "nochange",
-        "predicate": {
-          "left": {
-            "alias": "parse",
-            "kind": "step",
-            "path": [
-              "changed"
-            ]
-          },
-          "operator": "gt",
-          "right": 0
-        },
-        "refusal_code": "no_change"
-      },
-      {
-        "candidate_templates": {
-          "items": "$steps.parse.items"
-        },
-        "id": "propose",
-        "kind": "propose_change_set",
-        "result": "$steps.summary"
-      },
-      {
-        "id": "nochange",
-        "kind": "halt",
-        "reason": "no_change"
-      },
-      {
-        "id": "other",
-        "kind": "halt",
-        "reason": "wrong_repo"
+          "kind": "security.finding"
+        }
       }
     ],
-    "pin_slots": [
-      {
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "security.sarif-findings/v1"
-          }
-        },
-        "slot_name": "parse"
-      },
-      {
-        "interface": {
-          "target": {
-            "kind": "ProviderInterface",
-            "name": "workspace.file"
-          }
-        },
-        "slot_name": "sarif"
-      }
-    ],
-    "returns": "summary",
-    "terminal_capability": 2
-  },
-  "definition_digest": "sha256:8fa3b2eedd51afa5acfa2a265d234d0a4feeac2191317c75f15093c7f8dd4c22",
-  "identity": {
-    "kind": "Procedure",
-    "name": "security.sarif-import"
-  },
-  "owned_contracts": [
-    {
-      "identity": {
+    "parameter_contract": {
+      "target": {
         "kind": "Contract",
-        "name": "security-sarif-import-input"
+        "name": "security.sarif-import.params/v2"
+      }
+    },
+    "slots": {
+      "derive": {
+        "capability": {
+          "digest": "sha256:8b9ead1dac93b805c082e28dd7f59cef36850c69c7404f74a400e2df81f15ab9",
+          "name": "security.sarif.findings",
+          "version": 1
+        }
       },
-      "schema": {
-        "fields": {
-          "repo_ref": {
-            "type": "string"
-          }
+      "read": {
+        "capability": {
+          "digest": "sha256:bf3721f916492c908d0db48103a457caad6b2f58c6ad0babc92470a0fdccea5e",
+          "name": "workspace.file",
+          "version": 1
         }
       }
     },
-    {
-      "identity": {
-        "kind": "Contract",
-        "name": "security-sarif-summary"
-      },
-      "schema": {
-        "fields": {
-          "added": {
-            "type": "integer"
-          },
-          "changed": {
-            "type": "integer"
-          },
-          "findings": {
-            "type": "integer"
-          },
-          "fixed": {
-            "type": "integer"
-          },
-          "full": {
-            "type": "json"
-          },
-          "gaps": {
-            "type": "integer"
-          },
-          "mine": {
-            "type": "integer"
-          },
-          "new": {
-            "type": "integer"
-          },
-          "posted": {
-            "type": "integer"
-          },
-          "regressed": {
-            "type": "integer"
-          },
-          "repo_ref": {
-            "type": "string"
-          },
-          "results": {
-            "type": "integer"
-          },
-          "revisions": {
-            "type": "json"
-          },
-          "routed_to_assessment": {
-            "type": "integer"
-          },
-          "tools": {
-            "type": "json"
-          }
-        }
-      }
-    }
-  ]
+    "terminal_capability": 3
+  },
+  "definition_digest": "sha256:5cfd342dced7e04e269d0098ca357d40d23bb9a1d9e9c7b594ef1ab239bec40e",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.sarif-import"
+  }
 }

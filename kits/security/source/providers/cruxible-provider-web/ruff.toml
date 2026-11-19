@@ -1,0 +1,3 @@
+# Preserve the upstream source's formatting when built outside its monorepo.
+line-length = 100
+target-version = "py311"

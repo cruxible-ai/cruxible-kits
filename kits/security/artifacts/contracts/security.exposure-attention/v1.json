@@ -1,0 +1,37 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One urgent exposure for an agent to judge: the inventory, the component, the vulnerability, the occurrence's Subject id (get security.occurrence/<occurrence>) and why it is here: unjudged, or contested (a judgment is on the pair but none counts).",
+  "fields": {
+    "component": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "cve_id": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "inventory": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "occurrence": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "state": {
+      "type": {
+        "kind": "enum",
+        "members": [
+          "unjudged",
+          "contested"
+        ]
+      }
+    }
+  },
+  "name": "security.exposure-attention",
+  "version": 1
+}

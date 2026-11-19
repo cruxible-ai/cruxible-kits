@@ -1,0 +1,19 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "fields": {
+    "inventory": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "min_epss": {
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    }
+  },
+  "name": "security.exposure-attention.unjudged-inventory.params",
+  "version": 1
+}

@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A roadmap item, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "dev.roadmap_item"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "dev.roadmap_item.slug",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

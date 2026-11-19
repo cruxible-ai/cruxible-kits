@@ -1,0 +1,31 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One KEV catalog record: when the CVE was added, the moment it counts as listed from, its due date and its known ransomware use.",
+  "fields": {
+    "date_added": {
+      "type": {
+        "kind": "date"
+      }
+    },
+    "due_date": {
+      "optional": true,
+      "type": {
+        "kind": "date"
+      }
+    },
+    "listed_from": {
+      "type": {
+        "kind": "datetime"
+      }
+    },
+    "ransomware_use": {
+      "optional": true,
+      "type": {
+        "claim_type": "security.vulnerability.kev_ransomware_use",
+        "kind": "enum_of"
+      }
+    }
+  },
+  "name": "security.kev-record",
+  "version": 1
+}

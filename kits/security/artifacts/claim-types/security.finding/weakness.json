@@ -4,25 +4,45 @@
     "freeze_requirements": [],
     "tag": "playbill-claim-admission-policy-v1"
   },
-  "allowed_object_subject_kinds": [],
   "allowed_subject_kinds": [
     "security.finding"
   ],
-  "artifact_format": "playbill-claim-type-v8",
-  "attestation_consequence_policy": null,
+  "artifact_format": "cruxible-claim-type-v11",
   "canonical_form": [
-    "trim",
-    "upper"
+    "nfc",
+    "trim"
   ],
   "cardinality": "one",
-  "default_role": "normative",
-  "description": "CWE-<n>, the smallest CWE the reporting rule names, else RULE:<tool>/<ruleId>; with repo_ref and locus, the finding's key.",
+  "description": "CWE-<n>, the smallest CWE the reporting rule names, else RULE:<tool>/<ruleId>; with repo and locus, the finding's key.",
   "evidence_admission_policy": {
-    "rules": [],
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contract_families": [
+          "workspace_file"
+        ],
+        "capture_contracts": [
+          {
+            "logical_sources": [],
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "rule_id": "self",
+        "subject_binding": "exact_claim_subject",
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
+      }
+    ],
     "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
-  "evidence_freshness": null,
-  "evidence_requirement": "none",
+  "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
     "name": "security.finding.weakness"
@@ -31,18 +51,27 @@
     "predecessor_digest": null,
     "state": "live"
   },
-  "literal_schema": {
-    "minLength": 1,
-    "type": "string"
-  },
   "member_descriptions": [],
-  "object_kind": "literal",
   "permitted_roles": [
     "normative"
   ],
   "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
   "predicate": "security.finding.weakness",
   "referent_sensitivity": "identity",
+  "requires_complete_input": [],
   "resolution_policy": {
     "cardinality": "one",
     "conflict_result": "unresolved",
@@ -55,6 +84,9 @@
     "tag": "playbill-claim-resolution-policy-v1"
   },
   "revision_evidence": "replace",
-  "slot_policy": null,
-  "subject_scope": null
+  "value": {
+    "kind": "string",
+    "max_len": 256,
+    "pattern": "^(CWE-[0-9]{1,6}|RULE:\\S{1,240})$"
+  }
 }

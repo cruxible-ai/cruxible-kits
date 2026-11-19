@@ -1,0 +1,21 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "fields": {
+    "logical_source": {
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    },
+    "relative_path": {
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "min_len": 1,
+        "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"
+      }
+    }
+  },
+  "name": "security.sbom-import.params",
+  "version": 1
+}

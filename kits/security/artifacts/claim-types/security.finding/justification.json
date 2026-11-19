@@ -4,16 +4,17 @@
     "freeze_requirements": [],
     "tag": "playbill-claim-admission-policy-v1"
   },
-  "allowed_object_subject_kinds": [],
   "allowed_subject_kinds": [
     "security.finding"
   ],
-  "artifact_format": "playbill-claim-type-v8",
-  "attestation_consequence_policy": null,
-  "canonical_form": [],
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [
+    "nfc",
+    "trim"
+  ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "Why a finding is not_exploitable or a false_positive: an analyst's judgment (normative), or a scan's stated suppression.",
+  "description": "Why a finding is false_positive or not_exploitable, as an agent judged it.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -27,51 +28,18 @@
               "kind": "CaptureContract",
               "name": "playbill.coordinator-self-source-v1"
             }
-          },
-          {
-            "logical_sources": [
-              "security.analysis.evidence"
-            ],
-            "role": "capture-contract",
-            "target": {
-              "kind": "CaptureContract",
-              "name": "security.file-v1"
-            }
           }
         ],
         "claim_roles": [
           "normative"
         ],
-        "rule_id": "analyst-judgment",
-        "subject_binding": "exact_claim_subject",
-        "tag": "cruxible-claim-evidence-admission-rule-v4"
-      },
-      {
-        "admission": "direct",
-        "attestation_requirement": "none",
-        "capture_contracts": [
-          {
-            "logical_sources": [
-              "sarif.log"
-            ],
-            "role": "capture-contract",
-            "target": {
-              "kind": "CaptureContract",
-              "name": "security.file-v1"
-            }
-          }
-        ],
-        "claim_roles": [
-          "observation"
-        ],
-        "rule_id": "source-verdict",
+        "rule_id": "self",
         "subject_binding": "exact_claim_subject",
         "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
     "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
-  "evidence_freshness": null,
   "evidence_requirement": "self",
   "identity": {
     "kind": "ClaimType",
@@ -81,46 +49,32 @@
     "predecessor_digest": null,
     "state": "live"
   },
-  "literal_schema": {
-    "enum": [
-      "not_attacker_controlled",
-      "not_reachable",
-      "rule_misfire",
-      "sanitized",
-      "test_or_dead_code"
-    ],
-    "type": "string"
-  },
   "member_descriptions": [
     {
-      "description": "The input reaching the sink is not attacker-controlled.",
-      "member": "not_attacker_controlled"
-    },
-    {
-      "description": "No path from an entry point reaches the code.",
-      "member": "not_reachable"
-    },
-    {
-      "description": "The rule matched code that is not the pattern it describes.",
-      "member": "rule_misfire"
-    },
-    {
-      "description": "The input is sanitized or validated before the sink.",
-      "member": "sanitized"
-    },
-    {
-      "description": "The code is a test, an example or never shipped.",
-      "member": "test_or_dead_code"
+      "description": "The effect stays within the attacker's own authority.",
+      "member": "no_boundary_crossed"
     }
   ],
-  "object_kind": "literal",
   "permitted_roles": [
-    "normative",
-    "observation"
+    "normative"
   ],
   "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
   "predicate": "security.finding.justification",
   "referent_sensitivity": "identity",
+  "requires_complete_input": [],
   "resolution_policy": {
     "cardinality": "one",
     "conflict_result": "unresolved",
@@ -133,6 +87,15 @@
     "tag": "playbill-claim-resolution-policy-v1"
   },
   "revision_evidence": "replace",
-  "slot_policy": null,
-  "subject_scope": null
+  "value": {
+    "kind": "enum",
+    "members": [
+      "no_boundary_crossed",
+      "not_attacker_controlled",
+      "not_reachable",
+      "rule_misfire",
+      "sanitized",
+      "test_or_dead_code"
+    ]
+  }
 }

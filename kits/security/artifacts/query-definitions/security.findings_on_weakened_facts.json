@@ -1,0 +1,114 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "The security.finding judgments to read again: each rests on at least one codebase fact of one repository that holds only partly or not at all, listed once however many. security.weakened_causes_of_findings names the facts.",
+  "entry": {
+    "binding": "x",
+    "subject_kinds": [
+      "security.code_fact"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.findings_on_weakened_facts"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "parameters": [
+    {
+      "name": "repo",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "judgment",
+        "value": {
+          "binding": "j",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "judgment_kind",
+        "value": {
+          "binding": "j",
+          "field": "subject_kind",
+          "kind": "subject_field"
+        }
+      }
+    ]
+  },
+  "result_binding": "j",
+  "result_shape": "subject",
+  "row_contract": {
+    "digest": "sha256:e0dd05ea330425ad0433858152af5c25878b13f989378e7859b4b1bd3f89a532",
+    "name": "security.weakened-dependent",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "j",
+      "direction": "reverse",
+      "from_binding": "x",
+      "predicate": "security.finding.rests_on",
+      "target_subject_kinds": [
+        "security.finding"
+      ]
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "x",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.repo"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "parameter",
+          "parameter": "repo"
+        },
+        "value_type": "string"
+      },
+      {
+        "kind": "membership",
+        "left": {
+          "binding": "x",
+          "kind": "claim_value",
+          "predicate": "security.code_fact.holds"
+        },
+        "value_type": "string",
+        "values": [
+          {
+            "kind": "literal",
+            "value": "no"
+          },
+          {
+            "kind": "literal",
+            "value": "partly"
+          }
+        ]
+      }
+    ],
+    "kind": "all_of"
+  }
+}

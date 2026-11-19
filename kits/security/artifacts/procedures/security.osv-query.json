@@ -1,0 +1,150 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
+  "definition": {
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-query.input/v1"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-query.output/v1"
+      }
+    },
+    "description": "Ask OSV about every inventoried component and write the vulnerabilities OSV lists for its exact purl@version; for a component OSV answered in full, a vulnerability it no longer lists is retired.",
+    "hard_caps": {
+      "max_capture_bytes": 67108864,
+      "max_items": 50000,
+      "max_provider_calls": 2,
+      "max_read_rows": 20000,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 300000000
+      }
+    },
+    "name": "security.osv-query",
+    "nodes": [
+      {
+        "id": "components",
+        "kind": "read",
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.osv_components"
+          }
+        }
+      },
+      {
+        "captures": {
+          "responses": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.osv-response"
+            }
+          }
+        },
+        "id": "osv",
+        "input": {
+          "components": "$steps.components.rows.[*].purl",
+          "logical_source": "$params.logical_source"
+        },
+        "kind": "call",
+        "slot": "query"
+      },
+      {
+        "captures": {
+          "document": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.osv-matches"
+            }
+          }
+        },
+        "id": "matched",
+        "input": {
+          "components": "$steps.components.rows.[*].purl",
+          "logical_source": "$params.logical_source",
+          "responses": "$steps.osv.responses"
+        },
+        "kind": "call",
+        "slot": "match"
+      },
+      {
+        "capture": "$steps.matched.document",
+        "header": [
+          "queried"
+        ],
+        "id": "affected",
+        "kind": "extract",
+        "records": "affected",
+        "row": {
+          "digest": "sha256:435d69a8bd74b0a7d2d4bb5c4b31a593ba7c8d6908dce07f5bad4c55c340222d",
+          "name": "security.osv-affected",
+          "version": 1
+        }
+      },
+      {
+        "claims": [
+          {
+            "rationale": "OSV {$item.fields.osv_id} lists {$item.key.cve_id} for {$item.key.purl}.",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "security.component.affected_by"
+              }
+            },
+            "value": {
+              "create": "if_absent",
+              "key": {
+                "cve_id": "$item.key.cve_id"
+              },
+              "kind": "security.vulnerability"
+            },
+            "when_absent": "mirror"
+          }
+        ],
+        "expect": "$steps.affected.header.queried",
+        "for_each": "$steps.affected.records",
+        "id": "write",
+        "kind": "claims",
+        "subject": {
+          "key": {
+            "purl": "$item.key.purl"
+          },
+          "kind": "security.component"
+        }
+      }
+    ],
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "security.osv-query.params/v2"
+      }
+    },
+    "slots": {
+      "match": {
+        "capability": {
+          "digest": "sha256:ab2f0583ea0b382f04ed2facbe70bad173d377f3f58beab2f46e3adf3df6f619",
+          "name": "security.osv.match",
+          "version": 1
+        }
+      },
+      "query": {
+        "capability": {
+          "digest": "sha256:ca605cd0876ef311f60b13964913a8b96536f182138f515aa893acdf8b700aef",
+          "name": "security.osv.query",
+          "version": 1
+        }
+      }
+    },
+    "terminal_capability": 3
+  },
+  "definition_digest": "sha256:5fc0eb17eef8049cf81cca409de73e397610d0b8b38aca964f71378fbb737d72",
+  "identity": {
+    "kind": "Procedure",
+    "name": "security.osv-query"
+  }
+}

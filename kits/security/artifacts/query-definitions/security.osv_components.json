@@ -1,0 +1,63 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Every component some inventory holds (an occurrence with a scope), once each: the components OSV is asked about.",
+  "entry": {
+    "binding": "c",
+    "subject_kinds": [
+      "security.component"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.osv_components"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "purl",
+        "value": {
+          "binding": "c",
+          "kind": "claim_value",
+          "predicate": "security.component.purl"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "row_contract": {
+    "digest": "sha256:4de925ed01e09b5197fcebe37fbb91d7e70ecbb1037d773344eeca7545bf2cb0",
+    "name": "security.osv-component",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "o",
+      "fact": "security.occurrence.scope",
+      "parts": [
+        {
+          "binding": "c",
+          "part": "security.occurrence.component"
+        }
+      ],
+      "subject_kind": "security.occurrence"
+    }
+  ]
+}

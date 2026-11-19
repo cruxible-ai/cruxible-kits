@@ -1,0 +1,125 @@
+{
+  "artifact_format": "cruxible-capture-contract-v4",
+  "components": {
+    "commitment_canonicalizer": {
+      "target": {
+        "kind": "Contract",
+        "name": "sha256-bytes-v1"
+      }
+    },
+    "coordinate_grammar": null,
+    "coordinate_schemas": [
+      {
+        "target": {
+          "kind": "Contract",
+          "name": "http-response-v1"
+        }
+      }
+    ],
+    "proof_adapter": null,
+    "provenance_rule": {
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.external.daemon-fetched-v1"
+      }
+    },
+    "replay_policy": {
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.external.retained-selection-replay-v1"
+      }
+    },
+    "selector_schemas": [
+      {
+        "target": {
+          "kind": "Contract",
+          "name": "whole-response-v1"
+        }
+      }
+    ],
+    "source_subject_mapping": {
+      "target": {
+        "kind": "Contract",
+        "name": "playbill.external.record-subject-v1"
+      }
+    }
+  },
+  "decoding": {
+    "encoding": "identity",
+    "format": "json",
+    "limits": {
+      "decoded_bytes": 4194304,
+      "depth": 8,
+      "records": 20000
+    }
+  },
+  "epistemic_grade": "derived",
+  "identity": {
+    "kind": "CaptureContract",
+    "name": "security.sbom-components"
+  },
+  "layout": {
+    "header": {
+      "inventory": {
+        "at": "/inventory",
+        "type": "string{min_len: 1, max_len: 256}"
+      }
+    },
+    "records": {
+      "components": {
+        "at": "/components/*",
+        "count_at": "/count",
+        "fields": {
+          "name": {
+            "at": "name",
+            "presence": "optional"
+          },
+          "named_by": {
+            "at": "named_by"
+          },
+          "scope": {
+            "at": "scope",
+            "canonicalize": "claim_type"
+          },
+          "warning": {
+            "at": "warning",
+            "presence": "optional"
+          }
+        },
+        "key": {
+          "purl": {
+            "at": "purl",
+            "type": "key_part<security.component:purl>"
+          }
+        },
+        "row": {
+          "digest": "sha256:04c4e110e39869026e7e4e74bbf4aca3bba92f21187c4783f544627872af67c6",
+          "name": "security.sbom-component",
+          "version": 1
+        }
+      }
+    }
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "replay": "attested",
+  "retention_erasure_policy": {
+    "body_retention": "required_for_duration",
+    "erasure": "prohibited",
+    "erasure_rule": null,
+    "minimum_retention": {
+      "microseconds": 34560000000000,
+      "tag": "playbill-duration-v1"
+    },
+    "selector_privacy": "direct_allowed"
+  },
+  "selection_budget": {
+    "max_bytes": 4194304,
+    "max_items": 1,
+    "max_rows": 1,
+    "tag": "playbill-capture-selection-budget-v1"
+  },
+  "shape": "http_response"
+}

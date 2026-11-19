@@ -1,0 +1,119 @@
+# Project state kit
+
+## What it is
+
+The vocabulary a software project keeps its working state in: roadmap items
+and recommendations, batches of work and the tracks they belong to, review
+cards, decisions, laws and product feedback. It carries definitions only: no
+values, Lines or automation. Each kind is named by its slug
+(`dev.roadmap_item/port-kits`), its `slug` field.
+
+## What it answers
+
+| Question | Where the answer comes from |
+|---|---|
+| Which roadmap items exist? | `project.roadmap-membership` (watch it so new work cannot drop out of a view) |
+| Where does an item stand? | `dev.roadmap_item.adoption_state`, `implementation_state`, `proposed_release` |
+| What blocks a batch, and where did it land? | `dev.batch.blocked_by`, `state`, `landed_at`, `tip`, `verdict` |
+| What was decided, and in which batch? | `dev.decision.ruling`, `standing`, `decided_in` |
+
+## How it models your world
+
+Every kind below also has `slug`, its key.
+
+| Kind | Fields |
+|---|---|
+| `dev.roadmap_item` | `task_title`, `adoption_state`, `implementation_state`, `proposed_release`, `completion_criterion`, `justification`, `original_recommendation`, `strategic_bucket`, `audit_baseline`, `historical_audit_class`, `reconciliation_note`, `refines` (items) |
+| `dev.recommendation` | `rule`, `rationale` |
+| `dev.batch` | `state`, `verdict`, `tip`, `landed_at`, `blocked_by` (batches), `belongs_to_track` |
+| `dev.track` | `status`, `dev.program.prose` |
+| `dev.card` | `disposition`, `lane`, `closed_by` (a batch) |
+| `dev.decision` | `ruling`, `standing`, `decided_in` (a batch) |
+| `dev.law` | `text`, `origin` (a batch or card) |
+| `dev.product_feedback` | `finding_text`, `follow_up` (roadmap items) |
+
+Roadmap items, recommendations and feedback follow-ups are written in your own
+words. Batch, track, card, decision and law fields are meant to cite a passage
+of a catalogued workspace file (an agent report, a dispatch contract, a friction
+log, the program register). That is guidance, not something the core
+enforces: no field of this kit requires captured evidence, so the core admits
+your own words, or a workspace file or section citation, on every one. Cite
+where you can; a reviewer is who asks for the citation. Feedback findings take
+either. Text fields hold at most 256 characters.
+
+A ruling (`dev.decision.ruling`), a law's text (`dev.law.text`) and program
+prose (`dev.program.prose`) are short summaries; the prose itself lives in a
+Document section the Claim cites. A citation takes a registered file name or a
+path:
+
+```sh
+cruxible set dev.decision/kit-versions ruling "Kits that changed meaning for 0.5 ship as 2.0.0." \
+  --because "The maintainer's ruling." \
+  --evidence-file "docs/decisions.md#Kits whose meaning changed for 0.5 ship as 2.0.0"
+```
+
+`--evidence-file PATH#TEXT` quotes a passage found once in the file, and the
+write catalogues the file if it is not yet. `set` has no option that cites a
+whole section; a write file does (`cruxible write FILE`), naming the section
+by its heading path from the top of the page:
+
+```yaml
+because: "The maintainer's ruling."
+changes:
+  - op: set
+    subject: dev.decision/kit-versions
+    field: standing
+    value: ratified
+    evidence: {kind: section, file: docs/decisions.md, section: [Decisions, Kit versions]}
+```
+
+## Install
+
+From a checkout of this repository:
+
+```sh
+cruxible kit add /path/to/cruxible-kits/kits/project-state                  # preview; prints the coordinate
+cruxible kit add /path/to/cruxible-kits/kits/project-state --commit --at OID
+```
+
+`cruxible kit add project-state:2.0.0` installs the same release from the
+registry once it is published; before then it refuses
+(`cruxible.kit.not_found`), so use the directory. The kit carries no providers, so the install is one proposal. With
+one owner and self-approval the commit installs it; under independent approval
+(`cruxible init ... --reviewer-key-dir DIR --require-independent-approval`) it
+waits for the reviewer: `CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal
+approve PROPOSAL_ID --yes`.
+
+## Upgrading
+
+2.0.0 carries 1.0.0's definitions in the formats Cruxible 0.5 reads (ClaimType
+`cruxible-claim-type-v11`, SubjectKind `cruxible-subject-kind-v2`,
+QueryDefinition `cruxible-query-definition-v3`); 1.0.0 does not install on 0.5.
+The fields, cardinality and roles are the same, except where 0.5
+has no way to say the old thing:
+
+- 1.0.0 declared no SubjectKinds, and 0.5 creates a Subject only of a declared
+  kind; 2.0.0 declares each kind, keyed by a new `slug` field;
+
+- each 1.0.0 rule named one workspace file's own source contract
+  (`agent-reports`, `dispatch-contracts`, `friction-log`, `program-register`,
+  `feedback-*`, `program-*`); 2.0.0 states no rule on those fields, so the
+  core's default admits any catalogued workspace file or section, and own words
+  too (a kit can no longer author a file-only rule), and no longer ships those
+  twenty source contracts;
+- fifteen authored fields 1.0.0 limited to the writer's own words (the
+  `dev.roadmap_item` recommendation and account fields `task_title`,
+  `justification`, `original_recommendation`, `proposed_release`,
+  `strategic_bucket`, `adoption_state`, `implementation_state`,
+  `completion_criterion`, `audit_baseline`, `historical_audit_class`,
+  `reconciliation_note` and `refines`; `dev.recommendation.rationale` and
+  `.rule`; `dev.product_feedback.follow_up`) take the core's default rule in
+  2.0.0, so a workspace file or section citation is admitted on them as well;
+- `dev.decision.ruling`, `dev.law.text` and `dev.program.prose` held exact
+  file content, which 0.5 retires (prose lives in Documents); they are short
+  summaries of at most 256 characters citing the Document section;
+- every other text field 1.0.0 left unbounded holds at most 256 characters.
+
+In the kits repository the release rebuilds from
+`kits/project-state/source/definitions.py` with
+`python scripts/build_kit.py kits/project-state SCRATCH`.

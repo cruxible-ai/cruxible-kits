@@ -1,0 +1,53 @@
+{
+  "authority": {
+    "required_tier": "governed_write"
+  },
+  "body_digest": "sha256:099103e92953a400f641b8252010e3b0200351eebddec5c98d288e3698efd0a8",
+  "document_kind": "security.guidance",
+  "format_version": 1,
+  "governance_scope": [
+    "security"
+  ],
+  "identity": "document:security.guidance.verifier",
+  "kind": "document",
+  "lifecycle": {
+    "activation_policy": "snapshot",
+    "revision": 1,
+    "status": "active"
+  },
+  "links": [
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.code_fact.category"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.code_fact.holds"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.fixed_by"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.justification"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.rests_on"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.severity"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:security.finding.verdict"
+    }
+  ],
+  "media_type": "text/markdown",
+  "pins": [],
+  "predecessor_digest": null,
+  "tag": "playbill-document-v1",
+  "title": "Judging a security finding"
+}

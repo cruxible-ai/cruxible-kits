@@ -1,0 +1,560 @@
+{
+ "exchanges": [
+  {
+   "id": "batch-log4j-demo-app",
+   "method": "POST",
+   "url": "https://api.osv.dev/v1/querybatch",
+   "request": {
+    "queries": [
+     {
+      "package": {
+       "purl": "pkg:maven/org.apache.logging.log4j/log4j-api@2.14.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:maven/org.slf4j/slf4j-api@1.7.32"
+      }
+     }
+    ]
+   },
+   "status": 200,
+   "content_type": "application/json",
+   "body": "batch-log4j-demo-app.body",
+   "sha256": "sha256:256d759586cca0616f3374b3187657631560dcc50837cd014503e0930bccb2d2",
+   "recorded_at": "2026-11-05T01:48:18.757308+00:00"
+  },
+  {
+   "id": "vuln-GHSA-3pxv-7cmr-fjr4",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-3pxv-7cmr-fjr4",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-3pxv-7cmr-fjr4.body",
+   "sha256": "sha256:b5cf0d59b4ce187a0f51d51cfda767006c290b146488790c661052c2c98dbb04",
+   "recorded_at": "2026-11-05T01:48:18.884469+00:00"
+  },
+  {
+   "id": "vuln-GHSA-6hg6-v5c8-fphq",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-6hg6-v5c8-fphq",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-6hg6-v5c8-fphq.body",
+   "sha256": "sha256:3c715f8a6ce1818eda8f571bff993b9624f160e69fcc689920809436c4c3ddba",
+   "recorded_at": "2026-11-05T01:48:19.015608+00:00"
+  },
+  {
+   "id": "vuln-GHSA-7rjr-3q55-vv33",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-7rjr-3q55-vv33",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-7rjr-3q55-vv33.body",
+   "sha256": "sha256:a8bd0258a6f9990e7b1f12d7c88ee97df2fa9fec6a7fd83d303b832bc1433f6c",
+   "recorded_at": "2026-11-05T01:48:19.147728+00:00"
+  },
+  {
+   "id": "vuln-GHSA-8489-44mv-ggj8",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-8489-44mv-ggj8",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-8489-44mv-ggj8.body",
+   "sha256": "sha256:238eef41059faf105339bc6e42a143cbe13b6ff565c9dcd0f65d6645c6442d29",
+   "recorded_at": "2026-11-05T01:48:19.272563+00:00"
+  },
+  {
+   "id": "vuln-GHSA-h383-gmxw-35v2",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-h383-gmxw-35v2",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-h383-gmxw-35v2.body",
+   "sha256": "sha256:dbc1c286357c9886ac690d695cac59f897401da98f96ed332fb4ba117aecbfa1",
+   "recorded_at": "2026-11-05T01:48:19.391563+00:00"
+  },
+  {
+   "id": "vuln-GHSA-jfh8-c2jp-5v3q",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-jfh8-c2jp-5v3q",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-jfh8-c2jp-5v3q.body",
+   "sha256": "sha256:9d2bbb07c7389fadb57a3a706619429036a954b7ba93ec70aca679be833c5066",
+   "recorded_at": "2026-11-05T01:48:19.535988+00:00"
+  },
+  {
+   "id": "vuln-GHSA-p6xc-xr62-6r2g",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-p6xc-xr62-6r2g",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-p6xc-xr62-6r2g.body",
+   "sha256": "sha256:8b22256ae435dc0095277853b5ae9bfaf4b47909bd2ebcea59e9750cba4ebe3e",
+   "recorded_at": "2026-11-05T01:48:19.666718+00:00"
+  },
+  {
+   "id": "vuln-GHSA-qv9r-c865-cp47",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-qv9r-c865-cp47",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-qv9r-c865-cp47.body",
+   "sha256": "sha256:17264d1ead80e524e33ae0b0da765dd2e50b594606f1780953ff7adbdfc4edaf",
+   "recorded_at": "2026-11-05T01:48:19.796470+00:00"
+  },
+  {
+   "id": "vuln-GHSA-vc5p-v9hr-52mj",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-vc5p-v9hr-52mj",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-vc5p-v9hr-52mj.body",
+   "sha256": "sha256:db6d14fdc3342f282c95eebd0534e9bec3e850e9745d6804cd43e9dbf4180beb",
+   "recorded_at": "2026-11-05T01:48:19.922411+00:00"
+  },
+  {
+   "id": "batch-cruxible-env",
+   "method": "POST",
+   "url": "https://api.osv.dev/v1/querybatch",
+   "request": {
+    "queries": [
+     {
+      "package": {
+       "purl": "pkg:pypi/annotated-doc@0.0.4"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/annotated-types@0.7.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/anyio@4.14.2"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/attrs@25.4.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/certifi@2026.1.4"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/cffi@2.0.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/click@8.3.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/cruxible-client@0.5.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/cruxible-provider-runtime@0.3.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/cruxible@0.5.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/cryptography@50.0.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/execnet@2.1.2"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/fastapi@0.135.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/h11@0.16.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/httpcore@1.0.9"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/httptools@0.7.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/httpx-sse@0.4.3"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/httpx@0.28.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/idna@3.15"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/iniconfig@2.3.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/jsonschema-specifications@2025.9.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/jsonschema@4.26.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/librt@0.7.8"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/mcp@1.28.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/mypy-extensions@1.1.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/mypy@1.19.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/packaging@26.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pathspec@1.0.4"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pluggy@1.6.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pycparser@3.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pydantic-core@2.41.5"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pydantic-settings@2.14.2"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pydantic@2.12.5"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pygments@2.20.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pyjwt@2.15.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pytest-timeout@2.4.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pytest-xdist@3.8.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pytest@9.0.3"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/python-dotenv@1.2.2"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/python-multipart@0.0.31"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/pyyaml@6.0.3"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/referencing@0.37.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/rpds-py@0.30.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/ruff@0.15.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/sse-starlette@3.2.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/starlette@1.3.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/structlog@25.5.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/types-pyyaml@6.0.12.20250915"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/typing-extensions@4.15.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/typing-inspection@0.4.2"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/uv@0.12.24"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/uvicorn@0.40.0"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/uvloop@0.22.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/watchfiles@1.1.1"
+      }
+     },
+     {
+      "package": {
+       "purl": "pkg:pypi/websockets@16.0"
+      }
+     }
+    ]
+   },
+   "status": 200,
+   "content_type": "application/json",
+   "body": "batch-cruxible-env.body",
+   "sha256": "sha256:0b7ec309cc0f24917dba1e9d994ac6429a98f598f65791131aa57efdb9cb637a",
+   "recorded_at": "2026-11-05T01:48:20.223115+00:00"
+  },
+  {
+   "id": "vuln-GHSA-5h93-6whr-6q8j",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-5h93-6whr-6q8j",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-5h93-6whr-6q8j.body",
+   "sha256": "sha256:e00907bbec16a63d6690d44e7c242f1ecac9a7cb0c0f98e252699558ae33e8de",
+   "recorded_at": "2026-11-05T01:48:20.355854+00:00"
+  },
+  {
+   "id": "vuln-GHSA-6q48-6c7w-9gw2",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-6q48-6c7w-9gw2",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-6q48-6c7w-9gw2.body",
+   "sha256": "sha256:a0dd4bedfe80103764b56ff3b0b44afab7a1820265cd9b9e5c965b20daa08fb8",
+   "recorded_at": "2026-11-05T01:48:20.496567+00:00"
+  },
+  {
+   "id": "vuln-GHSA-84m7-p3x7-pcfv",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-84m7-p3x7-pcfv",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-84m7-p3x7-pcfv.body",
+   "sha256": "sha256:f5f3a3bc07793f9b1e562b0a645f6656c3382b315bee1430db214bf20ea9f3ed",
+   "recorded_at": "2026-11-05T01:48:20.619609+00:00"
+  },
+  {
+   "id": "vuln-GHSA-hq85-5cpj-mr62",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-hq85-5cpj-mr62",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-hq85-5cpj-mr62.body",
+   "sha256": "sha256:12806376ae4efb5ebbbae6a26fb3e6ac54427d0ddb8f325dbc671e2acfb578df",
+   "recorded_at": "2026-11-05T01:48:20.843385+00:00"
+  },
+  {
+   "id": "vuln-GHSA-rwrf-2pqf-9j8j",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-rwrf-2pqf-9j8j",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-rwrf-2pqf-9j8j.body",
+   "sha256": "sha256:0e4b6cb9a32a34a52fa380772ff4db78d10f05a4b2696a60b50ca5b9b0e33fb7",
+   "recorded_at": "2026-11-05T01:48:20.998183+00:00"
+  },
+  {
+   "id": "vuln-GHSA-w4fh-qvv9-3v23",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-w4fh-qvv9-3v23",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-GHSA-w4fh-qvv9-3v23.body",
+   "sha256": "sha256:bff96523a7ccc9904ea6ee493a1279f3ccd82df46cb85e5170e499c13029cf0c",
+   "recorded_at": "2026-11-05T01:48:21.124493+00:00"
+  },
+  {
+   "id": "vuln-PYSEC-2026-4320",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/PYSEC-2026-4320",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-PYSEC-2026-4320.body",
+   "sha256": "sha256:f1a933abbf8836a1d0dd21bb29c1c4b6983193651bb027661288a70be508eb1e",
+   "recorded_at": "2026-11-05T01:48:21.248872+00:00"
+  },
+  {
+   "id": "vuln-PYSEC-2026-4321",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/PYSEC-2026-4321",
+   "request": null,
+   "status": 200,
+   "content_type": "application/json",
+   "body": "vuln-PYSEC-2026-4321.body",
+   "sha256": "sha256:070c2e0d52dbe4690e2be0e267fb84799c79763307341e9dba3fee49ed0919d2",
+   "recorded_at": "2026-11-05T01:48:21.375486+00:00"
+  },
+  {
+   "id": "distro-miss-binary-libc6",
+   "method": "POST",
+   "url": "https://api.osv.dev/v1/querybatch",
+   "request": {
+    "queries": [
+     {
+      "package": {
+       "purl": "pkg:deb/debian/libc6@2.36-9+deb12u7"
+      }
+     }
+    ]
+   },
+   "status": 200,
+   "content_type": "application/json",
+   "body": "distro-miss-binary-libc6.body",
+   "sha256": "sha256:a0460b2895f6918d679db4ec8ceaa94dc85b501d9060c02839d05e919aac5e31",
+   "recorded_at": "2026-11-05T01:48:21.546147+00:00"
+  },
+  {
+   "id": "distro-source-glibc",
+   "method": "POST",
+   "url": "https://api.osv.dev/v1/querybatch",
+   "request": {
+    "queries": [
+     {
+      "package": {
+       "name": "glibc",
+       "ecosystem": "Debian:12"
+      },
+      "version": "2.36-9+deb12u7"
+     }
+    ]
+   },
+   "status": 200,
+   "content_type": "application/json",
+   "body": "distro-source-glibc.body",
+   "sha256": "sha256:d8fa24a04e526fec99014974c787160b209c7fc39966a4fffa5d365696790864",
+   "recorded_at": "2026-11-05T01:48:21.943733+00:00"
+  },
+  {
+   "id": "vuln-missing",
+   "method": "GET",
+   "url": "https://api.osv.dev/v1/vulns/GHSA-0000-0000-0000",
+   "request": null,
+   "status": 404,
+   "content_type": "application/json",
+   "body": "vuln-missing.body",
+   "sha256": "sha256:eff9d6063693b72bd0cbba8a64cbc29e0d38b4fb05e86450909fe741c83f9253",
+   "recorded_at": "2026-11-05T01:48:22.133268+00:00"
+  }
+ ]
+}

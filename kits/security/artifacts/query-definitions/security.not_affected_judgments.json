@@ -1,0 +1,113 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Every package-level not_affected judgment: the component, the vulnerability and the VEX justification.",
+  "entry": {
+    "binding": "e",
+    "subject_kinds": [
+      "security.exposure"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.not_affected_judgments"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "component",
+        "value": {
+          "binding": "c",
+          "kind": "claim_value",
+          "predicate": "security.component.purl"
+        }
+      },
+      {
+        "name": "cve_id",
+        "value": {
+          "binding": "v",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.cve_id"
+        }
+      },
+      {
+        "name": "exposure",
+        "value": {
+          "binding": "e",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "justification",
+        "value": {
+          "binding": "e",
+          "kind": "claim_value",
+          "predicate": "security.exposure.justification"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:a6096a12160df3133c3891b069090b6bdd2592579c3cfd03759ab399efeaf89a",
+    "name": "security.judgment",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "c",
+      "direction": "forward",
+      "from_binding": "e",
+      "predicate": "security.exposure.component",
+      "target_subject_kinds": [
+        "security.component"
+      ]
+    },
+    {
+      "binding": "v",
+      "direction": "forward",
+      "from_binding": "e",
+      "predicate": "security.exposure.vulnerability",
+      "target_subject_kinds": [
+        "security.vulnerability"
+      ]
+    }
+  ],
+  "where": {
+    "kind": "membership",
+    "left": {
+      "binding": "e",
+      "kind": "claim_value",
+      "predicate": "security.exposure.justification"
+    },
+    "value_type": "string",
+    "values": [
+      {
+        "kind": "literal",
+        "value": "vulnerable_code_not_present"
+      }
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "What the Line on security.kev-triage fetches: the CISA KEV catalog's URL, the most bytes to accept and the source label. It writes KEV fields only for vulnerabilities already watched (the ones OSV found affecting an inventoried component).",
+  "fields": {
+    "logical_source": {
+      "description": "Source label the catalog Capture is recorded under, lowercase (the template uses cisa.kev.catalog). Evidence requirements and landing Triggers can name it.",
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    },
+    "max_bytes": {
+      "description": "The most bytes the fetch accepts from the origin, 1 to 33554432 (the template uses 4194304, 4 MiB). A larger response is refused and the run writes nothing. The catalog's CaptureKind holds at most 16 MiB, so a larger value gains nothing.",
+      "type": {
+        "kind": "int",
+        "max": 33554432,
+        "min": 1
+      }
+    },
+    "url": {
+      "description": "HTTP(S) URL of the CISA KEV catalog JSON (the template uses CISA's feed). When the Line lists acquisition origins, its origin must be one. The body must hold catalogVersion, count and vulnerabilities[], each with cveID and dateAdded (dueDate and knownRansomwareCampaignUse optional). The read is complete only when the records match count, and only a complete read records a watched CVE as not listed.",
+      "type": {
+        "kind": "string",
+        "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://\\S+$"
+      }
+    }
+  },
+  "name": "security.kev-triage.params",
+  "predecessor_digest": "sha256:3041914d805e4dfc7afd3562cd1dc50776506ade90f386a47bf4906bc3ef86fc",
+  "version": 2
+}

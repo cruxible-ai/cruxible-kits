@@ -1,0 +1,35 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One judgment resting on a codebase fact: the judgment's Subject (kind and id) and the fact (id, topic, holds).",
+  "fields": {
+    "fact": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "holds": {
+      "optional": true,
+      "type": {
+        "claim_type": "security.code_fact.holds",
+        "kind": "enum_of"
+      }
+    },
+    "judgment": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "judgment_kind": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "topic": {
+      "type": {
+        "kind": "string"
+      }
+    }
+  },
+  "name": "security.resting-judgment",
+  "version": 1
+}

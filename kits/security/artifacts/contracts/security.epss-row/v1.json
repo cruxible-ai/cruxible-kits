@@ -1,0 +1,27 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One EPSS record: a CVE's score, percentile and score date.",
+  "fields": {
+    "date": {
+      "type": {
+        "kind": "date"
+      }
+    },
+    "percentile": {
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    },
+    "score": {
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    }
+  },
+  "name": "security.epss-row",
+  "version": 1
+}

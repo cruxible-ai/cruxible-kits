@@ -1,0 +1,35 @@
+# Package-side provider manifest for the security kit's dependency plane (schema 2):
+# the SBOM components derive and the OSV fetch + match.
+# A transcription SOURCE, never authority: the accepted Provider build is.
+schema_version: 2
+provider_id: security-osv-provider
+distribution:
+  name: security-osv-provider
+  version: 0.1.0.dev0
+entrypoint_group: cruxible.providers
+supported_protocol_majors: [2]
+implementations:
+  # Serves osv.query: POST /v1/querybatch (at most 1000 components per request)
+  # and GET /v1/vulns/{id} for every advisory a batch names, eight at a time.
+  # Every response is returned as canonical JSON (verbatim when not JSON) as one
+  # member of the output's Capture list.
+  - entrypoint: "security_osv_provider.osv:OsvQuery"
+    backends: [local_env, container]
+    requires_extras: []
+    declared_endpoints:
+      - "https://api.osv.dev"
+    deterministic: false
+  # Serves osv.match: pure. Reads this run's OSV responses (Capture bytes passed
+  # by core, b1) and the components asked about; emits one derived JSON document.
+  - entrypoint: "security_osv_provider.osv:OsvMatch"
+    backends: [local_env, container]
+    requires_extras: []
+    declared_endpoints: []
+    deterministic: true
+  # Serves sbom.components: pure. Reads one SBOM Capture (bytes passed by core)
+  # and emits one derived JSON document: the inventory key and its components.
+  - entrypoint: "security_osv_provider.sbom:SbomComponents"
+    backends: [local_env, container]
+    requires_extras: []
+    declared_endpoints: []
+    deterministic: true

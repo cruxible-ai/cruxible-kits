@@ -1,101 +1,88 @@
-# Security kit: for maintainers
+# Building the security kit for Cruxible 0.5
 
-How the maintainer builds and gates a release of the security kit, and the
-self-dogfood runs over Cruxible's own dependencies. This page lives in the kits
-repository and is not part of the kit bundle; the kit's reader starts at the
-[README](../README.md).
+The release is the dependency loop in `pilot/`: SBOM import, OSV, KEV, EPSS,
+pair Subjects, triage queries and the governed dependency-judgment guidance;
+and the audit extension (`pilot/findings.py`): code findings, coverage units,
+the SARIF import Procedures and provider, the audit Queries and the hunter,
+verifier and coverage guidance. The reference pages (`../reference/`) ship as
+plain kit files.
+The former 1.3 release's system-model/incident recipes, gates and upgrade variant
+have been retired. Kit version 1.3.0 is still unpublished; this rebuild uses the
+0.5 artifact format (capabilities, CaptureKind layouts, thin EXTRACT nodes,
+`requires: base`) and protocol-2 provider packages at registration schema 3.
+Nothing here publishes it.
 
-## Building a release
-
-```sh
-python source/build_release.py SCRATCH_DIR --providers
-```
-
-with the interpreter of the cruxible build the release targets. It rebuilds both
-bundled providers (registration, tests, wheel), starts a daemon on a fresh state
-root under `SCRATCH_DIR`, installs `cruxible-provider-web` 0.2.2 and the bundled
-wheels, runs `source/authoring/security_definitions.py definitions` and
-`procedures` for 1.3.0, `kit build`s it, authors the 1.3.1 successors on the
-same instance and builds those, then copies 1.3.0 over `cruxible-kit.json`,
-`artifacts/` and `providers/` in the kit directory and 1.3.1 over `source/variants/1.3.1-gate`,
-and regenerates `reference.md` and the README's counts table from the copied
-release (`python source/reference.py` does only that step; after editing
-`examples/automation.json` run it too, and `--check` also refuses a concept map
-that names a kind or field the kit does not define). The same sources build the same kit
-digest. After changing a provider, bump its
-version. `source/providers/cruxible-provider-web` holds the published 0.2.2
-wheel, the lock it embeds and the runtime wheel that lock names by path, so
-`kit build` can record the default's hashes; none of those files ship.
-`source/variants/1.3.1-gate` is a release-gate fixture (changes `kev_exposure`,
-adds `vulnerability.kev_cwes`, changes fetch-observed from 60 to 90 seconds and KEV triage from 120 to 150
-seconds, and changes the analysis Provider's KEV rationale), not a published version.
-
-## Release gate
-
-`gate/test_security_kit_gate.py` runs the v1 release gate end to end on a fresh
-daemon with a scratch state root and HOME: the kit is published to a throwaway
-HTTPS OCI registry on 127.0.0.1, installed, automated, fed an
-inventory and an SBOM, run through OSV and CVE-record applicability, applicability
-bets, KEV triage and attention, EPSS, a restart, measurement, graduation to
-settle, the upgrade to `source/variants/1.3.1-gate` and the re-import of a changed
-SBOM and a new release, then the system model: gates asked with every answer
-unknown and one gap per source, pulls and parses, an unchanged re-pull
-(re-observation), a moved `main`, fail-closed freshness, a declared/running
-disagreement and a full investigation, then the code findings under independent
-approval: a Semgrep report, an agent's duplicate, CodeQL's own key, a located,
-triaged, contended and confirmed finding, HQ6, and a fix that drifts the location,
-verifies by full re-scan and regresses, then an incident (PHP2Shell) under
-independent approval: a KEV listing reaching exposure through a Syft SBOM and a
-scope's inventory, distro builds left to OSV, patches closed only by a scan (a
-claimed patch the scan disagrees with disputed), unchanged re-scans and stale
-coverage, audits in three states (an incomplete read, a contended result, own words
-refused), rotations verified only by a separate state read (an old key still
-active, a secret-shaped body refused), a window-close re-ask, the status page and
-closure, asserting each step's observable. The SARIF fixtures are in the analysis
-Provider's `tests/data/sarif` (Semgrep's recorded, CodeQL's hand-built in its
-shape), the incident's in `tests/data/incident` (recorded shapes: CVE JSON 5.1, an
-NVD answer with null configurations, a Syft CycloneDX SBOM, log reads and key
-listings). It is
-offline from every security source: `gate/fixture-sources` (package
-`security-gate-sources`) is cruxible-provider-web's own `WebFetch` and the kit's
-own OSV, EPSS, repository and PyPI adapters (vendored by its
-`build_registration.py`) answering from `responses/` (recorded once by
-`record_responses.py` and `record_system_model.py`). Provider installs still
-need PyPI.
-
-The upgrade recovery probe deliberately retires and restores an EPSS score.
-Core correctly reports `line_settled_prior_refusals` for that settlement on the
-same evidence. The gate inspects its retirement receipt, submits the repair's
-ready payload (the same EPSS Line capped at `propose`; `cruxible next` prints it
-as a `cruxible authoring submit` command), and re-enables the Line before
-checking that `next` is empty.
+From `kits/security`, use the Python interpreter with the target core and its
+client available. `PYTHONPATH` must include that core checkout, its `src`, its
+`packages/cruxible-client/src`, and the selected provider runtime's `src`.
+`cruxible` beside that interpreter (or `CRUXIBLE_BIN`) must use the same core.
 
 ```sh
-CRUXIBLE_BIN=$(command -v cruxible) python -m pytest kits/security/gate -x -q
+python source/build_release.py /short/new/scratch --providers-checkout /path/to/cruxible-providers
 ```
 
-It needs `git` and `openssl`, takes about forty minutes, and writes
-`gate-results.md` and the command log to its scratch root
-(`SECURITY_KIT_GATE_ROOT` to choose one). After changing the fixture, run its
-`build_registration.py`, `uv lock` and `uv build --wheel --out-dir dist`.
+The scratch directory must not exist. Its daemon socket requires a short path.
+Only scratch and this kit directory are written; the core and providers
+checkouts are read-only. `uv` and cached hatchling 1.32.1 are needed: the kit's
+own providers build with `uv build --offline`, and the three committed locks are
+checked, never re-resolved.
 
-## Self-dogfood
+The kit's own providers, OSV and SARIF (each 0.1.0.dev0), are bundled: the kit
+carries their wheels and locks with the published `cruxible-provider-runtime`
+0.5.0 wheel their locks name by path. The general-purpose
+`cruxible-provider-web` 0.7.0 is a published dependency: `kit build
+--default-provider` records the published wheel's sha256 and the lock it embeds,
+the kit carries none of its files, and `kit add` installs it by name from the
+consumer's provider index. The builder downloads both published wheels from PyPI
+into scratch (or reads them from `--published-wheels DIR`) and refuses unless
+each has the sha256 `build_release.PUBLISHED` records and its package files are
+the providers checkout's source byte for byte. That checkout must be at the
+reviewed commit `build_release.PROVIDERS_COMMIT` records (`b3fa37a`); the web
+package vendored under `providers/cruxible-provider-web` (its `src/`,
+`pyproject.toml` and `uv.lock`, which must be the lock the published wheel
+embeds) must be that commit's copy. The runtime wheel also sits beside the web
+wheel in the build's scratch package, so the automation-template check can seed
+the web build the template binds by name. Provider installation fetches locked
+registry dependencies from PyPI. No manual pip install or development
+environment is created.
 
-`examples/self-dogfood/` (at the repository root) runs the whole loop live over
-Cruxible's own dependency tree: `sbom_from_uv_lock.py` writes a CycloneDX SBOM
-per package from a uv.lock, and `run.py` imports them into a fresh instance,
-asks OSV, KEV and EPSS, reads `urgent_exposures`, and times settle batches of
-~400 KEV Claims.
+The builder uses the public CLI to initialize a fresh publisher (which holds the
+base kit from `init`), install the three provider builds, author the CaptureKinds
+(without their layouts), the vocabulary, the kit's four capabilities, the
+layouts, the Procedures for both loops, and store/author the four guidance
+Documents. It does not author adopter Lines, Mandates, Triggers or Runbooks.
+Production `kit build` validates the exact committed automation template against
+the exported closure, leaves out every definition the base kit owns (`web.`,
+`workspace.`) and records `requires: base >= 1.0.0`; the builder refuses any
+other `requires`. Only then are the manifest, artifacts, provider files and
+Document bodies copied into the kit.
 
-A persistent instance runs the kit daily over the same dependencies:
-`setup_persistent.py` creates it (KEV and EPSS triage graduated to settle,
-applicability propose-only: the review queue), `daemon.sh` starts, stops and
-checks its daemon, `refresh_sboms.py` re-imports the SBOMs whose bytes changed
-after a dependency change, and `snapshot.py` appends one daily metrics line.
-The instance root's `OPERATING.md` says how to run and read it.
+The two kit providers' `registration.json` files are written from the kit's own
+definitions by `providers/build_registrations.py` (each operation names the kit
+capability it serves and carries byte-for-byte copies of its Contracts and
+layouts). The builder refuses a stale registration; after changing a capability,
+a Contract or a layout, run it first:
 
-Setup and refresh require `--core-repo PATH --core-sha FULL_SHA
---providers-repo PATH --providers-sha FULL_SHA`; no branch defaults are used.
-Setup prints and retains these exact inputs in `source-pins.json` before
-importing the SBOMs. Choose the actual repositories and reviewed commits; the
-scripts never change those repositories.
+```sh
+python providers/build_registrations.py
+```
+`SOURCE_DATE_EPOCH` fixes the kit providers' wheel timestamps. The inert-file manifest is refreshed
+last; command receipts and daemon logs remain under scratch. The daemon is
+stopped even when authoring/building fails.
+
+After changing docs/examples, refresh only this kit's inert files:
+
+```sh
+python -c 'import runpy; runpy.run_path("../../scripts/kits.py")["write_files"](__import__("pathlib").Path("."))'
+python ../../scripts/kits.py check
+```
+
+Run `pilot/test_*.py` with the same core on `PYTHONPATH` and
+`CRUXIBLE_PROVIDERS_CHECKOUT` set. `test_start_gate.py` exercises production kit
+build and a fresh consumer install of the actual committed directory, including
+its guidance body and exported template. Other pilot gates test the dependency
+loop and the SARIF/audit extension using recorded bytes; `test_pilot_gate.py` and
+`test_findings_gate.py` also check that each thin EXTRACT node resolves through
+its kind's layout to the full spec it replaced (`pilot/fixtures/extracts/`).
+`python pilot/template.py --check` checks the committed template. Changing its
+settlement authority requires a separate maintainer ruling.

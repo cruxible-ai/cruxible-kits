@@ -1,0 +1,13 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "fields": {
+    "logical_source": {
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    }
+  },
+  "name": "security.osv-query.params",
+  "version": 1
+}

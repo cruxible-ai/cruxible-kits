@@ -1,0 +1,26 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "One package release, named by its purl@version (R1, R12).",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "security.component"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "security.component.purl",
+        "normalizer": {
+          "identity": "package",
+          "normalizer": "purl-type",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

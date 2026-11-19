@@ -1,0 +1,43 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One finding a SARIF findings document lists: its verification and, when the scan gives them, the rule, tool, severity and location that reported it.",
+  "fields": {
+    "reported_at": {
+      "optional": true,
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "rule": {
+      "optional": true,
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "severity": {
+      "optional": true,
+      "type": {
+        "claim_type": "security.finding.severity",
+        "kind": "enum_of"
+      }
+    },
+    "tool": {
+      "optional": true,
+      "type": {
+        "kind": "string",
+        "max_len": 64,
+        "pattern": "^[0-9a-z][0-9a-z._-]{0,63}$"
+      }
+    },
+    "verification": {
+      "type": {
+        "claim_type": "security.finding.verification",
+        "kind": "enum_of"
+      }
+    }
+  },
+  "name": "security.sarif-finding",
+  "version": 1
+}

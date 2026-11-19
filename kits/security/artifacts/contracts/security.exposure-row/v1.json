@@ -1,0 +1,69 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One exposure: an occurrence (an inventory's component) a vulnerability affects, with its scope and the vulnerability's KEV and EPSS facts.",
+  "fields": {
+    "component": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "cve_id": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "epss_percentile": {
+      "optional": true,
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    },
+    "epss_score": {
+      "optional": true,
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    },
+    "inventory": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "kev_date_added": {
+      "optional": true,
+      "type": {
+        "kind": "date"
+      }
+    },
+    "kev_due_date": {
+      "optional": true,
+      "type": {
+        "kind": "date"
+      }
+    },
+    "kev_ransomware_use": {
+      "optional": true,
+      "type": {
+        "claim_type": "security.vulnerability.kev_ransomware_use",
+        "kind": "enum_of"
+      }
+    },
+    "occurrence": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "scope": {
+      "type": {
+        "claim_type": "security.occurrence.scope",
+        "kind": "enum_of"
+      }
+    }
+  },
+  "name": "security.exposure-row",
+  "version": 1
+}

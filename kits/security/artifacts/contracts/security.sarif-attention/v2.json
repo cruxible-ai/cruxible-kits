@@ -1,0 +1,82 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "A code-findings item for an agent: a regression (a finding verified fixed that a scan reports again) or a location gap (a result with no repository path or no stable locator, so it is no finding yet).",
+  "fields": {
+    "finding": {
+      "description": "A regression's finding Subject id: get security.finding/<finding>.",
+      "optional": true,
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "kind": {
+      "description": "regression (a finding verified fixed that a scan reports again) or location_gap (a result the scan could not place).",
+      "type": {
+        "kind": "enum",
+        "members": [
+          "location_gap",
+          "regression"
+        ]
+      }
+    },
+    "locus": {
+      "description": "A regression's locus (path#locator): the finding key's locus.",
+      "optional": true,
+      "type": {
+        "kind": "key_part",
+        "part": "locus",
+        "subject_kind": "security.finding"
+      }
+    },
+    "path": {
+      "description": "The repository-relative path the result names, or (none).",
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "reason": {
+      "description": "Why a location gap is no finding (for example no_repository_path or no_stable_location).",
+      "optional": true,
+      "type": {
+        "kind": "string",
+        "max_len": 64
+      }
+    },
+    "ref": {
+      "description": "The item's identity: the kind, then the finding and scan revision, or the rule and path.",
+      "type": {
+        "kind": "string",
+        "max_len": 512
+      }
+    },
+    "repo": {
+      "description": "The repository (host/owner/repo): the finding key's repo.",
+      "type": {
+        "kind": "key_part",
+        "part": "repo",
+        "subject_kind": "security.finding"
+      }
+    },
+    "rule": {
+      "description": "The rule that reported it, as tool:ruleId.",
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "weakness": {
+      "description": "A regression's weakness (CWE-n or RULE:tool/ruleId): the finding key's weakness.",
+      "optional": true,
+      "type": {
+        "kind": "key_part",
+        "part": "weakness",
+        "subject_kind": "security.finding"
+      }
+    }
+  },
+  "name": "security.sarif-attention",
+  "predecessor_digest": "sha256:04958b75f4898e9f00f3363374ba66950695ef7d09a226f28766ebf9c25d8f57",
+  "version": 2
+}
