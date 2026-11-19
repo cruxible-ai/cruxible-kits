@@ -732,6 +732,11 @@
   "automation_template": "automation.json",
   "files": [
     {
+      "path": "NOTICE.md",
+      "role": "reference",
+      "sha256": "sha256:a968a2025e105997145eb11fdb3cb9c1de8f2591dda0fae88c43c8d33c15f6e9"
+    },
+    {
       "path": "README.md",
       "role": "readme",
       "sha256": "sha256:da7f182fceaf8800572b0bbb11aa42f6a1c552f44cca40325426738579eccd5e"
