@@ -37,8 +37,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import httpx
 from cruxible_client.artifacts import RegistryClient, pack_artifact, parse_reference
+from cruxible_client.artifacts.registry import RegistryRefusal
 from cruxible_client.contracts.canonical import pretty_canonical_bytes
 from cruxible_client.contracts.kits import KIT_MANIFEST_FILE, KitBundle, KitFile, kit_file_entry
 from cruxible_client.kits import KIT_ARTIFACT, kit_skill_directory_name, read_kit_directory
@@ -337,8 +337,11 @@ def publish(*, dry_run: bool) -> int:
             ref = parse_reference(f"{NAMESPACE}/{bundle.manifest.kit_id}:{bundle.manifest.version}")
             try:
                 published = registry.pull(ref).digest
-            except httpx.HTTPStatusError as error:
-                if error.response.status_code != 404:
+            except RegistryRefusal as error:
+                # The client answers a missing tag as a typed refusal. Only a 404 means
+                # absent: a 401/403 (anonymous, or credentials without read access)
+                # may hide a published version, so it stops the run.
+                if error.reason != "not_found" or error.status != 404:
                     raise
                 published = None
             if published == image.digest:
