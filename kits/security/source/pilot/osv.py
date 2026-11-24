@@ -40,7 +40,7 @@ agent reads them (D-R44: nothing reacts to their change).
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from capabilities import OSV_MATCH, OSV_QUERY, capability
@@ -378,15 +378,22 @@ OSV_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
 
 
 def automation(
-    *, now: datetime, findings: Sequence[str], settle: bool = True
+    *, now: datetime | None = None, findings: Sequence[str], settle: bool = True
 ) -> list[dict[str, Any]]:
     """The OSV Line (the consumer's) and its Mandates; the template's maintenance
     Runbook runs it daily. Then the unkeyed Line and its Trigger: it runs on each
     landing of the OSV Line's derived match document, so it is no Runbook step (a
-    Line that binds its triggering Capture runs only on an event)."""
+    Line that binds its triggering Capture runs only on an event).
 
-    valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
-    expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
+    The settle grant names its one ClaimType by hand: ``affected_by`` also permits
+    ``normative`` (an agent's package-level "none of V" judgment lives on it), so
+    core refuses ``scope: observations`` for this Line, and the explicit scope keeps
+    that judgment out of the grant: it settles extracted values and complete-absence
+    retirements only.
+    """
+
+    from definitions import mandate_window
+
     members: list[dict[str, Any]] = [
         {
             "kind": "line",
@@ -407,8 +414,7 @@ def automation(
             "line_name": OSV_LINE,
             "grants": "propose",
             "namespace": ["claims", "subjects"],
-            "valid_from": valid_from,
-            "expires_at": expires_at,
+            **mandate_window(now),
         },
     ]
     if settle:
@@ -419,8 +425,7 @@ def automation(
                 "line_name": OSV_LINE,
                 "grants": "settle",
                 "namespace": ["claims"],
-                "valid_from": valid_from,
-                "expires_at": expires_at,
+                **mandate_window(now),
                 "subject_creation": [VULN],
                 "scope": [
                     {"claim_type": claim_type, "changes": changes}

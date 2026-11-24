@@ -52,7 +52,7 @@ or a distro name table).
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from cruxible_client.contracts.authoring.inputs import ProcedureInput
@@ -668,7 +668,12 @@ def procedure_members() -> list[dict[str, Any]]:
 # -- 4. Automation ----------------------------------------------------------------------
 
 #: The import settles each occurrence's scope on the extracted record and retires
-#: it on absence, creating components, inventories and occurrences (G4).
+#: it on absence, creating components, inventories and occurrences (G4). Named by
+#: hand rather than ``scope: observations``: core 0.6.0's observation grant counts
+#: only the Subjects a claims node creates at its top level, and the import creates
+#: the inventory and the component as the occurrence's nested key ends, so the grant
+#: refuses them (``procedure_mandate_observations_creation_unavailable``), and with
+#: the occurrence alone the run's creations fall outside it.
 SBOM_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
     SCOPE: {
         "create": {"basis": ["extracted"]},
@@ -689,7 +694,10 @@ def sbom_line_name(suffix: str) -> str:
 
 
 def sbom_automation(
-    sboms: Sequence[tuple[str, str]], *, now: datetime, findings: Sequence[str] = SBOM_FINDINGS
+    sboms: Sequence[tuple[str, str]],
+    *,
+    now: datetime | None = None,
+    findings: Sequence[str] = SBOM_FINDINGS,
 ) -> list[dict[str, Any]]:
     """One Line per SBOM file, (line suffix, workspace path) each. The Line names
     only the file: the inventory comes from the SBOM itself (K-B1-G1).
@@ -699,10 +707,15 @@ def sbom_automation(
     one SBOM never touches its occurrence in another inventory. (``workspace.file``
     reads one path, and a Line run takes no per-run input before R-ON5, so one
     Line per file is the v1 form; D-R41 globs are optional.)
+
+    The settle grant names ``scope`` by hand (``SBOM_SETTLE_SCOPE`` says why it is
+    not ``scope: observations``) and creates the inventory, its components and their
+    occurrences. ``now`` dates the Mandates; without it they run for
+    ``MANDATE_SPAN`` from submission.
     """
 
-    valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
-    expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
+    from definitions import mandate_window
+
     members: list[dict[str, Any]] = []
     for suffix, path in sboms:
         line = sbom_line_name(suffix)
@@ -723,8 +736,7 @@ def sbom_automation(
                 "line_name": line,
                 "grants": "propose",
                 "namespace": ["claims", "subjects"],
-                "valid_from": valid_from,
-                "expires_at": expires_at,
+                **mandate_window(now),
             },
             {
                 "kind": "procedure_mandate",
@@ -732,8 +744,7 @@ def sbom_automation(
                 "line_name": line,
                 "grants": "settle",
                 "namespace": ["claims"],
-                "valid_from": valid_from,
-                "expires_at": expires_at,
+                **mandate_window(now),
                 "subject_creation": [COMPONENT, INVENTORY, OCCURRENCE],
                 "scope": [
                     {"claim_type": claim_type, "changes": changes}

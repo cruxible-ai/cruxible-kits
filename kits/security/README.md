@@ -68,9 +68,9 @@ Use Cruxible 0.5 with its daemon running and a Git workspace selected. From a
 checkout of this repository (replace paths for your workspace):
 
 ```sh
-cruxible init --principal-id owner \
-  --reviewer-key-dir /outside/workspace/reviewer-keys --require-independent-approval
-# init prints the base kit's proposal; the reviewer approves it (see Review below):
+cruxible init --principal-id owner --require-independent-approval
+# init makes the reviewer too (key beside the owner's, outside the workspace) and
+# prints the base kit's proposal; the reviewer approves it (see Review below):
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
 # Preview the install (writes nothing); it prints the coordinate to commit at:
@@ -107,10 +107,12 @@ nothing (`--json` for the full plan).
 
 ### Review: a second agent approves
 
-An agent never approves its own proposals. `--reviewer-key-dir` adds a second
-principal, `reviewer`, with its key and settings (`cruxible.env`) in that
-directory, outside the workspace; `--require-independent-approval` makes the
-approval policy `independent_approval_required`, so every proposal (the base
+An agent never approves its own proposals. `--require-independent-approval`
+adds a second principal, `reviewer`, with its key and settings (`cruxible.env`)
+in a directory beside the owner's key, outside the workspace and the daemon
+state (`$XDG_CONFIG_HOME/cruxible/keys/INSTANCE/reviewer`; init prints its
+`CRUXIBLE_ENV_FILE`, and `--reviewer-key-dir DIR` puts it elsewhere), and makes
+the approval policy `independent_approval_required`, so every proposal (the base
 kit's, each provider install, the kit's definitions, the automation
 template's, each judgment) activates only once a principal other than its
 author approves it; the author's own `proposal approve` is refused
@@ -178,8 +180,10 @@ submitting. It is a template, never installed or submitted by `kit add`:
   [examples/sboms/log4j-demo-app.cdx.json](examples/sboms/log4j-demo-app.cdx.json)
   to `sbom.cdx.json` instead.
 - Set the one daily cron time in UTC (the `security.maintain-daily` Trigger,
-  14:00 UTC as shipped; see [Schedule](#schedule)) and each Mandate's
-  `valid_from` and `expires_at` to your observation window.
+  14:00 UTC as shipped; see [Schedule](#schedule)). There are no dates to edit:
+  every Mandate is `"expires": "90d"` with no `valid_from`, so its window starts
+  when you submit the template and runs 90 days (Cruxible 0.6 stores both as
+  instants). Renew before then (`cruxible next` lists each as `mandate_expiring`).
 - Review the settlement scopes below before adopting them.
 
 ```sh
@@ -190,8 +194,9 @@ CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal review PROPOSAL_ID
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 # (Owner-only setup, self_approval_allowed: `cruxible proposal approve PROPOSAL_ID --yes`.)
 cruxible runbook preview security.start
-# Posts OSV advisories with no CVE id (below) when the OSV step lands its result:
-cruxible line enable security.osv-unkeyed
+# Enable every Line at once: the six the start Runbook names, and the unkeyed Line
+# (no Runbook step: it posts OSV advisories with no CVE id when OSV lands a result):
+cruxible line enable security.osv-unkeyed --runbook security.start
 # Review the preview separately before running (about half a minute on a 32-component SBOM):
 cruxible runbook run security.start
 cruxible query --name security.urgent_exposures
@@ -297,17 +302,23 @@ then EPSS, then the two attention Lines) once a day, and each OSV result runs
 each step runs under its Line's own enablement, and the Runbook never adds
 authority of its own: a step whose Line is not enabled stops the run there.
 (A `runbook run` you start yourself runs every step as you, enabled or not.)
-Enable all seven Lines with `cruxible
-line enable NAME`: `security.sbom-import.app`, `security.osv-query`,
+`cruxible line enable security.osv-unkeyed --runbook security.start` enables
+all seven Lines in one command, one receipt line each (enabled, already
+enabled, or refused with its repair): `security.osv-unkeyed`, then every Line
+the start Runbook names (`security.sbom-import.app`, `security.osv-query`,
 `security.kev-triage`, `security.epss-triage`,
-`security.exposure-attention.unjudged`, `security.exposure-attention.contested`
-and `security.osv-unkeyed`. `cruxible next` lists any of them you have never
+`security.exposure-attention.unjudged` and
+`security.exposure-attention.contested`). The unkeyed Line is named on its own
+because no Runbook step can name it (it binds the Capture that triggers it).
+`cruxible next` lists any of them you have never
 enabled as `line_not_enabled`; that row is expected for a Line you chose to
 leave off (for example the SBOM import, if you only ever run it by hand with
 `line run`). Editing a Line disables it again. The SBOM import is not on the clock: the
 SBOM changes when the repository does, so rerun `cruxible runbook run
 security.start` (or `cruxible line run security.sbom-import.app`) with fresh
-SBOM bytes. Renew Mandates before expiry and review Procedure upgrades.
+SBOM bytes. Renew Mandates before expiry (`cruxible line grant LINE
+--settle-observations` re-grants KEV's and EPSS's for another 90 days) and review
+Procedure upgrades.
 
 ### Schedule
 
@@ -390,15 +401,27 @@ finding Subjects as agents' reports.
 
 The committed template retains its existing `max_authority: settle` on the four
 source Lines. It does **not** start propose-only. These scoped grants may settle source
-observations without another approval after you approve the template:
+observations without another approval after you approve the template. Each is
+valid for 90 days from submission (`"expires": "90d"`):
 
 | Line | Settle Mandate | What may settle |
 |---|---|---|
-| `security.sbom-import.app` | `security.sbom-import.app-settle` | Create inventory, component and occurrence Subjects; create/revise scope on extracted records; retire scope on absence |
-| `security.osv-query` | `security.osv-query-settle` | Create vulnerability Subjects; create/revise component `affected_by` on extracted records; retire on complete answered absence |
-| `security.kev-triage` | `security.kev-triage-settle` | Create/revise `listed_in` on extracted/absent records; create/revise KEV dates on extracted records and retire dates on absence; create/revise ransomware use on extracted records |
-| `security.epss-triage` | `security.epss-triage-settle` | Create/revise EPSS score, percentile and date from extracted records |
+| `security.sbom-import.app` | `security.sbom-import.app-settle` (scope named by hand) | Create inventory, component and occurrence Subjects; create/revise scope on extracted records; retire scope on absence |
+| `security.osv-query` | `security.osv-query-settle` (scope named by hand) | Create vulnerability Subjects; create/revise component `affected_by` on extracted records; retire on complete answered absence |
+| `security.kev-triage` | `security.kev-triage-settle` (`scope: observations`) | Every KEV ClaimType the Procedure writes, pinned at its digest: create/revise on extracted records; `listed_in`'s inverse and the dates' retirement on complete absence; create the `security.catalog` Subject |
+| `security.epss-triage` | `security.epss-triage-settle` (`scope: observations`) | Every EPSS ClaimType the Procedure writes (score, percentile, date), pinned at its digest: create/revise on extracted records |
 | `security.exposure-attention.unjudged`, `.contested` (and any per-inventory Line you add), `security.osv-unkeyed` | none (`max_authority: observe`) | Nothing: they only post inbox items, and change no accepted state |
+
+`scope: observations` (Cruxible 0.6) is one grant over every ClaimType a Line's
+Procedure writes, lowered at submission to the same per-ClaimType scope you
+would write by hand; core refuses it for a Procedure that writes any ClaimType
+permitting `normative`, so it can never settle a judgment. Two Lines keep a
+scope named by hand: OSV, because `affected_by` also carries an agent's
+package-level "none of V" judgment (it permits `normative`), and the SBOM
+import, because it creates the inventory and the component as nested ends of
+each occurrence, which 0.6's observation grant does not count
+(`procedure_mandate_observations_creation_unavailable`). Each hand-named scope
+lists exactly one observation ClaimType.
 
 No Mandate settles `security.exposure.justification`,
 `security.app_exposure.justification` or `security.app_exposure.verdict`. Read

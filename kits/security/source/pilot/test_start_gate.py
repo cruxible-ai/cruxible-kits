@@ -45,23 +45,16 @@ def test_the_committed_template_is_the_generated_one() -> None:
 def adopted_world(
     tmp_path: Path, sbom: bytes, tailor: Callable[[dict[str, Any]], None] | None = None
 ) -> Any:
-    """The kit's definitions, the committed template adopted, and its SBOM Line's
-    file in the workspace. Every Mandate is re-dated around the wall clock (valid
-    from 2026-01-01 to 30 days ahead), as an adopter tailors them, so runs on the
-    daemon's own clock admit. ``tailor`` edits the template first, as an adopter
-    does (a Line's parameters, another SBOM Line)."""
-
-    from datetime import UTC, datetime
+    """The kit's definitions, the committed template adopted VERBATIM, and its SBOM
+    Line's file in the workspace. Every Mandate is ``expires: 90d`` with no
+    ``valid_from`` (0.6.0), so the window starts when the template is submitted and
+    runs on the daemon's own clock admit with no date edited. ``tailor`` edits the
+    template first, as an adopter does (a Line's parameters, another SBOM Line)."""
 
     instance = kit_world(tmp_path, automation=False)
     adopted = json.loads(template.TEMPLATE.read_text())
     if tailor is not None:
         tailor(adopted)
-    expires_at = datetime.now(UTC) + timedelta(days=30)
-    for member in adopted["members"]:
-        if member["kind"] == "procedure_mandate":
-            member["valid_from"] = "2026-01-01T00:00:00Z"
-            member["expires_at"] = expires_at.strftime("%Y-%m-%dT%H:%M:%SZ")
     submit(instance, adopted, name="automation-template")
     write_file(tmp_path, template.SBOM[1], sbom)
     return instance
@@ -1427,7 +1420,7 @@ def test_a_line_for_one_inventory_posts_only_its_pairs_at_its_own_threshold(
 
     def tailor(adopted: dict[str, Any]) -> None:
         members = adopted["members"]
-        members += inventory.sbom_automation((other,), now=template.DATED)
+        members += inventory.sbom_automation((other,))
         members += [
             triage.attention_line(
                 DEMO_LINE,

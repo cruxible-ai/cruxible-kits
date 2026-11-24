@@ -37,6 +37,17 @@ Line's own enablement, so a Line nobody enabled stops the run. Each Line fetches
 its own source; the one landing Trigger is the unkeyed Line's, which fetches
 nothing. Nothing here is installed by ``kit add``.
 
+Built for Cruxible 0.6: every Mandate is valid for ``expires: 90d`` from the moment
+the change set is submitted (no ``valid_from``, no dates to edit), and the KEV and
+EPSS Lines each take ONE ``scope: observations`` settle grant, which core lowers to
+the exact per-ClaimType scope their Procedures write. Two Lines keep an explicit
+one-ClaimType scope: OSV's ``affected_by`` also carries agents' package-level
+judgments (it permits ``normative``), which an observation grant refuses, and the
+SBOM import creates the inventory and component as nested ends of each
+occurrence, which core 0.6.0's observation grant cannot name
+(``inventory.SBOM_SETTLE_SCOPE``). Every Line either Runbook names, plus the unkeyed Line, is enabled with
+one command: ``cruxible line enable security.osv-unkeyed --runbook security.start``.
+
     python template.py           # rewrite ../../automation.json
     python template.py --check   # fail when it is out of date
 """
@@ -46,7 +57,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -69,8 +79,9 @@ MAINTAIN_TRIGGER = "security.maintain-daily"
 MAINTAIN_CRON = "0 14 * * *"
 #: The example SBOM import: Line suffix and workspace path (tailor both).
 SBOM = ("app", "sbom.cdx.json")
-#: Mandates start the day before this and expire 90 days after (tailor both).
-DATED = datetime(2026, 11, 7, tzinfo=UTC)
+#: The Line no Runbook step can name (it binds its triggering Capture): the one
+#: command that enables every Line names it beside the start Runbook.
+ENABLE_ALL = f"cruxible line enable {osv.UNKEYED_LINE} --runbook {START}"
 #: The seeding order (see the module docstring).
 START_LINES = (
     inventory.sbom_line_name(SBOM[0]),
@@ -85,12 +96,12 @@ MAINTAIN_LINES = START_LINES[1:]
 UNKEYED_NOTE = (
     f"OSV advisories with no CVE id get one summary inbox item from {osv.UNKEYED_LINE}, "
     f"which its Trigger {osv.UNKEYED_TRIGGER} runs on each OSV result once the Line is "
-    "enabled."
+    f"enabled. Enable every Line at once: {ENABLE_ALL}."
 )
 
 
 def template() -> dict[str, Any]:
-    value = kit.automation((), now=DATED, sboms=(SBOM,))
+    value = kit.automation((), sboms=(SBOM,))
     members = list(value["members"])
     members += [
         {
@@ -138,9 +149,12 @@ def template() -> dict[str, Any]:
             "Line's match document lists advisories with no CVE alias; the "
             "security.start Runbook that seeds a fresh instance; and the security.maintain "
             "Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, "
-            "EPSS, attention; the SBOM import runs when the SBOM changes). Tailor the Line "
-            "names, the SBOM path, the cron time, the attention threshold and the Mandate "
-            "dates before submitting."
+            "EPSS, attention; the SBOM import runs when the SBOM changes). The KEV and EPSS "
+            "Lines each take one scope: observations settle grant; OSV's names affected_by "
+            "by hand (that field also carries agents' judgments) and the SBOM import's names "
+            "scope by hand (it creates nested Subjects an observation grant cannot name). Every "
+            "Mandate is valid for 90 days from submission. Tailor the Line names, the SBOM "
+            "path, the cron time and the attention threshold before submitting."
         ),
         "members": members,
     }
