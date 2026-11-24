@@ -79,7 +79,8 @@ boundary it crosses.
    decides what you claim (a scanner's findings imported through `security.sarif-import`,
    a local check's output file), cite its result.
 5. **Link it:** `found_in` → the coverage unit you were working; `rests_on` → each
-   codebase fact the finding rests on (below).
+   codebase fact the finding rests on (below). Your Claims here are observations, so they
+   pin nothing; the verifier's verdict pins your `reported_at`.
 6. **Leave `verdict`, `severity` and `justification` alone.**
 
 ## Coverage
@@ -111,11 +112,15 @@ catalogued workspace file) stating the fact, where it holds and its known except
 `create` the fact; `set` its `category` citing that section; `set` `holds` (`yes`, `partly` or
 `no`) citing the code passage that decides it. A change carries one piece of evidence, so
 the code backs `holds` and the notes back `category`. Link each judgment that rests on a fact
-with `rests_on`.
+with `rests_on`, and pin the fact on the judgment's own change: `"based_on":
+["security.code_fact/<id>#holds"]` in the write file, or `--based-on
+security.code_fact/<id>#holds` (repeatable) on `cruxible set` and `cruxible write`. The write
+pins that Claim's exact version.
 
-When a fact's cited code changes, `next` lists its `holds` as `citation_drifted`. Core does
-not act on `rests_on`: the judgments resting on that fact do not come back with it. Look
-them up with `security.findings_resting_on`, `security.coverage_units_resting_on` and
+When a fact's cited code changes, `next` lists its `holds` as `citation_drifted`. Setting
+`holds` to `partly` or `no` revises it, and every judgment that pinned it
+comes back in `next` as `claim_dependency_stale`. `rests_on` alone does nothing: a judgment
+linked without a pin does not come back with the fact. Look those up with `security.findings_resting_on`, `security.coverage_units_resting_on` and
 `security.app_exposures_resting_on` (`--param fact=security.code_fact/<id>`), and after
 setting `holds` to `partly` or `no`, with the repository's `*_on_weakened_facts` Queries
 (each judgment once; `security.weakened_causes_of_*` says which facts). A

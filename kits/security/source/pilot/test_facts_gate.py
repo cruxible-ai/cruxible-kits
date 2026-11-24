@@ -369,6 +369,42 @@ def test_judgments_on_weakened_facts_need_a_resolved_no_or_partly(tmp_path: Path
     assert causes(instance) == nothing
 
 
+def test_a_judgment_pinning_the_facts_holds_comes_back_when_the_fact_weakens(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """rests_on alone brings nothing back (core does not act on it); a judgment that
+    also pins the fact (``based_on`` ``security.code_fact/<id>#holds``, Cruxible 0.6)
+    stays quiet while the fact holds and is listed by ``next`` as
+    ``claim_dependency_stale`` once ``holds`` is set to ``partly``."""
+
+    monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
+    instance = facts_world(tmp_path)
+    (fact,) = created(record_fact(instance, tmp_path, holds="yes"), FACT)
+    judgment = triage.app_judgment(
+        occurrence_of(instance, DEMO_APP, CORE),
+        LOG4SHELL,
+        reason="vulnerable_code_not_in_execute_path",
+        because="All logging goes through the fact's helper, which never formats lookups.",
+        based_on=[triage.pin(fact, "holds")],
+        accept="if_allowed",
+    )
+    judgment["changes"].append(
+        {"op": "add", "field": "rests_on", "value": fact, "subject": {"created": "app_exposure"}}
+    )
+    app = production_write(
+        instance, tmp_path, because=judgment["because"], changes=judgment["changes"]
+    )
+    assert app.status == "accepted", app.model_dump(mode="json")
+    (justification,) = [c for c in app.changes if c.field == "justification"]
+    claim = str(justification.claim).removeprefix("Claim:")
+    assert _next_rows(instance, tmp_path, "claim_dependency_stale") == []
+
+    weakening = set_holds(instance, tmp_path, fact, "partly")
+    stale = _next_rows(instance, tmp_path, "claim_dependency_stale")
+    assert [row.subject_identity for row in stale] == [f"Claim:{claim}"], stale
+    assert holds_claim(weakening) in str(stale[0].detail), stale[0].detail
+
+
 def test_a_judgment_on_two_weakened_facts_is_listed_once_with_both_causes(
     tmp_path: Path,
 ) -> None:

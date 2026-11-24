@@ -31,8 +31,13 @@ A unit with findings is `checked` and its findings link to it with `found_in`. C
 passage, not the file: drift is detected on the cited bytes, so a change elsewhere in the
 file doesn't reopen the unit. Re-checking a unit revises its status; the earlier one stays
 in history. A status that rests on a codebase fact (the middleware every route passes
-through) links it with `rests_on`; when that fact changes, `security.coverage_units_resting_on`
-lists the units to check again.
+through) links it with `rests_on` and pins its `holds` on the status change (`"based_on":
+["security.code_fact/<id>#holds"]` in the write file, or `--based-on
+security.code_fact/<id>#holds` on `cruxible set`). When that fact's `holds` changes
+(`partly` or `no`), `next` lists the unit's status as `claim_dependency_stale`: check it
+again. For a unit linked without a pin, `security.coverage_units_resting_on` lists the units
+to check again. A `checked` status that relied on a deployment fact (an admin surface
+reachable only internally) pins it too: `it.asset/<slug>#exposure`.
 
 ## Breadth and partial passes
 
@@ -50,6 +55,8 @@ status.
 
 Start from state, not from scratch:
 - units never checked, `deferred` or `blocked`: the `security.coverage_plan` query;
+- units whose pinned facts changed: `cruxible next` lists their status as
+  `claim_dependency_stale`, naming the fact;
 - units whose code changed: workspace-aware `cruxible next` lists `citation_drifted` rows,
   each naming the citing Claim (a unit's `status`, or a finding's `reported_at`). That is
   passage drift. It is separate from a status whose evidence has aged past its freshness
