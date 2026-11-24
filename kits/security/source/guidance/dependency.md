@@ -126,12 +126,11 @@ pin a codebase fact it rests on. KEV and EPSS are never the reason for a judgmen
 the bar). Pin `#epss_score` only when the score itself decided something you want to look at
 again when it moves: FIRST revises it most days, so the pin reopens the judgment that often.
 
-An internal-only judgment, one write:
+An internal-only judgment, one write (`cruxible write judgment.json --no-accept`):
 
 ```json
 {
  "because": "Internal-only service: no untrusted client reaches the JNDI lookup.",
- "accept": "never",
  "changes": [
   {"op": "create", "label": "pair", "subject_kind": "security.app_exposure",
    "key": [{"predicate": "security.app_exposure.occurrence", "value": "security.occurrence/OCCURRENCE"},

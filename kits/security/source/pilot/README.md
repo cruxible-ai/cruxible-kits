@@ -24,6 +24,7 @@ Queries, provider and guidance, never their Lines.
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
 | `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py`, `test_audit_gate.py`, `test_facts_gate.py`, `test_start_gate.py` | The gate, run on recorded real bytes |
+| `test_cli_gate.py` | The committed kit on a real Cruxible 0.6 daemon through the public CLI (`CRUXIBLE_KIT_E2E=1`; provider installs fetch from PyPI): `init --require-independent-approval`, `kit add`, the template verbatim, `line enable --runbook`, a judgment pinned to `it.asset/<slug>#exposure` resurfacing, the package upgrade, and a pure `@derive` build installed with `provider install --move` |
 | `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive; both derives are `@derive` functions on cruxible-provider-runtime 0.6, so a rebuilt build is a pure `provider install --move`), serving the kit's capabilities of the same names under `security.`, with its recorded OSV exchanges |
 | `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure, a `@derive` function), serving `security.sarif.findings`, and its SARIF test data |
 | `../providers/build_registrations.py` | Writes both kit providers' `registration.json` (schema 3) from the kit's definitions |

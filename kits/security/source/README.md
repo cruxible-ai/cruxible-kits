@@ -90,7 +90,10 @@ python ../../scripts/kits.py check
 ```
 
 Run `pilot/test_*.py` with the same core on `PYTHONPATH` and
-`CRUXIBLE_PROVIDERS_CHECKOUT` set. `test_start_gate.py` exercises production kit
+`CRUXIBLE_PROVIDERS_CHECKOUT` set. `pilot/test_cli_gate.py` drives the committed
+directory on a real daemon through the public CLI (`CRUXIBLE_KIT_E2E=1
+CRUXIBLE_BIN=$(which cruxible)`; it installs providers, so it needs the
+package index). `test_start_gate.py` exercises production kit
 build and a fresh consumer install of the actual committed directory, including
 its guidance body and exported template. Other pilot gates test the dependency
 loop and the SARIF/audit extension using recorded bytes; `test_pilot_gate.py` and

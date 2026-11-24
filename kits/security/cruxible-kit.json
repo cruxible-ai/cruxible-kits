@@ -553,7 +553,7 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:4c1f29320418c7a27dd3d55316f5b10c94456416afd143585ab84ce6d5715235",
+      "artifact_digest": "sha256:943e5f7cff52471d1de8cc7d225be19c67d002f068ccd8279dbd4692f02a2ec2",
       "path": "documents/security.guidance.dependency.json"
     },
     {
@@ -787,7 +787,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:a006b5e0fe0a3577953f9ebc7d6d0515641abb4f3934e2894ea3e5a77948a905"
+      "sha256": "sha256:779e779b637d2e2393af4a70072ea11930f30f526b8f91ea78ef9bc3bd85e10b"
     },
     {
       "path": "automation.json",
@@ -893,12 +893,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:334c18218d1de6b9a7916d1196db92b07e2e9c108bc37cb08cf0f17de5f0fe6a",
-      "git_oid": "31ad6f6ca3ad9c8d974baf260df7b43cc14717cf",
-      "semantic_root": "sha256:adbd8efc248dc59b5e4b9c5fb59e271845dbf76c57b24b85e07980aea95bbe75",
+      "generation_root": "sha256:f3ceecd8b939cfa1ea4d5c1e5d986f41c9a848b401e5450cfab2403b78dd39d7",
+      "git_oid": "224277ac66dde698f7747df193b02a75232b26bc",
+      "semantic_root": "sha256:12e3529244ed31136e9b95248e8d7e43e4a3dc27d27a3a9a63e99033d4a6072f",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_b960b2e446314cdf",
+    "instance_id": "inst_5f2fb3942d554372",
     "principal_id": "owner"
   },
   "providers": [

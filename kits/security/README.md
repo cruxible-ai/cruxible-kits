@@ -384,12 +384,12 @@ asset.json`; the reviewer approves it like any other write):
 (`security.urgent_exposures`, same rows and order) with each row's asset, owner,
 environment, exposure and criticality. A judgment that relies on the asset pins
 the fields it relied on (Cruxible 0.6 `based_on`), so it stays quiet while they
-hold and comes back on its own when one changes. For an internal-only service:
+hold and comes back on its own when one changes. For an internal-only service
+(`cruxible write judgment.json --no-accept`; the reviewer approves it):
 
 ```json
 {
  "because": "Internal-only service: no untrusted client reaches the JNDI lookup (notes/log4shell.md#reachability).",
- "accept": "never",
  "changes": [
   {"op": "create", "label": "pair", "subject_kind": "security.app_exposure",
    "key": [{"predicate": "security.app_exposure.occurrence", "value": "security.occurrence/OCCURRENCE"},
@@ -515,6 +515,35 @@ longer lists the vulnerable release; `cruxible next` then lists the verdict
 as `claim_dependency_stale`. A pair holding both a justification and an
 `affected` verdict, or a contested verdict or justification, counts as not
 judged and stays in the worklists.
+
+## Provider upgrades
+
+The kit's own pure operations (`sbom.components`, `osv.match`,
+`sarif.findings`) are `@derive` functions on `cruxible-provider-runtime` 0.6:
+each declares `effect: pure` with no endpoint, so a rebuilt build of the same
+operations is a pure, non-widening move. Install it with `cruxible provider
+install WHEEL --lock LOCK --dependency RUNTIME_WHEEL --move`: one proposal
+registers the build and moves every Line bound to the old build onto it, and
+the reviewer approves it once. What each Line's settle grant does on that
+move is core's rule, not the kit's:
+
+- A settle grant that covers only observation ClaimTypes, **creates no
+  Subjects** and is read by no Mandate condition keeps settle, and its Line
+  stays enabled on its successor (the move output says `retains observation
+  settle on ...`).
+- Any other grant demotes to propose in the same proposal and says why. As
+  shipped, `security.sbom-import.app-settle` and `security.osv-query-settle`
+  create Subjects (the inventory, components and occurrences; vulnerabilities),
+  so both demote (`subject_creation`), and their Lines need `cruxible line
+  enable --runbook security.start` again and a re-grant (submit the template's
+  Mandate again). An operator whose inventory already exists can grant the
+  SBOM Line without `subject_creation`, so a release that adds a package goes
+  to review; that grant then survives every pure move with its enablement.
+- `kit add` and `kit upgrade` never keep settle, even for a pure build.
+
+`test_cli_gate.py` runs exactly this on a real daemon: the shipped grants
+demote with `subject_creation`, and the SBOM grant without it keeps settle
+(`security.occurrence.scope`) and its Line's enablement.
 
 ## Limits and maintenance
 

@@ -550,8 +550,8 @@ def test_the_template_authors_and_the_start_runbook_has_no_order_problems(
         tree,
         KitBuildRequest(
             kit_id="security",
-            version="1.3.0",
-            owns=("security.",),
+            version="1.4.0",
+            owns=("it.", "security."),
         ),
         providers=providers,
     )
@@ -712,8 +712,8 @@ def test_the_real_security_kit_builds_through_production_service_build_kit(
         instance,
         KitBuildRequest(
             kit_id="security",
-            version="1.3.0",
-            owns=("security.",),
+            version="1.4.0",
+            owns=("it.", "security."),
             providers=providers,
             automation_template=KitAutomationTemplate(
                 path="automation.json", content=content
@@ -760,7 +760,8 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     )
 
     bundle = read_kit_directory(Path(__file__).resolve().parents[2])
-    assert bundle.manifest.owns == ("security.",)
+    # security. and the deployment anchor's it. (held until an IT asset kit owns it).
+    assert bundle.manifest.owns == ("it.", "security.")
     # The base kit's definitions (web., workspace.) are required, never carried; so
     # are the provider-named Contracts the providers now carry themselves.
     assert [(item.kit_id, item.min_version) for item in bundle.manifest.requires] == [
@@ -768,7 +769,13 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     ]
     assert {
         path.split("/")[1].split(".")[0] for path in bundle.contents() if "/" in path
-    } <= {"security", "playbill"}, sorted(bundle.contents())
+    } <= {"security", "playbill", "it"}, sorted(bundle.contents())
+    assert sorted(p for p in bundle.contents() if "/it." in p) == [
+        *(f"claim-types/it.asset/{field}.json" for field in sorted(
+            ("criticality", "environment", "exposure", "owner", "slug", "title")
+        )),
+        "subject-kinds/it.asset.json",
+    ], sorted(bundle.contents())
     assert sorted(path for path in bundle.contents() if path.startswith("capabilities/")) == [
         f"capabilities/security.{name}/v1.json"
         for name in ("osv.match", "osv.query", "sarif.findings", "sbom.components")
