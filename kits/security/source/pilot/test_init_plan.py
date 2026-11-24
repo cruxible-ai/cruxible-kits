@@ -225,3 +225,57 @@ def test_main_prints_text_and_json(tmp_path: Path, capsys: pytest.CaptureFixture
     assert plan_module.main(["--workspace", str(root), "--json"]) == 0
     document = json.loads(capsys.readouterr().out)
     assert document["sboms"] == [{"format": "cyclonedx", "name": "app", "path": "sbom.cdx.json"}]
+
+
+def test_an_origin_with_a_bidi_override_emits_no_repo(tmp_path: Path) -> None:
+    root = workspace(tmp_path, {"scans/semgrep.sarif": SARIF})
+    (root / ".git" / "config").write_text(
+        '[remote "origin"]\n\turl = git@github.com:acme/api‮txt.git\n', encoding="utf-8"
+    )
+    plan = plan_module.inspect(root)
+    assert plan.repo is None
+    sarif = next(c for c in plan.commands if c.startswith("cruxible kit adopt security:sarif"))
+    assert "--param repo=github.com/OWNER/REPO" in sarif
+    assert not any("‮" in command for command in plan.commands)
+
+
+def test_a_root_sbom_is_found_before_a_nested_one_and_named_app(tmp_path: Path) -> None:
+    root = workspace(tmp_path, {"api/sbom.cdx.json": CYCLONEDX, "sbom.cdx.json": CYCLONEDX})
+    plan = plan_module.inspect(root)
+    assert [(item.path, item.name) for item in plan.sboms] == [
+        ("sbom.cdx.json", "app"),
+        ("api/sbom.cdx.json", "app-2"),
+    ]
+    with plan_module.Workspace(root) as held:
+        walked = list(held.walk())
+    assert walked.index("sbom.cdx.json") < walked.index("api/sbom.cdx.json")
+
+
+VIRTUAL_CARGO = '[workspace]\nmembers = ["crates/a", "crates/b"]\nresolver = "2"\n'
+PACKAGE_CARGO = '[package]\nname = "app"\nversion = "0.1.0"\n'
+
+
+@pytest.mark.parametrize(
+    "manifest",
+    [VIRTUAL_CARGO, VIRTUAL_CARGO + "members = [\n"],  # valid TOML, and headers only
+    ids=["toml", "unparseable"],
+)
+def test_a_virtual_cargo_workspace_generates_one_root_sbom_with_syft(
+    tmp_path: Path, manifest: str
+) -> None:
+    plan = plan_module.inspect(workspace(tmp_path, {"Cargo.lock": "", "Cargo.toml": manifest}))
+    assert plan.generate == [
+        "syft dir:. -o cyclonedx-json=sbom.cdx.json  # a virtual Cargo workspace: "
+        "cargo cyclonedx writes one SBOM per member"
+    ]
+    assert [(item.name, item.path) for item in plan.generated] == [("app", "sbom.cdx.json")]
+
+
+@pytest.mark.parametrize(
+    "manifest", [PACKAGE_CARGO, PACKAGE_CARGO + '\n[workspace]\nmembers = ["crates/a"]\n']
+)
+def test_a_root_package_crate_keeps_cargo_cyclonedx(tmp_path: Path, manifest: str) -> None:
+    plan = plan_module.inspect(workspace(tmp_path, {"Cargo.lock": "", "Cargo.toml": manifest}))
+    assert plan.generate == [
+        "cargo cyclonedx --format json --override-filename sbom.cdx  # writes sbom.cdx.json"
+    ]

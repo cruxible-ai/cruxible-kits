@@ -945,7 +945,7 @@
     {
       "path": "scripts/init_plan.py",
       "role": "script",
-      "sha256": "sha256:dece8a39a1f58dcb3e3c90de5401e92c52e6449b01dcf4bae1fc9c83b5b13413"
+      "sha256": "sha256:d7e27d1eed2de6c7b79fa33be5cdc824c7911f1273e6afce05c119678f75981a"
     }
   ],
   "kit_id": "security",
@@ -956,12 +956,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:12c4f019b6d5eb1b0122558d36318c9e5502f2f7d74ab581f003cc9f5fe3af82",
-      "git_oid": "d4fa85a0499a8a5e81c3bcd4bf7efc26137f92a9",
-      "semantic_root": "sha256:bf142de7ed540ef6a971656c9abbfff130a651b596c98630923ba9b24b4464cb",
+      "generation_root": "sha256:9f73d21d90242687f8a6bba406116d8467a889a8ef0cbcd9fc8e7fc7872f0de4",
+      "git_oid": "a31ee851031ee5188f3d9046382addea0245eb44",
+      "semantic_root": "sha256:1dbfcd84a52bfdb73e5997af44c0a5945c8ee5edc5991b39b016ff109d969b2c",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_491cc80a61a94a22",
+    "instance_id": "inst_a36f563496e349d9",
     "principal_id": "owner"
   },
   "providers": [

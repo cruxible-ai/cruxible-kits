@@ -6,8 +6,9 @@
 
 The kit registers it as the read-only script ``init-plan``. It reads the workspace
 only: file names, the first bytes of candidate SBOM and SARIF files (to tell
-CycloneDX, SPDX and SARIF apart) and ``.git/config`` (the ``origin`` remote, for
-SARIF's ``repo``). It connects to no daemon, runs no program, makes no network call
+CycloneDX, SPDX and SARIF apart), ``.git/config`` (the ``origin`` remote, for
+SARIF's ``repo``) and, with a ``Cargo.lock``, the root ``Cargo.toml`` (a virtual Cargo
+workspace takes a different generator). It connects to no daemon, runs no program, makes no network call
 and writes nothing; the commands it prints are for you to read and run.
 
 Every read is held beneath the workspace root: the root is opened once and each
@@ -50,6 +51,7 @@ import re
 import shlex
 import stat
 import sys
+import tomllib
 import unicodedata
 from collections.abc import Iterator, Sequence
 from dataclasses import asdict, dataclass, field
@@ -145,6 +147,13 @@ GENERATORS: tuple[tuple[tuple[str, ...], str, str, str], ...] = (
 )
 #: The generator when no ecosystem marker is found.
 FALLBACK_GENERATOR = "syft dir:. -o cyclonedx-json={out}"
+#: Rust's generator for a virtual Cargo workspace (a root ``Cargo.toml`` with
+#: ``[workspace]`` and no ``[package]``): cargo-cyclonedx writes one file beside each
+#: member's ``Cargo.toml`` and none at the root, so syft writes the one root ``{out}``.
+CARGO_WORKSPACE_GENERATOR = (
+    "syft dir:. -o cyclonedx-json={out}  # a virtual Cargo workspace: cargo cyclonedx "
+    "writes one SBOM per member"
+)
 DOCKERFILES = ("Dockerfile", "Containerfile")
 
 
@@ -170,17 +179,24 @@ class Plan:
     commands: list[str] = field(default_factory=list)
 
 
+def unsafe(char: str) -> bool:
+    """Whether ``char`` is a control, format, surrogate, private-use, unassigned or
+    line/paragraph separator character: one that can break or reorder a line."""
+
+    category = unicodedata.category(char)
+    return category[0] == "C" or category in ("Zl", "Zp")
+
+
 def display(text: str) -> str:
-    """``text`` as one safe line: a backslash doubled, and every control, format,
-    surrogate or line/paragraph separator character escaped (``\\n``, ``\\x1b``,
-    ``\\u202e``), so a file name can never break a line or reorder what is shown."""
+    """``text`` as one safe line: a backslash doubled, and every ``unsafe`` character
+    escaped (``\\n``, ``\\x1b``, ``\\u202e``), so a file name can never break a line or
+    reorder what is shown."""
 
     out: list[str] = []
     for char in text:
-        category = unicodedata.category(char)
         if char == "\\":
             out.append("\\\\")
-        elif category[0] == "C" or category in ("Zl", "Zp"):
+        elif unsafe(char):
             code = ord(char)
             if code < 0x100:
                 out.append(f"\\x{code:02x}")
@@ -278,9 +294,10 @@ class Workspace:
 
     def walk(self) -> Iterator[str]:
         """Relative paths of the files beneath the root to ``MAX_DEPTH``, skipping
-        ``SKIP_DIRS`` and symbolic links, in a stable order; stops after
-        ``MAX_ENTRIES`` entries. Each directory is listed through its own descriptor,
-        opened from its parent's with ``O_NOFOLLOW``."""
+        ``SKIP_DIRS`` and symbolic links, top-down: a directory's files (by name)
+        before its subdirectories', so a shallower file always comes first; stops
+        after ``MAX_ENTRIES`` entries. Each directory is listed through its own
+        descriptor, opened from its parent's with ``O_NOFOLLOW``."""
 
         seen = 0
 
@@ -291,26 +308,30 @@ class Workspace:
                     listed = sorted(entries, key=lambda entry: entry.name)
             except OSError:
                 return
+            subdirectories: list[str] = []
             for entry in listed:
                 seen += 1
                 if seen > MAX_ENTRIES:
                     return
                 if entry.is_symlink():
                     continue
-                relative = f"{prefix}{entry.name}"
                 if entry.is_dir(follow_symlinks=False):
-                    if depth + 1 >= MAX_DEPTH or entry.name in SKIP_DIRS:
-                        continue
-                    try:
-                        child = self._open(entry.name, _DIRECTORY, directory, relative)
-                    except OSError:
-                        continue
-                    try:
-                        yield from listing(child, f"{relative}/", depth + 1)
-                    finally:
-                        os.close(child)
+                    if depth + 1 < MAX_DEPTH and entry.name not in SKIP_DIRS:
+                        subdirectories.append(entry.name)
                 elif entry.is_file(follow_symlinks=False):
-                    yield relative
+                    yield f"{prefix}{entry.name}"
+            for name in subdirectories:
+                if seen > MAX_ENTRIES:
+                    return
+                relative = f"{prefix}{name}"
+                try:
+                    child = self._open(name, _DIRECTORY, directory, relative)
+                except OSError:
+                    continue
+                try:
+                    yield from listing(child, f"{relative}/", depth + 1)
+                finally:
+                    os.close(child)
 
         root = os.dup(self._fd)
         try:
@@ -404,7 +425,31 @@ def origin_repo(workspace: Workspace) -> str | None:
     if len(parts) < 2:
         return None
     repo = f"{host}/{parts[-2]}/{parts[-1]}"
+    if any(unsafe(char) for char in repo):
+        # A bidi override or other control in the URL never reaches a command line.
+        return None
     return repo if REPO_PATTERN.fullmatch(repo) else None
+
+
+def virtual_cargo_workspace(workspace: Workspace) -> bool:
+    """Whether the root ``Cargo.toml`` is a virtual Cargo workspace: ``[workspace]``
+    and no ``[package]``. Parsed with ``tomllib``; a file it cannot parse (invalid or
+    over the read cap) is judged by its table headers. Missing or refused: ``False``."""
+
+    try:
+        data, size = workspace.read("Cargo.toml", SBOM_MAX_BYTES)
+    except OSError:
+        return False
+    text = data.decode("utf-8", errors="replace")
+    if size <= len(data):
+        try:
+            manifest = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
+            pass
+        else:
+            return "workspace" in manifest and "package" not in manifest
+    headers = set(re.findall(r"^[ \t]*\[([A-Za-z0-9_.-]+)\][ \t]*(?:#.*)?$", text, re.MULTILINE))
+    return "workspace" in headers and "package" not in headers
 
 
 def quote(argv: Sequence[str]) -> str:
@@ -462,6 +507,8 @@ def _inspect(root: Path, workspace: Workspace) -> Plan:
     for files, label, slug, command in GENERATORS:
         if markers.intersection(files):
             plan.ecosystems.append(label)
+            if slug == "rust" and virtual_cargo_workspace(workspace):
+                command = CARGO_WORKSPACE_GENERATOR
             if slug not in slugs:
                 slugs.add(slug)
                 detected.append((slug, command))
