@@ -515,7 +515,7 @@ class SdkReader:
         page = self._cx.query(name=name, params=dict(params or {}), limit=500, at=self._head["git_oid"])
         out: list[dict[str, Any]] = []
         while True:
-            data = page.model_dump(mode="json")
+            data = page.page.model_dump(mode="json")
             if data.get("capped"):
                 raise ExportRefused(f"{name} is capped ({data['capped']}): not every row is read")
             out += [dict(row) for row in data.get("rows") or ()]
@@ -523,18 +523,24 @@ class SdkReader:
                 return out
             page = page.next_page()
 
+    @staticmethod
+    def _plain(value: Any) -> dict[str, Any]:
+        """A ``KnowledgeCard``'s value (a pydantic payload) as plain JSON."""
+
+        dump = getattr(value, "model_dump", None)
+        return dict(dump(mode="json") if callable(dump) else value or {})
+
     def card(self, ref: str) -> dict[str, Any] | None:
         try:
-            data = self._cx.get(ref).model_dump(mode="json")
+            answer = self._cx.get(ref)
         except Exception as error:  # an absent Subject refuses with the nearest names
             if "not_found" in str(error) or "unknown" in str(error).lower():
                 return None
             raise
-        return data.get("card", data)
+        return self._plain(answer.value)
 
     def evidence(self, claim: str) -> dict[str, Any]:
-        data = self._cx.get(claim, detail="evidence").model_dump(mode="json")
-        return data.get("evidence", data)
+        return self._plain(self._cx.get(claim, detail="evidence").value)
 
 
 def main(argv: Sequence[str] | None = None, *, connect: Callable[[], Any] | None = None) -> int:
