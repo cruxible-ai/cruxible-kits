@@ -800,6 +800,11 @@
       "sha256": "sha256:aea8f3d0afd12f616bcec9003e929b68e0d8b839474a17937cbebb7b6bbe1c33"
     },
     {
+      "path": "examples/export_vex.py",
+      "role": "example",
+      "sha256": "sha256:04f834992533fb446c76992254357aecc33081eb4b7303c29c08b32255d6187c"
+    },
+    {
       "path": "examples/sarif/automation-sarif.json",
       "role": "example",
       "sha256": "sha256:2ea800e5544282c1bf016002812abbf11b4851646f582337dcd3d614895ad830"
