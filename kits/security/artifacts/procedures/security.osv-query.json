@@ -81,15 +81,15 @@
         "kind": "extract",
         "records": "affected",
         "row": {
-          "digest": "sha256:435d69a8bd74b0a7d2d4bb5c4b31a593ba7c8d6908dce07f5bad4c55c340222d",
+          "digest": "sha256:c7a5f160b502385d5847d4e50a77c330f0087382f395efe59359dcfb3db660c1",
           "name": "security.osv-affected",
-          "version": 1
+          "version": 2
         }
       },
       {
         "claims": [
           {
-            "rationale": "OSV {$item.fields.osv_id} lists {$item.key.cve_id} for {$item.key.purl}.",
+            "rationale": "OSV {$item.fields.osv_id} lists {$item.key.cve_id} for {$item.key.purl} (fixed in: {$item.fields.fixed_versions}).",
             "type": {
               "target": {
                 "kind": "ClaimType",
@@ -142,7 +142,7 @@
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:5fc0eb17eef8049cf81cca409de73e397610d0b8b38aca964f71378fbb737d72",
+  "definition_digest": "sha256:8443e288096ad48db834d60d2daebb59f2e104dabc83355f1d3e7362c9176128",
   "identity": {
     "kind": "Procedure",
     "name": "security.osv-query"

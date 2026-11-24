@@ -551,7 +551,7 @@ notes document a Claim cites.
   nothing and is complete (`test_epss_with_nothing_watched_asks_nothing_and_writes_nothing`;
   `security.start` on an inventory nothing affects:
   `test_start_on_an_inventory_nothing_affects_completes_and_asks_epss_nothing`).
-- **The provider runtime.** `cruxible-provider-runtime` 0.5.0 is not on PyPI
+- **The provider runtime.** `cruxible-provider-runtime` 0.6.0 is not on PyPI
   yet: each kit provider's committed `uv.lock` names it by path, and the release
-  bundles its wheel, built from the recorded providers commit, as a transferred
-  dependency.
+  bundles its wheel, built reproducibly from the recorded providers commit, as a
+  transferred dependency.

@@ -46,13 +46,13 @@ Check locally with `python scripts/kits.py check` (with the core package,
 `cruxible`, importable beside `cruxible-client`), and preview publishing with
 `python scripts/kits.py publish --dry-run`.
 
-## Security kit for Cruxible 0.5
+## Security kit for Cruxible 0.6
 
-Use the committed [security directory](kits/security/README.md) for local
-installation. The registry tag becomes available after release.
+Use the committed [security directory](kits/security/README.md) (kit 1.4.0)
+for local installation. The registry tag becomes available after release.
 [Its release builder](kits/security/source/README.md) rebuilds the kit from
 its pilot definitions and the sources of its own OSV and SARIF providers,
-which it bundles with the published provider runtime; the general-purpose web
+which it bundles with the provider runtime 0.6.0; the general-purpose web
 provider is named as the published `cruxible-provider-web` 0.7.0, which
 `kit add` installs from the package index. Retired
 1.3 authoring, upgrade gates and persistent self-dogfood recipes have been

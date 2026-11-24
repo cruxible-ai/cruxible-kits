@@ -1,4 +1,4 @@
-# Security kit for Cruxible 0.5
+# Security kit for Cruxible 0.6
 
 This kit is a starting point, not a schema you have to adopt. It seeds an
 instance with security vocabulary, guidance Documents, reference pages and an
@@ -7,8 +7,9 @@ revise the kit's definitions, add your own, and adapt or replace its
 automation, all by ordinary authoring. Facts copied from sources settle
 automatically; judgments always need review.
 
-This release is kit version **1.3.0**, built for Cruxible **0.5** and
-provider protocol **2**. It requires the base kit (`base` 1.0.0, which
+This release is kit version **1.4.0**, built for Cruxible **0.6** (0.6.0 or
+later) and provider protocol **2**; its own providers run on
+`cruxible-provider-runtime` 0.6.0 or later. It requires the base kit (`base` 1.0.0, which
 `cruxible init` installs) for reading workspace files and fetching web pages.
 It covers two loops:
 
@@ -66,7 +67,7 @@ index access, see the isolated-deployment page of the Cruxible docs.
 
 ## Install and first answers
 
-Use Cruxible 0.5 with its daemon running and a Git workspace selected. From a
+Use Cruxible 0.6 with its daemon running and a Git workspace selected. From a
 checkout of this repository (replace paths for your workspace):
 
 ```sh
@@ -96,8 +97,8 @@ are proposed automatically, as the kit's author, once the three installs
 have activated, because they are checked against the installed providers.
 The reviewer approves all four. With one owner and self-approval (below) the
 same commit installs everything in one step.
-`cruxible kit add security:1.3.0` installs the same release from the registry
-(`ghcr.io/cruxible-ai/kits/security:1.3.0`) once it is published; before
+`cruxible kit add security:1.4.0` installs the same release from the registry
+(`ghcr.io/cruxible-ai/kits/security:1.4.0`) once it is published; before
 then it refuses (`cruxible.kit.not_found`), so use the local directory. The
 same holds for a refusal whose repair is `cruxible kit add security`
 (`requires_missing`, from something that requires this kit): that command
@@ -345,7 +346,7 @@ was down is not run later. `cruxible next` then shows a
 
 A run in which nothing upstream changed still fetches OSV, KEV and EPSS and
 records what it read, so it takes time and stored bytes
-<!-- TODO(0.5.0): measured bytes per unchanged run -->; weigh that before
+<!-- TODO: measured bytes per unchanged run -->; weigh that before
 running it more often than daily. The records are part of the instance: the
 daemon's `exhaust` directory is backed up with the ledger, and no command
 prunes it.

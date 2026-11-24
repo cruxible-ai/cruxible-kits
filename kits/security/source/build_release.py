@@ -1,15 +1,17 @@
-"""Build the security kit (dependency + audit loops) for Cruxible 0.5 through the public CLI.
+"""Build the security kit (dependency + audit loops) for Cruxible 0.6 through the public CLI.
 
     python source/build_release.py NEW_SCRATCH --providers-checkout PROVIDERS \
         [--published-wheels DIR]
 
 The kit's own providers (OSV, SARIF) build offline from their sources and frozen
-locks and are bundled in the kit with the published provider runtime wheel. The
+locks and are bundled in the kit with the provider runtime 0.6.0 wheel. The
 general-purpose web provider is a published dependency: the kit names its
 published build (delivery ``index``) and carries none of its files, and ``kit
-add`` installs it by name from the consumer's provider index. Both published
-wheels are fetched from PyPI (or read from ``--published-wheels``) and must match
-the sha256 recorded here and the reviewed providers checkout byte for byte.
+add`` installs it by name from the consumer's provider index. Both wheels are
+fetched from PyPI (or read from ``--published-wheels``) and must match the
+sha256 recorded here and the reviewed providers source byte for byte: the
+runtime the checkout at ``PROVIDERS_COMMIT``, web the commit it was published
+from, ``WEB_COMMIT`` (read with ``git archive``; the checkout is never changed).
 Provider installation may download the registry dependencies pinned by the
 locks. No tests or private accept-tree helpers are used. A fresh publisher (which
 holds the base kit from ``init``) installs the three provider builds, each
@@ -39,29 +41,40 @@ import time
 import tomllib
 import urllib.request
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 SOURCE = Path(__file__).resolve().parent
 KIT = SOURCE.parent
 PROVIDERS = SOURCE / "providers"
-RELEASE = "1.3.0"  # Unpublished kit version; targets Cruxible 0.5.
-#: The reviewed cruxible-providers commit: the published runtime and web wheels were
-#: built from it, and the vendored web source (``providers/cruxible-provider-web``)
-#: is its copy.
-PROVIDERS_COMMIT = "b3fa37a669e60033a1591c4c886b6db6ad44ff21"
+RELEASE = "1.4.0"  # Unpublished kit version; targets Cruxible 0.6.
+#: The reviewed cruxible-providers commit the runtime wheel is built from
+#: (cruxible-provider-runtime 0.6.0: ``@derive``, ``CaptureView``, ``derived_capture``).
+PROVIDERS_COMMIT = "ca12589afe1f3c53cee2bd72d3765467948f3120"
+#: The commit web 0.7.0 was published from; the vendored web source
+#: (``providers/cruxible-provider-web``) is its copy. Web keeps its own lock (its
+#: runtime 0.5.0 environment), so the published 0.7.0 build serves a 0.6 instance.
+WEB_COMMIT = "b3fa37a669e60033a1591c4c886b6db6ad44ff21"
 PACKAGES = ("security-osv-provider", "cruxible-provider-web", "security-sarif-provider")
 RUNTIME = "cruxible-provider-runtime"
 #: The published wheels the release names: version and the sha256 PyPI serves. The
 #: kit's own providers bundle the runtime wheel; the web provider is a published
 #: dependency the kit names by these bytes (never a local rebuild, whose bytes differ).
+#: Runtime 0.6.0 is not on PyPI yet: its sha256 is that of the reproducible build of
+#: ``PROVIDERS_COMMIT``'s runtime source (``SOURCE_DATE_EPOCH`` below, hatchling
+#: 1.33.0), passed in with ``--published-wheels``. Once PyPI serves 0.6.0, record the
+#: sha256 it publishes here and rebuild.
 PUBLISHED = {
-    RUNTIME: ("0.5.0", "356e276998f1daff0dc3479ffd57019ad3146f11692a7639de2d357b852acbc3"),
+    RUNTIME: ("0.6.0", "dcdb2646e6abd7353dc9766be1f58d442f5b81e41237a710af3e4bc3b1bd4d5e"),
     "cruxible-provider-web": (
         "0.7.0",
         "fa866f39e2b191c8363f0866c2586f92b521d0c17819db8612305c80a50e49f5",
     ),
 }
+#: The runtime the published web build's own lock pins (its environment is web's
+#: own, so a 0.6 instance runs web 0.7.0 on runtime 0.5.0 beside the kit's 0.6.0
+#: providers): published on PyPI, built from ``WEB_COMMIT``.
+WEB_RUNTIME = ("0.5.0", "356e276998f1daff0dc3479ffd57019ad3146f11692a7639de2d357b852acbc3")
 #: Providers the kit names as published dependencies (``kit build --default-provider``),
 #: each with the sha256 of the lock its published wheel embeds (the vendored
 #: ``uv.lock`` is the same bytes): kit add installs each by name at exactly its
@@ -69,10 +82,11 @@ PUBLISHED = {
 DEFAULT_PROVIDERS = {
     "cruxible-provider-web": "bf9ccb3fe9acaa9a4652d885fcc2b649f543958c6dfc1bd2418e8c5674870f83",
 }
-#: Where each published wheel's package files are reviewed: its source tree.
+#: Where each published wheel's package files are reviewed: its source tree, at the
+#: commit it was built from.
 PUBLISHED_SOURCES = {
-    RUNTIME: "packages/cruxible-provider-runtime/src",
-    "cruxible-provider-web": "packages/cruxible-provider-web/src",
+    RUNTIME: ("packages/cruxible-provider-runtime/src", PROVIDERS_COMMIT),
+    "cruxible-provider-web": ("packages/cruxible-provider-web/src", WEB_COMMIT),
 }
 #: The operations each bundled provider must install for the kit's Procedures.
 REQUIRED = {
@@ -246,9 +260,37 @@ class Session:
         return result
 
 
+def committed_tree(checkout: Path, commit: str, path: str) -> dict[str, bytes]:
+    """Every file under ``path`` at ``commit``, by relative path (``git archive``: the
+    checkout's working tree and HEAD are never touched)."""
+
+    import io
+    import tarfile
+
+    archive = subprocess.run(
+        ["git", "-C", str(checkout), "archive", "--format=tar", commit, path],
+        capture_output=True,
+        check=True,
+    ).stdout
+    files: dict[str, bytes] = {}
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        for member in tar.getmembers():
+            if member.isfile() and "__pycache__" not in member.name.split("/"):
+                handle = tar.extractfile(member)
+                assert handle is not None
+                # A file path keys by its name, as ``_files`` reads one file.
+                name = (
+                    PurePosixPath(member.name).name
+                    if member.name == path
+                    else member.name.removeprefix(path.rstrip("/") + "/")
+                )
+                files[name] = handle.read()
+    return files
+
+
 def check_providers_checkout(checkout: Path) -> None:
     """Refuse a providers checkout other than the recorded commit, or a vendored web
-    source that is not its copy."""
+    source that is not the copy of the commit web was published from."""
     head = subprocess.run(
         ["git", "-C", str(checkout), "rev-parse", "HEAD"],
         capture_output=True,
@@ -268,11 +310,12 @@ def check_providers_checkout(checkout: Path) -> None:
     if dirty:
         raise RuntimeError(f"{checkout} has uncommitted package changes:\n{dirty}")
     for name in ("src", "pyproject.toml", "uv.lock"):
-        upstream = checkout / "packages/cruxible-provider-web" / name
+        upstream = committed_tree(checkout, WEB_COMMIT, f"packages/cruxible-provider-web/{name}")
         vendored = PROVIDERS / "cruxible-provider-web" / name
-        if _files(upstream) != _files(vendored):
+        if upstream != _files(vendored):
             raise RuntimeError(
-                f"{vendored} is not a copy of {upstream} at {PROVIDERS_COMMIT}"
+                f"{vendored} is not a copy of packages/cruxible-provider-web/{name} at "
+                f"{WEB_COMMIT}"
             )
 
 
@@ -288,18 +331,28 @@ def _files(root: Path) -> dict[str, bytes]:
     }
 
 
-def published_wheel(package: str, root: Path, given: Path | None, checkout: Path) -> Path:
-    """The published wheel of ``package`` at its recorded version, verified.
+def published_wheel(
+    package: str,
+    root: Path,
+    given: Path | None,
+    checkout: Path,
+    *,
+    release: tuple[str, str] | None = None,
+    commit: str | None = None,
+) -> Path:
+    """The published wheel of ``package`` at its recorded version, verified, in ``root``.
 
-    Read from ``given`` when named, otherwise downloaded from PyPI into ``root``.
-    Refuses unless its sha256 is the recorded one and its package files are the
-    reviewed checkout's source byte for byte.
+    Copied from ``given`` when named, otherwise downloaded from PyPI. Refuses unless
+    its sha256 is the recorded one and its package files are the reviewed source at
+    its commit byte for byte. ``release`` and ``commit`` name another (version,
+    sha256) and source commit than ``PUBLISHED`` and ``PUBLISHED_SOURCES`` record.
     """
 
-    version, sha256 = PUBLISHED[package]
+    version, sha256 = release or PUBLISHED[package]
     filename = f"{package.replace('-', '_')}-{version}-py3-none-any.whl"
+    path = root / filename
     if given is not None:
-        path = given / filename
+        shutil.copyfile(given / filename, path)
     else:
         path = root / filename
         with urllib.request.urlopen(
@@ -318,8 +371,10 @@ def published_wheel(package: str, root: Path, given: Path | None, checkout: Path
             for name in wheel.namelist()
             if ".dist-info/" not in name and not name.endswith("/")
         }
-    if packaged != _files(checkout / PUBLISHED_SOURCES[package]):
-        raise RuntimeError(f"{filename} is not the source at {PROVIDERS_COMMIT}")
+    source, recorded = PUBLISHED_SOURCES[package]
+    commit = commit or recorded
+    if packaged != committed_tree(checkout, commit, source):
+        raise RuntimeError(f"{filename} is not the source at {commit}")
     return path
 
 
@@ -363,6 +418,9 @@ def build_providers(
     published = root / "published"
     published.mkdir()
     dependency = published_wheel(RUNTIME, published, given, checkout)
+    web_runtime = published_wheel(
+        RUNTIME, published, given, checkout, release=WEB_RUNTIME, commit=WEB_COMMIT
+    )
     # The runtime source sits where the locks name it by path, for `uv lock --check`.
     shutil.copytree(
         checkout / "packages/cruxible-provider-runtime",
@@ -389,6 +447,17 @@ def build_providers(
     projects = []
     for name in PACKAGES:
         project = root / name
+        if name in DEFAULT_PROVIDERS:
+            # A published dependency's lock names the runtime source it was published
+            # beside (its own commit's), so its lock check reads that copy.
+            project = root / "published-sources" / name
+            beside = project.parent / RUNTIME
+            for relative, content in committed_tree(
+                checkout, WEB_COMMIT, f"packages/{RUNTIME}"
+            ).items():
+                target = beside / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(content)
         shutil.copytree(
             PROVIDERS / name,
             project,
@@ -402,9 +471,9 @@ def build_providers(
             # and carries neither. The runtime wheel beside it resolves its closure,
             # so kit build's automation-template check seeds this build (the
             # template binds web operations by provider name); a consumer gets the
-            # runtime from its own index.
+            # runtime from its own index. That runtime is the one web's lock pins.
             (project / "dist").mkdir()
-            shutil.copyfile(dependency, project / "dist" / dependency.name)
+            shutil.copyfile(web_runtime, project / "dist" / web_runtime.name)
             wheel = published_wheel(name, project / "dist", given, checkout)
             lock = (project / "uv.lock").read_bytes()
             version = tomllib.loads((project / "pyproject.toml").read_text())["project"][
@@ -434,12 +503,14 @@ def build_release(
         if held.get(kit_id) != version:
             raise RuntimeError(f"the publisher holds {kit_id} {held.get(kit_id)}, not {version}")
     for project in projects:
-        # The published runtime wheel is each package's path dependency.
+        # The runtime wheel beside each package is its path dependency (0.6.0 for the
+        # kit's own providers, the one web's lock pins for web).
         (wheel,) = [
             p
             for p in (project / "dist").glob("*.whl")
             if not p.name.startswith("cruxible_provider_runtime-")
         ]
+        (dependency,) = (project / "dist").glob("cruxible_provider_runtime-*.whl")
         installed = session.command(
             "provider",
             "install",
@@ -574,7 +645,7 @@ def main() -> None:
     shutil.copyfile(out / "cruxible-kit.json", KIT / "cruxible-kit.json")
     refresh_files()
     print(
-        f"Built security:{RELEASE} for Cruxible 0.5 in {KIT}; transcript: {session.root / 'commands.jsonl'}"
+        f"Built security:{RELEASE} for Cruxible 0.6 in {KIT}; transcript: {session.root / 'commands.jsonl'}"
     )
 
 

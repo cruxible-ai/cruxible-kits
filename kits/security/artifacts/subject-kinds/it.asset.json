@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "One deployed system security judgments rest on (a service, an appliance, a host), named by its slug: where it runs, who can reach it, who owns it and how much it matters.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "it.asset"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "it.asset.slug",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One (component, CVE) pair the OSV match found: its OSV advisory id and the versions OSV lists as fixed for the component's package, as one line ('none listed' when there are none). They are no Claim: the affected_by Claim's reason carries them, and the cited document holds the full list.",
+  "fields": {
+    "fixed_versions": {
+      "type": {
+        "kind": "string",
+        "max_len": 240,
+        "min_len": 1
+      }
+    },
+    "osv_id": {
+      "type": {
+        "kind": "string",
+        "max_len": 128
+      }
+    }
+  },
+  "name": "security.osv-affected",
+  "predecessor_digest": "sha256:435d69a8bd74b0a7d2d4bb5c4b31a593ba7c8d6908dce07f5bad4c55c340222d",
+  "version": 2
+}

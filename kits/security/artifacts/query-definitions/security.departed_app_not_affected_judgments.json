@@ -1,0 +1,187 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Every app-level not_affected judgment whose component the inventory's SBOM no longer lists (its occurrence holds no scope): the judgment on an upgraded or removed release, kept as history. next lists each as claim_dependency_stale until it is retired; a release listed again moves its judgment back to security.app_not_affected_judgments.",
+  "entry": {
+    "binding": "ae",
+    "subject_kinds": [
+      "security.app_exposure"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.departed_app_not_affected_judgments"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "app_exposure",
+        "value": {
+          "binding": "ae",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "component",
+        "value": {
+          "binding": "c",
+          "kind": "claim_value",
+          "predicate": "security.component.purl"
+        }
+      },
+      {
+        "name": "cve_id",
+        "value": {
+          "binding": "v",
+          "kind": "claim_value",
+          "predicate": "security.vulnerability.cve_id"
+        }
+      },
+      {
+        "name": "inventory",
+        "value": {
+          "binding": "i",
+          "kind": "claim_value",
+          "predicate": "security.inventory.inventory_id"
+        }
+      },
+      {
+        "name": "justification",
+        "value": {
+          "binding": "ae",
+          "kind": "claim_value",
+          "predicate": "security.app_exposure.justification"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:a19ebecb01435e321090212c9feb18c15254d7f1aeca2ac4834d30ccbd5db6ab",
+    "name": "security.app-judgment",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "o",
+      "direction": "forward",
+      "from_binding": "ae",
+      "predicate": "security.app_exposure.occurrence",
+      "target_subject_kinds": [
+        "security.occurrence"
+      ]
+    },
+    {
+      "binding": "v",
+      "direction": "forward",
+      "from_binding": "ae",
+      "predicate": "security.app_exposure.vulnerability",
+      "target_subject_kinds": [
+        "security.vulnerability"
+      ]
+    },
+    {
+      "binding": "i",
+      "direction": "forward",
+      "from_binding": "o",
+      "predicate": "security.occurrence.inventory",
+      "target_subject_kinds": [
+        "security.inventory"
+      ]
+    },
+    {
+      "binding": "c",
+      "direction": "forward",
+      "from_binding": "o",
+      "predicate": "security.occurrence.component",
+      "target_subject_kinds": [
+        "security.component"
+      ]
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "binding": "o",
+        "kind": "claim_presence",
+        "negated": true,
+        "predicate": "security.occurrence.scope"
+      },
+      {
+        "filters": [
+          {
+            "binding": "ae",
+            "kind": "claim_presence",
+            "negated": true,
+            "predicate": "security.app_exposure.verdict"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "ae",
+              "kind": "claim_value",
+              "predicate": "security.app_exposure.verdict"
+            },
+            "operator": "eq",
+            "right": {
+              "kind": "literal",
+              "value": "not_affected"
+            },
+            "value_type": "string"
+          }
+        ],
+        "kind": "any_of"
+      },
+      {
+        "kind": "membership",
+        "left": {
+          "binding": "ae",
+          "kind": "claim_value",
+          "predicate": "security.app_exposure.justification"
+        },
+        "value_type": "string",
+        "values": [
+          {
+            "kind": "literal",
+            "value": "component_not_present"
+          },
+          {
+            "kind": "literal",
+            "value": "inline_mitigations_already_exist"
+          },
+          {
+            "kind": "literal",
+            "value": "vulnerable_code_cannot_be_controlled_by_adversary"
+          },
+          {
+            "kind": "literal",
+            "value": "vulnerable_code_not_in_execute_path"
+          }
+        ]
+      }
+    ],
+    "kind": "all_of"
+  }
+}
