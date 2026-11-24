@@ -89,6 +89,8 @@ WORKSPACE_FILE = "cruxible-builtin#workspace.file"
 DEPENDENCY_PROVIDER = "security-osv-provider"
 SBOM_COMPONENTS = f"{DEPENDENCY_PROVIDER}#sbom.components"
 SCOPE = OCCURRENCE + ".scope"
+#: The OSV package a distro occurrence is asked as (``ECOSYSTEM|NAME|VERSION``).
+OSV_PACKAGE = OCCURRENCE + ".osv_package"
 #: CycloneDX's component scopes; ``required`` is the specification's default.
 SCOPES = ("required", "optional", "excluded")
 #: The VEX justification a package-level judgment states (R4): the vulnerable
@@ -158,12 +160,13 @@ SBOM_COMPONENTS_LAYOUT: dict[str, Any] = {
         "components": {
             "at": "/components/*",
             "key": {"purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"}},
-            "row": f"{SBOM_ROW}@1",
+            "row": f"{SBOM_ROW}@2",
             "fields": {
                 "name": {"at": "name", "presence": "optional"},
                 "scope": {"at": "scope", "canonicalize": "claim_type"},
                 "named_by": {"at": "named_by"},
                 "warning": {"at": "warning", "presence": "optional"},
+                "osv_package": {"at": "osv_package", "presence": "optional"},
             },
             "count_at": "/count",
         }
@@ -378,6 +381,25 @@ def claim_type_records() -> list[dict[str, Any]]:
                 "rules": [_rule("sbom", ["observation"], SBOM_COMPONENTS_KIND)]
             },
         },
+        {
+            "predicate": OSV_PACKAGE,
+            "allowed_subject_kinds": [OCCURRENCE],
+            "cardinality": "one",
+            "value": {"kind": "string", "max_len": 256},
+            "description": "The OSV package this inventory's distro package (deb, rpm, apk) is "
+            "asked as, ECOSYSTEM|NAME|VERSION (Debian:12|glibc|2.36-9+deb12u7): OSV keys "
+            "distro ecosystems by release and source package, which the SBOM states (the purl's "
+            "distro and upstream qualifiers, Syft or Trivy properties, SPDX sourceInfo) and the "
+            "component's purl key drops. Absent when the SBOM states neither: the component "
+            "then reads not checked, never clean.",
+            "permitted_roles": ["observation"],
+            "default_role": "observation",
+            "evidence_requirement": "captured",
+            "revision_evidence": "replace",
+            "evidence_admission_policy": {
+                "rules": [_rule("sbom", ["observation"], SBOM_COMPONENTS_KIND)]
+            },
+        },
         _judgment(
             EXPOSURE,
             "justification",
@@ -508,6 +530,29 @@ def vocabulary_members() -> list[dict[str, Any]]:
                 "warning": "enum[sbom_unnamed]?",
             },
         },
+        # Version 2 adds a distro package's OSV source package; version 1 stays as its
+        # predecessor.
+        {
+            "kind": "contract",
+            "name": SBOM_ROW,
+            "version": 2,
+            "description": "One component an SBOM lists, with its scope, and for a distro "
+            "package (deb, rpm, apk) the OSV package it is asked as when the SBOM states its "
+            "release and source package.",
+            "fields": {
+                "name": "string{max_len: 256}?",
+                "scope": f"enum_of {SCOPE}",
+                "named_by": "enum[metadata_component, file_path]",
+                "warning": "enum[sbom_unnamed]?",
+                "osv_package": {
+                    "type": "string{min_len: 5, max_len: 256}?",
+                    "description": "ECOSYSTEM|NAME|VERSION: the OSV ecosystem (Debian:12, "
+                    "Alpine:v3.19, Red Hat, ...), the source package and its version; absent "
+                    "for a non-distro component or one whose release or source the SBOM does "
+                    "not state.",
+                },
+            },
+        },
         *(
             {"kind": "claim_type", "claim_type": t.model_dump(mode="json", by_alias=True)}
             for t in claim_types()
@@ -590,9 +635,10 @@ def sbom_spec() -> dict[str, Any]:
     return refs(
         {
             "procedure": SBOM_PROCEDURE,
-            "description": "Read one CycloneDX JSON SBOM from the workspace and write each "
-            "component's occurrence in the inventory it describes, with its scope; a "
-            "component the SBOM no longer lists has its scope retired.",
+            "description": "Read one CycloneDX or SPDX 2.x JSON SBOM from the workspace and "
+            "write each component's occurrence in the inventory it describes, with its scope "
+            "(and, for a distro package, the OSV source package it is asked as); a component "
+            "the SBOM no longer lists has its scope retired.",
             "input": {},
             "output": {},
             "parameter_contract": params_contract(SBOM_PROCEDURE),
@@ -654,7 +700,14 @@ def sbom_spec() -> dict[str, Any]:
                             "{$item.key.purl} with scope {$item.fields.scope} (inventory "
                             "{$steps.listed.header.inventory}, named by "
                             "{$item.fields.named_by}).",
-                        }
+                        },
+                        {
+                            "type": OSV_PACKAGE,
+                            "value": "$item.fields.osv_package",
+                            "when_absent": "mirror",
+                            "rationale": "The SBOM at {$params.relative_path} states the "
+                            "source package OSV is asked by for {$item.key.purl}.",
+                        },
                     ],
                 },
             ],
@@ -679,11 +732,12 @@ def procedure_members() -> list[dict[str, Any]]:
 #: refuses them (``procedure_mandate_observations_creation_unavailable``), and with
 #: the occurrence alone the run's creations fall outside it.
 SBOM_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
-    SCOPE: {
+    claim_type: {
         "create": {"basis": ["extracted"]},
         "revise": {"basis": ["extracted"]},
         "retire": {"basis": ["absence"]},
-    },
+    }
+    for claim_type in (SCOPE, OSV_PACKAGE)
 }
 
 

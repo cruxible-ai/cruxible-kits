@@ -580,7 +580,7 @@ def test_registration_names_each_operation_and_its_entrypoint(operation: str) ->
     for contract in (entry["in"], entry["out"]):
         cname, _, version = contract.partition("@")
         assert (cname, int(version)) in carried
-    assert entry["serves"] == [entry["in"].removesuffix(".request@1")]
+    assert entry["serves"] == [entry["in"].rpartition(".request@")[0]]
     import hashlib
 
     manifest = (root / "manifest.yaml").read_bytes()

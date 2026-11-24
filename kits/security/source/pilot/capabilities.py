@@ -7,7 +7,7 @@ are the base kit's, which the kit requires and never carries:
 
 | Capability | Effect | Request -> result |
 |---|---|---|
-| ``security.osv.query@1`` | external_read | components -> OSV's responses, ``list<capture<security.osv-response>>`` |
+| ``security.osv.query@2`` | external_read | components (+ distro packages by OSV source package) -> OSV's responses, ``list<capture<security.osv-response>>`` (``@1``, without distro packages, stays as its predecessor) |
 | ``security.osv.match@1`` | pure | responses + components -> ``capture<security.osv-matches>`` |
 | ``security.sbom.components@1`` | pure | ``capture<security.cyclonedx-sbom>`` -> ``capture<security.sbom-components>`` |
 | ``security.sarif.findings@1`` | pure | ``list<capture<security.sarif-log>>`` + held findings -> ``capture<security.sarif-findings>`` |
@@ -92,6 +92,33 @@ CONTRACTS: tuple[dict[str, Any], ...] = (
         "never asked and never in queried: OSV keys distro ecosystems by source package name, "
         "which an SBOM's binary packages do not give; they read not checked.",
         "fields": {"components": _PURLS, "logical_source": _SOURCE},
+    },
+    # Version 2 adds the distro packages the SBOM import resolved to OSV source packages
+    # (security.osv_distro_packages); version 1 stays as its predecessor.
+    {
+        "kind": "contract",
+        "name": OSV_QUERY + ".request",
+        "version": 2,
+        "description": "The components to ask OSV about, as purl@version, the logical source "
+        "the responses are stated under, and the distro packages (purl types deb, rpm, apk) "
+        "the SBOM import resolved to an OSV source package. A distro component is asked by "
+        "that package (ecosystem, source name, version); one without it is never asked, never "
+        "in queried, and reads not checked.",
+        "fields": {
+            "components": _PURLS,
+            "logical_source": _SOURCE,
+            "distro_purls": {
+                "type": f"{_PURLS}?",
+                "description": "The distro components that have an OSV package, one per "
+                "distro_packages entry, in the same order.",
+            },
+            "distro_packages": {
+                "type": "list<string{max_len: 256}>{max_items: 20000}?",
+                "description": "ECOSYSTEM|NAME|VERSION for each distro_purls entry "
+                "(security.occurrence.osv_package). A purl given two different packages is "
+                "never asked.",
+            },
+        },
     },
     {
         "kind": "contract",
@@ -190,6 +217,19 @@ CAPABILITIES: tuple[dict[str, Any], ...] = (
         "distro packages are never asked.",
         "effect": "external_read",
         "in": OSV_QUERY + ".request@1",
+        "out": OSV_QUERY + ".result@1",
+    },
+    {
+        "kind": "capability",
+        "name": OSV_QUERY,
+        "version": 2,
+        "description": "Asks OSV.dev which advisories affect each component (purl@version), "
+        "and each distro package (deb, rpm, apk) by the OSV source package its SBOM states "
+        "(Debian:12 glibc, Alpine:v3.19 openssl, ...), and returns every response as canonical "
+        "JSON, one Capture each. OSV does the version matching; a distro package with no "
+        "source package is never asked.",
+        "effect": "external_read",
+        "in": OSV_QUERY + ".request@2",
         "out": OSV_QUERY + ".result@1",
     },
     {

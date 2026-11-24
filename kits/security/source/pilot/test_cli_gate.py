@@ -328,7 +328,7 @@ def test_the_committed_kit_runs_the_supported_path_on_a_real_daemon(instance: In
     assert {m["to_build"] for m in moved["moved"]} == {moved["build"]}
     kept = _carry(moved, f"{SBOM_LINE}-settle")
     assert (kept["old_grant"], kept["new_grant"]) == ("settle", "settle"), kept
-    assert kept["retained_scope"] == ["security.occurrence.scope"]
+    assert sorted(kept["retained_scope"]) == sorted(inventory.SBOM_SETTLE_SCOPE)
     assert kept["carries_line_enablement"] is True
     demoted = _carry(moved, "security.osv-query-settle")
     assert (demoted["new_grant"], demoted["demotion"]) == ("propose", "subject_creation")

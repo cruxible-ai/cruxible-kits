@@ -54,6 +54,9 @@ from inventory import COMPONENT, DEPENDENCY_PROVIDER, OCCURRENCE, OSV_MATCH_KIND
 OSV_PROCEDURE = "security.osv-query"
 OSV_LINE = "security.osv-query"
 OSV_COMPONENTS = "security.osv_components"
+#: The distro components some inventory holds with the OSV package its SBOM states.
+OSV_DISTRO_PACKAGES = "security.osv_distro_packages"
+OSV_DISTRO_ROW = "security.osv-distro-package"
 OSV_COMPONENT_ROW = "security.osv-component"
 OSV_ROW = "security.osv-affected"
 #: Each OSV response (one querybatch POST or one vulns GET), verbatim.
@@ -113,6 +116,23 @@ COMPONENTS_SPEC: dict[str, Any] = {
     "hops": [{"o": f"{OCCURRENCE}{{component: c}}! with scope"}],
     "row": f"{OSV_COMPONENT_ROW}@1",
     "fields": ["c.purl"],
+}
+
+
+#: Each (distro component, OSV package) an inventory's SBOM states: one row per
+#: occurrence holding a scope and an osv_package (the provider asks one package per
+#: purl, and never asks a purl two inventories resolve differently).
+DISTRO_SPEC: dict[str, Any] = {
+    "query": OSV_DISTRO_PACKAGES,
+    "description": "Every distro component (deb, rpm, apk) some inventory holds whose SBOM "
+    "states the OSV package it is asked as (security.occurrence.osv_package): what OSV is "
+    "asked by source package.",
+    "from": {"c": COMPONENT},
+    "hops": [{"o": f"{OCCURRENCE}{{component: c}}! with scope"}],
+    "where": "exists o.osv_package",
+    "row": f"{OSV_DISTRO_ROW}@1",
+    "fields": ["c.purl", "o.osv_package"],
+    "order": ["c.purl"],
 }
 
 
@@ -206,6 +226,15 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "kind": "query_definition",
             "query_definition": subject_shaped(COMPONENTS_SPEC, claim_types),
         },
+        {
+            "kind": "contract",
+            "name": OSV_DISTRO_ROW,
+            "version": 1,
+            "description": "One distro component an inventory holds and the OSV package its "
+            "SBOM states it is asked as (ECOSYSTEM|NAME|VERSION).",
+            "fields": {"purl": "string{max_len: 256}", "osv_package": "string{max_len: 256}"},
+        },
+        {"kind": "query_definition", "query_definition": DISTRO_SPEC},
         *params_contract_members(OSV_PROCEDURE, *OSV_PARAMS),
     ]
 
@@ -239,7 +268,7 @@ def osv_spec() -> dict[str, Any]:
             "output": {},
             "parameter_contract": params_contract(OSV_PROCEDURE),
             "slots": {
-                "query": {"capability": capability(OSV_QUERY)},
+                "query": {"capability": capability(OSV_QUERY, 2)},
                 "match": {"capability": capability(OSV_MATCH)},
             },
             "hard_caps": {
@@ -252,12 +281,15 @@ def osv_spec() -> dict[str, Any]:
             },
             "steps": [
                 {"read": "components", "query": OSV_COMPONENTS},
+                {"read": "distro", "query": OSV_DISTRO_PACKAGES},
                 {
                     "call": "osv",
                     "slot": "query",
                     "captures": {"responses": OSV_RESPONSE_KIND},
                     "input": {
                         "components": "$steps.components.rows.[*].purl",
+                        "distro_purls": "$steps.distro.rows.[*].purl",
+                        "distro_packages": "$steps.distro.rows.[*].osv_package",
                         "logical_source": "$params.logical_source",
                     },
                 },

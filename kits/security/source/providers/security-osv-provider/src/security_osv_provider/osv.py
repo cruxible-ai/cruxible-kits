@@ -47,12 +47,24 @@ JSON of the whole sorted list, which names the set (the same pairs, the same
 digest). The kit posts that one record as its inbox item; the full list stays
 in this document.
 
-Distro coverage (K-B1-6): OSV's distro ecosystems (Debian, Ubuntu, Alpine, the
-RPM distributions) are keyed by SOURCE package name, while an SBOM lists binary
-packages (``pkg:deb/debian/libc6`` is ``glibc`` to OSV). v1 cannot map binary to
-source names, so every distro component (purl type ``deb``, ``rpm`` or ``apk``)
-is left out of the query and out of ``queried``: it reads "not checked", never
-clean, and absence never retires its Claims. A component whose answer is
+Distro coverage (K-B1-6): OSV's distro ecosystems (Debian, Ubuntu, Alpine, Wolfi,
+Chainguard, Red Hat, Rocky Linux, AlmaLinux) are keyed by release and SOURCE
+package name, while an SBOM lists binary packages (``pkg:deb/debian/libc6`` is
+``glibc`` to OSV), and the component's purl key carries neither. The SBOM import
+records what the SBOM states as each occurrence's ``osv_package``
+(``ECOSYSTEM|NAME|VERSION``, ``distro.py``); ``osv.query`` receives those as
+``distro_purls`` / ``distro_packages`` and asks OSV
+``{"package": {"ecosystem", "name"}, "version"}`` for each, in the same batches
+as the purl queries, the batch coordinate's ``packages`` naming the package each
+distro purl was asked as. A distro component with no OSV package (or two
+different ones) is never asked: it is left out of ``queried`` and reads "not
+checked" (``distro_source_name_unknown``), never clean, and absence never
+retires its Claims. ``osv.match`` reads a distro component's fixed versions from
+the advisory's entries for that ecosystem and source package (an entry whose
+ecosystem is the asked one, or a release of it: ``Red Hat`` matches ``Red
+Hat:enterprise_linux:9::appstream``). A batch that lists no distro package has
+no ``packages`` in its coordinate, so every non-distro request and response is
+the same bytes as before. A component whose answer is
 incomplete -- its batch failed or truncated (``next_page_token``), or an
 advisory it names could not be read -- is also left out of ``queried``
 ("unanswered"). Post-v1: map binary to source packages from SBOM source-name
@@ -79,6 +91,8 @@ from typing import Any
 
 import httpx
 from cruxible_provider_runtime import CaptureView, decline, derive, derived_capture
+
+from . import distro
 from cruxible_provider_runtime.acquisition import (
     CaptureInputError,
     capture_input,
@@ -121,15 +135,39 @@ def purl_type(purl: str) -> str:
     return purl[4:].split("/", 1)[0].lower() if purl.startswith("pkg:") else ""
 
 
-def partition(components: Iterable[str]) -> tuple[list[str], list[dict[str, str]]]:
-    """(the purls osv.query asks about, the ones it leaves "not checked" and why)."""
+def distro_packages(purls: Sequence[str], packages: Sequence[str]) -> dict[str, str]:
+    """purl -> the one OSV package it is asked as. A purl given two different packages
+    (two inventories' SBOMs disagree), or a malformed package, is left out: never asked."""
+
+    if len(purls) != len(packages):
+        raise ValueError("distro_purls and distro_packages differ in length")
+    found: dict[str, set[str]] = {}
+    for purl, package in zip(purls, packages, strict=True):
+        try:
+            distro.split(str(package))
+        except ValueError:
+            found.setdefault(str(purl), set()).update(("", "-"))
+            continue
+        found.setdefault(str(purl), set()).add(str(package))
+    return {purl: next(iter(held)) for purl, held in found.items() if len(held) == 1}
+
+
+def partition(
+    components: Iterable[str], packages: Mapping[str, str] | None = None
+) -> tuple[list[str], list[dict[str, str]]]:
+    """(the purls osv.query asks about, the ones it leaves "not checked" and why).
+
+    A distro purl is asked only when ``packages`` names its OSV package."""
 
     asked: list[str] = []
     skipped: list[dict[str, str]] = []
     for purl in sorted(set(components)):
         kind = purl_type(purl)
         if kind in DISTRO_TYPES:
-            skipped.append({"purl": purl, "reason": "distro_source_name_unknown"})
+            if packages and purl in packages:
+                asked.append(purl)
+            else:
+                skipped.append({"purl": purl, "reason": "distro_source_name_unknown"})
         elif "@" not in purl.rsplit("/", 1)[-1]:
             skipped.append({"purl": purl, "reason": "no_version"})
         else:
@@ -176,6 +214,7 @@ def _member(
     request_body: bytes | None,
     observed_at: datetime,
     purls: Sequence[str] = (),
+    packages: Sequence[str | None] = (),
     advisory: str | None = None,
 ) -> dict[str, Any]:
     """One response as one Capture-list member: the body as canonical JSON, the rest coordinate.
@@ -196,6 +235,8 @@ def _member(
     }
     if purls:
         coordinate["purls"] = list(purls)
+    if any(packages):
+        coordinate["packages"] = list(packages)
     if advisory is not None:
         coordinate["advisory"] = advisory
     return external_capture_result(
@@ -206,6 +247,15 @@ def _member(
         observed_at=observed_at,
         selector_type=SELECTOR_TYPE,
     )
+
+
+def _query(purl: str, package: str | None) -> dict[str, Any]:
+    """One querybatch entry: by purl, or for a distro component by its OSV package."""
+
+    if package is None:
+        return {"package": {"purl": purl}}
+    ecosystem, name, version = distro.split(package)
+    return {"package": {"ecosystem": ecosystem, "name": name}, "version": version}
 
 
 class OsvQuery:
@@ -225,7 +275,14 @@ class OsvQuery:
     def __call__(self, context: ProviderRunContext) -> ProviderResult:
         source = str(context.input.get("logical_source") or "osv.dev.query")
         components = [str(p) for p in context.input.get("components") or ()]
-        asked, _skipped = partition(components)
+        try:
+            packages = distro_packages(
+                [str(p) for p in context.input.get("distro_purls") or ()],
+                [str(p) for p in context.input.get("distro_packages") or ()],
+            )
+        except ValueError as error:
+            return ProviderResult.refused(PROVIDER_DECLINED, str(error))
+        asked, _skipped = partition(components, packages)
         responses: list[dict[str, Any]] = []
         missing = 0
         timeout = max(5.0, context.budgets.wall_clock_seconds * 0.4)
@@ -250,8 +307,9 @@ class OsvQuery:
             found: set[str] = set()
             for start in range(0, len(asked), BATCH):
                 chunk = asked[start : start + BATCH]
+                chunk_packages = [packages.get(p) for p in chunk]
                 body = json.dumps(
-                    {"queries": [{"package": {"purl": p}} for p in chunk]}, sort_keys=True
+                    {"queries": [_query(p, packages.get(p)) for p in chunk]}, sort_keys=True
                 ).encode()
                 try:
                     response = client.post(
@@ -273,6 +331,7 @@ class OsvQuery:
                         request_body=body,
                         observed_at=self._clock(),
                         purls=chunk,
+                        packages=chunk_packages,
                     )
                 )
                 answer = _json(response.content) if response.status_code == 200 else None
@@ -410,6 +469,28 @@ def fixed_index(record: Mapping[str, Any]) -> dict[str, tuple[str, ...]]:
     return {package: tuple(sorted(found)[:MAX_FIXED]) for package, found in index.items()}
 
 
+def distro_fixed(record: Mapping[str, Any], package: str) -> tuple[str, ...]:
+    """The ``fixed`` events an advisory lists for a distro package's ecosystem (or a
+    release of it) and source name, smallest ``MAX_FIXED`` first."""
+
+    ecosystem, name, _version = distro.split(package)
+    found: set[str] = set()
+    for affected in record.get("affected") or ():
+        listed = affected.get("package") if isinstance(affected, Mapping) else None
+        if not isinstance(listed, Mapping) or listed.get("name") != name:
+            continue
+        held = listed.get("ecosystem")
+        if not isinstance(held, str) or not (held == ecosystem or held.startswith(ecosystem + ":")):
+            continue
+        for range_ in affected.get("ranges") or ():
+            events = range_.get("events") if isinstance(range_, Mapping) else None
+            for event in events or ():
+                version = event.get("fixed") if isinstance(event, Mapping) else None
+                if isinstance(version, str) and 0 < len(version) <= MAX_VERSION_LEN:
+                    found.add(version)
+    return tuple(sorted(found)[:MAX_FIXED])
+
+
 def fixed_versions(record: Mapping[str, Any], purl: str) -> list[str]:
     """Every ``fixed`` range event the advisory lists for the component's own package."""
 
@@ -444,7 +525,20 @@ def match(
     core's Capture wire.
     """
 
-    asked, skipped = partition(components)
+    # The OSV package each distro component was asked as, from the batches that asked.
+    asked_packages: dict[str, str] = {}
+    for member in responses:
+        # The coordinate only: the bytes are decoded once, below.
+        coordinate = member.coordinate if isinstance(member, CaptureView) else (
+            member.get("coordinate") if isinstance(member, Mapping) else None
+        )
+        if isinstance(coordinate, Mapping) and coordinate.get("method") == "POST":
+            for purl, package in zip(
+                coordinate.get("purls") or (), coordinate.get("packages") or (), strict=False
+            ):
+                if isinstance(package, str):
+                    asked_packages[str(purl)] = package
+    asked, skipped = partition(components, asked_packages)
     hits: dict[str, list[str]] = {}
     unanswered: dict[str, str] = {}
     records: dict[str, Mapping[str, Any]] = {}
@@ -498,11 +592,15 @@ def match(
         if purl in unanswered:
             continue
         base = package_base(purl)
+        package = asked_packages.get(purl)
         for advisory in hits.get(purl, ()):
             record = records[advisory]
-            if advisory not in indexes:
-                indexes[advisory] = fixed_index(record)
-            versions = indexes[advisory].get(base, ())
+            if package is not None:
+                versions = distro_fixed(record, package)
+            else:
+                if advisory not in indexes:
+                    indexes[advisory] = fixed_index(record)
+                versions = indexes[advisory].get(base, ())
             ids = cve_ids(record)
             if not ids:
                 unkeyed.append({"purl": purl, "osv_id": advisory})

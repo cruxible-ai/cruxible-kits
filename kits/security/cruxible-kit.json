@@ -792,7 +792,7 @@
     {
       "path": "automation.json",
       "role": "reference",
-      "sha256": "sha256:60cce2471d1d5aa7beb4363337f58c9efe77aae95cf05af23905fb21c9140109"
+      "sha256": "sha256:3932a3cc6f42c5bf1df83d54c9c9517b6e3713f60609c343345bc7a8592ec1df"
     },
     {
       "path": "examples/README.md",

@@ -28,7 +28,7 @@
     },
     {
       "name": "osv.query",
-      "description": "Asks api.osv.dev about each component (one POST /v1/querybatch per 1000, then GET /v1/vulns/{id} for every advisory named) and returns every response as canonical JSON, one Capture each; distro packages are never asked.",
+      "description": "Asks api.osv.dev about each component (one POST /v1/querybatch per 1000, then GET /v1/vulns/{id} for every advisory named), a distro package by the OSV source package its SBOM states, and returns every response as canonical JSON, one Capture each; a distro package with none is never asked.",
       "source": {
         "path": "kits/security/source/providers/security-osv-provider/src/security_osv_provider/osv.py",
         "repository": "https://github.com/cruxible-ai/cruxible-kits"
@@ -36,7 +36,7 @@
       "serves": [
         "security.osv.query"
       ],
-      "in": "security.osv.query.request@1",
+      "in": "security.osv.query.request@2",
       "out": "security.osv.query.result@1",
       "effect": "external_read",
       "refusals": {
@@ -49,7 +49,7 @@
     },
     {
       "name": "sbom.components",
-      "description": "Reads one CycloneDX JSON SBOM: one document naming its inventory and each distinct component by purl with its scope, nested components flattened, unidentified ones counted.",
+      "description": "Reads one CycloneDX or SPDX 2.x JSON SBOM: one document naming its inventory and each distinct component by purl with its scope, nested components flattened, unidentified ones counted, distro packages with the OSV source package they are asked as.",
       "source": {
         "path": "kits/security/source/providers/security-osv-provider/src/security_osv_provider/sbom.py",
         "repository": "https://github.com/cruxible-ai/cruxible-kits"
@@ -241,10 +241,34 @@
       {
         "artifact_format": "cruxible-contract-v1",
         "name": "security.osv.query.request",
-        "version": 1,
-        "description": "The components to ask OSV about, as purl@version, and the logical source the responses are stated under. Distro packages (purl types deb, rpm, apk) are never asked and never in queried: OSV keys distro ecosystems by source package name, which an SBOM's binary packages do not give; they read not checked.",
+        "version": 2,
+        "description": "The components to ask OSV about, as purl@version, the logical source the responses are stated under, and the distro packages (purl types deb, rpm, apk) the SBOM import resolved to an OSV source package. A distro component is asked by that package (ecosystem, source name, version); one without it is never asked, never in queried, and reads not checked.",
         "fields": {
           "components": {
+            "type": {
+              "item": {
+                "kind": "string",
+                "max_len": 256
+              },
+              "kind": "list",
+              "max_items": 20000
+            }
+          },
+          "distro_packages": {
+            "description": "ECOSYSTEM|NAME|VERSION for each distro_purls entry (security.occurrence.osv_package). A purl given two different packages is never asked.",
+            "optional": true,
+            "type": {
+              "item": {
+                "kind": "string",
+                "max_len": 256
+              },
+              "kind": "list",
+              "max_items": 20000
+            }
+          },
+          "distro_purls": {
+            "description": "The distro components that have an OSV package, one per distro_packages entry, in the same order.",
+            "optional": true,
             "type": {
               "item": {
                 "kind": "string",
@@ -260,7 +284,8 @@
               "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
             }
           }
-        }
+        },
+        "predecessor_digest": "sha256:dc317950f92ce175d69ca0c30ff013d11c89aac8ea5087a6470f52ae508416da"
       },
       {
         "artifact_format": "cruxible-contract-v1",
@@ -283,8 +308,8 @@
       {
         "artifact_format": "cruxible-contract-v1",
         "name": "security.sbom-component",
-        "version": 1,
-        "description": "One component an SBOM lists, with its scope.",
+        "version": 2,
+        "description": "One component an SBOM lists, with its scope, and for a distro package (deb, rpm, apk) the OSV package it is asked as when the SBOM states its release and source package.",
         "fields": {
           "name": {
             "optional": true,
@@ -302,6 +327,15 @@
               ]
             }
           },
+          "osv_package": {
+            "description": "ECOSYSTEM|NAME|VERSION: the OSV ecosystem (Debian:12, Alpine:v3.19, Red Hat, ...), the source package and its version; absent for a non-distro component or one whose release or source the SBOM does not state.",
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 256,
+              "min_len": 5
+            }
+          },
           "scope": {
             "type": {
               "claim_type": "security.occurrence.scope",
@@ -317,7 +351,8 @@
               ]
             }
           }
-        }
+        },
+        "predecessor_digest": "sha256:04c4e110e39869026e7e4e74bbf4aca3bba92f21187c4783f544627872af67c6"
       },
       {
         "artifact_format": "cruxible-contract-v1",
@@ -517,8 +552,8 @@
               },
               "row": {
                 "name": "security.sbom-component",
-                "version": 1,
-                "digest": "sha256:04c4e110e39869026e7e4e74bbf4aca3bba92f21187c4783f544627872af67c6"
+                "version": 2,
+                "digest": "sha256:6002ca8933120edb73444582d49d7ae779354cfe4f5c914fb573238ccbb3c07e"
               },
               "fields": {
                 "name": {
@@ -527,6 +562,10 @@
                 },
                 "named_by": {
                   "at": "named_by"
+                },
+                "osv_package": {
+                  "at": "osv_package",
+                  "presence": "optional"
                 },
                 "scope": {
                   "at": "scope",
@@ -558,6 +597,12 @@
       },
       {
         "kind": "Capability",
+        "name": "security.osv.query",
+        "version": 2,
+        "digest": "sha256:292537c1062cf977164012d70d6d024e7e8dc30cb6e39e6c9d0d242113336b46"
+      },
+      {
+        "kind": "Capability",
         "name": "security.sbom.components",
         "version": 1,
         "digest": "sha256:8ba61aa6486cb5584135d6498c30940346d9dfef225202d2499e289314b90820"
@@ -570,7 +615,7 @@
       {
         "kind": "CaptureKind",
         "name": "security.sbom-components",
-        "digest": "sha256:c0328d571d369b509d2276892a59704c291fefb3b564c4502cc9daebd9417ae7"
+        "digest": "sha256:4f6bd036374973f77f0e0046ea66726611a1429971840c446a407357cebcb288"
       }
     ]
   },

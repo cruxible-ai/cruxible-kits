@@ -1,0 +1,174 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:1b4e28ba-2fa1-11d2-883f-0016d3cca427",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-20T10:00:00+00:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "aquasecurity",
+          "name": "trivy",
+          "version": "0.50.1"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "pkg:oci/app@sha256%3Aabc",
+      "type": "container",
+      "name": "app",
+      "purl": "pkg:oci/app@sha256%3Aabc?repository_url=registry.example%2Fapp"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:apk/alpine/musl@1.2.4_git20230717-r4?arch=x86_64&distro=3.19.1",
+      "type": "library",
+      "name": "musl",
+      "version": "1.2.4_git20230717-r4",
+      "purl": "pkg:apk/alpine/musl@1.2.4_git20230717-r4?arch=x86_64&distro=3.19.1",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "alpine"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcName",
+          "value": "musl"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcVersion",
+          "value": "1.2.4_git20230717-r4"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:apk/alpine/libcrypto3@3.1.4-r5?arch=x86_64&distro=3.19.1",
+      "type": "library",
+      "name": "libcrypto3",
+      "version": "3.1.4-r5",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r5?arch=x86_64&distro=3.19.1",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "alpine"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcName",
+          "value": "openssl"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcVersion",
+          "value": "3.1.4-r5"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:rpm/redhat/openssl-libs@3.0.7-25.el9_3?arch=x86_64&epoch=1&distro=redhat-9.3",
+      "type": "library",
+      "name": "openssl-libs",
+      "version": "3.0.7-25.el9_3",
+      "purl": "pkg:rpm/redhat/openssl-libs@3.0.7-25.el9_3?arch=x86_64&epoch=1&distro=redhat-9.3",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "redhat"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcName",
+          "value": "openssl"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcVersion",
+          "value": "3.0.7"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcRelease",
+          "value": "25.el9_3"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcEpoch",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:rpm/rocky/glibc-common@2.34-83.el9.7?arch=x86_64&distro=rocky-9.3",
+      "type": "library",
+      "name": "glibc-common",
+      "version": "2.34-83.el9.7",
+      "purl": "pkg:rpm/rocky/glibc-common@2.34-83.el9.7?arch=x86_64&distro=rocky-9.3",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "rocky"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcName",
+          "value": "glibc"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcVersion",
+          "value": "2.34"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcRelease",
+          "value": "83.el9.7"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:rpm/almalinux/curl-minimal@7.76.1-26.el9_3.2?arch=x86_64&distro=almalinux-9.3",
+      "type": "library",
+      "name": "curl-minimal",
+      "version": "7.76.1-26.el9_3.2",
+      "purl": "pkg:rpm/almalinux/curl-minimal@7.76.1-26.el9_3.2?arch=x86_64&distro=almalinux-9.3",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "alma"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcName",
+          "value": "curl"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcVersion",
+          "value": "7.76.1"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcRelease",
+          "value": "26.el9_3.2"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:rpm/centos/bash@5.1.8-9.el9?arch=x86_64&distro=centos-9",
+      "type": "library",
+      "name": "bash",
+      "version": "5.1.8-9.el9",
+      "purl": "pkg:rpm/centos/bash@5.1.8-9.el9?arch=x86_64&distro=centos-9",
+      "properties": [
+        {
+          "name": "aquasecurity:trivy:PkgType",
+          "value": "centos"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcName",
+          "value": "bash"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcVersion",
+          "value": "5.1.8"
+        },
+        {
+          "name": "aquasecurity:trivy:SrcRelease",
+          "value": "9.el9"
+        }
+      ]
+    }
+  ]
+}

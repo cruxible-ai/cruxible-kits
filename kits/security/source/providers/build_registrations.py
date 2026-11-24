@@ -82,11 +82,12 @@ PACKAGES: dict[str, dict[str, Any]] = {
             {
                 "name": "osv.query",
                 "description": "Asks api.osv.dev about each component (one POST /v1/querybatch "
-                "per 1000, then GET /v1/vulns/{id} for every advisory named) and returns every "
-                "response as canonical JSON, one Capture each; distro packages are never asked.",
+                "per 1000, then GET /v1/vulns/{id} for every advisory named), a distro package "
+                "by the OSV source package its SBOM states, and returns every response as "
+                "canonical JSON, one Capture each; a distro package with none is never asked.",
                 "source": _source("security-osv-provider", "osv"),
                 "serves": [capabilities.OSV_QUERY],
-                "in": capabilities.OSV_QUERY + ".request@1",
+                "in": capabilities.OSV_QUERY + ".request@2",
                 "out": capabilities.OSV_QUERY + ".result@1",
                 "effect": "external_read",
                 "refusals": _refusals("osv.query"),
@@ -94,9 +95,10 @@ PACKAGES: dict[str, dict[str, Any]] = {
             },
             {
                 "name": "sbom.components",
-                "description": "Reads one CycloneDX JSON SBOM: one document naming its "
-                "inventory and each distinct component by purl with its scope, nested "
-                "components flattened, unidentified ones counted.",
+                "description": "Reads one CycloneDX or SPDX 2.x JSON SBOM: one document naming "
+                "its inventory and each distinct component by purl with its scope, nested "
+                "components flattened, unidentified ones counted, distro packages with the OSV "
+                "source package they are asked as.",
                 "source": _source("security-osv-provider", "sbom"),
                 "serves": [capabilities.SBOM_COMPONENTS],
                 "in": capabilities.SBOM_COMPONENTS + ".request@1",
