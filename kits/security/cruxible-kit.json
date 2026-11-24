@@ -9,6 +9,10 @@
       "path": "capabilities/security.osv.query/v1.json"
     },
     {
+      "artifact_digest": "sha256:292537c1062cf977164012d70d6d024e7e8dc30cb6e39e6c9d0d242113336b46",
+      "path": "capabilities/security.osv.query/v2.json"
+    },
+    {
       "artifact_digest": "sha256:8b9ead1dac93b805c082e28dd7f59cef36850c69c7404f74a400e2df81f15ab9",
       "path": "capabilities/security.sarif.findings/v1.json"
     },
@@ -49,7 +53,7 @@
       "path": "capture-contracts/security.sarif-log.json"
     },
     {
-      "artifact_digest": "sha256:252f9f4e802b98bd2d7f8329cfdee2cabf7d1271bf6be73072b17e7830bbd0dd",
+      "artifact_digest": "sha256:a11e768fc4b333d9d651c7e8226a424b3aabdf54c471d234ee8247b40a3e0524",
       "path": "capture-contracts/security.sbom-components.json"
     },
     {
@@ -225,6 +229,10 @@
       "path": "claim-types/security.occurrence/inventory.json"
     },
     {
+      "artifact_digest": "sha256:fdc5af6e81c0c453d73b421a2d8af9dba5bfdf98b042635a9282ccd48df425f8",
+      "path": "claim-types/security.occurrence/osv_package.json"
+    },
+    {
       "artifact_digest": "sha256:5bce85117e09dbe805f7fa6d0939acdb687d5799da92ccf067a20da11d7d2216",
       "path": "claim-types/security.occurrence/scope.json"
     },
@@ -389,6 +397,10 @@
       "path": "contracts/security.osv-component/v1.json"
     },
     {
+      "artifact_digest": "sha256:742b2ffdc44428ee61659463109229a495e3491412d2b2b84f269e5fb5bcc494",
+      "path": "contracts/security.osv-distro-package/v1.json"
+    },
+    {
       "artifact_digest": "sha256:547d75c18258a54d5c6f5de344c905efbf3e81b265a920dfb557ddf3d00fc963",
       "path": "contracts/security.osv-not-checked/v1.json"
     },
@@ -439,6 +451,10 @@
     {
       "artifact_digest": "sha256:dc317950f92ce175d69ca0c30ff013d11c89aac8ea5087a6470f52ae508416da",
       "path": "contracts/security.osv.query.request/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:91b6f85057b71e59b83c865ca816c13e6378e91a7bc8160e32ef1f2279d6e72e",
+      "path": "contracts/security.osv.query.request/v2.json"
     },
     {
       "artifact_digest": "sha256:e36fce5e52b76ec23fe6d372775cd9ebe0fddb131af1ad4fea8614de95126113",
@@ -509,6 +525,10 @@
       "path": "contracts/security.sbom-component/v1.json"
     },
     {
+      "artifact_digest": "sha256:6002ca8933120edb73444582d49d7ae779354cfe4f5c914fb573238ccbb3c07e",
+      "path": "contracts/security.sbom-component/v2.json"
+    },
+    {
       "artifact_digest": "sha256:a20f93116adbcfd7108143dd6fde3904613c17974411004f99a78bf642035d3a",
       "path": "contracts/security.sbom-import.input/v1.json"
     },
@@ -553,7 +573,7 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:943e5f7cff52471d1de8cc7d225be19c67d002f068ccd8279dbd4692f02a2ec2",
+      "artifact_digest": "sha256:e83e7cc64e1888df4651364609cd92fd0533097d429e5290dd6faf8a60fca15f",
       "path": "documents/security.guidance.dependency.json"
     },
     {
@@ -585,7 +605,7 @@
       "path": "procedures/security.kev-triage.json"
     },
     {
-      "artifact_digest": "sha256:2ab43254340acd20aae2516fdc4fddee7b58b57cb1e017888c87379ccdcbbd9e",
+      "artifact_digest": "sha256:ea5637bb06e0419cc87197ce6f8337867c8af6edd15b3700ab4f26569380fdd4",
       "path": "procedures/security.osv-query.json"
     },
     {
@@ -601,7 +621,7 @@
       "path": "procedures/security.sarif-import.json"
     },
     {
-      "artifact_digest": "sha256:8e2acbdec20c009b456e2c638ede21201ebb9429203f6485f6e1a6bb0698ef07",
+      "artifact_digest": "sha256:60c67f055a59261bee15bc5f01f3d87d4a5f27619637c499a04c97d25c6431d7",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -691,6 +711,10 @@
     {
       "artifact_digest": "sha256:30b9bbafbd283893ff5428caefee99adf721fcb92b4c6dca7d1d2bb7a9fde29e",
       "path": "query-definitions/security.osv_components.json"
+    },
+    {
+      "artifact_digest": "sha256:f16c07f89bb52c66f625da01d1d08e620d0cc40d18b18fb3e4c1c91b425fcb8d",
+      "path": "query-definitions/security.osv_distro_packages.json"
     },
     {
       "artifact_digest": "sha256:795d036c5053232ea9b7f17285098578d5650070b4fa302d5f3abbfaa344a19a",
@@ -787,7 +811,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:779e779b637d2e2393af4a70072ea11930f30f526b8f91ea78ef9bc3bd85e10b"
+      "sha256": "sha256:23c96b0f4690865bcdac64e0297493c08e1d30a88f88e21dd6299fc91bda35f8"
     },
     {
       "path": "automation.json",
@@ -797,12 +821,12 @@
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:aea8f3d0afd12f616bcec9003e929b68e0d8b839474a17937cbebb7b6bbe1c33"
+      "sha256": "sha256:a21d5b0b029c4721968bcb378917b9c9d64b2f5f45c26c5e2e1e4d329de123ff"
     },
     {
       "path": "examples/export_vex.py",
       "role": "example",
-      "sha256": "sha256:04f834992533fb446c76992254357aecc33081eb4b7303c29c08b32255d6187c"
+      "sha256": "sha256:d0a7a096934ac38532b624fc2f6fef3ff9b999c2b1d1d55ff0659941f6d40652"
     },
     {
       "path": "examples/sarif/automation-sarif.json",
@@ -898,12 +922,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:f3ceecd8b939cfa1ea4d5c1e5d986f41c9a848b401e5450cfab2403b78dd39d7",
-      "git_oid": "224277ac66dde698f7747df193b02a75232b26bc",
-      "semantic_root": "sha256:12e3529244ed31136e9b95248e8d7e43e4a3dc27d27a3a9a63e99033d4a6072f",
+      "generation_root": "sha256:ce86c31ff6fdaadddb6d7ee9a9f4cf5484bc28902a7170bce1dc192b2e4e4228",
+      "git_oid": "f5275d0381d694081438696f58dfb4c2d50009c8",
+      "semantic_root": "sha256:53a081432e2fb5afc4b468b3ed92c57aa6261a0e1adf7222fb8b47a1513e97ae",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_5f2fb3942d554372",
+    "instance_id": "inst_79f3c47b8b374c30",
     "principal_id": "owner"
   },
   "providers": [
@@ -950,7 +974,7 @@
       "version": "0.2.0.dev0",
       "wheel": {
         "filename": "security_osv_provider-0.2.0.dev0-py3-none-any.whl",
-        "sha256": "sha256:44c8dfa47660c6abc02e15435ffa4e5917085d3a88daa3579fbdaaaddf667187"
+        "sha256": "sha256:4b8c1560143cd461a3695b87e91e61fe2d5eb4654a1fae7329d45dd5f75423d7"
       }
     },
     {

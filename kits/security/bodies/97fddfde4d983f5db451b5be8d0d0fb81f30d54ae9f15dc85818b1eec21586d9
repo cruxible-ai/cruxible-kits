@@ -32,6 +32,17 @@ record's `fixed`); its bytes are base64 in `capture read`'s JSON: `cruxible capt
 base64 -d`. Read the advisory itself at `https://osv.dev/vulnerability/<osv_id>`, then the
 code that uses the package.
 
+A distro package (purl type `deb`, `rpm`, `apk`) is asked about by the source package its
+SBOM states, so OSV's finding for `glibc` lands on the binary `libc6`: judge whether this
+binary carries and exposes the vulnerable code (a library split into several binaries
+often ships it in only one). A distro package whose SBOM states no release or source is
+not checked, never clean: regenerate the SBOM with a tool that records them (Syft, Trivy)
+rather than judging it.
+
+Your judgments are what `examples/export_vex.py` exports as VEX: a resolved justification
+as `not_affected`, the `affected` verdict as affected, and everything else, a contested
+judgment included, as under investigation.
+
 ## Where the work arrives
 
 Urgent exposures arrive in the Line inbox: the `security.exposure-attention.unjudged` Line

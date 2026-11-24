@@ -777,8 +777,10 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
         "subject-kinds/it.asset.json",
     ], sorted(bundle.contents())
     assert sorted(path for path in bundle.contents() if path.startswith("capabilities/")) == [
-        f"capabilities/security.{name}/v1.json"
-        for name in ("osv.match", "osv.query", "sarif.findings", "sbom.components")
+        f"capabilities/security.{name}.json"
+        for name in (
+            "osv.match/v1", "osv.query/v1", "osv.query/v2", "sarif.findings/v1", "sbom.components/v1"
+        )
     ]
     assert bundle.manifest.automation_template == "automation.json"
     assert {p.package for p in bundle.manifest.providers} == {

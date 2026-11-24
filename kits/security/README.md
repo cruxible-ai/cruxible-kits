@@ -15,7 +15,7 @@ It covers two loops:
 
 | Loop | What it does |
 |---|---|
-| Dependency | Import a CycloneDX SBOM, ask OSV which vulnerabilities affect its components, read CISA KEV and FIRST EPSS for them, then judge each exposure: a not_affected justification, or an `affected` verdict that keeps it on the confirmed list until fixed |
+| Dependency | Import a CycloneDX or SPDX JSON SBOM (container distro packages included), ask OSV which vulnerabilities affect its components, read CISA KEV and FIRST EPSS for them, then judge each exposure: a not_affected justification, or an `affected` verdict that keeps it on the confirmed list until fixed |
 | Audit | Agents (and optionally SARIF scanners) report code findings by key, a second agent judges each one, and coverage units record what was checked against which code |
 
 Every observation cites retained source bytes. Missing or incomplete input
@@ -24,7 +24,7 @@ stays unknown; it never means unaffected or clean.
 | Installed definitions | Purpose |
 |---|---|
 | `security.inventory`, `security.component` | An application's inventory and exact package releases |
-| `security.occurrence` | The pair (inventory, component), with its scope |
+| `security.occurrence` | The pair (inventory, component), with its scope and, for a distro package, the OSV source package it is asked as (`osv_package`) |
 | `security.vulnerability`, `security.component.affected_by` | OSV's affected packages and vulnerabilities |
 | `security.exposure`, `security.app_exposure` | Package-level and app-level judgment pairs: a `justification` (not_affected), or on the app-level pair the `verdict` `affected` |
 | `security.urgent_exposures`, `security.kev_triage_backlog` | Exposures nobody has judged, with KEV and EPSS context |
@@ -178,6 +178,9 @@ submitting. It is a template, never installed or submitted by `kit add`:
   ```sh
   uvx --from cyclonedx-bom cyclonedx-py requirements requirements.txt --of JSON -o sbom.cdx.json
   ```
+
+  An SPDX JSON SBOM works the same way (a container image: `syft IMAGE -o
+  spdx-json=sbom.spdx.json`; see [SBOM formats](#sbom-formats-and-container-distro-packages)).
 
   For a demo, copy
   [examples/sboms/log4j-demo-app.cdx.json](examples/sboms/log4j-demo-app.cdx.json)
@@ -545,10 +548,66 @@ move is core's rule, not the kit's:
 demote with `subject_creation`, and the SBOM grant without it keeps settle
 (`security.occurrence.scope`) and its Line's enablement.
 
+## SBOM formats and container distro packages
+
+The SBOM import reads CycloneDX JSON and SPDX 2.2/2.3 JSON (GitHub's
+dependency-graph export, `syft -o spdx-json`, `trivy --format spdx-json`),
+detected by content. In SPDX, a package with a `purl` external reference is a
+component, the described package names the inventory, and relationships give
+the scope (`DEV_`/`TEST_`/`BUILD_DEPENDENCY_OF` excluded,
+`OPTIONAL_DEPENDENCY_OF` optional, the rest required).
+
+OSV keys distro packages (`deb`, `rpm`, `apk`) by release and **source**
+package (`libc6` is `glibc` to OSV), and a component's purl key drops both.
+So the import records what the SBOM states as the occurrence's `osv_package`
+(`ECOSYSTEM|NAME|VERSION`, listed by `security.osv_distro_packages`), and OSV is
+asked by it:
+
+| purl | OSV ecosystem |
+|---|---|
+| `pkg:deb/debian/...?distro=debian-12` | `Debian:12` |
+| `pkg:deb/ubuntu/...?distro=ubuntu-22.04` | `Ubuntu:22.04` |
+| `pkg:apk/alpine/...?distro=alpine-3.19.1` (Trivy: `distro=3.19.1`) | `Alpine:v3.19` |
+| `pkg:apk/wolfi/...`, `pkg:apk/chainguard/...` | `Wolfi`, `Chainguard` |
+| `pkg:rpm/redhat/...` | `Red Hat` |
+| `pkg:rpm/rocky/...?distro=rocky-9.3`, `pkg:rpm/almalinux/...?distro=almalinux-9.3` | `Rocky Linux:9`, `AlmaLinux:9` |
+
+The source package comes from the purl's `upstream` qualifier, Syft
+(`syft:package:metadata:source`) or Trivy (`aquasecurity:trivy:SrcName`)
+properties, or SPDX `sourceInfo`; in a Syft SBOM a deb or apk package with no
+source stated is its own source (Syft states it only when it differs).
+Nothing is guessed: a distro package with no or an unknown release, or no
+stated source, is never asked and reads **not checked**, never clean; the
+derived SBOM document counts each reason under `distro`
+(`no_distro_qualifier`, `unknown_distro`, `no_source_package`, `no_version`).
+OSV's finding lands on the binary component (`libc6` affected by glibc's CVE),
+with the release's own fixed versions in its reason.
+
+## Exporting VEX
+
+[examples/export_vex.py](examples/export_vex.py) writes the judgments as a
+CycloneDX 1.5 VEX or OpenVEX v0.2.0 document (standard library and
+`cruxible_client` only):
+
+```sh
+cruxible python examples/export_vex.py --format openvex > vex.openvex.json
+cruxible python examples/export_vex.py --format cyclonedx --inventory pkg:maven/com.example/app@1.0.0 > vex.cdx.json
+```
+
+Every read is pinned to the head as the export starts, and the document names
+that coordinate (instance, generation, git oid, state digest); the timestamp is
+the generation's own and the serial derives from the coordinate, so a re-export
+at the same coordinate is byte-identical. One statement per current exposure:
+confirmed `affected` (CycloneDX `exploitable`, with OSV's fixed versions),
+resolved app- or package-level not_affected (with its justification and
+reason), and everything else on the worklist, contested judgments included,
+as `in_triage` / `under_investigation`; the export refuses rather than ever
+state a contested pair `not_affected`. Releases the SBOM no longer lists are
+left out. Each statement cites its Claims and their Captures.
+
 ## Limits and maintenance
 
-Distro purls (`deb`, `rpm`, `apk`) need source-package mapping and are currently
-**not checked** by OSV. Failed/incomplete OSV responses never authorize absence
+Failed/incomplete OSV responses never authorize absence
 retirement. The SBOM workspace-file limit is 1 MiB: split larger inventories.
 An SBOM saying a package is present does not establish runtime reachability.
 

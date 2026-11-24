@@ -1,0 +1,18 @@
+{
+  "artifact_format": "cruxible-capability-v1",
+  "description": "Asks OSV.dev which advisories affect each component (purl@version), and each distro package (deb, rpm, apk) by the OSV source package its SBOM states (Debian:12 glibc, Alpine:v3.19 openssl, ...), and returns every response as canonical JSON, one Capture each. OSV does the version matching; a distro package with no source package is never asked.",
+  "effect": "external_read",
+  "in": {
+    "digest": "sha256:91b6f85057b71e59b83c865ca816c13e6378e91a7bc8160e32ef1f2279d6e72e",
+    "name": "security.osv.query.request",
+    "version": 2
+  },
+  "name": "security.osv.query",
+  "out": {
+    "digest": "sha256:e36fce5e52b76ec23fe6d372775cd9ebe0fddb131af1ad4fea8614de95126113",
+    "name": "security.osv.query.result",
+    "version": 1
+  },
+  "predecessor_digest": "sha256:ca605cd0876ef311f60b13964913a8b96536f182138f515aa893acdf8b700aef",
+  "version": 2
+}

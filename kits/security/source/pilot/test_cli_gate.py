@@ -353,3 +353,31 @@ def test_the_committed_kit_runs_the_supported_path_on_a_real_daemon(instance: In
         )
     }
     assert scopes["pkg:maven/org.slf4j/slf4j-api@1.7.32"] == "optional"
+
+    # -- 5. The VEX export through cruxible_client, pinned to one coordinate.
+    # An own-words affected_by on the upgraded release puts one pair on the worklist.
+    instance.write("seed", {
+        "because": "Seed: the 2.17.1 release is listed for CVE-2021-44228 (gate stand-in for OSV).",
+        "changes": [{"op": "add", "subject": f"security.component/{FIXED_CORE}",
+                     "field": "affected_by", "value": f"security.vulnerability/{LOG4SHELL.lower()}",
+                     "role": "normative"}],
+    })
+    exporter = str(KIT / "examples" / "export_vex.py")
+    for fmt in ("openvex", "cyclonedx"):
+        first = instance.run("python", exporter, "--format", fmt)
+        assert instance.run("python", exporter, "--format", fmt) == first  # same coordinate
+        if fmt == "openvex":
+            (statement,) = first["statements"]
+            assert statement["vulnerability"]["name"] == LOG4SHELL
+            assert statement["products"] == [{"@id": DEMO_APP, "subcomponents": [{"@id": FIXED_CORE}]}]
+            assert statement["status"] == "under_investigation"
+            assert "CLM-" in statement["status_notes"]
+        else:
+            (vulnerability,) = first["vulnerabilities"]
+            assert vulnerability["analysis"]["state"] == "in_triage"
+            coordinate = {p["name"]: p["value"] for p in first["metadata"]["properties"]}
+            assert coordinate["cruxible:instance_id"] == init["trust_root"]["instance_id"]
+            claims = [p["value"].split(" ", 1)[0] for p in vulnerability["properties"]
+                      if p["name"] == "cruxible:claim"]
+            assert claims and all(instance.run("get", c, "--json") for c in claims)
+

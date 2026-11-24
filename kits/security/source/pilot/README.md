@@ -55,7 +55,7 @@ definitions (`kit build` leaves them out). The kit owns four:
 
 | Capability | Effect | Sends | Gets back |
 |---|---|---|---|
-| `security.osv.query@1` | external_read | components, logical source | OSV's responses, `list<capture<security.osv-response>>` |
+| `security.osv.query@2` | external_read | components, logical source, distro purls and their OSV packages (`@1`, without them, stays as its predecessor) | OSV's responses, `list<capture<security.osv-response>>` |
 | `security.osv.match@1` | pure | responses, components, logical source | `capture<security.osv-matches>` |
 | `security.sbom.components@1` | pure | `capture<security.cyclonedx-sbom>`, path, logical source | `capture<security.sbom-components>` |
 | `security.sarif.findings@1` | pure | `list<capture<security.sarif-log>>`, held findings, repo, logical source | `capture<security.sarif-findings>` |
@@ -116,7 +116,7 @@ never change (a new identity is a new pair).
 |---|---|---|
 | `security.inventory` | `inventory_id`: the SBOM's `metadata.component` purl, or its workspace path when it has none | (none; created by the import) |
 | `security.component` | `purl`: purl@version, with qualifiers dropped by the `purl-type` package normalizer: one package release, the same in every inventory | `affected_by` (many, Subject-valued → vulnerability: OSV's observation; its inverse "none of V" is an agent's package-level not_affected judgment) |
-| `security.occurrence` | (`inventory`, `component`) | `scope`: the CycloneDX scope (`required`, `optional`, `excluded`; `required` when the SBOM states none). The membership fact (R3): live while the SBOM lists the component, retired when it no longer does |
+| `security.occurrence` | (`inventory`, `component`) | `scope`: the CycloneDX scope (`required`, `optional`, `excluded`; `required` when the SBOM states none; SPDX's relationships map onto it). The membership fact (R3): live while the SBOM lists the component, retired when it no longer does. `osv_package` (observation): for a distro package, `ECOSYSTEM\|NAME\|VERSION`, the OSV source package its SBOM states |
 | `security.exposure` | (`component`, `vulnerability`) | `justification`: `vulnerable_code_not_present` only (package level, normative; cites the code read or own words) |
 | `security.app_exposure` | (`occurrence`, `vulnerability`) | `justification`: `component_not_present`, `vulnerable_code_not_in_execute_path`, `vulnerable_code_cannot_be_controlled_by_adversary` or `inline_mitigations_already_exist` (one inventory, normative; cites the code read or own words). `verdict`: `affected` (alone: reachable here, citing the code on the call path) or `not_affected` (optional beside a justification) |
 | `it.asset` | `slug` | `title`, `owner`, `environment` (prod/staging/dev), `exposure` (internet/internal/isolated), `criticality` (critical/high/medium/low): normative, own words or a cited file; `security.inventory.asset` (one, normative) links an inventory to it |
@@ -222,24 +222,30 @@ claims.
 
 ## Distro coverage and "not checked" (K-B1-6)
 
-OSV's distribution ecosystems (Debian, Ubuntu, Alpine, the RPM distributions)
-are keyed by **source** package name. An SBOM lists **binary** packages: to OSV,
-`pkg:deb/debian/libc6` is `glibc` and `libssl3` is `openssl`. Version 1 cannot
-map binary names to source names, so:
+OSV's distribution ecosystems are keyed by release and **source** package; an
+SBOM lists **binary** packages (`pkg:deb/debian/libc6` is `glibc` to OSV), and
+the component's purl key keeps neither the `distro` nor the `upstream`
+qualifier. `sbom.components` resolves each distro entry from what the SBOM
+states (`security_osv_provider/distro.py`: the release table, the `upstream`
+qualifier, Syft and Trivy properties, SPDX `sourceInfo`) to `osv_package`, the
+import writes it on the occurrence, `security.osv_distro_packages` feeds it to
+`osv.query` (capability `@2`), which asks `{package: {ecosystem, name},
+version}` and names the package in the batch coordinate, and `osv.match` maps
+the answer back to the binary component, with the fixed versions of that
+ecosystem and source package (`test_distro_gate.py`). Without a stated release
+or source, or with two different packages from two inventories:
 
-- every distro component (purl type `deb`, `rpm` or `apk`) is left out of the
-  OSV query and out of `queried`;
-- such a component reads **not checked**. It is never clean: no `affected_by`
-  is written for it, and nothing says it is unaffected;
+- the component is left out of the OSV query and out of `queried`;
+- it reads **not checked** (`distro_source_name_unknown`), never clean, and the
+  derived SBOM document's `distro` header counts why;
 - absence never retires its Claims, because only components OSV answered in
   full are judged.
 
 The same applies to a component whose OSV answer was incomplete: a failed or
-truncated batch, or an advisory record OSV could not serve. Post-v1, binary
-names will map to source names, from SBOM source-name metadata (syft
-`sourceName`) or from a distro name table. The recorded exchanges in
-`security-osv-provider/tests/recordings` show the gap: `libc6@2.36-9+deb12u7`
-gets no answer, while `glibc` at the same version gets 33 advisories.
+truncated batch, or an advisory record OSV could not serve. The recorded
+exchanges in `security-osv-provider/tests/recordings` show why: `libc6@2.36-9+deb12u7`
+gets no answer, while `glibc` at the same version in `Debian:12` gets 33
+advisories.
 
 ## Judgments: not_affected and affected (K-B2-J1, D-R46 R4)
 

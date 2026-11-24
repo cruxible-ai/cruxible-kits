@@ -38,6 +38,16 @@
         }
       },
       {
+        "id": "distro",
+        "kind": "read",
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.osv_distro_packages"
+          }
+        }
+      },
+      {
         "captures": {
           "responses": {
             "target": {
@@ -49,6 +59,8 @@
         "id": "osv",
         "input": {
           "components": "$steps.components.rows.[*].purl",
+          "distro_packages": "$steps.distro.rows.[*].osv_package",
+          "distro_purls": "$steps.distro.rows.[*].purl",
           "logical_source": "$params.logical_source"
         },
         "kind": "call",
@@ -134,15 +146,15 @@
       },
       "query": {
         "capability": {
-          "digest": "sha256:ca605cd0876ef311f60b13964913a8b96536f182138f515aa893acdf8b700aef",
+          "digest": "sha256:292537c1062cf977164012d70d6d024e7e8dc30cb6e39e6c9d0d242113336b46",
           "name": "security.osv.query",
-          "version": 1
+          "version": 2
         }
       }
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:8443e288096ad48db834d60d2daebb59f2e104dabc83355f1d3e7362c9176128",
+  "definition_digest": "sha256:1d5cc2cef477432eba144d81a0ac4355327470552e0faa8da5ad3021e5bde5d1",
   "identity": {
     "kind": "Procedure",
     "name": "security.osv-query"
