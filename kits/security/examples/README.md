@@ -8,7 +8,6 @@ Inputs for the security kit (Cruxible 0.6):
 | `sboms/cruxible-env.cdx.json` | A recorded Python environment inventory, not a statement of your current environment |
 | `sboms/env_sbom.py` | Write an inventory from the Python environment running it |
 | `sarif/automation-sarif.json` | A ready-to-submit SARIF intake for one scanner: the import Line, its Mandates (`expires: 90d`) and the attention Line with its landing Trigger |
-| `ci/cruxible-security.yml` | A drop-in GitHub Actions workflow: generate the SBOM, run `security.start`, list `cruxible next`, export VEX with `kit run security:export-vex` ([the README](../README.md#continuous-integration)) |
 | `sarif/semgrep-demo.sarif` | A Semgrep SARIF 2.1.0 log of a demo app (`github.com/example/demo-app`) with two findings: SQL injection in `app/db.py` and path traversal in `app/files.py` |
 
 The VEX exporter is the kit script `export-vex` (`cruxible kit run

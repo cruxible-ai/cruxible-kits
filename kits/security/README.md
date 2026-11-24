@@ -677,21 +677,6 @@ as `in_triage` / `under_investigation`; the export refuses rather than ever
 state a contested pair `not_affected`. Releases the SBOM no longer lists are
 left out. Each statement cites its Claims and their Captures.
 
-## Continuous integration
-
-[examples/ci/cruxible-security.yml](examples/ci/cruxible-security.yml) is a
-drop-in GitHub Actions workflow: it generates a CycloneDX SBOM with Syft,
-creates a disposable one-owner instance with an ephemeral key for the job,
-`kit add`s the kit and adopts `security` and `security:sbom`, runs
-`security.start` and fails unless the run completed (`--json` `status`
-`completed`; a stop for review exits 0 and is not a pass), prints `cruxible
-next` and the urgent worklist, and uploads the VEX that completed run's
-`kit run security:export-vex` produced. It never caches a signing key or
-daemon state in GitHub Actions cache, which pull-request jobs can restore:
-persistent keys and governed state that keep judgments between runs belong on
-a dedicated runner or a hosted service. A team that reviews judgments points CI
-at its shared daemon there and keeps independent approval.
-
 ## Limits and maintenance
 
 Failed/incomplete OSV responses never authorize absence

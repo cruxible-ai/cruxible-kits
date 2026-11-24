@@ -815,7 +815,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:10e84ef52bde3d62f0c331a2f533b9d81bdfeee756850a1b54216178c693c6c9"
+      "sha256": "sha256:0356638ef3b56eb5b2c8c75d43e9af4d4c238c650183d30c598009c6bdb1ce47"
     },
     {
       "path": "automation.json",
@@ -825,12 +825,7 @@
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:d8d83471824a5bf8422024ca0c82486b21868a94f1080e96774a9515053de72d"
-    },
-    {
-      "path": "examples/ci/cruxible-security.yml",
-      "role": "example",
-      "sha256": "sha256:f74df9dc1b47dd7ffab15e6a068fb37201af1a55fcae8f86fd3fa92f65abed52"
+      "sha256": "sha256:1670f60941e6a4a82e36ae220e3106b48c6d1bf92f594bbfc2e9794e5d49ce0e"
     },
     {
       "path": "examples/sarif/automation-sarif.json",
