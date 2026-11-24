@@ -952,7 +952,7 @@ def test_the_track_record_lists_each_judgment_with_its_justification(tmp_path: P
     )
     for claim in claims:
         (revision,) = get(instance, claim, detail="history").history.revisions
-        assert revision.actor == "owner" and revision.accepted
+        assert revision.actor == "owner" and revision.git_oid and revision.proposed_at
 
 
 def test_reversing_a_judgment_retires_its_none_and_justification_together(
@@ -1275,6 +1275,60 @@ def test_a_confirmed_exposure_clears_when_the_sbom_drops_the_component_and_next_
     import_sbom(instance, "demo", minute=2)
     assert query_rows(instance, triage.CONFIRMED) == []
     assert not {r for r in exposures(instance) if r[1] == CORE}
+    stale = _next_rows(instance, tmp_path, "claim_dependency_stale")
+    assert [row.subject_identity for row in stale] == [f"Claim:{claim}"], stale
+    (entry,) = stale[0].detail["stale_inputs"]
+    assert entry["subject_end"] == f"Subject:{inventory.OCCURRENCE}/{occurrence}"
+
+
+def upgraded_sbom(purl: str, to: str) -> bytes:
+    """The demo SBOM with one component moved to another release (an upgrade)."""
+
+    document = json.loads(DEMO_SBOM.read_bytes())
+    for item in document["components"]:
+        if item.get("purl") == purl:
+            item["purl"] = purl.rpartition("@")[0] + "@" + to
+            item["version"] = to
+    return json.dumps(document).encode()
+
+
+def test_upgrading_a_package_moves_its_app_judgment_out_of_the_current_track_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """upgrade-case-findings-1117 (kit items 2-3). An app-level not_affected judgment
+    on log4j-core 2.14.1 reads as current only while the SBOM lists 2.14.1. The SBOM
+    upgraded to 2.17.1 retires the old occurrence's scope: the judgment leaves
+    ``security.app_not_affected_judgments`` for
+    ``security.departed_app_not_affected_judgments`` (kept, not lost), and ``next``
+    lists it as ``claim_dependency_stale`` naming the occurrence that left."""
+
+    monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
+    instance = world(tmp_path)
+    run_osv(instance)
+    occurrence = occurrence_of(instance, DEMO_APP, CORE)
+    outcome = app_judge(instance, DEMO_APP, CORE, LOG4SHELL)
+    claim = justification_claim(instance, outcome.changes[1].subject)
+    (row,) = query_rows(instance, triage.APP_JUDGMENTS)
+    assert (row["inventory"], row["component"], row["cve_id"]) == (DEMO_APP, CORE, LOG4SHELL)
+    assert query_rows(instance, triage.DEPARTED_APP_JUDGMENTS) == []
+    assert _next_rows(instance, tmp_path, "claim_dependency_stale") == []
+
+    write_file(tmp_path, DEMO_PATH, upgraded_sbom(CORE, "2.17.1"))
+    import_sbom(instance, "demo", minute=2)
+    fixed = CORE.rpartition("@")[0] + "@2.17.1"
+    assert {r["purl"] for r in query_rows(
+        instance,
+        inventory.INVENTORY_COMPONENTS,
+        params={"inventory": f"{inventory.INVENTORY}/{DEMO_APP}"},
+    )} == {API, fixed, SLF4J}
+    assert query_rows(instance, triage.APP_JUDGMENTS) == []
+    (gone,) = query_rows(instance, triage.DEPARTED_APP_JUDGMENTS)
+    assert (gone["inventory"], gone["component"], gone["cve_id"], gone["justification"]) == (
+        DEMO_APP,
+        CORE,
+        LOG4SHELL,
+        APP_REASON,
+    )
     stale = _next_rows(instance, tmp_path, "claim_dependency_stale")
     assert [row.subject_identity for row in stale] == [f"Claim:{claim}"], stale
     (entry,) = stale[0].detail["stale_inputs"]

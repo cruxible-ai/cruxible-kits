@@ -158,6 +158,27 @@ release: the row leaves `security.confirmed_exposures`, and `next` lists the ver
 `claim_dependency_stale` (its occurrence is no longer observed). Check that the new SBOM
 really dropped the release, then retire the verdict to clear that row.
 
+A not_affected judgment whose release leaves the SBOM (an upgrade lists a new
+purl@version, or the package is removed) is handled the same way. The app-level
+judgment leaves `security.app_not_affected_judgments` (the current track record lists a
+judgment only while its occurrence holds a scope) for
+`security.departed_app_not_affected_judgments`, and `next` lists its justification as
+`claim_dependency_stale`, naming the occurrence that left. It was a judgment about the old
+release only:
+
+1. Check the new SBOM really dropped the release (`security.inventory_components
+   --param inventory=security.inventory/<id>`).
+2. Judge the new release's pair on its own when it reaches the worklist: re-check the old
+   reasoning and citation against it (see "What you are judging"), never copy the old
+   judgment across.
+3. Retire the old justification to clear the `next` row (`cruxible retire CLAIM --reason
+   "release left the inventory"`); the pair Subject and its history stay. Leave it only when
+   you expect the release back (a planned rollback): listed again, its occurrence holds a
+   scope and the judgment is current again.
+
+A package-level judgment (`security.not_affected_judgments`) is about the release itself,
+wherever it is installed, so it stays listed after one inventory drops it.
+
 ## Anti-patterns
 
 - An app-level reason stated at package level: it would silence every inventory.

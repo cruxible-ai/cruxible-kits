@@ -306,7 +306,8 @@ creates a judgment pair.
 | `security.kev_triage_backlog` | The KEV-listed rows of the above (pairs under investigation stay) |
 | `security.confirmed_exposures` | One per occurrence judged `affected` whose SBOM still lists the component, with its app_exposure id and the same fields, KEV first then EPSS; the fixed versions are in the `osv.match` document the component's `affected_by` Claim cites |
 | `security.not_affected_judgments` | Every package-level judgment: exposure, component, CVE, justification |
-| `security.app_not_affected_judgments` | Every app-level judgment: app_exposure, inventory, component, CVE, justification |
+| `security.app_not_affected_judgments` | Every current app-level judgment (its occurrence still holds a scope): app_exposure, inventory, component, CVE, justification |
+| `security.departed_app_not_affected_judgments` | The app-level judgments whose component the inventory's SBOM no longer lists (an upgraded or removed release), same row: kept as history while `next` lists each as `claim_dependency_stale` (`test_upgrading_a_package_moves_its_app_judgment_out_of_the_current_track_record`) |
 | `security.watched_vulnerabilities` | One per vulnerability some inventoried component is affected by (K-B1-2); a package-level judgment drops it, an app-level one does not (a Subject-shaped query takes no optional hop) |
 | `security.covered_app_exposures` | One per occurrence OSV still lists V for whose app-level not_affected judgment is resolved |
 | `security.covered_package_exposures` | One per occurrence holding a scope of a component whose package-level judgment is resolved (every inventory holding it), except an occurrence confirmed affected at app level |

@@ -18,8 +18,12 @@ visible ``scope`` -> inventory.
   above (:func:`exposure_counts`): covered, new, confirmed, and worklist pairs that
   exist with no judgment on them.
 - ``security.not_affected_judgments`` / ``security.app_not_affected_judgments``:
-  the track record: every package-level and app-level judgment with its VEX
-  justification. ``get <claim> --detail history`` on its Claims gives who
+  the track record: every package-level judgment, and every app-level judgment
+  whose occurrence the inventory's SBOM still lists, with its VEX justification.
+  ``security.departed_app_not_affected_judgments`` keeps the app-level judgments
+  whose component the SBOM no longer lists (an upgraded or removed release), so
+  an upgrade clears the old release's judgment from the current view without
+  losing it. ``get <claim> --detail history`` on its Claims gives who
   stated it and when; a source that later disagrees surfaces as a
   ``held_disagrees`` finding in the OSV Line's inbox.
 
@@ -94,6 +98,9 @@ URGENT = "security.urgent_exposures"
 BACKLOG = "security.kev_triage_backlog"
 JUDGMENTS = "security.not_affected_judgments"
 APP_JUDGMENTS = "security.app_not_affected_judgments"
+#: App-level judgments whose component the inventory's SBOM no longer lists: the
+#: history the current track record leaves out (an upgraded or removed release).
+DEPARTED_APP_JUDGMENTS = "security.departed_app_not_affected_judgments"
 CONFIRMED = "security.confirmed_exposures"
 COVERED_APP = "security.covered_app_exposures"
 COVERED_PACKAGE = "security.covered_package_exposures"
@@ -233,12 +240,21 @@ JUDGMENTS_SPEC: dict[str, Any] = {
         "e.justification",
     ],
 }
+#: The app-level track record walks from the judgment pairs, like the confirmed
+#: list, and keeps the same membership test: a judgment counts as current only while
+#: its occurrence holds a scope (the inventory's SBOM still lists the component).
+#: Upgrading the package lists a new release (a new component and occurrence), so the
+#: old release's judgment moves to the departed list instead of reading as current;
+#: core also lists it in ``next`` as ``claim_dependency_stale`` (its pair's occurrence
+#: lost its last observation).
 APP_JUDGMENTS_SPEC: dict[str, Any] = {
     "query": APP_JUDGMENTS,
-    "description": "Every app-level not_affected judgment: the inventory, the component, "
-    "the vulnerability and the VEX justification.",
+    "description": "Every current app-level not_affected judgment: the inventory, the "
+    "component, the vulnerability and the VEX justification, while the inventory's SBOM still "
+    "lists the component (its occurrence holds a scope). A judgment on a release the SBOM no "
+    "longer lists is in security.departed_app_not_affected_judgments.",
     "from": {"ae": APP_EXPOSURE},
-    "where": _APP_NOT_AFFECTED,
+    "where": f"{_APP_NOT_AFFECTED} and exists o.scope",
     "hops": [
         {"o": f"ae.{APP_EXPOSURE}.occurrence!: {OCCURRENCE}"},
         {"v": f"ae.{APP_EXPOSURE}.vulnerability!: {VULN}"},
@@ -253,6 +269,16 @@ APP_JUDGMENTS_SPEC: dict[str, Any] = {
         "v.cve_id",
         "ae.justification",
     ],
+}
+DEPARTED_APP_JUDGMENTS_SPEC: dict[str, Any] = {
+    **APP_JUDGMENTS_SPEC,
+    "query": DEPARTED_APP_JUDGMENTS,
+    "description": "Every app-level not_affected judgment whose component the inventory's "
+    "SBOM no longer lists (its occurrence holds no scope): the judgment on an upgraded or "
+    "removed release, kept as history. next lists each as claim_dependency_stale until it is "
+    "retired; a release listed again moves its judgment back to "
+    "security.app_not_affected_judgments.",
+    "where": f"{_APP_NOT_AFFECTED} and not exists o.scope",
 }
 #: Confirmed, fix pending: from the judgment pairs (one per judged occurrence), so
 #: OSV later dropping its listing never hides a confirmed exposure; the
@@ -466,6 +492,7 @@ def vocabulary_members() -> list[dict[str, Any]]:
         CONFIRMED_SPEC,
         JUDGMENTS_SPEC,
         APP_JUDGMENTS_SPEC,
+        DEPARTED_APP_JUDGMENTS_SPEC,
         COVERED_APP_SPEC,
         COVERED_PACKAGE_SPEC,
         PAIR_WITHOUT_JUDGMENT_SPEC,
