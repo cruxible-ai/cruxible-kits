@@ -4,27 +4,33 @@
 # branch, each pull request and once a day it:
 #
 #   1. generates a CycloneDX SBOM of the repository (anchore/sbom-action, Syft);
-#   2. restores the Cruxible state root from the Actions cache (the instance
-#      keeps its judgments and history between runs), or on the first run creates
-#      a one-owner instance, installs the kit and adopts its recipes: no JSON to
+#   2. creates a disposable one-owner Cruxible instance with a fresh, ephemeral CI
+#      key under $RUNNER_TEMP, installs the kit and adopts its recipes: no JSON to
 #      write or edit;
 #   3. runs the security.start Runbook (every SBOM import Line, then OSV, CISA
-#      KEV and FIRST EPSS, then the attention Lines);
+#      KEV and FIRST EPSS, then the attention Lines) and fails unless the run
+#      completed: a run that stopped for review or on a failed step exports nothing;
 #   4. prints `cruxible next` and the urgent worklist, and exports OpenVEX with the
-#      kit's read-only script export-vex, uploaded as a build artifact.
+#      kit's read-only script export-vex, uploaded as a build artifact only when
+#      that completed run produced it.
 #
-# The instance here is single-owner (self-approval): CI is the only writer and
-# judgments are made elsewhere. A team that reviews judgments should point CI at
-# its shared daemon instead (CRUXIBLE_SERVER_URL and a bearer credential as
-# secrets) and keep independent approval; see the kit README.
+# Custody: every job, pull requests included, gets its own instance and key, made
+# here and discarded with the runner. Nothing Cruxible signs with, and no governed
+# state, is ever written to or restored from the GitHub Actions cache (a cache a
+# pull request job can restore is no place for a signing key). Persistent signing
+# keys and governed daemon state that keep judgments between runs belong on a
+# dedicated runner or a hosted service: point CI at that shared daemon instead
+# (CRUXIBLE_SERVER_URL and a bearer credential as secrets, independent approval
+# kept) and drop the instance steps; see the kit README. Only the tool cache
+# (setup-uv's) uses Actions cache.
 #
 # The runner calls api.osv.dev, www.cisa.gov and api.first.org (the Lines' declared
-# origins) and PyPI (provider installation on the first run).
+# origins) and PyPI (Cruxible and the kit's providers).
 #
 # Tailor: SBOM_PATH (and the SBOM step) for your generator; add one
-# `kit adopt security:sbom` per further SBOM (a container image, a second
-# service): security.start runs every one. Add `kit adopt security:sarif` for a
-# scanner's SARIF file.
+# `kit adopt security:sbom --param name=N --param relative_path=P` per further SBOM
+# (a container image, a second service): security.start runs every one. Add
+# `kit adopt security:sarif` for a scanner's SARIF file.
 
 name: cruxible-security
 
@@ -39,20 +45,11 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  # One writer per state root: never two runs restoring and saving the same cache.
-  group: cruxible-security-${{ github.ref }}
-  cancel-in-progress: false
-
 env:
   CRUXIBLE_VERSION: "0.6.0"
   SECURITY_KIT: "security:1.4.0"
   SBOM_PATH: sbom.cdx.json
-  # The daemon's state root and the CLI's settings and principal key (which must sit
-  # outside both the state root and the workspace) live beside the checkout.
-  CRUXIBLE_STATE_ROOT: ${{ github.workspace }}/../cruxible/state
-  CRUXIBLE_SERVER_SOCKET: ${{ github.workspace }}/../cruxible/d.sock
-  XDG_CONFIG_HOME: ${{ github.workspace }}/../cruxible/config
+  VEX_PATH: vex.openvex.json
 
 jobs:
   security:
@@ -65,7 +62,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Tool cache only: never Cruxible keys or state.
       - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
 
       - name: Install Cruxible
         run: uv tool install "cruxible==${CRUXIBLE_VERSION}"
@@ -78,75 +78,83 @@ jobs:
           output-file: ${{ env.SBOM_PATH }}
           upload-artifact: false
 
-      - name: Restore the Cruxible instance
-        id: state
-        uses: actions/cache/restore@v4
-        with:
-          # The instance, the CI principal's key and the workspace's .cruxible/ (which
-          # names the instance): keep this cache to this repository's workflows.
-          path: |
-            ${{ github.workspace }}/../cruxible/state
-            ${{ github.workspace }}/../cruxible/config
-            .cruxible
-          key: cruxible-state-${{ github.ref_name }}-${{ github.run_id }}
-          restore-keys: |
-            cruxible-state-${{ github.ref_name }}-
-            cruxible-state-main-
-
-      - name: Start the daemon
+      - name: Create a disposable instance
         run: |
-          mkdir -p "$CRUXIBLE_STATE_ROOT" "$XDG_CONFIG_HOME"
-          nohup cruxible server start --socket "$CRUXIBLE_SERVER_SOCKET" \
-            --state-root "$CRUXIBLE_STATE_ROOT" > "$RUNNER_TEMP/cruxible-daemon.log" 2>&1 &
+          set -euo pipefail
+          # The daemon's state root and the CLI's settings and ephemeral principal key
+          # (outside both the state root and the workspace), discarded with the runner.
+          # The daemon refuses a socket in a directory others can read: keep it 0700.
+          base="$RUNNER_TEMP/cruxible"
+          mkdir -m 700 "$base"
+          mkdir -p "$base/state" "$base/config"
+          {
+            echo "CRUXIBLE_STATE_ROOT=$base/state"
+            echo "CRUXIBLE_SERVER_SOCKET=$base/d.sock"
+            echo "XDG_CONFIG_HOME=$base/config"
+          } >> "$GITHUB_ENV"
+          nohup cruxible server start --socket "$base/d.sock" --state-root "$base/state" \
+            > "$RUNNER_TEMP/cruxible-daemon.log" 2>&1 &
           for _ in $(seq 60); do
-            cruxible server status --json > /dev/null 2>&1 && exit 0
+            if CRUXIBLE_SERVER_SOCKET="$base/d.sock" cruxible server status --json > /dev/null 2>&1; then
+              exit 0
+            fi
             sleep 1
           done
           cat "$RUNNER_TEMP/cruxible-daemon.log"
           exit 1
 
-      - name: First run - install the kit and adopt its recipes
-        if: steps.state.outputs.cache-matched-key == ''
+      - name: Install the kit and adopt its recipes
         run: |
+          set -euo pipefail
           cruxible init --principal-id ci
           # One proposal: the kit's providers and definitions together.
           cruxible kit add "$SECURITY_KIT" --commit
           cruxible kit adopt security --yes
-          cruxible kit adopt security:sbom --param name=app --param path="$SBOM_PATH" --yes
-          # Under self-approval each change lands at once; anything left waiting:
-          cruxible proposal list --status open
+          cruxible kit adopt security:sbom --param name=app --param relative_path="$SBOM_PATH" --yes
+          # Under self-approval each change lands at once: anything left open is a failure.
+          open="$(cruxible proposal list --status open --json)"
+          echo "$open"
+          if [ "$(echo "$open" | jq '.entries | length')" != 0 ]; then
+            echo "::error::Cruxible proposals are still open after install; the instance is incomplete"
+            exit 1
+          fi
 
       - name: Run security.start
         run: |
+          set -euo pipefail
+          rm -f "$VEX_PATH"
           cruxible runbook preview security.start
-          cruxible runbook run security.start
+          # Exits 1 on a failed step; a stop for review exits 0, so read the status.
+          cruxible runbook run security.start --json > "$RUNNER_TEMP/start.json" || {
+            cat "$RUNNER_TEMP/start.json"
+            echo "::error::security.start failed"
+            exit 1
+          }
+          status="$(jq -r '.status' "$RUNNER_TEMP/start.json")"
+          if [ "$status" != "completed" ]; then
+            jq . "$RUNNER_TEMP/start.json"
+            echo "::error::security.start did not complete (status: $status, stop_reason: $(jq -r '.stop_reason // "none"' "$RUNNER_TEMP/start.json"), step: $(jq -r '.stopped_at_step // "none"' "$RUNNER_TEMP/start.json")); no VEX is exported"
+            exit 1
+          fi
 
       - name: Report
         run: |
+          set -euo pipefail
           cruxible next
           cruxible query --name security.urgent_exposures
-          cruxible kit run security:export-vex -- --format openvex --out vex.openvex.json
-
-      - name: Stop the daemon
-        if: always()
-        run: cruxible server stop --state-root "$CRUXIBLE_STATE_ROOT" --timeout 30 || true
-
-      - name: Save the Cruxible instance
-        if: always() && github.event_name != 'pull_request'
-        uses: actions/cache/save@v4
-        with:
-          # The instance, the CI principal's key and the workspace's .cruxible/ (which
-          # names the instance): keep this cache to this repository's workflows.
-          path: |
-            ${{ github.workspace }}/../cruxible/state
-            ${{ github.workspace }}/../cruxible/config
-            .cruxible
-          key: cruxible-state-${{ github.ref_name }}-${{ github.run_id }}
+          cruxible kit run security:export-vex -- --format openvex -o "$VEX_PATH"
 
       - name: Upload VEX
-        if: always()
+        # Only after the completed run and its fresh export (a failed step skips this).
         uses: actions/upload-artifact@v4
         with:
           name: vex
-          path: vex.openvex.json
-          if-no-files-found: ignore
+          path: ${{ env.VEX_PATH }}
+          if-no-files-found: error
+
+      - name: Stop the daemon
+        if: always()
+        run: |
+          if [ -n "${CRUXIBLE_STATE_ROOT:-}" ]; then
+            cruxible server stop --state-root "$CRUXIBLE_STATE_ROOT" --timeout 30 || true
+          fi

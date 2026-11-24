@@ -62,10 +62,10 @@ names values instead of editing JSON. Each is a change set under ``recipes/`` wi
   SBOM imports as one fan-out step, ``{"procedure": "security.sbom-import"}``: every
   live Line of that Procedure, in Line-name order, so a second SBOM joins the
   Runbook with no edit (and with none yet the step is skipped).
-- ``sbom`` (``kit adopt security:sbom --param name=app --param path=sbom.cdx.json``):
+- ``sbom`` (``kit adopt security:sbom --param name=app --param relative_path=sbom.cdx.json``):
   one SBOM import Line and its Mandates; adopt it again under another ``name`` for
   each further SBOM.
-- ``sarif`` (``kit adopt security:sarif --param name=semgrep --param path=...
+- ``sarif`` (``kit adopt security:sarif --param name=semgrep --param relative_path=...
   --param repo=host/owner/repo``): one scanner's SARIF intake (the members of
   ``examples/sarif/automation-sarif.json``).
 - ``schedule`` (``kit adopt security:schedule``): the daily Trigger aimed at
@@ -223,8 +223,14 @@ _EXPIRES_SPEC = {
 }
 #: A recipe's ``name`` is the Line suffix: short, lowercase, unique per kind of input.
 _NAME_PATTERN = "^[a-z][a-z0-9_-]{0,48}$"
-#: The workspace path pattern the import Procedures declare for ``relative_path``.
-_PATH_PATTERN = "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"
+#: A recipe's ``relative_path``: a normalized workspace-relative POSIX path, as
+#: ``workspace.file`` reads it. Segments of letters, digits, ``_``, ``.`` and ``-``
+#: joined by ``/``; a segment may start with ``.`` (``.github/sbom.json``) but is
+#: never ``.`` or ``..``, so no leading ``/``, no ``..``, no backslash, no whitespace
+#: and no empty segment. Unbounded repeats keep the NFA small (core matches recipe
+#: patterns in linear time); the import Procedures' params cap the length at 256.
+_SEGMENT = r"(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\.[A-Za-z0-9_-][A-Za-z0-9._-]*)"
+_PATH_PATTERN = f"^{_SEGMENT}(?:/{_SEGMENT})*$"
 
 
 def _with_expires(members: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -296,12 +302,12 @@ def sbom_recipe() -> dict[str, Any]:
         "kind": "change_set",
         "rationale": (
             "kit adopt security:sbom: the SBOM import Line security.sbom-import.{{name}}, "
-            "reading {{path}} (CycloneDX or SPDX 2.2/2.3 JSON) under the logical source "
+            "reading {{relative_path}} (CycloneDX or SPDX 2.2/2.3 JSON) under the logical source "
             "cyclonedx.sbom.{{name}}, and its propose and scope: observations settle "
             "Mandates, valid for {{expires}} from submission. security.start runs it with "
             "every other SBOM import Line."
         ),
-        "members": _with_expires(inventory.sbom_automation((("{{name}}", "{{path}}"),))),
+        "members": _with_expires(inventory.sbom_automation((("{{name}}", "{{relative_path}}"),))),
     }
 
 
@@ -310,14 +316,14 @@ def sarif_recipe() -> dict[str, Any]:
         "kind": "change_set",
         "rationale": (
             "kit adopt security:sarif: the SARIF import Line security.sarif-import.{{name}}, "
-            "reading {{path}} for the repository {{repo}} under the logical source "
+            "reading {{relative_path}} for the repository {{repo}} under the logical source "
             "sarif.{{name}}, its Mandates (valid for {{expires}} from submission; the "
             "settle grant names the scanner's observation ClaimTypes, never a verdict), and "
             "the observe-only attention Line security.sarif-attention.{{name}} with the "
             "landing Trigger that runs it."
         ),
         "members": _with_expires(
-            findings.automation([("{{name}}", "{{repo}}", "{{path}}")])["members"]
+            findings.automation([("{{name}}", "{{repo}}", "{{relative_path}}")])["members"]
         ),
     }
 
@@ -380,7 +386,7 @@ def recipe_specs() -> list[dict[str, Any]]:
             "params": {
                 "expires": _EXPIRES_SPEC,
                 "name": {**name, "example": SARIF_SCAN[0]},
-                "path": {
+                "relative_path": {
                     "type": "string",
                     "required": True,
                     "pattern": _PATH_PATTERN,
@@ -407,7 +413,7 @@ def recipe_specs() -> list[dict[str, Any]]:
             "params": {
                 "expires": _EXPIRES_SPEC,
                 "name": {**name, "example": SBOM[0]},
-                "path": {
+                "relative_path": {
                     "type": "string",
                     "required": True,
                     "pattern": _PATH_PATTERN,

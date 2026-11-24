@@ -36,10 +36,10 @@
     "description": "Short identifier for this input: the Line suffix and logical source suffix; unique per input of this kind.",
     "example": "semgrep"
    },
-   "path": {
+   "relative_path": {
     "type": "string",
     "required": true,
-    "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$",
+    "pattern": "^(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*)(?:/(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*))*$",
     "example": "scans/semgrep.sarif",
     "description": "Workspace-relative path of the scanner's SARIF 2.1.0 file."
    },
@@ -70,10 +70,10 @@
     "description": "Short identifier for this input: the Line suffix and logical source suffix; unique per input of this kind.",
     "example": "app"
    },
-   "path": {
+   "relative_path": {
     "type": "string",
     "required": true,
-    "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$",
+    "pattern": "^(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*)(?:/(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*))*$",
     "example": "sbom.cdx.json",
     "description": "Workspace-relative path of the SBOM JSON file."
    }

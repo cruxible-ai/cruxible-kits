@@ -1,6 +1,6 @@
 {
  "kind": "change_set",
- "rationale": "kit adopt security:sbom: the SBOM import Line security.sbom-import.{{name}}, reading {{path}} (CycloneDX or SPDX 2.2/2.3 JSON) under the logical source cyclonedx.sbom.{{name}}, and its propose and scope: observations settle Mandates, valid for {{expires}} from submission. security.start runs it with every other SBOM import Line.",
+ "rationale": "kit adopt security:sbom: the SBOM import Line security.sbom-import.{{name}}, reading {{relative_path}} (CycloneDX or SPDX 2.2/2.3 JSON) under the logical source cyclonedx.sbom.{{name}}, and its propose and scope: observations settle Mandates, valid for {{expires}} from submission. security.start runs it with every other SBOM import Line.",
  "members": [
   {
    "kind": "line",
@@ -11,7 +11,7 @@
     "derive": "security-osv-provider#sbom.components"
    },
    "parameters": {
-    "relative_path": "{{path}}",
+    "relative_path": "{{relative_path}}",
     "logical_source": "cyclonedx.sbom.{{name}}"
    },
    "acquisition": {},

@@ -815,7 +815,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:7b9127ee084f2aecbfb55bd515d3e69767d3c9e6b2c77bde455c8fdb6dcb4cfa"
+      "sha256": "sha256:10e84ef52bde3d62f0c331a2f533b9d81bdfeee756850a1b54216178c693c6c9"
     },
     {
       "path": "automation.json",
@@ -830,7 +830,7 @@
     {
       "path": "examples/ci/cruxible-security.yml",
       "role": "example",
-      "sha256": "sha256:0f47f22e4592eb8e8842b75e390afb33f5107e52a588fb361288b03fc42e8f2c"
+      "sha256": "sha256:f74df9dc1b47dd7ffab15e6a068fb37201af1a55fcae8f86fd3fa92f65abed52"
     },
     {
       "path": "examples/sarif/automation-sarif.json",
@@ -865,12 +865,12 @@
     {
       "path": "recipes/sarif.json",
       "role": "recipe",
-      "sha256": "sha256:a91a602ca66c9e2b92fecdf8075f58b09f7edab39ff06b830d5ea3a5a7dffef6"
+      "sha256": "sha256:b998e826ee181dc66fff1f7ec1f6abacc000a63be10e7b190048b985995a547f"
     },
     {
       "path": "recipes/sbom.json",
       "role": "recipe",
-      "sha256": "sha256:9428b27ae6bf6c4b04561e5f09e4b0f11d45b91d26036085137274f9c35fdf4a"
+      "sha256": "sha256:838da2384c16c0ee902f439e734995ecd81cc1bb361a9100c066373325613d9b"
     },
     {
       "path": "recipes/schedule.json",
@@ -940,12 +940,12 @@
     {
       "path": "scripts/export_vex.py",
       "role": "script",
-      "sha256": "sha256:f489e75218efbcf3affdd6d269eca05856096f09fe873bd48b87bcc9840d3c89"
+      "sha256": "sha256:501d353347b8fba4d79708798ec1b405500d7c118c9b5407c976dcedf6d386f7"
     },
     {
       "path": "scripts/init_plan.py",
       "role": "script",
-      "sha256": "sha256:51f361392effb1c6012ba9f137565e3a29df7bab9ce34beb982ec8eaa99ffa81"
+      "sha256": "sha256:dece8a39a1f58dcb3e3c90de5401e92c52e6449b01dcf4bae1fc9c83b5b13413"
     }
   ],
   "kit_id": "security",
@@ -956,12 +956,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:98371928e47ef70e2c385b5e24e03062fbd55ac3deb91f5c9a884a64679237fc",
-      "git_oid": "abf9d659d5e7879924aa46d49628620aa9e267e5",
-      "semantic_root": "sha256:7bdfccb1ca33aed0af0385580accfee077c37d4b441de21f1213b0d63f4f6739",
+      "generation_root": "sha256:12c4f019b6d5eb1b0122558d36318c9e5502f2f7d74ab581f003cc9f5fe3af82",
+      "git_oid": "d4fa85a0499a8a5e81c3bcd4bf7efc26137f92a9",
+      "semantic_root": "sha256:bf142de7ed540ef6a971656c9abbfff130a651b596c98630923ba9b24b4464cb",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_a3d1bf53f8e948c5",
+    "instance_id": "inst_491cc80a61a94a22",
     "principal_id": "owner"
   },
   "providers": [
@@ -1082,11 +1082,11 @@
           "type": "string",
           "values": []
         },
-        "path": {
+        "relative_path": {
           "default": null,
           "description": "Workspace-relative path of the scanner's SARIF 2.1.0 file.",
           "example": "scans/semgrep.sarif",
-          "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$",
+          "pattern": "^(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*)(?:/(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*))*$",
           "required": true,
           "type": "string",
           "values": []
@@ -1125,11 +1125,11 @@
           "type": "string",
           "values": []
         },
-        "path": {
+        "relative_path": {
           "default": null,
           "description": "Workspace-relative path of the SBOM JSON file.",
           "example": "sbom.cdx.json",
-          "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$",
+          "pattern": "^(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*)(?:/(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*))*$",
           "required": true,
           "type": "string",
           "values": []

@@ -76,13 +76,13 @@ workspace with the daemon running:
 cruxible init --principal-id owner --require-independent-approval
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 # 2. Install the kit: ONE proposal (its providers and definitions together).
-cruxible kit add security --commit
+cruxible kit add security:1.4.0 --commit
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 # 3. Adopt the shared Lines and Runbooks, then one SBOM import per SBOM file.
 cruxible kit adopt security --yes
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
-cruxible kit adopt security:sbom --param name=app --param path=sbom.cdx.json --yes
-cruxible kit adopt security:sbom --param name=api --param path=services/api/sbom.cdx.json --yes
+cruxible kit adopt security:sbom --param name=app --param relative_path=sbom.cdx.json --yes
+cruxible kit adopt security:sbom --param name=api --param relative_path=services/api/sbom.cdx.json --yes
 cruxible kit adopt security:schedule --yes          # optional: the daily Trigger
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve ID1 ID2 ID3 --yes
 # 4. Enable, run, read, export.
@@ -90,7 +90,7 @@ cruxible line enable security.osv-unkeyed --runbook security.start
 cruxible runbook preview security.start
 cruxible runbook run security.start
 cruxible next
-cruxible kit run security:export-vex -- --format openvex --out vex.openvex.json
+cruxible kit run security:export-vex -- --format openvex -o vex.openvex.json
 ```
 
 `PROPOSAL_ID` is the short id each command prints (12 hex characters; `cruxible
@@ -100,14 +100,16 @@ to the registry, install from a checkout: `cruxible kit add
 
 `cruxible kit run security:init-plan` reads the workspace (SBOMs, SARIF files,
 lockfiles, Dockerfiles, the origin remote) and prints these commands with your
-paths filled in, plus a generator command when no SBOM exists yet. It writes
-nothing and calls nothing.
+paths filled in, plus a generator command when no SBOM exists yet (one per
+ecosystem, each writing its own `sbom-<ecosystem>.cdx.json` when there are
+several), and for each SARIF file the commands that enable its attention Line and
+run its import. It writes nothing, calls nothing and follows no symbolic link.
 
 | Recipe | `kit adopt` | Adds |
 |---|---|---|
 | `default` | `security` | OSV, KEV and EPSS Lines and Mandates, the attention and OSV unkeyed Lines, the `security.start` and `security.maintain` Runbooks (`min_epss`, `expires`) |
-| `sbom` | `security:sbom --param name=N --param path=P` | One SBOM import Line `security.sbom-import.N` (CycloneDX or SPDX JSON at `P`) and its Mandates; adopt once per SBOM |
-| `sarif` | `security:sarif --param name=N --param path=P --param repo=host/owner/repo` | One scanner's SARIF import Line, Mandates, attention Line and landing Trigger; adopt once per scanner |
+| `sbom` | `security:sbom --param name=N --param relative_path=P` | One SBOM import Line `security.sbom-import.N` (CycloneDX or SPDX JSON at `P`) and its Mandates; adopt once per SBOM |
+| `sarif` | `security:sarif --param name=N --param relative_path=P --param repo=host/owner/repo` | One scanner's SARIF import Line, Mandates, attention Line and landing Trigger; adopt once per scanner |
 | `schedule` | `security:schedule` | The daily Trigger `security.maintain-daily` (`cron`, 14:00 UTC as shipped); leave it out when CI runs the Runbooks |
 
 `security.start` runs the SBOM imports as one fan-out step, `{"procedure":
@@ -530,7 +532,7 @@ graph_write`).
 
 To import a scanner's SARIF file, adopt the `sarif` recipe once per scanner
 (`cruxible kit adopt security:sarif --param name=semgrep --param
-path=scans/semgrep.sarif --param repo=github.com/acme/api`), or submit
+relative_path=scans/semgrep.sarif --param repo=github.com/acme/api`), or submit
 [examples/sarif/automation-sarif.json](examples/sarif/automation-sarif.json), the
 same change set for one scanner, by hand: the `security.sarif-import.semgrep`
 Line (`read` bound to `cruxible-builtin#workspace.file`, `derive` to
@@ -657,7 +659,7 @@ script against the installed release (the receipt's bundle digest and the
 file's sha256) and runs it here, never in the daemon:
 
 ```sh
-cruxible kit run security:export-vex -- --format openvex --out vex.openvex.json
+cruxible kit run security:export-vex -- --format openvex -o vex.openvex.json
 cruxible kit run security:export-vex -- --format cyclonedx --inventory pkg:maven/com.example/app@1.0.0 > vex.cdx.json
 ```
 
@@ -679,12 +681,16 @@ left out. Each statement cites its Claims and their Captures.
 
 [examples/ci/cruxible-security.yml](examples/ci/cruxible-security.yml) is a
 drop-in GitHub Actions workflow: it generates a CycloneDX SBOM with Syft,
-restores the instance from the Actions cache (or on the first run creates a
-one-owner instance, `kit add`s the kit and adopts `security` and
-`security:sbom`), runs `security.start`, prints `cruxible next` and the urgent
-worklist, and uploads `kit run security:export-vex` output as an artifact. A
-team that reviews judgments points CI at its shared daemon instead and keeps
-independent approval.
+creates a disposable one-owner instance with an ephemeral key for the job,
+`kit add`s the kit and adopts `security` and `security:sbom`, runs
+`security.start` and fails unless the run completed (`--json` `status`
+`completed`; a stop for review exits 0 and is not a pass), prints `cruxible
+next` and the urgent worklist, and uploads the VEX that completed run's
+`kit run security:export-vex` produced. It never caches a signing key or
+daemon state in GitHub Actions cache, which pull-request jobs can restore:
+persistent keys and governed state that keep judgments between runs belong on
+a dedicated runner or a hosted service. A team that reviews judgments points CI
+at its shared daemon there and keeps independent approval.
 
 ## Limits and maintenance
 

@@ -201,6 +201,16 @@ def test_one_inventory_exports_alone() -> None:
         "CVE-2026-0001", "CVE-2026-0002", "CVE-2026-0003", "CVE-2026-0004", "CVE-2026-0005"}
 
 
+@pytest.mark.parametrize("flag", ["-o", "--out"])
+def test_the_out_option_and_its_short_alias_write_the_document(
+    flag: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(vex, "SdkReader", lambda cx: every_state())
+    out = tmp_path / "vex.openvex.json"
+    assert vex.main(["--format", "openvex", flag, str(out)], connect=object) == 0
+    assert out.read_bytes() == vex.export(every_state(), "openvex")
+
+
 @pytest.mark.parametrize(
     ("rationale", "expected"),
     [

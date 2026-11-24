@@ -1,6 +1,7 @@
 """Export the security kit's exposure judgments as CycloneDX 1.5 VEX or OpenVEX v0.2.0.
 
     cruxible kit run security:export-vex -- --format openvex --out vex.openvex.json
+    cruxible kit run security:export-vex -- --format openvex -o vex.openvex.json
     cruxible kit run security:export-vex -- --format cyclonedx > vex.cdx.json
     cruxible kit run security:export-vex -- --format openvex --inventory pkg:maven/com.example/app@1.0.0
 
@@ -553,7 +554,7 @@ def main(argv: Sequence[str] | None = None, *, connect: Callable[[], Any] | None
     parser.add_argument("--timestamp", help="ISO 8601 instant (default: the generation's own)")
     parser.add_argument("--serial", help="CycloneDX serialNumber / OpenVEX @id (default: from the coordinate)")
     parser.add_argument("--author", help="OpenVEX author (default: the instance)")
-    parser.add_argument("--out", help="write here instead of standard output")
+    parser.add_argument("-o", "--out", help="write here instead of standard output")
     args = parser.parse_args(argv)
     if connect is None:
         from cruxible_client import Cruxible

@@ -1,6 +1,6 @@
 {
  "kind": "change_set",
- "rationale": "kit adopt security:sarif: the SARIF import Line security.sarif-import.{{name}}, reading {{path}} for the repository {{repo}} under the logical source sarif.{{name}}, its Mandates (valid for {{expires}} from submission; the settle grant names the scanner's observation ClaimTypes, never a verdict), and the observe-only attention Line security.sarif-attention.{{name}} with the landing Trigger that runs it.",
+ "rationale": "kit adopt security:sarif: the SARIF import Line security.sarif-import.{{name}}, reading {{relative_path}} for the repository {{repo}} under the logical source sarif.{{name}}, its Mandates (valid for {{expires}} from submission; the settle grant names the scanner's observation ClaimTypes, never a verdict), and the observe-only attention Line security.sarif-attention.{{name}} with the landing Trigger that runs it.",
  "members": [
   {
    "kind": "line",
@@ -11,7 +11,7 @@
     "derive": "security-sarif-provider#sarif.findings"
    },
    "parameters": {
-    "relative_path": "{{path}}",
+    "relative_path": "{{relative_path}}",
     "logical_source": "sarif.{{name}}",
     "repo": "{{repo}}"
    },
