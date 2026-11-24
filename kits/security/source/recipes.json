@@ -1,0 +1,97 @@
+[
+ {
+  "name": "default",
+  "path": "recipes/default.json",
+  "description": "The dependency loop's shared backbone: OSV, KEV and EPSS Lines and Mandates, the attention and OSV unkeyed Lines, and the security.start (fans out to every SBOM import Line) and security.maintain Runbooks.",
+  "params": {
+   "expires": {
+    "type": "string",
+    "default": "90d",
+    "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+    "description": "How long each Mandate stays valid from submission: hours, days, weeks or years (36h, 90d, 12w, 1y)."
+   },
+   "min_epss": {
+    "type": "string",
+    "default": "0.1",
+    "pattern": "^(0(\\.[0-9]{1,6})?|1(\\.0{1,6})?)$",
+    "description": "EPSS score (0 to 1) at or above which an unjudged pair goes to the inbox (KEV-listed and unscored pairs always do)."
+   }
+  }
+ },
+ {
+  "name": "sarif",
+  "path": "recipes/sarif.json",
+  "description": "One scanner's SARIF intake: the import Line, its Mandates, and the attention Line with its landing Trigger. Adopt again under another name per scanner.",
+  "params": {
+   "expires": {
+    "type": "string",
+    "default": "90d",
+    "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+    "description": "How long each Mandate stays valid from submission: hours, days, weeks or years (36h, 90d, 12w, 1y)."
+   },
+   "name": {
+    "type": "string",
+    "required": true,
+    "pattern": "^[a-z][a-z0-9_-]{0,48}$",
+    "description": "Short identifier for this input: the Line suffix and logical source suffix; unique per input of this kind.",
+    "example": "semgrep"
+   },
+   "path": {
+    "type": "string",
+    "required": true,
+    "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$",
+    "example": "scans/semgrep.sarif",
+    "description": "Workspace-relative path of the scanner's SARIF 2.1.0 file."
+   },
+   "repo": {
+    "type": "string",
+    "required": true,
+    "pattern": "^[a-z0-9.-]+/[^/\\s]+/[^/\\s]+$",
+    "example": "github.com/example/demo-app",
+    "description": "The scanned repository as host/owner/repo, lowercase; a SARIF run naming another repository writes nothing."
+   }
+  }
+ },
+ {
+  "name": "sbom",
+  "path": "recipes/sbom.json",
+  "description": "One SBOM import Line (CycloneDX or SPDX 2.2/2.3 JSON) and its Mandates. Adopt again under another name per SBOM; security.start runs them all.",
+  "params": {
+   "expires": {
+    "type": "string",
+    "default": "90d",
+    "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+    "description": "How long each Mandate stays valid from submission: hours, days, weeks or years (36h, 90d, 12w, 1y)."
+   },
+   "name": {
+    "type": "string",
+    "required": true,
+    "pattern": "^[a-z][a-z0-9_-]{0,48}$",
+    "description": "Short identifier for this input: the Line suffix and logical source suffix; unique per input of this kind.",
+    "example": "app"
+   },
+   "path": {
+    "type": "string",
+    "required": true,
+    "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$",
+    "example": "sbom.cdx.json",
+    "description": "Workspace-relative path of the SBOM JSON file."
+   }
+  }
+ },
+ {
+  "name": "schedule",
+  "path": "recipes/schedule.json",
+  "description": "The daily Trigger security.maintain-daily, which runs security.maintain. Skip it when CI runs the Runbooks.",
+  "params": {
+   "cron": {
+    "type": "string",
+    "default": "0 14 * * *",
+    "description": "Five-field cron expression, read in UTC."
+   }
+  },
+  "depends_on": [
+   "default"
+  ]
+ }
+]

@@ -31,6 +31,17 @@ checkouts are read-only (the builder reads other commits with `git archive`).
 providers build with `uv build --offline`, and the three committed locks are
 checked, never re-resolved.
 
+The recipes `kit adopt` renders (`../recipes/*.json`, declared in
+`recipes.json`) are written by `pilot/template.py` from the same definitions as
+`../automation.json` (`python pilot/template.py --check` fails when any is stale,
+and the builder refuses then); the read-only scripts `kit run` executes
+(`../scripts/export_vex.py`, `../scripts/init_plan.py`) are declared in
+`scripts.json`. The builder passes both to `kit build --recipes/--scripts`
+(`scripts/build_kit.py`'s `adoption_args`), which renders every recipe with its
+defaults and examples and refuses the build unless each authors cleanly against
+the kit's exported definitions. Recipes and scripts are inert kit files: they
+change the manifest's `bundle_digest`, never its `content_digest`.
+
 The kit's own providers, OSV and SARIF (each 0.2.0.dev0; their pure operations
 are `@derive` functions), are bundled: the kit carries their wheels and locks
 with the `cruxible-provider-runtime` 0.6.0 wheel their locks name by path. The

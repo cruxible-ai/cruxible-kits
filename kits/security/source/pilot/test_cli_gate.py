@@ -3,8 +3,8 @@
 One instance, set up as the README says, carries the whole supported path:
 
 1. ``cruxible init --require-independent-approval`` (no reviewer key directory),
-   ``kit add`` of the committed directory (each provider install and the
-   definitions approved by the reviewer), the committed ``automation.json``
+   ``kit add`` of the committed directory (one proposal, the three provider
+   installs and the definitions together, approved by the reviewer), the committed ``automation.json``
    submitted verbatim (``expires: 90d``, ``scope: observations``) and approved,
    and ``cruxible line enable security.osv-unkeyed --runbook security.start``
    enabling all seven Lines in one command;
@@ -163,10 +163,12 @@ def test_the_committed_kit_runs_the_supported_path_on_a_real_daemon(instance: In
         OSV_PROVIDER,
         "security-sarif-provider",
     }
-    for provider in committed["providers"]:
-        instance.approve(provider["proposal_id"])
-    (resume,) = instance.run("kit", "status", "--offline", "--json")["resumes"]
-    instance.approve(resume["proposal_id"])
+    # Cruxible 0.6: one atomic proposal installs the three providers and the
+    # definitions together, so one approval activates it and no resume waits.
+    (proposal,) = {provider["proposal_id"] for provider in committed["providers"]}
+    assert committed["proposal_id"] == proposal
+    instance.approve(proposal)
+    assert not instance.run("kit", "status", "--offline", "--json").get("resumes")
     kits = instance.run("kit", "status", "--offline", "--json")["kits"]
     assert {k["kit_id"]: k["version"] for k in kits} == {"base": "1.0.0", "security": "1.4.0"}
 
@@ -359,7 +361,7 @@ def test_the_committed_kit_runs_the_supported_path_on_a_real_daemon(instance: In
                      "field": "affected_by", "value": f"security.vulnerability/{LOG4SHELL.lower()}",
                      "role": "normative"}],
     })
-    exporter = str(KIT / "examples" / "export_vex.py")
+    exporter = str(KIT / "scripts" / "export_vex.py")
     for fmt in ("openvex", "cyclonedx"):
         first = instance.run("python", exporter, "--format", fmt)
         assert instance.run("python", exporter, "--format", fmt) == first  # same coordinate

@@ -10,7 +10,15 @@ fresh state root under the scratch directory (which must not exist; the socket
 needs a short path), runs ``cruxible init``, submits the change set, exports it
 with ``cruxible kit build`` and replaces the kit's manifest and ``artifacts/``
 with the export. The inert-file list is refreshed last; README and ``source/``
-are left as they are. The daemon is stopped even when a step fails; command
+are left as they are.
+
+Recipes and scripts (Cruxible 0.6, ``kit adopt`` / ``kit run``): a kit that
+declares them in ``source/recipes.json`` and ``source/scripts.json`` (JSON lists of
+the manifest's ``recipes`` and ``scripts`` entries, each ``path`` a file of the kit
+under ``recipes/`` or ``scripts/``) has them passed to ``kit build --recipes`` /
+``--scripts``, which renders every recipe with its defaults and examples and
+refuses the build unless each authors cleanly against the kit's definitions
+(:func:`adoption_args`; the security kit's builder uses it too). The daemon is stopped even when a step fails; command
 receipts and the daemon log stay under the scratch directory for the caller to
 read and delete.
 
@@ -170,6 +178,40 @@ class Session:
             raise RuntimeError(f"{name} did not land: {result}")
 
 
+#: Where a kit declares its recipes and scripts (build inputs, not shipped).
+RECIPE_SPECS = Path("source") / "recipes.json"
+SCRIPT_SPECS = Path("source") / "scripts.json"
+
+
+def adoption_args(kit: Path, workspace: Path) -> list[str]:
+    """``kit build`` options for the kit's declared recipes and scripts.
+
+    ``kit build`` reads each declared file relative to the workspace root, so every
+    one is copied from the kit to the same relative path under ``workspace``, and
+    each declaration list is written beside the workspace. Empty when the kit
+    declares neither."""
+
+    args: list[str] = []
+    for option, relative in (("--recipes", RECIPE_SPECS), ("--scripts", SCRIPT_SPECS)):
+        source = kit / relative
+        if not source.is_file():
+            continue
+        specs = json.loads(source.read_bytes())
+        if not isinstance(specs, list) or not specs:
+            raise ValueError(f"{source} must be a non-empty JSON list")
+        for spec in specs:
+            path = Path(spec["path"])
+            if path.is_absolute() or ".." in path.parts:
+                raise ValueError(f"{source}: {spec['path']} is not a path inside the kit")
+            target = workspace / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(kit / path, target)
+        declared = workspace.parent / f"kit-{relative.stem}.json"
+        declared.write_bytes(source.read_bytes())
+        args += [option, str(declared)]
+    return args
+
+
 def build(kit: Path, scratch: Path) -> None:
     source = _load(kit / "source" / "definitions.py", f"{kit.name}_definitions")
     if source.KIT_ID != kit.name:
@@ -183,6 +225,7 @@ def build(kit: Path, scratch: Path) -> None:
         args = ["kit", "build", "--id", source.KIT_ID, "--version", source.VERSION]
         for prefix in source.OWNS:
             args += ["--owns", prefix]
+        args += adoption_args(kit, session.workspace)
         session.command(*args, "--out", str(out), "--json")
     finally:
         session.stop()

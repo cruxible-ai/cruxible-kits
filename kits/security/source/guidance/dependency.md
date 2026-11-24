@@ -39,7 +39,7 @@ often ships it in only one). A distro package whose SBOM states no release or so
 not checked, never clean: regenerate the SBOM with a tool that records them (Syft, Trivy)
 rather than judging it.
 
-Your judgments are what `examples/export_vex.py` exports as VEX: a resolved justification
+Your judgments are what `cruxible kit run security:export-vex` exports as VEX: a resolved justification
 as `not_affected`, the `affected` verdict as affected, and everything else, a contested
 judgment included, as under investigation.
 

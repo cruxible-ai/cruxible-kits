@@ -860,9 +860,10 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
         provider_path(provider.build) in tree for provider in bundle.manifest.providers
     )
     with consumer.accepted_history_reader() as history:
-        # One registration per provider (three), one kit change. Registration schema 3:
-        # each provider carries its own shapes, so no Contract change precedes them.
-        assert int(history.sequence) - before_generation == 4
+        # Cruxible 0.6: one atomic change, the three provider registrations and the
+        # kit's definitions together. Registration schema 3: each provider carries
+        # its own shapes, so no Contract change precedes them.
+        assert int(history.sequence) - before_generation == 1
 
     from cruxible_core.service.runbook_preview import service_preview_runbook
 

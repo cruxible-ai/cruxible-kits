@@ -1,0 +1,152 @@
+# Drop-in GitHub Actions workflow for the Cruxible security kit (1.4.0, Cruxible 0.6).
+#
+# Copy to .github/workflows/cruxible-security.yml. On each push to the default
+# branch, each pull request and once a day it:
+#
+#   1. generates a CycloneDX SBOM of the repository (anchore/sbom-action, Syft);
+#   2. restores the Cruxible state root from the Actions cache (the instance
+#      keeps its judgments and history between runs), or on the first run creates
+#      a one-owner instance, installs the kit and adopts its recipes: no JSON to
+#      write or edit;
+#   3. runs the security.start Runbook (every SBOM import Line, then OSV, CISA
+#      KEV and FIRST EPSS, then the attention Lines);
+#   4. prints `cruxible next` and the urgent worklist, and exports OpenVEX with the
+#      kit's read-only script export-vex, uploaded as a build artifact.
+#
+# The instance here is single-owner (self-approval): CI is the only writer and
+# judgments are made elsewhere. A team that reviews judgments should point CI at
+# its shared daemon instead (CRUXIBLE_SERVER_URL and a bearer credential as
+# secrets) and keep independent approval; see the kit README.
+#
+# The runner calls api.osv.dev, www.cisa.gov and api.first.org (the Lines' declared
+# origins) and PyPI (provider installation on the first run).
+#
+# Tailor: SBOM_PATH (and the SBOM step) for your generator; add one
+# `kit adopt security:sbom` per further SBOM (a container image, a second
+# service): security.start runs every one. Add `kit adopt security:sarif` for a
+# scanner's SARIF file.
+
+name: cruxible-security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One writer per state root: never two runs restoring and saving the same cache.
+  group: cruxible-security-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CRUXIBLE_VERSION: "0.6.0"
+  SECURITY_KIT: "security:1.4.0"
+  SBOM_PATH: sbom.cdx.json
+  # The daemon's state root and the CLI's settings and principal key (which must sit
+  # outside both the state root and the workspace) live beside the checkout.
+  CRUXIBLE_STATE_ROOT: ${{ github.workspace }}/../cruxible/state
+  CRUXIBLE_SERVER_SOCKET: ${{ github.workspace }}/../cruxible/d.sock
+  XDG_CONFIG_HOME: ${{ github.workspace }}/../cruxible/config
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install Cruxible
+        run: uv tool install "cruxible==${CRUXIBLE_VERSION}"
+
+      - name: Generate the SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: ${{ env.SBOM_PATH }}
+          upload-artifact: false
+
+      - name: Restore the Cruxible instance
+        id: state
+        uses: actions/cache/restore@v4
+        with:
+          # The instance, the CI principal's key and the workspace's .cruxible/ (which
+          # names the instance): keep this cache to this repository's workflows.
+          path: |
+            ${{ github.workspace }}/../cruxible/state
+            ${{ github.workspace }}/../cruxible/config
+            .cruxible
+          key: cruxible-state-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            cruxible-state-${{ github.ref_name }}-
+            cruxible-state-main-
+
+      - name: Start the daemon
+        run: |
+          mkdir -p "$CRUXIBLE_STATE_ROOT" "$XDG_CONFIG_HOME"
+          nohup cruxible server start --socket "$CRUXIBLE_SERVER_SOCKET" \
+            --state-root "$CRUXIBLE_STATE_ROOT" > "$RUNNER_TEMP/cruxible-daemon.log" 2>&1 &
+          for _ in $(seq 60); do
+            cruxible server status --json > /dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/cruxible-daemon.log"
+          exit 1
+
+      - name: First run - install the kit and adopt its recipes
+        if: steps.state.outputs.cache-matched-key == ''
+        run: |
+          cruxible init --principal-id ci
+          # One proposal: the kit's providers and definitions together.
+          cruxible kit add "$SECURITY_KIT" --commit
+          cruxible kit adopt security --yes
+          cruxible kit adopt security:sbom --param name=app --param path="$SBOM_PATH" --yes
+          # Under self-approval each change lands at once; anything left waiting:
+          cruxible proposal list --status open
+
+      - name: Run security.start
+        run: |
+          cruxible runbook preview security.start
+          cruxible runbook run security.start
+
+      - name: Report
+        run: |
+          cruxible next
+          cruxible query --name security.urgent_exposures
+          cruxible kit run security:export-vex -- --format openvex --out vex.openvex.json
+
+      - name: Stop the daemon
+        if: always()
+        run: cruxible server stop --state-root "$CRUXIBLE_STATE_ROOT" --timeout 30 || true
+
+      - name: Save the Cruxible instance
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/cache/save@v4
+        with:
+          # The instance, the CI principal's key and the workspace's .cruxible/ (which
+          # names the instance): keep this cache to this repository's workflows.
+          path: |
+            ${{ github.workspace }}/../cruxible/state
+            ${{ github.workspace }}/../cruxible/config
+            .cruxible
+          key: cruxible-state-${{ github.ref_name }}-${{ github.run_id }}
+
+      - name: Upload VEX
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vex
+          path: vex.openvex.json
+          if-no-files-found: ignore

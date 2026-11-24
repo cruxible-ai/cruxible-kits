@@ -1,0 +1,279 @@
+{
+ "kind": "change_set",
+ "rationale": "kit adopt security: the dependency loop's shared Lines (OSV, KEV, EPSS) and their Mandates (valid for {{expires}} from submission), the two observe-only attention Lines (unjudged pairs KEV-listed, with an EPSS score at or above {{min_epss}}, or not yet scored; contested pairs), the OSV unkeyed Line and its Trigger security.osv-matches-landed, the security.start Runbook (every SBOM import Line, then OSV, KEV, EPSS and attention) and the security.maintain Runbook. SBOM imports come from kit adopt security:sbom; the daily Trigger from kit adopt security:schedule.",
+ "members": [
+  {
+   "kind": "line",
+   "name": "security.kev-triage",
+   "procedure_name": "security.kev-triage",
+   "bindings": {
+    "fetch": "cruxible-provider-web#web.fetch"
+   },
+   "parameters": {
+    "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+    "logical_source": "cisa.kev.catalog",
+    "max_bytes": 4194304
+   },
+   "acquisition": {
+    "catalog.capture": {
+     "origins": [
+      "https://www.cisa.gov"
+     ]
+    }
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested",
+     "claim_not_in_source"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.kev-triage-propose",
+   "line_name": "security.kev-triage",
+   "grants": "propose",
+   "namespace": [
+    "claims",
+    "subjects"
+   ],
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.kev-triage-settle",
+   "line_name": "security.kev-triage",
+   "grants": "settle",
+   "scope": "observations",
+   "expires": "{{expires}}",
+   "subjects": "expected",
+   "subject_creation": [
+    "security.catalog"
+   ]
+  },
+  {
+   "kind": "line",
+   "name": "security.epss-triage",
+   "procedure_name": "security.epss-triage",
+   "bindings": {
+    "fetch": "cruxible-provider-web#web.fetch.pages"
+   },
+   "parameters": {
+    "url": "https://api.first.org/data/v1/epss",
+    "logical_source": "first.epss.api",
+    "max_bytes": 4194304
+   },
+   "acquisition": {
+    "scores_api.captures": {
+     "origins": [
+      "https://api.first.org"
+     ]
+    }
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested",
+     "claim_not_in_source"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.epss-triage-propose",
+   "line_name": "security.epss-triage",
+   "grants": "propose",
+   "namespace": [
+    "claims"
+   ],
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.epss-triage-settle",
+   "line_name": "security.epss-triage",
+   "grants": "settle",
+   "scope": "observations",
+   "expires": "{{expires}}",
+   "subjects": "expected"
+  },
+  {
+   "kind": "line",
+   "name": "security.osv-query",
+   "procedure_name": "security.osv-query",
+   "bindings": {
+    "query": "security-osv-provider#osv.query",
+    "match": "security-osv-provider#osv.match"
+   },
+   "parameters": {
+    "logical_source": "osv.dev.query"
+   },
+   "acquisition": {
+    "osv.responses": {
+     "origins": [
+      "https://api.osv.dev"
+     ]
+    }
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested",
+     "claim_not_in_source"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.osv-query-propose",
+   "line_name": "security.osv-query",
+   "grants": "propose",
+   "namespace": [
+    "claims",
+    "subjects"
+   ],
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.osv-query-settle",
+   "line_name": "security.osv-query",
+   "grants": "settle",
+   "namespace": [
+    "claims"
+   ],
+   "expires": "{{expires}}",
+   "subject_creation": [
+    "security.vulnerability"
+   ],
+   "scope": [
+    {
+     "claim_type": "security.component.affected_by",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "retire": {
+       "basis": [
+        "absence"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "kind": "line",
+   "name": "security.osv-unkeyed",
+   "procedure_name": "security.osv-unkeyed",
+   "bindings": {
+    "match": "security-osv-provider#osv.match"
+   },
+   "parameters": {},
+   "trigger_input": "matched.document",
+   "acquisition": {
+    "matched.document": {}
+   },
+   "max_authority": "observe"
+  },
+  {
+   "kind": "trigger",
+   "name": "security.osv-matches-landed",
+   "line_name": "security.osv-unkeyed",
+   "schedule": {
+    "kind": "capture_landing",
+    "capture_contract": "security.osv-matches",
+    "logical_sources": [
+     "osv.dev.query"
+    ]
+   }
+  },
+  {
+   "kind": "line",
+   "name": "security.exposure-attention.unjudged",
+   "procedure_name": "security.exposure-attention.unjudged",
+   "bindings": {},
+   "parameters": {
+    "min_epss": "{{min_epss}}"
+   },
+   "acquisition": {},
+   "max_authority": "observe"
+  },
+  {
+   "kind": "line",
+   "name": "security.exposure-attention.contested",
+   "procedure_name": "security.exposure-attention.contested",
+   "bindings": {},
+   "parameters": {},
+   "acquisition": {},
+   "max_authority": "observe"
+  },
+  {
+   "kind": "runbook",
+   "name": "security.start",
+   "description": "Seed a fresh instance: import every SBOM (each live Line of security.sbom-import, in Line-name order; add one with cruxible kit adopt security:sbom), ask OSV what affects them, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures. OSV advisories with no CVE id get one summary inbox item from security.osv-unkeyed, which its Trigger security.osv-matches-landed runs on each OSV result once the Line is enabled. Enable every Line at once: cruxible line enable security.osv-unkeyed --runbook security.start.",
+   "steps": [
+    {
+     "procedure": "security.sbom-import"
+    },
+    {
+     "line": "security.osv-query"
+    },
+    {
+     "line": "security.kev-triage"
+    },
+    {
+     "line": "security.epss-triage"
+    },
+    {
+     "line": "security.exposure-attention.unjudged"
+    },
+    {
+     "line": "security.exposure-attention.contested"
+    }
+   ]
+  },
+  {
+   "kind": "runbook",
+   "name": "security.maintain",
+   "description": "Daily refresh: ask OSV what affects the inventory, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures. OSV advisories with no CVE id get one summary inbox item from security.osv-unkeyed, which its Trigger security.osv-matches-landed runs on each OSV result once the Line is enabled. Enable every Line at once: cruxible line enable security.osv-unkeyed --runbook security.start.",
+   "steps": [
+    {
+     "line": "security.osv-query"
+    },
+    {
+     "line": "security.kev-triage"
+    },
+    {
+     "line": "security.epss-triage"
+    },
+    {
+     "line": "security.exposure-attention.unjudged"
+    },
+    {
+     "line": "security.exposure-attention.contested"
+    }
+   ]
+  }
+ ]
+}

@@ -25,6 +25,13 @@ dependency guidance) and the audit extension (code findings and coverage units,
 the SARIF import Procedures with their provider, the audit Queries and the
 hunter, verifier and coverage guidance). The reference pages under ``reference/``
 ship as plain kit files.
+
+The release also declares its recipes (``kit adopt``: ``source/recipes.json``, the
+files under ``recipes/``, written by ``pilot/template.py``) and read-only scripts
+(``kit run``: ``source/scripts.json``, the files under ``scripts/``). ``kit build
+--recipes/--scripts`` renders every recipe with its defaults and examples (after
+the recipes it depends on) and refuses unless each authors cleanly against the
+exported closure, as it checks the automation template.
 """
 
 from __future__ import annotations
@@ -574,6 +581,13 @@ def build_release(
             raise RuntimeError(f"Guidance did not land: {result}")
     if template.TEMPLATE.read_text() != template.render():
         raise RuntimeError("automation.json is stale: run source/pilot/template.py")
+    stale = [
+        str(path.relative_to(KIT))
+        for path, content in template.rendered_recipes().items()
+        if not path.is_file() or path.read_text() != content
+    ]
+    if stale:
+        raise RuntimeError(f"{', '.join(stale)} stale: run source/pilot/template.py")
     args = [
         "kit",
         "build",
@@ -595,11 +609,26 @@ def build_release(
     for project in projects:
         option = "--default-provider" if project.name in DEFAULT_PROVIDERS else "--provider"
         args.extend((option, str(project)))
+    # The recipes (kit adopt) and read-only scripts (kit run): kit build renders each
+    # recipe with its defaults and examples and refuses unless it authors cleanly.
+    args.extend(builder().adoption_args(KIT, session.workspace))
     session.command(*args, "--json")
     built = json.loads((out / "cruxible-kit.json").read_bytes())
     requires = {item["kit_id"]: item["min_version"] for item in built.get("requires", ())}
     if requires != REQUIRES:
         raise RuntimeError(f"kit build recorded requires {requires}, not {REQUIRES}")
+
+
+def builder() -> Any:
+    """The repository's ``scripts/build_kit.py`` (recipe and script build options)."""
+
+    spec = importlib.util.spec_from_file_location(
+        "kit_builder", KIT.parents[1] / "scripts/build_kit.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def refresh_files() -> None:

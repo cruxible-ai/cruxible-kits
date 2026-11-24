@@ -1,4 +1,4 @@
-"""The VEX exporter (``examples/export_vex.py``): CycloneDX 1.5 and OpenVEX v0.2.0.
+"""The VEX exporter (``scripts/export_vex.py``, the kit script ``export-vex``): CycloneDX 1.5 and OpenVEX v0.2.0.
 
 Unit tests run it over a fake reader (the mapping, both formats' shape,
 determinism, and the refusals that keep a contested judgment from ever reading
@@ -20,7 +20,7 @@ from typing import Any
 import pytest
 
 KIT = Path(__file__).resolve().parents[2]
-_spec = importlib.util.spec_from_file_location("export_vex", KIT / "examples" / "export_vex.py")
+_spec = importlib.util.spec_from_file_location("export_vex", KIT / "scripts" / "export_vex.py")
 assert _spec is not None and _spec.loader is not None
 vex = importlib.util.module_from_spec(_spec)
 sys.modules["export_vex"] = vex  # its dataclasses resolve their module by name

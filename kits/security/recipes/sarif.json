@@ -1,0 +1,157 @@
+{
+ "kind": "change_set",
+ "rationale": "kit adopt security:sarif: the SARIF import Line security.sarif-import.{{name}}, reading {{path}} for the repository {{repo}} under the logical source sarif.{{name}}, its Mandates (valid for {{expires}} from submission; the settle grant names the scanner's observation ClaimTypes, never a verdict), and the observe-only attention Line security.sarif-attention.{{name}} with the landing Trigger that runs it.",
+ "members": [
+  {
+   "kind": "line",
+   "name": "security.sarif-import.{{name}}",
+   "procedure_name": "security.sarif-import",
+   "bindings": {
+    "read": "cruxible-builtin#workspace.file",
+    "derive": "security-sarif-provider#sarif.findings"
+   },
+   "parameters": {
+    "relative_path": "{{path}}",
+    "logical_source": "sarif.{{name}}",
+    "repo": "{{repo}}"
+   },
+   "acquisition": {},
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested",
+     "claim_not_in_source"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.sarif-import.{{name}}-propose",
+   "line_name": "security.sarif-import.{{name}}",
+   "grants": "propose",
+   "namespace": [
+    "claims",
+    "subjects"
+   ],
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.sarif-import.{{name}}-settle",
+   "line_name": "security.sarif-import.{{name}}",
+   "grants": "settle",
+   "namespace": [
+    "claims"
+   ],
+   "expires": "{{expires}}",
+   "subject_creation": [
+    "security.finding"
+   ],
+   "scope": [
+    {
+     "claim_type": "security.finding.rule",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.finding.reported_by",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.finding.severity",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.finding.reported_at",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "retire": {
+       "basis": [
+        "absence"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.finding.verification",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "kind": "line",
+   "name": "security.sarif-attention.{{name}}",
+   "procedure_name": "security.sarif-attention",
+   "bindings": {
+    "derive": "security-sarif-provider#sarif.findings"
+   },
+   "parameters": {
+    "logical_source": "sarif.{{name}}",
+    "repo": "{{repo}}"
+   },
+   "trigger_input": "findings.document",
+   "acquisition": {
+    "findings.document": {}
+   },
+   "max_authority": "observe"
+  },
+  {
+   "kind": "trigger",
+   "name": "security.sarif-findings-landed.{{name}}",
+   "line_name": "security.sarif-attention.{{name}}",
+   "schedule": {
+    "kind": "capture_landing",
+    "capture_contract": "security.sarif-findings",
+    "logical_sources": [
+     "sarif.{{name}}"
+    ]
+   }
+  }
+ ]
+}

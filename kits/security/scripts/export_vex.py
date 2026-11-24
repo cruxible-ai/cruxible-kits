@@ -1,12 +1,15 @@
 """Export the security kit's exposure judgments as CycloneDX 1.5 VEX or OpenVEX v0.2.0.
 
-    cruxible python export_vex.py --format openvex   > vex.openvex.json
-    cruxible python export_vex.py --format cyclonedx > vex.cdx.json
-    cruxible python export_vex.py --format openvex --inventory pkg:maven/com.example/app@1.0.0
+    cruxible kit run security:export-vex -- --format openvex --out vex.openvex.json
+    cruxible kit run security:export-vex -- --format cyclonedx > vex.cdx.json
+    cruxible kit run security:export-vex -- --format openvex --inventory pkg:maven/com.example/app@1.0.0
 
-``cruxible python`` runs it with the CLI's own interpreter and instance settings;
-plain ``python export_vex.py`` works wherever ``cruxible_client`` is importable.
-It needs nothing beyond the standard library and ``cruxible_client``.
+The kit registers it as the read-only script ``export-vex``: ``cruxible kit run``
+checks it against the installed release's manifest and runs it with the CLI's own
+interpreter and instance settings (``cruxible python scripts/export_vex.py`` from a
+pulled kit, or plain ``python``, works wherever ``cruxible_client`` is importable).
+It needs nothing beyond the standard library and ``cruxible_client``, reads accepted
+state only and writes nothing to the instance.
 
 **One coordinate.** Every read is pinned to the accepted head as the export
 starts (its ``instance_id``, ``generation``, ``git_oid`` and ``state_digest``, the

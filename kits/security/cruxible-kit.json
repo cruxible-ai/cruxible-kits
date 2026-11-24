@@ -577,7 +577,7 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:e9ec691428a1f8c08c7dd08e309253d922fe51291050a4f31a42f461538e5bb5",
+      "artifact_digest": "sha256:afcfbfdc021d71e0882732fc57168560d79edfbd15f7a3fd8435d212a0c1b23f",
       "path": "documents/security.guidance.dependency.json"
     },
     {
@@ -815,7 +815,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:bcb2480cc1d58216760e4ffb28e60ebe589c1f47c835af5811b5d2c98a08d135"
+      "sha256": "sha256:7b9127ee084f2aecbfb55bd515d3e69767d3c9e6b2c77bde455c8fdb6dcb4cfa"
     },
     {
       "path": "automation.json",
@@ -825,12 +825,12 @@
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:a21d5b0b029c4721968bcb378917b9c9d64b2f5f45c26c5e2e1e4d329de123ff"
+      "sha256": "sha256:d8d83471824a5bf8422024ca0c82486b21868a94f1080e96774a9515053de72d"
     },
     {
-      "path": "examples/export_vex.py",
+      "path": "examples/ci/cruxible-security.yml",
       "role": "example",
-      "sha256": "sha256:d0a7a096934ac38532b624fc2f6fef3ff9b999c2b1d1d55ff0659941f6d40652"
+      "sha256": "sha256:0f47f22e4592eb8e8842b75e390afb33f5107e52a588fb361288b03fc42e8f2c"
     },
     {
       "path": "examples/sarif/automation-sarif.json",
@@ -856,6 +856,26 @@
       "path": "examples/sboms/log4j-demo-app.cdx.json",
       "role": "example",
       "sha256": "sha256:c3b27bcff76ed582f4d2da67cf13fbe462fac3f823b2e28a9cef2ec04a730fed"
+    },
+    {
+      "path": "recipes/default.json",
+      "role": "recipe",
+      "sha256": "sha256:ffe6f1205bca6809693d20f1fc6dc3780d5fd8c51ca97813d8af2d7b96ada879"
+    },
+    {
+      "path": "recipes/sarif.json",
+      "role": "recipe",
+      "sha256": "sha256:a91a602ca66c9e2b92fecdf8075f58b09f7edab39ff06b830d5ea3a5a7dffef6"
+    },
+    {
+      "path": "recipes/sbom.json",
+      "role": "recipe",
+      "sha256": "sha256:9428b27ae6bf6c4b04561e5f09e4b0f11d45b91d26036085137274f9c35fdf4a"
+    },
+    {
+      "path": "recipes/schedule.json",
+      "role": "recipe",
+      "sha256": "sha256:2f814e86ab3e92a3a052ea790dc9678618c054f679599c4640b20c4638eded0a"
     },
     {
       "path": "reference/ai-and-llm.md",
@@ -916,6 +936,16 @@
       "path": "reference/web-protocol-and-auth.md",
       "role": "reference",
       "sha256": "sha256:cf30c24c472f71f950dd7d64cd3785ab25abfb69c8e490b447fe1ca8b2f6904f"
+    },
+    {
+      "path": "scripts/export_vex.py",
+      "role": "script",
+      "sha256": "sha256:f489e75218efbcf3affdd6d269eca05856096f09fe873bd48b87bcc9840d3c89"
+    },
+    {
+      "path": "scripts/init_plan.py",
+      "role": "script",
+      "sha256": "sha256:51f361392effb1c6012ba9f137565e3a29df7bab9ce34beb982ec8eaa99ffa81"
     }
   ],
   "kit_id": "security",
@@ -926,12 +956,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:587f0ea517bbf58964e097d5304e950869d14a22ccac581422808d2f05e13177",
-      "git_oid": "6b8de40f27b82f24d13af21ce7169dfd14c63384",
-      "semantic_root": "sha256:9854bf7627b463fdd1f82075f48422abba31ade7d4f4b8aac649542a62ad7038",
+      "generation_root": "sha256:98371928e47ef70e2c385b5e24e03062fbd55ac3deb91f5c9a884a64679237fc",
+      "git_oid": "abf9d659d5e7879924aa46d49628620aa9e267e5",
+      "semantic_root": "sha256:7bdfccb1ca33aed0af0385580accfee077c37d4b441de21f1213b0d63f4f6739",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_812fa91074f44b33",
+    "instance_id": "inst_a3d1bf53f8e948c5",
     "principal_id": "owner"
   },
   "providers": [
@@ -1004,10 +1034,147 @@
       }
     }
   ],
+  "recipes": [
+    {
+      "description": "The dependency loop's shared backbone: OSV, KEV and EPSS Lines and Mandates, the attention and OSV unkeyed Lines, and the security.start (fans out to every SBOM import Line) and security.maintain Runbooks.",
+      "name": "default",
+      "params": {
+        "expires": {
+          "default": "90d",
+          "description": "How long each Mandate stays valid from submission: hours, days, weeks or years (36h, 90d, 12w, 1y).",
+          "example": null,
+          "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+          "required": false,
+          "type": "string",
+          "values": []
+        },
+        "min_epss": {
+          "default": "0.1",
+          "description": "EPSS score (0 to 1) at or above which an unjudged pair goes to the inbox (KEV-listed and unscored pairs always do).",
+          "example": null,
+          "pattern": "^(0(\\.[0-9]{1,6})?|1(\\.0{1,6})?)$",
+          "required": false,
+          "type": "string",
+          "values": []
+        }
+      },
+      "path": "recipes/default.json"
+    },
+    {
+      "description": "One scanner's SARIF intake: the import Line, its Mandates, and the attention Line with its landing Trigger. Adopt again under another name per scanner.",
+      "name": "sarif",
+      "params": {
+        "expires": {
+          "default": "90d",
+          "description": "How long each Mandate stays valid from submission: hours, days, weeks or years (36h, 90d, 12w, 1y).",
+          "example": null,
+          "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+          "required": false,
+          "type": "string",
+          "values": []
+        },
+        "name": {
+          "default": null,
+          "description": "Short identifier for this input: the Line suffix and logical source suffix; unique per input of this kind.",
+          "example": "semgrep",
+          "pattern": "^[a-z][a-z0-9_-]{0,48}$",
+          "required": true,
+          "type": "string",
+          "values": []
+        },
+        "path": {
+          "default": null,
+          "description": "Workspace-relative path of the scanner's SARIF 2.1.0 file.",
+          "example": "scans/semgrep.sarif",
+          "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$",
+          "required": true,
+          "type": "string",
+          "values": []
+        },
+        "repo": {
+          "default": null,
+          "description": "The scanned repository as host/owner/repo, lowercase; a SARIF run naming another repository writes nothing.",
+          "example": "github.com/example/demo-app",
+          "pattern": "^[a-z0-9.-]+/[^/\\s]+/[^/\\s]+$",
+          "required": true,
+          "type": "string",
+          "values": []
+        }
+      },
+      "path": "recipes/sarif.json"
+    },
+    {
+      "description": "One SBOM import Line (CycloneDX or SPDX 2.2/2.3 JSON) and its Mandates. Adopt again under another name per SBOM; security.start runs them all.",
+      "name": "sbom",
+      "params": {
+        "expires": {
+          "default": "90d",
+          "description": "How long each Mandate stays valid from submission: hours, days, weeks or years (36h, 90d, 12w, 1y).",
+          "example": null,
+          "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+          "required": false,
+          "type": "string",
+          "values": []
+        },
+        "name": {
+          "default": null,
+          "description": "Short identifier for this input: the Line suffix and logical source suffix; unique per input of this kind.",
+          "example": "app",
+          "pattern": "^[a-z][a-z0-9_-]{0,48}$",
+          "required": true,
+          "type": "string",
+          "values": []
+        },
+        "path": {
+          "default": null,
+          "description": "Workspace-relative path of the SBOM JSON file.",
+          "example": "sbom.cdx.json",
+          "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$",
+          "required": true,
+          "type": "string",
+          "values": []
+        }
+      },
+      "path": "recipes/sbom.json"
+    },
+    {
+      "depends_on": [
+        "default"
+      ],
+      "description": "The daily Trigger security.maintain-daily, which runs security.maintain. Skip it when CI runs the Runbooks.",
+      "name": "schedule",
+      "params": {
+        "cron": {
+          "default": "0 14 * * *",
+          "description": "Five-field cron expression, read in UTC.",
+          "example": null,
+          "pattern": null,
+          "required": false,
+          "type": "string",
+          "values": []
+        }
+      },
+      "path": "recipes/schedule.json"
+    }
+  ],
   "requires": [
     {
       "kit_id": "base",
       "min_version": "1.0.0"
+    }
+  ],
+  "scripts": [
+    {
+      "description": "Export the exposure judgments as deterministic OpenVEX v0.2.0 or CycloneDX 1.5 VEX, read at one pinned coordinate (--format openvex|cyclonedx, --inventory, --out).",
+      "mode": "read_only",
+      "name": "export-vex",
+      "path": "scripts/export_vex.py"
+    },
+    {
+      "description": "Inspect the workspace (SBOMs, SARIF files, lockfiles, Dockerfiles, the origin remote) and print the kit adopt, SBOM generator and first-run commands that fit it. Reads files only.",
+      "mode": "read_only",
+      "name": "init-plan",
+      "path": "scripts/init_plan.py"
     }
   ],
   "tag": "playbill-kit-manifest-v1",

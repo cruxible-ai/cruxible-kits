@@ -1,0 +1,15 @@
+{
+ "kind": "change_set",
+ "rationale": "kit adopt security:schedule: the Trigger security.maintain-daily, which runs the security.maintain Runbook at the cron time {{cron}} (UTC).",
+ "members": [
+  {
+   "kind": "trigger",
+   "name": "security.maintain-daily",
+   "runbook_name": "security.maintain",
+   "schedule": {
+    "kind": "cron",
+    "expression": "{{cron}}"
+   }
+  }
+ ]
+}

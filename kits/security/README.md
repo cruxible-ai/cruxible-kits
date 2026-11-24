@@ -65,6 +65,62 @@ of the Contracts and layouts it serves) and a frozen lock; installing a
 provider can download the dependencies its lock pins. For a machine with no
 index access, see the isolated-deployment page of the Cruxible docs.
 
+## Quickstart: zero authoring
+
+Cruxible 0.6 installs the kit as one proposal and adopts its automation from
+recipes the kit ships: you name values (`--param`), never edit JSON. In a Git
+workspace with the daemon running:
+
+```sh
+# 1. Own the instance; the reviewer approves the base kit init proposes.
+cruxible init --principal-id owner --require-independent-approval
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
+# 2. Install the kit: ONE proposal (its providers and definitions together).
+cruxible kit add security --commit
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
+# 3. Adopt the shared Lines and Runbooks, then one SBOM import per SBOM file.
+cruxible kit adopt security --yes
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
+cruxible kit adopt security:sbom --param name=app --param path=sbom.cdx.json --yes
+cruxible kit adopt security:sbom --param name=api --param path=services/api/sbom.cdx.json --yes
+cruxible kit adopt security:schedule --yes          # optional: the daily Trigger
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve ID1 ID2 ID3 --yes
+# 4. Enable, run, read, export.
+cruxible line enable security.osv-unkeyed --runbook security.start
+cruxible runbook preview security.start
+cruxible runbook run security.start
+cruxible next
+cruxible kit run security:export-vex -- --format openvex --out vex.openvex.json
+```
+
+`PROPOSAL_ID` is the short id each command prints (12 hex characters; `cruxible
+proposal list --status open` lists them). Until `security:1.4.0` is published
+to the registry, install from a checkout: `cruxible kit add
+/path/to/cruxible-kits/kits/security --commit`.
+
+`cruxible kit run security:init-plan` reads the workspace (SBOMs, SARIF files,
+lockfiles, Dockerfiles, the origin remote) and prints these commands with your
+paths filled in, plus a generator command when no SBOM exists yet. It writes
+nothing and calls nothing.
+
+| Recipe | `kit adopt` | Adds |
+|---|---|---|
+| `default` | `security` | OSV, KEV and EPSS Lines and Mandates, the attention and OSV unkeyed Lines, the `security.start` and `security.maintain` Runbooks (`min_epss`, `expires`) |
+| `sbom` | `security:sbom --param name=N --param path=P` | One SBOM import Line `security.sbom-import.N` (CycloneDX or SPDX JSON at `P`) and its Mandates; adopt once per SBOM |
+| `sarif` | `security:sarif --param name=N --param path=P --param repo=host/owner/repo` | One scanner's SARIF import Line, Mandates, attention Line and landing Trigger; adopt once per scanner |
+| `schedule` | `security:schedule` | The daily Trigger `security.maintain-daily` (`cron`, 14:00 UTC as shipped); leave it out when CI runs the Runbooks |
+
+`security.start` runs the SBOM imports as one fan-out step, `{"procedure":
+"security.sbom-import"}`: every live Line of that Procedure, in Line-name order,
+so the second (or tenth) SBOM joins the Runbook with no edit, and `line enable
+--runbook security.start` enables them all. With no SBOM Line yet the step is
+skipped and the run goes on. `cruxible kit adopt security --list` shows every
+recipe's parameters; `--dry-run` previews a recipe (Lines, providers, network
+origins, Mandate grants and expiry) and `--render` prints its change set. Each
+adoption is an ordinary governed change set under your principal, reviewed
+like any other. The rest of this README is the hand-authored path
+([automation.json](automation.json)) and what each part does.
+
 ## Install and first answers
 
 Use Cruxible 0.6 with its daemon running and a Git workspace selected. From a
@@ -76,13 +132,11 @@ cruxible init --principal-id owner --require-independent-approval
 # prints the base kit's proposal; the reviewer approves it (see Review below):
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
-# Preview the install without writing or prompting; prints the coordinate to commit at:
+# Preview the install without writing or prompting:
 cruxible kit add /path/to/cruxible-kits/kits/security --dry-run
-cruxible kit add /path/to/cruxible-kits/kits/security --commit --at OID
-# The commit prints three provider-install proposals. The reviewer approves each:
-CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
-# Then the kit's definitions are proposed automatically; kit status names that proposal:
-cruxible kit status --offline
+# The commit prints ONE proposal: the three providers and the kit's definitions.
+cruxible kit add /path/to/cruxible-kits/kits/security --commit
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal review PROPOSAL_ID
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
 ```
@@ -90,13 +144,12 @@ cruxible kit status --offline
 The base kit must be installed first: `init` proposes it, and once it is
 accepted `cruxible kit status --offline` shows `base`. Without it, `kit add`
 refuses with the repair `cruxible kit add base`. Nothing else needs to be
-accepted beforehand. Under independent approval a kit add is four proposals,
-not one: one install proposal for each of the three providers (each carries
-its own copies of the shapes it serves), then the kit's definitions, which
-are proposed automatically, as the kit's author, once the three installs
-have activated, because they are checked against the installed providers.
-The reviewer approves all four. With one owner and self-approval (below) the
-same commit installs everything in one step.
+accepted beforehand. Under independent approval a kit add is one proposal:
+the three provider builds (each carrying its own copies of the shapes it
+serves) and the kit's definitions, checked together; `proposal review` lists
+every provider's operations and network endpoints beside the definitions, and
+one approval activates them all. With one owner and self-approval (below) the
+same commit installs everything at once.
 `cruxible kit add security:1.4.0` installs the same release from the registry
 (`ghcr.io/cruxible-ai/kits/security:1.4.0`) once it is published; before
 then it refuses (`cruxible.kit.not_found`), so use the local directory. The
@@ -148,14 +201,13 @@ was initialized without a reviewer, add one first and then the policy:
 --signer-key OWNER_KEY --mode graph_write`, then `cruxible authoring example
 approval-policy > policy.json` and `cruxible authoring submit policy.json`.
 
-The kit's definitions proposal is planned against the instance as it was when
-it was proposed. If other writes land before the reviewer approves it, it is
-stale and the approval refuses (`readmit_requires_resubmission`): run the same
-`cruxible kit add ... --commit` again (with `--at` the new coordinate), have
-the reviewer approve the new proposal, and withdraw the stale one (`cruxible
-proposal withdraw PROPOSAL_ID --reason TEXT`), which otherwise stays open. A
-provider-install proposal does not go stale this way: its approval lands the
-same change set at the new head and signs that.
+The kit add proposal is planned against the instance as it was when it was
+proposed. If other writes land before the reviewer approves it, approval lands
+the same change set at the new head and signs that when it still applies there;
+when it does not, the approval refuses (`readmit_requires_resubmission`): run
+the same `cruxible kit add ... --commit` again, have the reviewer approve the
+new proposal, and withdraw the stale one (`cruxible proposal withdraw
+PROPOSAL_ID --reason TEXT`), which otherwise stays open.
 
 If you want to approve everything yourself, initialize without the reviewer:
 `cruxible init --principal-id owner` leaves the policy `self_approval_allowed`,
@@ -340,9 +392,12 @@ Procedure upgrades.
 ### Schedule
 
 The kit ships one daily Trigger, `security.maintain-daily`, at 14:00 UTC
-(`"schedule": {"kind": "cron", "expression": "0 14 * * *"}` in
-`automation.json`). The expression is standard five-field cron, always read in
-UTC. To change it, edit the Trigger's `expression` before submitting the
+(`"schedule": {"kind": "cron", "expression": "0 14 * * *"}`): the
+`schedule` recipe (`cruxible kit adopt security:schedule`, or `--param
+cron="30 6 * * *"` for another time), also in `automation.json`. A
+repository whose CI runs the Runbooks leaves it out. The expression is
+standard five-field cron, always read in UTC. To change it, adopt the recipe
+with another `cron`, edit the Trigger's `expression` before submitting the
 template, or later revise the Trigger with an ordinary authoring change set
 (the same member with a new expression) and have it reviewed like any other.
 The Trigger fires only while the daemon runs, and an instant missed while it
@@ -473,9 +528,11 @@ them with `cruxible principal add NAME --key-dir /outside/workspace/NAME-keys
 to that directory (a principal that approves also needs `--mode
 graph_write`).
 
-To import a scanner's SARIF file, submit
-[examples/sarif/automation-sarif.json](examples/sarif/automation-sarif.json), a
-ready-to-submit change set for one scanner: the `security.sarif-import.semgrep`
+To import a scanner's SARIF file, adopt the `sarif` recipe once per scanner
+(`cruxible kit adopt security:sarif --param name=semgrep --param
+path=scans/semgrep.sarif --param repo=github.com/acme/api`), or submit
+[examples/sarif/automation-sarif.json](examples/sarif/automation-sarif.json), the
+same change set for one scanner, by hand: the `security.sarif-import.semgrep`
 Line (`read` bound to `cruxible-builtin#workspace.file`, `derive` to
 `security-sarif-provider#sarif.findings`, parameters `relative_path`,
 `logical_source` `sarif.semgrep` and `repo`), its Mandates (`expires: 90d`) and
@@ -593,14 +650,19 @@ with the release's own fixed versions in its reason.
 
 ## Exporting VEX
 
-[examples/export_vex.py](examples/export_vex.py) writes the judgments as a
-CycloneDX 1.5 VEX or OpenVEX v0.2.0 document (standard library and
-`cruxible_client` only):
+The kit's read-only script `export-vex` ([scripts/export_vex.py](scripts/export_vex.py))
+writes the judgments as a CycloneDX 1.5 VEX or OpenVEX v0.2.0 document
+(standard library and `cruxible_client` only). `cruxible kit run` checks the
+script against the installed release (the receipt's bundle digest and the
+file's sha256) and runs it here, never in the daemon:
 
 ```sh
-cruxible python examples/export_vex.py --format openvex > vex.openvex.json
-cruxible python examples/export_vex.py --format cyclonedx --inventory pkg:maven/com.example/app@1.0.0 > vex.cdx.json
+cruxible kit run security:export-vex -- --format openvex --out vex.openvex.json
+cruxible kit run security:export-vex -- --format cyclonedx --inventory pkg:maven/com.example/app@1.0.0 > vex.cdx.json
 ```
+
+From a pulled kit directory, `cruxible python scripts/export_vex.py --format
+openvex` runs the same file.
 
 Every read is pinned to the head as the export starts, and the document names
 that coordinate (instance, generation, git oid, state digest); the timestamp is
@@ -612,6 +674,17 @@ reason), and everything else on the worklist, contested judgments included,
 as `in_triage` / `under_investigation`; the export refuses rather than ever
 state a contested pair `not_affected`. Releases the SBOM no longer lists are
 left out. Each statement cites its Claims and their Captures.
+
+## Continuous integration
+
+[examples/ci/cruxible-security.yml](examples/ci/cruxible-security.yml) is a
+drop-in GitHub Actions workflow: it generates a CycloneDX SBOM with Syft,
+restores the instance from the Actions cache (or on the first run creates a
+one-owner instance, `kit add`s the kit and adopts `security` and
+`security:sbom`), runs `security.start`, prints `cruxible next` and the urgent
+worklist, and uploads `kit run security:export-vex` output as an artifact. A
+team that reviews judgments points CI at its shared daemon instead and keeps
+independent approval.
 
 ## Limits and maintenance
 
