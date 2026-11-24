@@ -18,7 +18,8 @@ document::
 
     {"queried":      [purl, ...],       # components OSV answered in full
      "not_checked":  [{"purl", "reason"}],
-     "affected":     [{"purl", "cve_id", "osv_id", "fixed"?: [version, ...]}],
+     "affected":     [{"purl", "cve_id", "osv_id", "fixed_versions",
+                       "fixed"?: [version, ...]}],
      "count":        len(affected),
      "unkeyed":      [{"purl", "osv_id"}],   # advisories with no CVE alias
      "unkeyed_summary": [{"count", "sample", "set_digest"}]}   # none, or one
@@ -28,6 +29,16 @@ range event of the component's own package (matched by the advisory's
 ``package.purl``, version and qualifiers dropped), sorted as text: one per
 release line OSV knows. The kit compares no versions (K-B1-3), so it does not
 pick the one above the component's version; agents read the list.
+``fixed_versions`` is the same list as one line of text (``2.12.2, 2.15.0,
+2.3.1``; ``none listed`` when OSV lists none), at most ``MAX_FIXED_TEXT``
+characters (cut at a version, ending ``, ...``): the OSV Line's claims template
+writes it into each ``affected_by`` Claim's reason, so ``cruxible get <claim>``
+shows where to upgrade without decoding the match document.
+
+``osv.match`` is a ``@derive`` function (cruxible-provider-runtime 0.6): pure,
+no endpoint, its responses read as digest-checked ``CaptureView``s and its
+document's wire written by ``derived_capture``, observed at the latest
+response's time (never the clock). ``osv.query`` stays a class: it fetches.
 
 ``unkeyed`` is sorted by component, then advisory. ``unkeyed_summary`` is empty
 when it is, else one record: how many pairs there are, the first
@@ -67,10 +78,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+from cruxible_provider_runtime import CaptureView, decline, derive, derived_capture
 from cruxible_provider_runtime.acquisition import (
     CaptureInputError,
     capture_input,
-    capture_observed_at,
     external_capture_result,
 )
 from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunContext
@@ -89,6 +100,9 @@ MAX_FIXED = 32
 #: How many unkeyed pairs the summary record samples.
 UNKEYED_SAMPLE = 20
 MAX_VERSION_LEN = 64
+#: The longest ``fixed_versions`` text (the row Contract's bound too).
+MAX_FIXED_TEXT = 240
+NONE_LISTED = "none listed"
 #: The out Contract's list<capture> field (named in incomplete_captures).
 RESPONSES = "responses"
 #: Purl types whose OSV ecosystem is keyed by source package name (K-B1-6).
@@ -98,7 +112,7 @@ COORDINATE_TYPE = "http-response-v1"
 SELECTOR_TYPE = "whole-response-v1"
 PROVIDER_DECLINED = "provider_declined"
 _CVE = re.compile(r"^CVE-[0-9]{4}-[0-9]{4,}$")
-USER_AGENT = "security-osv-provider/0.1 (cruxible security kit)"
+USER_AGENT = "security-osv-provider/0.2 (cruxible security kit)"
 
 TransportFactory = Callable[[], httpx.BaseTransport | None]
 
@@ -402,10 +416,32 @@ def fixed_versions(record: Mapping[str, Any], purl: str) -> list[str]:
     return list(fixed_index(record).get(package_base(purl), ()))
 
 
-def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> dict[str, Any]:
+def fixed_text(versions: Sequence[str]) -> str:
+    """``fixed_versions``: the listed versions as one line, cut whole at ``MAX_FIXED_TEXT``."""
+
+    if not versions:
+        return NONE_LISTED
+    text = ", ".join(versions)
+    if len(text) <= MAX_FIXED_TEXT:
+        return text
+    cut = text[: MAX_FIXED_TEXT - len(", ...")].rpartition(", ")[0]
+    return (cut or versions[0][: MAX_FIXED_TEXT - len(", ...")]) + ", ..."
+
+
+def _read(member: CaptureView | Mapping[str, Any]) -> tuple[bytes, Any]:
+    if isinstance(member, CaptureView):
+        return member.raw_bytes, member.coordinate
+    view = capture_input(member)
+    return view.content, view.coordinate
+
+
+def match(
+    responses: Sequence[CaptureView | Mapping[str, Any]], components: Sequence[str]
+) -> dict[str, Any]:
     """The derived document osv.match emits (pure: same inputs, same bytes).
 
-    ``responses`` is core's Capture wire, one per osv.query member (b1).
+    ``responses`` is one Capture per osv.query member (b1): a ``CaptureView``, or
+    core's Capture wire.
     """
 
     asked, skipped = partition(components)
@@ -414,10 +450,10 @@ def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> 
     records: dict[str, Mapping[str, Any]] = {}
     seen: set[str] = set()
     for member in responses:
-        view = capture_input(member)
-        coordinate = view.coordinate if isinstance(view.coordinate, Mapping) else {}
+        content, coordinate = _read(member)
+        coordinate = coordinate if isinstance(coordinate, Mapping) else {}
         status = coordinate.get("status")
-        answer = _json(view.content) if status == 200 else None
+        answer = _json(content) if status == 200 else None
         if coordinate.get("method") == "POST":
             purls = [str(p) for p in coordinate.get("purls") or ()]
             seen.update(purls)
@@ -482,6 +518,7 @@ def match(responses: Sequence[Mapping[str, Any]], components: Sequence[str]) -> 
         listed = sorted(fixed[pair])[:MAX_FIXED]
         if listed:
             row["fixed"] = listed
+        row["fixed_versions"] = fixed_text(listed)
         affected.append(row)
     return {
         "queried": [p for p in asked if p not in unanswered],
@@ -515,38 +552,47 @@ def unkeyed_summary(unkeyed: Sequence[Mapping[str, str]]) -> list[dict[str, Any]
     ]
 
 
-class OsvMatch:
-    """``osv.match``: OSV's responses -> one derived JSON document (pure)."""
+@derive(
+    MATCH,
+    serves="security.osv.match",
+    input_contract="security.osv.match.request@1",
+    output_contract="security.osv.match.result@1",
+    refusals={
+        PROVIDER_DECLINED: {
+            "contract": f"{MATCH}.refusal.{PROVIDER_DECLINED}@1",
+            "absorbable": False,
+        }
+    },
+)
+def osv_match(
+    responses: list[CaptureView], components: list[str], logical_source: str | None = None
+) -> ProviderResult:
+    """Matches this run's OSV responses to the components asked about: one document of
+    (component, CVE) pairs with the advisory and the versions OSV lists as fixed, the
+    components answered in full, and those left unchecked with why."""
 
-    operations = (MATCH,)
-
-    def __call__(self, context: ProviderRunContext) -> ProviderResult:
-        responses = context.input.get("responses")
-        components = context.input.get("components")
-        if not isinstance(responses, list) or not isinstance(components, list):
-            return ProviderResult.refused(
-                PROVIDER_DECLINED, "osv.match needs this run's OSV responses and components"
+    if not isinstance(responses, list) or not isinstance(components, list):
+        raise decline(PROVIDER_DECLINED, "osv.match needs this run's OSV responses and components")
+    try:
+        document = match(responses, [str(p) for p in components])
+    except (CaptureInputError, ValueError, TypeError) as error:
+        raise decline(PROVIDER_DECLINED, f"unreadable OSV response: {error}") from None
+    content = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+    return ProviderResult.ok(
+        {
+            # Pure: observed at the latest response's time (EPOCH with none), never
+            # the clock, so a rerun over the same responses is byte-identical.
+            "document": derived_capture(
+                content,
+                observed_at=max((r.observed_at for r in responses), default=EPOCH),
+                source_identity=str(logical_source or "osv.dev.query"),
+                coordinate_type=COORDINATE_TYPE,
+                coordinate={"responses": len(responses), "components": len(components)},
+                selector_type=SELECTOR_TYPE,
             )
-        try:
-            document = match(responses, [str(p) for p in components])
-            # Pure: stamped with the latest input's observation time, never the clock.
-            observed = [capture_observed_at(member) for member in responses]
-        except (CaptureInputError, ValueError, TypeError) as error:
-            return ProviderResult.refused(PROVIDER_DECLINED, f"unreadable OSV response: {error}")
-        content = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
-        return ProviderResult.ok(
-            {
-                "document": external_capture_result(
-                    content,
-                    source_identity=str(context.input.get("logical_source") or "osv.dev.query"),
-                    coordinate_type=COORDINATE_TYPE,
-                    coordinate={"responses": len(responses), "components": len(components)},
-                    observed_at=max(observed, default=EPOCH),
-                    selector_type=SELECTOR_TYPE,
-                )
-            },
-            metrics={"affected": float(len(document["affected"]))},
-        )
+        },
+        metrics={"affected": float(len(document["affected"]))},
+    )
 
 
 #: osv.match's observation time when no response was read (every component

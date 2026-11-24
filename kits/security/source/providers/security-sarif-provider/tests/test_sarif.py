@@ -87,7 +87,7 @@ def wire(document: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def call(*documents: Mapping[str, Any], held: list[dict[str, Any]] | None = None) -> Any:
-    return sarif.SarifFindings()(
+    return sarif.sarif_findings(
         context(
             {
                 "logs": [wire(d) for d in documents],
@@ -317,7 +317,7 @@ def test_unreadable_input_is_declined(content: bytes, held: list[dict[str, Any]]
         observed_at=OBSERVED,
         selector_type="whole-response-v1",
     )
-    result = sarif.SarifFindings()(
+    result = sarif.sarif_findings(
         context({"logs": [log_wire], "held": held, "repo": REPO, "logical_source": "sarif.x"})
     )
     assert result.status == "refused" and result.refusal.code == sarif.PROVIDER_DECLINED
@@ -561,8 +561,14 @@ def test_registration_names_the_operation_and_its_manifest_digest() -> None:
     assert (entry["name"], entry["effect"], entry["entrypoint"]) == (
         "sarif.findings",
         "pure",
-        "security_sarif_provider.sarif:SarifFindings",
+        "security_sarif_provider.sarif:sarif_findings",
     )
+    # A @derive function: pure, no endpoint, its declaration the registration's.
+    from cruxible_provider_runtime import DeriveOperation
+
+    assert isinstance(sarif.sarif_findings, DeriveOperation)
+    assert sarif.sarif_findings.effect == "pure" and sarif.sarif_findings.declared_endpoints == ()
+    assert sarif.sarif_findings.serves == tuple(entry["serves"])
     manifest = (root / "manifest.yaml").read_bytes()
     assert registration["manifest"]["digest"] == "sha256:" + hashlib.sha256(manifest).hexdigest()
 

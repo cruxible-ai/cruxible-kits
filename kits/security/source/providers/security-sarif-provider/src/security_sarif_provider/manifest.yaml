@@ -4,13 +4,13 @@ schema_version: 2
 provider_id: security-sarif-provider
 distribution:
   name: security-sarif-provider
-  version: 0.1.0.dev0
+  version: 0.2.0.dev0
 entrypoint_group: cruxible.providers
 supported_protocol_majors: [2]
 implementations:
-  # Serves sarif.findings: pure. Reads this run's SARIF Captures (bytes passed by
+  # Serves sarif.findings: pure, a @derive function. Reads this run's SARIF Captures (bytes passed by
   # core, b1) and the held findings rows; emits one derived JSON document.
-  - entrypoint: "security_sarif_provider.sarif:SarifFindings"
+  - entrypoint: "security_sarif_provider.sarif:sarif_findings"
     backends: [local_env, container]
     requires_extras: []
     declared_endpoints: []

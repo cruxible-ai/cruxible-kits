@@ -34,7 +34,11 @@ its inbox.
 OSV writes no pair Subjects (D-R43). The versions OSV lists as fixed are no
 Claim: they stay in the derived ``osv.match`` document every ``affected_by``
 cites (each record's ``fixed``; see ``security_osv_provider.osv``), where an
-agent reads them (D-R44: nothing reacts to their change).
+agent reads them (D-R44: nothing reacts to their change). Each record also
+carries them as one line, ``fixed_versions`` (row ``security.osv-affected@2``),
+which the claims template writes into the ``affected_by`` Claim's reason, so
+``cruxible get <claim>`` shows where to upgrade as OSV listed it when it first
+reported the pair (the newest match document holds the current list).
 """
 
 from __future__ import annotations
@@ -130,6 +134,21 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "description": "One (component, CVE) pair the OSV match found, with its OSV "
             "advisory id; the versions OSV lists as fixed stay in the cited document.",
             "fields": {"osv_id": "string{max_len: 128}"},
+        },
+        # Version 2 adds the fixed versions as one line, for the affected_by reason;
+        # version 1 stays as its predecessor.
+        {
+            "kind": "contract",
+            "name": OSV_ROW,
+            "version": 2,
+            "description": "One (component, CVE) pair the OSV match found: its OSV advisory id "
+            "and the versions OSV lists as fixed for the component's package, as one line "
+            "('none listed' when there are none). They are no Claim: the affected_by Claim's "
+            "reason carries them, and the cited document holds the full list.",
+            "fields": {
+                "osv_id": "string{max_len: 128}",
+                "fixed_versions": "string{min_len: 1, max_len: 240}",
+            },
         },
         {
             "kind": "contract",
@@ -278,7 +297,7 @@ def osv_spec() -> dict[str, Any]:
                             },
                             "when_absent": "mirror",
                             "rationale": "OSV {$item.fields.osv_id} lists {$item.key.cve_id} "
-                            "for {$item.key.purl}.",
+                            "for {$item.key.purl} (fixed in: {$item.fields.fixed_versions}).",
                         },
                     ],
                 },

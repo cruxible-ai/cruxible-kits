@@ -2,7 +2,7 @@
   "schema_version": 3,
   "manifest": {
     "path": "manifest.yaml",
-    "digest": "sha256:d2663eb639511ace906f881af6fbdc652e1fbfc044835144e18c6f0363298f20"
+    "digest": "sha256:63652162e21dd710623be0370112af8899fed10c44bee1e31f6cb4e79365a835"
   },
   "operations": [
     {
@@ -24,7 +24,7 @@
           "absorbable": false
         }
       },
-      "entrypoint": "security_osv_provider.osv:OsvMatch"
+      "entrypoint": "security_osv_provider.osv:osv_match"
     },
     {
       "name": "osv.query",
@@ -66,7 +66,7 @@
           "absorbable": false
         }
       },
-      "entrypoint": "security_osv_provider.sbom:SbomComponents"
+      "entrypoint": "security_osv_provider.sbom:sbom_components"
     }
   ],
   "declares": {
@@ -95,16 +95,24 @@
       {
         "artifact_format": "cruxible-contract-v1",
         "name": "security.osv-affected",
-        "version": 1,
-        "description": "One (component, CVE) pair the OSV match found, with its OSV advisory id; the versions OSV lists as fixed stay in the cited document.",
+        "version": 2,
+        "description": "One (component, CVE) pair the OSV match found: its OSV advisory id and the versions OSV lists as fixed for the component's package, as one line ('none listed' when there are none). They are no Claim: the affected_by Claim's reason carries them, and the cited document holds the full list.",
         "fields": {
+          "fixed_versions": {
+            "type": {
+              "kind": "string",
+              "max_len": 240,
+              "min_len": 1
+            }
+          },
           "osv_id": {
             "type": {
               "kind": "string",
               "max_len": 128
             }
           }
-        }
+        },
+        "predecessor_digest": "sha256:435d69a8bd74b0a7d2d4bb5c4b31a593ba7c8d6908dce07f5bad4c55c340222d"
       },
       {
         "artifact_format": "cruxible-contract-v1",
@@ -398,10 +406,13 @@
               },
               "row": {
                 "name": "security.osv-affected",
-                "version": 1,
-                "digest": "sha256:435d69a8bd74b0a7d2d4bb5c4b31a593ba7c8d6908dce07f5bad4c55c340222d"
+                "version": 2,
+                "digest": "sha256:c7a5f160b502385d5847d4e50a77c330f0087382f395efe59359dcfb3db660c1"
               },
               "fields": {
+                "fixed_versions": {
+                  "at": "fixed_versions"
+                },
                 "osv_id": {
                   "at": "osv_id"
                 }
@@ -554,7 +565,7 @@
       {
         "kind": "CaptureKind",
         "name": "security.osv-matches",
-        "digest": "sha256:b408886ecc22b23615fc8262a4150f6200db6c316ecaa4b800446faa1a20e43c"
+        "digest": "sha256:1507e64436b2208b51a760027629f98b94dfd0f6258213b4ea5ae3046b2a11ac"
       },
       {
         "kind": "CaptureKind",

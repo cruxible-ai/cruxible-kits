@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 
 [[package]]
@@ -44,7 +44,7 @@ wheels = [
 
 [[package]]
 name = "cruxible-provider-runtime"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "../cruxible-provider-runtime" }
 dependencies = [
     { name = "packaging" },
@@ -339,7 +339,7 @@ wheels = [
 
 [[package]]
 name = "security-osv-provider"
-version = "0.1.0.dev0"
+version = "0.2.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "cruxible-provider-runtime" },

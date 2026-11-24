@@ -257,6 +257,14 @@ Capture's metadata). The document holds advisory ids, their CVE ids and fixed
 versions only; read each advisory itself at
 `https://osv.dev/vulnerability/<osv_id>`.
 
+For an advisory with a CVE, the fixed versions also travel on the `affected_by`
+Claim itself: its reason reads `OSV GHSA-jfh8-c2jp-5v3q lists CVE-2021-44228
+for pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1 (fixed in: 2.12.2,
+2.15.0, 2.3.1)`, so `cruxible get <claim>` shows where to upgrade without
+decoding the match document. They are no Claim (nothing reacts to their
+change): the reason records them as OSV listed them when it first reported the
+pair, and the newest match document holds the current list.
+
 An inbox item is a call for attention, not storage. When the list an author
 wants seen already exists as state (a Query) or as evidence (a Capture, such as
 the OSV match document), post one summary item that points at it (a count, a

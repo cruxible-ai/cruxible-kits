@@ -41,7 +41,11 @@ Absence is judged by the inventory (``expect: {by: inventory}``): core finds
 that inventory's current occurrences itself, so the derive reads no state.
 
 Pure: the output is a function of the SBOM bytes and the path; the result's
-observation time is the SBOM Capture's own, never the clock.
+observation time is the SBOM Capture's own, never the clock. The operation is a
+``@derive`` function (cruxible-provider-runtime 0.6): it declares ``effect: pure``
+with no endpoint, receives the SBOM as a digest-checked ``CaptureView`` and writes
+the document's wire with ``CaptureView.derive``, so a rebuilt build is a pure,
+non-widening move (``provider install --move``).
 """
 
 from __future__ import annotations
@@ -50,13 +54,8 @@ import json
 from collections.abc import Iterator, Mapping
 from typing import Any
 
-from cruxible_provider_runtime.acquisition import (
-    CaptureInputError,
-    capture_input,
-    capture_observed_at,
-    external_capture_result,
-)
-from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunContext
+from cruxible_provider_runtime import CaptureView, decline, derive
+from cruxible_provider_runtime.provider_api import ProviderResult
 
 COMPONENTS = "sbom.components"
 PROVIDER_DECLINED = "provider_declined"
@@ -150,34 +149,42 @@ def components_document(content: bytes, relative_path: str) -> dict[str, Any]:
     return out
 
 
-class SbomComponents:
-    """``sbom.components``: an SBOM Capture -> one derived JSON document (pure)."""
+@derive(
+    COMPONENTS,
+    serves="security.sbom.components",
+    input_contract="security.sbom.components.request@1",
+    output_contract="security.sbom.components.result@1",
+    refusals={
+        PROVIDER_DECLINED: {
+            "contract": f"{COMPONENTS}.refusal.{PROVIDER_DECLINED}@1",
+            "absorbable": False,
+        }
+    },
+)
+def sbom_components(
+    sbom: CaptureView, relative_path: str, logical_source: str | None = None
+) -> ProviderResult:
+    """Reads one CycloneDX JSON SBOM: one document naming its inventory and each distinct
+    component by purl with its scope, nested components flattened, unidentified ones
+    counted."""
 
-    operations = (COMPONENTS,)
-
-    def __call__(self, context: ProviderRunContext) -> ProviderResult:
-        view = context.input.get("sbom")
-        path = context.input.get("relative_path")
-        source = str(context.input.get("logical_source") or "cyclonedx.sbom")
-        if not isinstance(path, str) or not path:
-            return ProviderResult.refused(PROVIDER_DECLINED, "sbom.components needs the SBOM path")
-        try:
-            sbom = capture_input(view)
-            observed_at = capture_observed_at(view)
-            document = components_document(sbom.content, path)
-        except (CaptureInputError, SbomRefused) as error:
-            return ProviderResult.refused(PROVIDER_DECLINED, str(error))
-        content = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
-        return ProviderResult.ok(
-            {
-                "document": external_capture_result(
-                    content,
-                    source_identity=source,
-                    coordinate_type=COORDINATE_TYPE,
-                    coordinate={"relative_path": path, "components": document["count"]},
-                    observed_at=observed_at,
-                    selector_type=SELECTOR_TYPE,
-                )
-            },
-            metrics={"components": float(len(document["components"]))},
-        )
+    if not isinstance(relative_path, str) or not relative_path:
+        raise decline(PROVIDER_DECLINED, "sbom.components needs the SBOM path")
+    try:
+        document = components_document(sbom.raw_bytes, relative_path)
+    except SbomRefused as error:
+        raise decline(PROVIDER_DECLINED, str(error)) from None
+    content = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+    return ProviderResult.ok(
+        {
+            # Observed when the SBOM was, never the clock: a rerun is byte-identical.
+            "document": sbom.derive(
+                content,
+                source_identity=str(logical_source or "cyclonedx.sbom"),
+                coordinate_type=COORDINATE_TYPE,
+                coordinate={"relative_path": relative_path, "components": document["count"]},
+                selector_type=SELECTOR_TYPE,
+            )
+        },
+        metrics={"components": float(len(document["components"]))},
+    )

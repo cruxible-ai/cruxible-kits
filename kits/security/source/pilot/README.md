@@ -24,8 +24,8 @@ Queries, provider and guidance, never their Lines.
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
 | `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py`, `test_audit_gate.py`, `test_facts_gate.py`, `test_start_gate.py` | The gate, run on recorded real bytes |
-| `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive), serving the kit's capabilities of the same names under `security.`, with its recorded OSV exchanges |
-| `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure), serving `security.sarif.findings`, and its SARIF test data |
+| `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive; both derives are `@derive` functions on cruxible-provider-runtime 0.6, so a rebuilt build is a pure `provider install --move`), serving the kit's capabilities of the same names under `security.`, with its recorded OSV exchanges |
+| `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure, a `@derive` function), serving `security.sarif.findings`, and its SARIF test data |
 | `../providers/build_registrations.py` | Writes both kit providers' `registration.json` (schema 3) from the kit's definitions |
 | `../guidance/dependency.md` | Judging a dependency exposure: the review guidance the two justifications and the app-level verdict point to |
 
@@ -186,7 +186,12 @@ claims.
   component's own package (matched by the advisory's `package.purl`, version
   and qualifiers dropped; PyPI names under PEP 503), sorted as text (log4j-core
   2.14.1 × CVE-2021-44228: `2.12.2, 2.15.0, 2.3.1`). Every `affected_by` cites
-  that document, where agents read them; the kit compares no versions.
+  that document, where agents read them; the kit compares no versions. Each
+  record also carries the list as one line, `fixed_versions` (row
+  `security.osv-affected@2`, at most 240 characters, `none listed` when empty),
+  which the claims template writes into the Claim's reason: `OSV
+  GHSA-jfh8-c2jp-5v3q lists CVE-2021-44228 for ...@2.14.1 (fixed in: 2.12.2,
+  2.15.0, 2.3.1).` (`test_each_affected_by_reason_names_the_fixed_versions`).
 - **`expect` is the derived document's `queried` header**: only components OSV
   answered in full are judged. A vulnerability OSV no longer lists for one of
   them retires on the complete read (`mirror`), and settles (K-B2-G4).
@@ -307,7 +312,7 @@ creates a judgment pair.
 | `security.urgent_exposures` | One per (inventory, component, vulnerability) occurrence nobody has judged (no package-level justification, no app-level judgment): KEV-listed first (by `kev_date_added`), then by EPSS score; with the occurrence id, its scope, KEV dates, ransomware use and EPSS |
 | `security.asset_urgent_exposures` | The same rows and order, each with the IT asset its inventory runs as (`security.inventory.asset`, an optional hop) and the asset's owner, environment, exposure and criticality; empty for an inventory linked to no asset (`test_the_asset_worklist_is_the_worklist_with_each_inventorys_asset_beside_it`). A judgment pinned to `it.asset/<slug>#exposure` comes back in `next` as `claim_dependency_stale` when it changes (`test_a_judgment_pinned_to_the_assets_exposure_resurfaces_when_the_exposure_changes`) |
 | `security.kev_triage_backlog` | The KEV-listed rows of the above (pairs under investigation stay) |
-| `security.confirmed_exposures` | One per occurrence judged `affected` whose SBOM still lists the component, with its app_exposure id and the same fields, KEV first then EPSS; the fixed versions are in the `osv.match` document the component's `affected_by` Claim cites |
+| `security.confirmed_exposures` | One per occurrence judged `affected` whose SBOM still lists the component, with its app_exposure id and the same fields, KEV first then EPSS; the fixed versions are in the reason of the component's `affected_by` Claim (and the `osv.match` document it cites) |
 | `security.not_affected_judgments` | Every package-level judgment: exposure, component, CVE, justification |
 | `security.app_not_affected_judgments` | Every current app-level judgment (its occurrence still holds a scope): app_exposure, inventory, component, CVE, justification |
 | `security.departed_app_not_affected_judgments` | The app-level judgments whose component the inventory's SBOM no longer lists (an upgraded or removed release), same row: kept as history while `next` lists each as `claim_dependency_stale` (`test_upgrading_a_package_moves_its_app_judgment_out_of_the_current_track_record`) |

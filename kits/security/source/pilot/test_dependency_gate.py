@@ -332,6 +332,21 @@ def test_osv_writes_affected_by_creating_each_vulnerability(tmp_path: Path) -> N
     assert LOG4SHELL in watched(instance) and len(watched(instance)) == 9
 
 
+def test_each_affected_by_reason_names_the_fixed_versions(tmp_path: Path) -> None:
+    """The versions OSV lists as fixed are no Claim (D-R44), but each affected_by
+    Claim's reason carries them as one line, so ``cruxible get <claim>`` shows where
+    to upgrade without decoding the match document."""
+
+    instance = world(tmp_path)
+    run_osv(instance)
+    claim = affected_claim(instance, CORE, LOG4SHELL)
+    evidence = get(instance, claim, detail="evidence").evidence
+    assert evidence.rationale == (
+        f"OSV GHSA-jfh8-c2jp-5v3q lists {LOG4SHELL} for {CORE} "
+        "(fixed in: 2.12.2, 2.15.0, 2.3.1)."
+    ), evidence.rationale
+
+
 def test_an_identical_osv_run_writes_nothing(tmp_path: Path) -> None:
     instance = world(tmp_path)
     run_osv(instance)
@@ -2196,13 +2211,24 @@ def test_judgments_never_settle_under_a_mandate() -> None:
     for normative writes, a justification, a verdict, or a judgment pair."""
 
     automation = kit.automation([], now=NOW, sboms=(("demo", DEMO_PATH),))
+    mandates = [m for m in automation["members"] if m["kind"] == "procedure_mandate"]
     scoped = {
         entry["claim_type"]
-        for member in automation["members"]
-        if member["kind"] == "procedure_mandate"
-        for entry in member.get("scope", ())
+        for member in mandates
+        if isinstance(member.get("scope"), list)
+        for entry in member["scope"]
     }
     assert not {c for c in scoped if c.endswith((".justification", ".verdict"))}
+    # The observation grants (core refuses scope: observations for any Procedure that
+    # writes a ClaimType permitting normative) are KEV's and EPSS's, whose ClaimTypes
+    # are all observation-only.
+    observing = {m["line_name"] for m in mandates if m.get("scope") == "observations"}
+    assert observing == {kit.KEV_LINE, kit.EPSS_LINE}
+    roles = {r["predicate"]: r.get("permitted_roles") for r in kit.claim_type_records()}
+    assert {p for p, r in roles.items() if p.startswith(f"{kit.VULN}.kev_") or ".epss_" in p}
+    assert all(
+        r == ["observation"] for p, r in roles.items() if ".kev_" in p or ".epss_" in p
+    ), roles
     assert f"{inventory.APP_EXPOSURE}.verdict" in {
         r["predicate"] for r in inventory.claim_type_records()
     }

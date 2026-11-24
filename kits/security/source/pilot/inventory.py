@@ -186,8 +186,8 @@ OSV_MATCHES_LAYOUT: dict[str, Any] = {
                 "purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"},
                 "cve_id": {"at": "cve_id", "type": f"key_part<{VULN}:cve_id>"},
             },
-            "row": "security.osv-affected@1",
-            "fields": {"osv_id": {"at": "osv_id"}},
+            "row": "security.osv-affected@2",
+            "fields": {"osv_id": {"at": "osv_id"}, "fixed_versions": {"at": "fixed_versions"}},
             "count_at": "/count",
         },
         "not_checked": {
@@ -221,9 +221,13 @@ def capture_kinds() -> dict[str, dict[str, Any]]:
     derived kinds the dependency plane emits (sbom.components, osv.match).
 
     A derived kind takes the ``http_response`` shape: a provider derive returns
-    its document as external Capture wire, which ``procedure_output`` does not
-    admit (e2). Both derived kinds declare their layout, the shape the capability
-    promises and every operation serving it carries.
+    its document as external Capture wire under the Line's logical source.
+    Cruxible 0.6 also commits a pure operation's output into a ``procedure_output``
+    kind (CAS-only), but the kit keeps these kinds as they were, so a 0.6 build of
+    the derives writes byte-identical documents under the same CaptureKinds and
+    absence keeps binding to each Line's logical source. Both derived kinds declare
+    their layout, the shape the capability promises and every operation serving it
+    carries.
     """
 
     return {

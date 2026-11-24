@@ -128,7 +128,7 @@ class Scanner:
                 assert envelope.status == "ok", envelope
                 return dict(envelope.output or {})
             self.calls.append("derive")
-            result = derive.SarifFindings()(
+            result = derive.sarif_findings(
                 ProviderRunContext(
                     run_id=context.run_id,
                     input=dict(context.input),

@@ -71,6 +71,11 @@ Output::
                     weakness?, locus?, finding?, reason?}],
      "routed":    [{rule, path}],
      "other_repo_runs", "results"}
+
+``sarif.findings`` is a ``@derive`` function (cruxible-provider-runtime 0.6):
+pure, no endpoint, its logs read as digest-checked ``CaptureView``s and its
+document's wire written by ``derived_capture``, observed at the latest log's time
+(never the clock), so a rebuilt build is a pure, non-widening move.
 """
 
 from __future__ import annotations
@@ -84,13 +89,9 @@ from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
-from cruxible_provider_runtime.acquisition import (
-    CaptureInputError,
-    capture_input,
-    capture_observed_at,
-    external_capture_result,
-)
-from cruxible_provider_runtime.provider_api import ProviderResult, ProviderRunContext
+from cruxible_provider_runtime import CaptureView, decline, derive, derived_capture
+from cruxible_provider_runtime.acquisition import CaptureInputError
+from cruxible_provider_runtime.provider_api import ProviderResult
 
 OPERATION = "sarif.findings"
 PROVIDER_DECLINED = "provider_declined"
@@ -685,51 +686,53 @@ def document_bytes(document: Mapping[str, Any]) -> bytes:
     return json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
 
 
-class SarifFindings:
-    """``sarif.findings``: this run's SARIF Captures + held findings -> one document."""
+@derive(
+    OPERATION,
+    serves="security.sarif.findings",
+    input_contract="security.sarif.findings.request@1",
+    output_contract="security.sarif.findings.result@1",
+    refusals={
+        PROVIDER_DECLINED: {
+            "contract": f"{OPERATION}.refusal.{PROVIDER_DECLINED}@1",
+            "absorbable": False,
+        }
+    },
+)
+def sarif_findings(
+    logs: list[CaptureView],
+    held: list[Any],
+    repo: str | None = None,
+    logical_source: str | None = None,
+) -> ProviderResult:
+    """Reads this run's SARIF 2.1.0 logs for one repository with the findings it holds:
+    one document of findings by repository, weakness and locus, present or fixed, the held
+    findings a full run covers, and attention records for regressions and location gaps."""
 
-    operations = (OPERATION,)
-
-    def __call__(self, context: ProviderRunContext) -> ProviderResult:
-        logs = context.input.get("logs")
-        held = context.input.get("held")
-        source = context.input.get("logical_source")
-        if not isinstance(logs, list) or not logs or not isinstance(held, list):
-            return ProviderResult.refused(
-                PROVIDER_DECLINED, "sarif.findings needs this run's SARIF logs and held findings"
-            )
-        if len(logs) > MAX_LOGS:
-            return ProviderResult.refused(
-                PROVIDER_DECLINED, f"sarif.findings reads at most {MAX_LOGS} logs a run"
-            )
-        try:
-            inputs = [capture_input(log) for log in logs]
-            observed = max(capture_observed_at(log) for log in logs)
-            document = findings(
-                [item.content for item in inputs], held, str(context.input.get("repo") or "")
-            )
-        except (CaptureInputError, InputError) as error:
-            return ProviderResult.refused(PROVIDER_DECLINED, str(error))
-        content = document_bytes(document)
-        return ProviderResult.ok(
-            {
-                "document": external_capture_result(
-                    content,
-                    source_identity=str(source or "sarif.findings"),
-                    coordinate_type=COORDINATE_TYPE,
-                    coordinate={
-                        "operation": OPERATION,
-                        "logs": [
-                            "sha256:" + hashlib.sha256(item.content).hexdigest() for item in inputs
-                        ],
-                    },
-                    # Pure: stamped with the input's observation time, never the clock.
-                    observed_at=observed,
-                    selector_type=SELECTOR_TYPE,
-                )
-            },
-            metrics={
-                "findings": float(len(document["findings"])),
-                "attention": float(len(document["attention"])),
-            },
+    if not isinstance(logs, list) or not logs or not isinstance(held, list):
+        raise decline(
+            PROVIDER_DECLINED, "sarif.findings needs this run's SARIF logs and held findings"
         )
+    if len(logs) > MAX_LOGS:
+        raise decline(PROVIDER_DECLINED, f"sarif.findings reads at most {MAX_LOGS} logs a run")
+    try:
+        document = findings([log.raw_bytes for log in logs], held, str(repo or ""))
+    except (CaptureInputError, InputError) as error:
+        raise decline(PROVIDER_DECLINED, str(error)) from None
+    content = document_bytes(document)
+    return ProviderResult.ok(
+        {
+            "document": derived_capture(
+                content,
+                # Pure: observed at the latest log's time, never the clock.
+                derived_from=logs,
+                source_identity=str(logical_source or "sarif.findings"),
+                coordinate_type=COORDINATE_TYPE,
+                coordinate={"operation": OPERATION, "logs": [log.bytes_digest for log in logs]},
+                selector_type=SELECTOR_TYPE,
+            )
+        },
+        metrics={
+            "findings": float(len(document["findings"])),
+            "attention": float(len(document["attention"])),
+        },
+    )

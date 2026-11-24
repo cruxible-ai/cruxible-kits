@@ -22,10 +22,13 @@ that release left the SBOM; `cruxible get <pair> --detail history` shows its val
 reason, and `cruxible get <claim> --detail evidence` the file it cites, so re-check that
 reasoning and citation against the new release instead of deriving them again.
 
-OSV's `affected_by` Claim cites the `osv.match` document (`cruxible get <claim> --detail
-evidence` names it as `CAP-...`). That document holds only the advisory id, the CVE ids and
-the fixed versions (each `affected` record's `fixed`); its bytes are base64 in `capture
-read`'s JSON: `cruxible capture read CAP-... | jq -r .material.body_access.body_base64 |
+OSV's `affected_by` Claim names where to upgrade in its reason: `cruxible get <claim>
+--detail evidence` prints `OSV GHSA-... lists CVE-... for <purl> (fixed in: 2.12.2, 2.15.0,
+2.3.1)`, every version OSV's advisories list as fixed for that package (one per release line;
+the kit compares no versions, so pick the one above yours), as OSV listed them when it first
+reported the pair. The Claim cites the `osv.match` document (`CAP-...` in the same output),
+which holds the advisory id, the CVE ids and the current fixed versions (each `affected`
+record's `fixed`); its bytes are base64 in `capture read`'s JSON: `cruxible capture read CAP-... | jq -r .material.body_access.body_base64 |
 base64 -d`. Read the advisory itself at `https://osv.dev/vulnerability/<osv_id>`, then the
 code that uses the package.
 
@@ -149,7 +152,8 @@ set ... --clear-based-on`.
 ## The outcomes
 
 - **Affected**: the vulnerable code is reachable here. Record it, then remediate (the fixed
-  versions are in the `osv.match` document OSV's `affected_by` Claim cites) or escalate. One
+  versions are in the reason of OSV's `affected_by` Claim, `cruxible get <claim>`) or
+  escalate. One
   write with two changes: `create` the `security.app_exposure` pair keyed by `occurrence`
   and `vulnerability`; `set` its `verdict` to `affected`, citing the code that reaches the
   vulnerable function (the passage on the call path) as its evidence. No justification. The
