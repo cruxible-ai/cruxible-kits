@@ -512,6 +512,10 @@ def build_release(
         RELEASE,
         "--owns",
         "security.",
+        # The deployment anchor it.asset (pilot/assets.py): held here until an IT asset
+        # kit owns the it. prefix.
+        "--owns",
+        "it.",
         "--automation-template",
         str(template.TEMPLATE),
         "--out",

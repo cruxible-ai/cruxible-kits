@@ -456,6 +456,11 @@ def vocabulary() -> dict[str, Any]:
     import triage
 
     members += osv.vocabulary_members([*claim_types, *inventory_claim_types()])
+    # The deployment anchor (it.asset and the inventory's link) before the triage
+    # Query that reads it.
+    import assets
+
+    members += assets.vocabulary_members()
     members += triage.vocabulary_members()
     # Codebase facts: the fact kind, app_exposure.rests_on and their Queries.
     import facts
@@ -464,7 +469,8 @@ def vocabulary() -> dict[str, Any]:
     return {
         "kind": "change_set",
         "rationale": "Security kit vocabulary: SBOM inventory (occurrences), KEV and EPSS "
-        "facts, the judgment pairs, and the watch list and worklists that join them.",
+        "facts, the judgment pairs, the it.asset deployment anchor, and the watch list and "
+        "worklists that join them.",
         "members": members,
     }
 

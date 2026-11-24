@@ -23,6 +23,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+import assets  # noqa: E402
 import dependency_replay  # noqa: E402
 import facts  # noqa: E402
 import inventory  # noqa: E402
@@ -1333,6 +1334,147 @@ def test_upgrading_a_package_moves_its_app_judgment_out_of_the_current_track_rec
     assert [row.subject_identity for row in stale] == [f"Claim:{claim}"], stale
     (entry,) = stale[0].detail["stale_inputs"]
     assert entry["subject_end"] == f"Subject:{inventory.OCCURRENCE}/{occurrence}"
+
+
+ASSET = "payments-api"
+
+
+def describe_asset(instance: Any, inventory_id: str, *, exposure: str = "internal") -> Any:
+    """One write: the IT asset ``payments-api`` with its five stated fields, and the
+    inventory's link to it (as the dependency guidance shows)."""
+
+    def stated(field: str, value: str) -> dict[str, Any]:
+        return {"op": "set", "subject": {"created": "asset"}, "field": field, "value": value}
+
+    outcome = write(
+        instance,
+        {
+            "because": "Payments API runs in prod behind the internal load balancer only.",
+            "accept": "if_allowed",
+            "changes": [
+                {
+                    "op": "create",
+                    "label": "asset",
+                    "subject_kind": assets.ASSET,
+                    "key": [{"predicate": f"{assets.ASSET}.slug", "value": ASSET}],
+                },
+                stated("title", "Payments API"),
+                stated("owner", "payments-team"),
+                stated("environment", "prod"),
+                stated("exposure", exposure),
+                stated("criticality", "critical"),
+                {
+                    "op": "set",
+                    "subject": f"{inventory.INVENTORY}/{inventory_id}",
+                    "field": "asset",
+                    "value": {"created": "asset"},
+                },
+            ],
+        },
+    )
+    assert outcome.status == "accepted", outcome
+    return outcome
+
+
+def test_the_asset_worklist_is_the_worklist_with_each_inventorys_asset_beside_it(
+    tmp_path: Path,
+) -> None:
+    """``security.asset_urgent_exposures`` lists exactly the worklist's rows: an
+    inventory linked to no asset keeps every row with the asset columns empty (the
+    hop is optional), and a linked one carries its asset's deployment facts."""
+
+    instance = world(tmp_path, other=True)
+    run_osv(instance)
+    urgent = exposures(instance)
+
+    def asset_rows() -> dict[tuple[str, str, str], tuple[Any, ...]]:
+        return {
+            (r["inventory"], r["component"], r["cve_id"]): (
+                r.get("asset"),
+                r.get("owner"),
+                r.get("environment"),
+                r.get("exposure"),
+                r.get("criticality"),
+            )
+            for r in query_rows(instance, triage.ASSET_URGENT)
+        }
+
+    before = asset_rows()
+    assert set(before) == urgent and urgent
+    assert set(before.values()) == {(None, None, None, None, None)}
+    describe_asset(instance, DEMO_APP)
+    after = asset_rows()
+    assert set(after) == urgent
+    linked = ("payments-api", "payments-team", "prod", "internal", "critical")
+    for (inventory_id, _purl, _cve), columns in after.items():
+        expected = linked if inventory_id == DEMO_APP else (None, None, None, None, None)
+        assert columns == expected, (inventory_id, columns)
+
+
+def test_a_judgment_pinned_to_the_assets_exposure_resurfaces_when_the_exposure_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """kit-gate-judgment-resurfaces. An app-level not_affected judgment ("internal-only
+    service") pinned with ``based_on`` to ``it.asset/payments-api#exposure`` and the
+    occurrence's ``scope`` stays quiet while neither changes. When the asset's exposure
+    flips to ``internet``, ``next`` lists the judgment as ``claim_dependency_stale``
+    naming the revised exposure Claim; the judgment itself still stands until someone
+    re-judges it."""
+
+    monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
+    instance = world(tmp_path)
+    run_osv(instance)
+    describe_asset(instance, DEMO_APP)
+    occurrence = occurrence_of(instance, DEMO_APP, CORE)
+    outcome = write(
+        instance,
+        triage.app_judgment(
+            occurrence,
+            LOG4SHELL,
+            reason="vulnerable_code_cannot_be_controlled_by_adversary",
+            because="Internal-only service: no untrusted client reaches the JNDI lookup.",
+            based_on=[
+                triage.asset_exposure(ASSET),
+                triage.pin(f"{inventory.OCCURRENCE}/{occurrence}", "scope"),
+            ],
+            accept="if_allowed",
+        ),
+    )
+    assert outcome.status == "accepted", outcome
+    pair = outcome.changes[1].subject
+    claim = justification_claim(instance, pair)
+    exposure = justification_claim(instance, f"{assets.ASSET}/{ASSET}", "exposure")
+    scope = justification_claim(instance, f"{inventory.OCCURRENCE}/{occurrence}", "scope")
+    evidence = get(instance, claim, detail="why")
+    assert {exposure, scope} <= set(json.dumps(evidence.model_dump(mode="json")).split('"')), (
+        evidence
+    )
+    assert [r["cve_id"] for r in query_rows(instance, triage.APP_JUDGMENTS)] == [LOG4SHELL]
+    # Unchanged inputs: quiet, however often the Lines re-observe them.
+    run_osv(instance, minute=1)
+    assert _next_rows(instance, tmp_path, "claim_dependency_stale") == []
+
+    flipped = write(
+        instance,
+        {
+            "because": "The payments API now has a public ingress (infra change 2026-11).",
+            "accept": "if_allowed",
+            "changes": [
+                {
+                    "op": "set",
+                    "subject": f"{assets.ASSET}/{ASSET}",
+                    "field": "exposure",
+                    "value": "internet",
+                }
+            ],
+        },
+    )
+    assert flipped.status == "accepted", flipped
+    stale = _next_rows(instance, tmp_path, "claim_dependency_stale")
+    assert [row.subject_identity for row in stale] == [f"Claim:{claim}"], stale
+    assert exposure in json.dumps(stale[0].detail), stale[0].detail
+    # The judgment stands (no Line retires it): still current, now flagged by next.
+    assert [r["cve_id"] for r in query_rows(instance, triage.APP_JUDGMENTS)] == [LOG4SHELL]
 
 
 # -- triage worklists ---------------------------------------------------------------

@@ -31,6 +31,7 @@ stays unknown; it never means unaffected or clean.
 | `security.confirmed_exposures` | Exposures judged `affected` whose SBOM still lists the component: fix pending, with KEV and EPSS context |
 | `security.not_affected_judgments`, `security.app_not_affected_judgments`, `security.departed_app_not_affected_judgments` | The track record: every package-level judgment; every app-level judgment whose component the inventory's SBOM still lists; and the app-level judgments on a release the SBOM no longer lists (an upgrade or removal), kept as history |
 | `security.covered_app_exposures`, `security.covered_package_exposures`, `security.pair_without_judgment_exposures` | Exposures a resolved not_affected judgment covers (app or package level), and worklist pairs that exist with no judgment on them (a withdrawn judgment, or a pair created before judging; a Query cannot tell which): with the worklist and confirmed list, the row counts say how many are covered, new, confirmed and in that last state |
+| `it.asset`, `security.inventory.asset`, `security.asset_urgent_exposures` | The deployment anchor: one IT asset (`slug`; `title`, `owner`, `environment`, `exposure`, `criticality`), an inventory's optional link to the asset it runs as, and the worklist with each row's asset beside it (empty for an inventory with no asset). A judgment that relies on the asset pins it (`--based-on it.asset/<slug>#exposure`) and comes back in `next` when it changes ([Deployment context](#deployment-context-itasset)) |
 | `security.watched_vulnerabilities` | Vulnerabilities affecting imported components |
 | `security.finding` | One weakness at one place in one repository: `rule`, `reported_by`, `reported_at`, `verification`, `severity`, and the judgments `verdict`, `justification`, `fixed_by`, `found_in` |
 | `security.coverage_unit` | One surface of one repository checked for one concern, with its `status` |
@@ -340,6 +341,68 @@ records what it read, so it takes time and stored bytes
 running it more often than daily. The records are part of the instance: the
 daemon's `exhaust` directory is backed up with the ledger, and no command
 prunes it.
+
+## Deployment context: `it.asset`
+
+Whether a vulnerable release matters depends on where it runs. `it.asset` is one
+lean kind for the deployment facts dependency judgments rely on, keyed by `slug`:
+`title`, `owner` (the team that answers for it), `environment` (`prod`,
+`staging`, `dev`), `exposure` (`internet`, `internal`, `isolated`) and
+`criticality` (`critical`, `high`, `medium`, `low`). `security.inventory.asset`
+links an SBOM inventory to the asset it runs as (when one build runs as several,
+link the most exposed). Both are optional: an inventory with no asset is triaged
+exactly as before. One write records an asset and links it (`cruxible write
+asset.json`; the reviewer approves it like any other write):
+
+```json
+{
+ "because": "Payments API: prod, reachable only through the internal load balancer (infra/lb.tf).",
+ "changes": [
+  {"op": "create", "label": "asset", "subject_kind": "it.asset",
+   "key": [{"predicate": "it.asset.slug", "value": "payments-api"}]},
+  {"op": "set", "subject": {"created": "asset"}, "field": "title", "value": "Payments API"},
+  {"op": "set", "subject": {"created": "asset"}, "field": "owner", "value": "payments-team"},
+  {"op": "set", "subject": {"created": "asset"}, "field": "environment", "value": "prod"},
+  {"op": "set", "subject": {"created": "asset"}, "field": "exposure", "value": "internal"},
+  {"op": "set", "subject": {"created": "asset"}, "field": "criticality", "value": "critical"},
+  {"op": "set", "subject": "security.inventory/pkg:maven/com.example/payments-api@1.4.0",
+   "field": "asset", "value": {"created": "asset"}}
+ ]
+}
+```
+
+`cruxible query --name security.asset_urgent_exposures` is the worklist
+(`security.urgent_exposures`, same rows and order) with each row's asset, owner,
+environment, exposure and criticality. A judgment that relies on the asset pins
+the fields it relied on (Cruxible 0.6 `based_on`), so it stays quiet while they
+hold and comes back on its own when one changes. For an internal-only service:
+
+```json
+{
+ "because": "Internal-only service: no untrusted client reaches the JNDI lookup (notes/log4shell.md#reachability).",
+ "accept": "never",
+ "changes": [
+  {"op": "create", "label": "pair", "subject_kind": "security.app_exposure",
+   "key": [{"predicate": "security.app_exposure.occurrence", "value": "security.occurrence/OCCURRENCE"},
+           {"predicate": "security.app_exposure.vulnerability", "value": "security.vulnerability/cve-2021-44228"}]},
+  {"op": "set", "subject": {"created": "pair"}, "field": "justification",
+   "value": "vulnerable_code_cannot_be_controlled_by_adversary", "role": "normative",
+   "based_on": ["it.asset/payments-api#exposure", "security.occurrence/OCCURRENCE#scope"]}
+ ]
+}
+```
+
+The write resolves each `kind/id#field` to that field's one live Claim and pins
+its exact version. When the asset's `exposure` later becomes `internet` (or the
+SBOM drops the release, retiring the `scope`), `cruxible next` lists the
+judgment as `claim_dependency_stale`, naming the Claim that changed: re-judge it
+and pin again, or retire it. The governed dependency guidance says which fields
+each judgment pins.
+
+The `it.` prefix is reserved for a future IT asset kit (inbound discovery Lines
+and the inventory kinds they need). This kit holds only the anchor its
+judgments rest on, and adds no host, cluster, network or vendor kinds; it owns
+`it.` until that kit does.
 
 ## The audit loop
 

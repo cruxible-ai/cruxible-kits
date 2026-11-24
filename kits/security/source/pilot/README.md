@@ -19,6 +19,7 @@ Queries, provider and guidance, never their Lines.
 | `osv.py` | The OSV Procedure and Line, the unkeyed Procedure, Line and Trigger (advisories with no CVE alias to the inbox), and the OSV response kind |
 | `triage.py` | The triage, confirmed and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `affected_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
 | `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines; security audits: the coverage unit, `found_in` and the audit Queries |
+| `assets.py` | The deployment anchor: `it.asset` (keyed by `slug`; `title`, `owner`, `environment`, `exposure`, `criticality`) and `security.inventory.asset`, the inventory's optional link to it; `triage.ASSET_URGENT` reads them |
 | `facts.py` | Codebase facts: `security.code_fact` (keyed by repo and topic; `category`, `holds`), `rests_on` on findings, app exposures and coverage units, and their Queries |
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
@@ -117,6 +118,7 @@ never change (a new identity is a new pair).
 | `security.occurrence` | (`inventory`, `component`) | `scope`: the CycloneDX scope (`required`, `optional`, `excluded`; `required` when the SBOM states none). The membership fact (R3): live while the SBOM lists the component, retired when it no longer does |
 | `security.exposure` | (`component`, `vulnerability`) | `justification`: `vulnerable_code_not_present` only (package level, normative; cites the code read or own words) |
 | `security.app_exposure` | (`occurrence`, `vulnerability`) | `justification`: `component_not_present`, `vulnerable_code_not_in_execute_path`, `vulnerable_code_cannot_be_controlled_by_adversary` or `inline_mitigations_already_exist` (one inventory, normative; cites the code read or own words). `verdict`: `affected` (alone: reachable here, citing the code on the call path) or `not_affected` (optional beside a justification) |
+| `it.asset` | `slug` | `title`, `owner`, `environment` (prod/staging/dev), `exposure` (internet/internal/isolated), `criticality` (critical/high/medium/low): normative, own words or a cited file; `security.inventory.asset` (one, normative) links an inventory to it |
 | `security.vulnerability` | `cve_id` | KEV and EPSS fields (see `definitions.py`); created by value when OSV first names it |
 
 `security.inventory_components` lists one inventory's current components
@@ -303,6 +305,7 @@ creates a judgment pair.
 | Query | Rows |
 |---|---|
 | `security.urgent_exposures` | One per (inventory, component, vulnerability) occurrence nobody has judged (no package-level justification, no app-level judgment): KEV-listed first (by `kev_date_added`), then by EPSS score; with the occurrence id, its scope, KEV dates, ransomware use and EPSS |
+| `security.asset_urgent_exposures` | The same rows and order, each with the IT asset its inventory runs as (`security.inventory.asset`, an optional hop) and the asset's owner, environment, exposure and criticality; empty for an inventory linked to no asset (`test_the_asset_worklist_is_the_worklist_with_each_inventorys_asset_beside_it`). A judgment pinned to `it.asset/<slug>#exposure` comes back in `next` as `claim_dependency_stale` when it changes (`test_a_judgment_pinned_to_the_assets_exposure_resurfaces_when_the_exposure_changes`) |
 | `security.kev_triage_backlog` | The KEV-listed rows of the above (pairs under investigation stay) |
 | `security.confirmed_exposures` | One per occurrence judged `affected` whose SBOM still lists the component, with its app_exposure id and the same fields, KEV first then EPSS; the fixed versions are in the `osv.match` document the component's `affected_by` Claim cites |
 | `security.not_affected_judgments` | Every package-level judgment: exposure, component, CVE, justification |
