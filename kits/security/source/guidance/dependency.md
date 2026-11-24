@@ -58,7 +58,9 @@ it is KEV-listed; it is still on the worklist. The inbox item carries no score. 
 the write created (`cruxible inbox link ITEM --subject security.app_exposure/<id>`) or `ack`
 it. `security.asset_urgent_exposures` is the same worklist with each inventory's IT asset
 beside it (owner, environment, exposure, criticality; empty when the inventory is linked to
-no `it.asset`): read it when where the software runs bears on the judgment.
+no `it.asset`), most exposed then most critical asset first: work it top down when where the
+software runs bears on the judgment. `exposure` and `criticality` are ranked, so
+`cruxible query it.asset --where 'exposure>=internal'` finds every networked asset.
 `security.urgent_exposures` and `security.kev_triage_backlog` stay the whole worklist,
 past what one run posts and below the threshold. A decided item stays decided when the same pair comes back in the
 same state, as when a judgment is withdrawn: `security.pair_without_judgment_exposures` lists

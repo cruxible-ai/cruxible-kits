@@ -11,8 +11,10 @@ when they change.
 - ``it.asset`` is keyed by ``slug`` (a short stable id, as a code fact's
   ``topic``) and holds five fields an agent or an operator states: ``title``,
   ``owner`` (the team or service owner), ``environment`` (``prod``, ``staging``,
-  ``dev``), ``exposure`` (``internet``, ``internal``, ``isolated``) and
-  ``criticality`` (``critical``, ``high``, ``medium``, ``low``). Each is
+  ``dev``), ``exposure`` (ranked ``isolated`` < ``internal`` < ``internet``) and
+  ``criticality`` (ranked ``low`` < ``medium`` < ``high`` < ``critical``); the two
+  ranked fields are ordered enums, so queries compare and sort them by rank
+  (``criticality >= high``, ``--order-by -exposure``). Each is
   normative, own words or a cited workspace file (the deployment config that
   shows it), and never settled by a Mandate.
 - ``security.inventory.asset`` (one, Subject-valued) links an SBOM inventory to the
@@ -39,8 +41,11 @@ ASSET = "it.asset"
 INVENTORY_ASSET = "security.inventory.asset"
 INVENTORY = "security.inventory"
 ENVIRONMENTS = ("prod", "staging", "dev")
-EXPOSURES = ("internet", "internal", "isolated")
-CRITICALITIES = ("critical", "high", "medium", "low")
+#: Ordered enums (core 0.6.0, ``ordered: true``): members ascend in rank, lowest
+#: first, so ``exposure >= internal`` matches internal and internet, and
+#: ``-exposure`` / ``-criticality`` sort the most exposed / most critical first.
+EXPOSURES = ("isolated", "internal", "internet")
+CRITICALITIES = ("low", "medium", "high", "critical")
 _SLUG_PATTERN = "^[a-z0-9]+(-[a-z0-9]+)*$"
 
 
@@ -89,23 +94,24 @@ def claim_type_records() -> list[dict[str, Any]]:
         ),
         _stated(
             "exposure",
-            {"kind": "enum", "members": list(EXPOSURES)},
-            "Who can reach the asset over the network. A dependency judgment that relies on "
-            "it pins it (--based-on it.asset/<slug>#exposure), so a change brings the judgment "
+            {"kind": "enum", "members": list(EXPOSURES), "ordered": True},
+            "Who can reach the asset over the network, ranked isolated < internal < internet. "
+            "A dependency judgment that relies on it pins it (--based-on it.asset/<slug>#exposure), so a change brings the judgment "
             "back in next as claim_dependency_stale.",
             member_descriptions=[
-                {"member": "internet", "description": "Reachable from the public internet."},
+                {"member": "isolated", "description": "No inbound network path."},
                 {
                     "member": "internal",
                     "description": "Reachable only from the organization's own networks.",
                 },
-                {"member": "isolated", "description": "No inbound network path."},
+                {"member": "internet", "description": "Reachable from the public internet."},
             ],
         ),
         _stated(
             "criticality",
-            {"kind": "enum", "members": list(CRITICALITIES)},
-            "How much harm a compromise of the asset does.",
+            {"kind": "enum", "members": list(CRITICALITIES), "ordered": True},
+            "How much harm a compromise of the asset does, ranked low < medium < high < "
+            "critical.",
         ),
         {
             "predicate": INVENTORY_ASSET,

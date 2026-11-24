@@ -724,21 +724,10 @@ def procedure_members() -> list[dict[str, Any]]:
 
 # -- 4. Automation ----------------------------------------------------------------------
 
-#: The import settles each occurrence's scope on the extracted record and retires
-#: it on absence, creating components, inventories and occurrences (G4). Named by
-#: hand rather than ``scope: observations``: core 0.6.0's observation grant counts
-#: only the Subjects a claims node creates at its top level, and the import creates
-#: the inventory and the component as the occurrence's nested key ends, so the grant
-#: refuses them (``procedure_mandate_observations_creation_unavailable``), and with
-#: the occurrence alone the run's creations fall outside it.
-SBOM_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
-    claim_type: {
-        "create": {"basis": ["extracted"]},
-        "revise": {"basis": ["extracted"]},
-        "retire": {"basis": ["absence"]},
-    }
-    for claim_type in (SCOPE, OSV_PACKAGE)
-}
+#: The Subjects the import creates by key: the occurrence and, as its nested key
+#: ends, the inventory and the component (core 0.6.0 counts nested ``create:
+#: if_absent`` ends under a creating spec, so an observation grant may name them).
+SBOM_CREATES = (COMPONENT, INVENTORY, OCCURRENCE)
 
 
 #: The findings an SBOM import Line routes to its inbox (D-R10). Not
@@ -766,13 +755,14 @@ def sbom_automation(
     reads one path, and a Line run takes no per-run input before R-ON5, so one
     Line per file is the v1 form; D-R41 globs are optional.)
 
-    The settle grant names ``scope`` by hand (``SBOM_SETTLE_SCOPE`` says why it is
-    not ``scope: observations``) and creates the inventory, its components and their
-    occurrences. ``now`` dates the Mandates; without it they run for
-    ``MANDATE_SPAN`` from submission.
+    Every ClaimType the import writes (``scope``, ``osv_package``) is observation-only,
+    so the settle grant is the one ``scope: observations`` grant: core lowers it to
+    exactly those ClaimTypes, pinned at their digests, and ``subject_creation`` names
+    the inventory, its components and their occurrences (``SBOM_CREATES``). ``now``
+    dates the Mandates; without it they run for ``MANDATE_SPAN`` from submission.
     """
 
-    from definitions import mandate_window
+    from definitions import mandate_window, observation_grant
 
     members: list[dict[str, Any]] = []
     for suffix, path in sboms:
@@ -796,18 +786,6 @@ def sbom_automation(
                 "namespace": ["claims", "subjects"],
                 **mandate_window(now),
             },
-            {
-                "kind": "procedure_mandate",
-                "name": line + "-settle",
-                "line_name": line,
-                "grants": "settle",
-                "namespace": ["claims"],
-                **mandate_window(now),
-                "subject_creation": [COMPONENT, INVENTORY, OCCURRENCE],
-                "scope": [
-                    {"claim_type": claim_type, "changes": changes}
-                    for claim_type, changes in SBOM_SETTLE_SCOPE.items()
-                ],
-            },
+            observation_grant(line, now=now, subject_creation=SBOM_CREATES),
         ]
     return members

@@ -39,13 +39,12 @@ nothing. Nothing here is installed by ``kit add``.
 
 Built for Cruxible 0.6: every Mandate is valid for ``expires: 90d`` from the moment
 the change set is submitted (no ``valid_from``, no dates to edit), and the KEV and
-EPSS Lines each take ONE ``scope: observations`` settle grant, which core lowers to
-the exact per-ClaimType scope their Procedures write. Two Lines keep an explicit
-one-ClaimType scope: OSV's ``affected_by`` also carries agents' package-level
-judgments (it permits ``normative``), which an observation grant refuses, and the
-SBOM import creates the inventory and component as nested ends of each
-occurrence, which core 0.6.0's observation grant cannot name
-(``inventory.SBOM_SETTLE_SCOPE``). Every Line either Runbook names, plus the unkeyed Line, is enabled with
+EPSS Lines and the SBOM import each take ONE ``scope: observations`` settle grant,
+which core lowers to the exact per-ClaimType scope their Procedures write (the
+SBOM's ``scope`` and ``osv_package``; its ``subject_creation`` names the
+occurrence and its nested inventory and component ends). The OSV Line keeps an
+explicit one-ClaimType scope: ``affected_by`` also carries agents' package-level
+judgments (it permits ``normative``), which an observation grant refuses. Every Line either Runbook names, plus the unkeyed Line, is enabled with
 one command: ``cruxible line enable security.osv-unkeyed --runbook security.start``.
 
 The SARIF intake is a second, smaller change set beside the example it reads,
@@ -160,10 +159,9 @@ def template() -> dict[str, Any]:
             "Line's match document lists advisories with no CVE alias; the "
             "security.start Runbook that seeds a fresh instance; and the security.maintain "
             "Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, "
-            "EPSS, attention; the SBOM import runs when the SBOM changes). The KEV and EPSS "
-            "Lines each take one scope: observations settle grant; OSV's names affected_by "
-            "by hand (that field also carries agents' judgments) and the SBOM import's names "
-            "scope by hand (it creates nested Subjects an observation grant cannot name). Every "
+            "EPSS, attention; the SBOM import runs when the SBOM changes). The SBOM, KEV and "
+            "EPSS Lines each take one scope: observations settle grant; OSV's names "
+            "affected_by by hand (that field also carries agents' judgments). Every "
             "Mandate is valid for 90 days from submission. Tailor the Line names, the SBOM "
             "path, the cron time and the attention threshold before submitting."
         ),

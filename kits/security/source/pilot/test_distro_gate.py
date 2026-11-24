@@ -120,7 +120,15 @@ def test_a_container_sboms_distro_packages_are_asked_by_source_package_and_land_
     )
     instance = kit_world(tmp_path, sboms=(("image", IMAGE_PATH),))
     write_file(tmp_path, IMAGE_PATH, json.dumps(doc).encode())
-    import_sbom(instance, "image", minute=-10)
+    imported = import_sbom(instance, "image", minute=-10)
+    # The SBOM grant is ONE scope: observations grant: core lowered it to every
+    # ClaimType the import writes (osv_package included) and it creates the occurrence
+    # and its nested inventory and component ends, so the first import settles.
+    card = get(instance, f"Mandate:{inventory.sbom_line_name('image')}-settle").card
+    assert {item.claim_type for item in card.scope} == {
+        f"ClaimType:{inventory.SCOPE}", f"ClaimType:{inventory.OSV_PACKAGE}"
+    }, card.scope
+    assert imported.terminal_egress[0].settle_outcome == "settled", imported.terminal_egress
 
     # The import records the OSV package each distro occurrence is asked as.
     packages = {r["purl"]: r["osv_package"] for r in query_rows(instance, osv.OSV_DISTRO_PACKAGES)}

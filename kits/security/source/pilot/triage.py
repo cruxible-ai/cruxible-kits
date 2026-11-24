@@ -218,17 +218,20 @@ URGENT_SPEC: dict[str, Any] = {
     "fields": list(_FIELDS),
     "order": ["-v.kev_date_added", "-v.epss_score"],
 }
-#: The worklist in deployment context: the same rows and order as
-#: ``security.urgent_exposures``, each with the IT asset its inventory runs as
-#: (``security.inventory.asset``) and that asset's owner, environment, exposure and
-#: criticality. The hop is optional, so an inventory linked to no asset keeps every
-#: row, with those columns empty; nothing else in the kit reads the asset.
+#: The worklist in deployment context: the same rows as ``security.urgent_exposures``,
+#: each with the IT asset its inventory runs as (``security.inventory.asset``) and
+#: that asset's owner, environment, exposure and criticality, ranked by deployment
+#: risk: the most exposed asset first, then the most critical (both ordered enums,
+#: so the order is their declared rank), then KEV-listed, then EPSS. The hop is
+#: optional, so an inventory linked to no asset keeps every row, with those columns
+#: empty, after the linked ones; nothing else in the kit reads the asset.
 ASSET_URGENT_SPEC: dict[str, Any] = {
     "query": ASSET_URGENT,
-    "description": "The worklist (security.urgent_exposures, same rows and order) with the IT "
-    "asset each inventory runs as: its slug, owner, environment, exposure and criticality. "
-    "An inventory linked to no asset (security.inventory.asset) lists its rows with those "
-    "empty. A judgment that relies on the asset's exposure pins it: "
+    "description": "The worklist (security.urgent_exposures, same rows) with the IT asset each "
+    "inventory runs as: its slug, owner, environment, exposure and criticality, most exposed "
+    "asset first (internet, internal, isolated), then most critical, then KEV-listed, then by "
+    "EPSS score. An inventory linked to no asset (security.inventory.asset) lists its rows "
+    "with those empty, last. A judgment that relies on the asset's exposure pins it: "
     "--based-on it.asset/<slug>#exposure.",
     "from": {"v": VULN},
     "hops": [*_HOPS, {"a": f"i.{INVENTORY_ASSET}: {ASSET}"}],
@@ -242,7 +245,7 @@ ASSET_URGENT_SPEC: dict[str, Any] = {
         "a.exposure",
         "a.criticality",
     ],
-    "order": ["-v.kev_date_added", "-v.epss_score"],
+    "order": ["-a.exposure", "-a.criticality", "-v.kev_date_added", "-v.epss_score"],
 }
 BACKLOG_SPEC: dict[str, Any] = {
     **URGENT_SPEC,

@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "How much harm a compromise of the asset does.",
+  "description": "How much harm a compromise of the asset does, ranked low < medium < high < critical.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -88,10 +88,11 @@
   "value": {
     "kind": "enum",
     "members": [
-      "critical",
-      "high",
+      "low",
       "medium",
-      "low"
-    ]
+      "high",
+      "critical"
+    ],
+    "ordered": true
   }
 }

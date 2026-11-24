@@ -1426,6 +1426,62 @@ def test_the_asset_worklist_is_the_worklist_with_each_inventorys_asset_beside_it
         assert columns == expected, (inventory_id, columns)
 
 
+def _asset(instance: Any, slug: str, exposure: str, criticality: str, inventory_id: str | None) -> None:
+    """One asset with its ranked fields, linked to an inventory when one is named."""
+
+    def stated(field: str, value: str) -> dict[str, Any]:
+        return {"op": "set", "subject": {"created": "asset"}, "field": field, "value": value}
+
+    changes = [
+        {"op": "create", "label": "asset", "subject_kind": assets.ASSET,
+         "key": [{"predicate": f"{assets.ASSET}.slug", "value": slug}]},
+        stated("environment", "prod"),
+        stated("exposure", exposure),
+        stated("criticality", criticality),
+    ]
+    if inventory_id is not None:
+        changes.append({"op": "set", "subject": f"{inventory.INVENTORY}/{inventory_id}",
+                        "field": "asset", "value": {"created": "asset"}})
+    outcome = write(instance, {"because": f"The {slug} deployment.", "accept": "if_allowed",
+                               "changes": changes})
+    assert outcome.status == "accepted", outcome
+
+
+def test_exposure_and_criticality_compare_and_order_by_their_declared_rank(tmp_path: Path) -> None:
+    """``it.asset.exposure`` (isolated < internal < internet) and ``.criticality`` (low <
+    medium < high < critical) are ordered enums: a query compares them by rank and
+    ``-field`` sorts the highest first, and the asset worklist puts the most exposed,
+    then most critical, asset's rows first."""
+
+    assert assets.EXPOSURES == ("isolated", "internal", "internet")
+    assert assets.CRITICALITIES == ("low", "medium", "high", "critical")
+    instance = world(tmp_path, other=True)
+    run_osv(instance)
+    _asset(instance, "payments-api", "internal", "critical", DEMO_APP)
+    _asset(instance, "edge-gateway", "internet", "medium", OTHER_APP)
+    _asset(instance, "build-box", "isolated", "low", None)
+
+    def slugs(**request: Any) -> list[str]:
+        rows = query_rows(instance, None, kind=assets.ASSET, select=("slug",), **request)
+        return [r["slug"] for r in rows]
+
+    assert slugs(where=[{"field": "criticality", "gte": "high"}]) == ["payments-api"]
+    assert slugs(where=[{"field": "exposure", "gte": "internal"}], order_by=["-exposure"]) == [
+        "edge-gateway", "payments-api"]
+    assert slugs(order_by=["-criticality"]) == ["payments-api", "edge-gateway", "build-box"]
+    assert slugs(where=[{"field": "exposure", "lt": "internal"}]) == ["build-box"]
+    # Comparing the unordered environment field refuses rather than compare text.
+    with pytest.raises(Exception, match="operator_not_applicable"):
+        slugs(where=[{"field": "environment", "gte": "prod"}])
+
+    rows = query_rows(instance, triage.ASSET_URGENT)
+    assert {r["inventory"] for r in rows} == {DEMO_APP, OTHER_APP}
+    ranked = [r["exposure"] for r in rows]
+    # Every internet-facing row first, then the internal asset's: the declared rank.
+    assert ranked == sorted(ranked, key=lambda e: -assets.EXPOSURES.index(e)), ranked
+    assert ranked[0] == "internet" and ranked[-1] == "internal"
+
+
 def test_a_judgment_pinned_to_the_assets_exposure_resurfaces_when_the_exposure_changes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2220,10 +2276,12 @@ def test_judgments_never_settle_under_a_mandate() -> None:
     }
     assert not {c for c in scoped if c.endswith((".justification", ".verdict"))}
     # The observation grants (core refuses scope: observations for any Procedure that
-    # writes a ClaimType permitting normative) are KEV's and EPSS's, whose ClaimTypes
-    # are all observation-only.
+    # writes a ClaimType permitting normative) are KEV's, EPSS's and the SBOM import's,
+    # whose ClaimTypes are all observation-only; only OSV's names its scope by hand.
     observing = {m["line_name"] for m in mandates if m.get("scope") == "observations"}
-    assert observing == {kit.KEV_LINE, kit.EPSS_LINE}
+    assert observing == {kit.KEV_LINE, kit.EPSS_LINE, inventory.sbom_line_name("demo")}
+    sbom_roles = {r["predicate"]: r.get("permitted_roles") for r in inventory.claim_type_records()}
+    assert sbom_roles[inventory.SCOPE] == sbom_roles[inventory.OSV_PACKAGE] == ["observation"]
     roles = {r["predicate"]: r.get("permitted_roles") for r in kit.claim_type_records()}
     assert {p for p, r in roles.items() if p.startswith(f"{kit.VULN}.kev_") or ".epss_" in p}
     assert all(

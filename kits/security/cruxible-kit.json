@@ -57,7 +57,7 @@
       "path": "capture-contracts/security.sbom-components.json"
     },
     {
-      "artifact_digest": "sha256:f4d8463a165c800579dc26238db88e0c8f30ec0dc8130f54466865399fc1f749",
+      "artifact_digest": "sha256:24869eb5e040a0f7a5c93a8a86e96b9ecd52ad43702d0e5b500e070c15d58724",
       "path": "claim-types/it.asset/criticality.json"
     },
     {
@@ -65,7 +65,7 @@
       "path": "claim-types/it.asset/environment.json"
     },
     {
-      "artifact_digest": "sha256:d14633a82a5d644ab99ae2459356c50cef424941ea57f47086c61a6e9f3eae32",
+      "artifact_digest": "sha256:330a26099eafd498c32b67940b124e78b3cbfa8d00ae25496db53315cdf1261d",
       "path": "claim-types/it.asset/exposure.json"
     },
     {
@@ -573,7 +573,7 @@
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:e83e7cc64e1888df4651364609cd92fd0533097d429e5290dd6faf8a60fca15f",
+      "artifact_digest": "sha256:e9ec691428a1f8c08c7dd08e309253d922fe51291050a4f31a42f461538e5bb5",
       "path": "documents/security.guidance.dependency.json"
     },
     {
@@ -637,7 +637,7 @@
       "path": "query-definitions/security.app_not_affected_judgments.json"
     },
     {
-      "artifact_digest": "sha256:9d11dbc06e1f883d2bb809c4ac65ecbfed80c5e7d8563216b5d9f4a8d1bb96b7",
+      "artifact_digest": "sha256:04d018f17d660de7303c6f818312870f9ae71e57b2ec350808ad3e46ff0937a7",
       "path": "query-definitions/security.asset_urgent_exposures.json"
     },
     {
@@ -811,12 +811,12 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:23c96b0f4690865bcdac64e0297493c08e1d30a88f88e21dd6299fc91bda35f8"
+      "sha256": "sha256:4ed70fd951147d12a56a32e5df751d090c48988c20dadc06536ce832c2421528"
     },
     {
       "path": "automation.json",
       "role": "reference",
-      "sha256": "sha256:3932a3cc6f42c5bf1df83d54c9c9517b6e3713f60609c343345bc7a8592ec1df"
+      "sha256": "sha256:097ae29cdbc9ee4f6515a5e31a1ff32d3687f868b3cb4d494db55003b43b6bc3"
     },
     {
       "path": "examples/README.md",
@@ -922,12 +922,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:ce86c31ff6fdaadddb6d7ee9a9f4cf5484bc28902a7170bce1dc192b2e4e4228",
-      "git_oid": "f5275d0381d694081438696f58dfb4c2d50009c8",
-      "semantic_root": "sha256:53a081432e2fb5afc4b468b3ed92c57aa6261a0e1adf7222fb8b47a1513e97ae",
+      "generation_root": "sha256:de04ac30f4ae7255e427ca78595ff3e021d8c88a88565171b2f063c44cce27f7",
+      "git_oid": "1bea0e299d0921d00507e6ddb74e5bf70259b914",
+      "semantic_root": "sha256:6179e82059ab3e00618a123b29edca403dd7d2bc4a2c8cc8daf72ff5f637b678",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_79f3c47b8b374c30",
+    "instance_id": "inst_2cf7c37881114cff",
     "principal_id": "owner"
   },
   "providers": [

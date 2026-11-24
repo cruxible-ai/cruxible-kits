@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "The worklist (security.urgent_exposures, same rows and order) with the IT asset each inventory runs as: its slug, owner, environment, exposure and criticality. An inventory linked to no asset (security.inventory.asset) lists its rows with those empty. A judgment that relies on the asset's exposure pins it: --based-on it.asset/<slug>#exposure.",
+  "description": "The worklist (security.urgent_exposures, same rows) with the IT asset each inventory runs as: its slug, owner, environment, exposure and criticality, most exposed asset first (internet, internal, isolated), then most critical, then KEV-listed, then by EPSS score. An inventory linked to no asset (security.inventory.asset) lists its rows with those empty, last. A judgment that relies on the asset's exposure pins it: --based-on it.asset/<slug>#exposure.",
   "entry": {
     "binding": "v",
     "subject_kinds": [
@@ -34,6 +34,24 @@
     "max_traversal_depth": 10
   },
   "orderings": [
+    {
+      "direction": "descending",
+      "key": {
+        "binding": "a",
+        "kind": "claim_value",
+        "predicate": "it.asset.exposure"
+      },
+      "value_type": "string"
+    },
+    {
+      "direction": "descending",
+      "key": {
+        "binding": "a",
+        "kind": "claim_value",
+        "predicate": "it.asset.criticality"
+      },
+      "value_type": "string"
+    },
     {
       "direction": "descending",
       "key": {

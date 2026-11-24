@@ -359,8 +359,12 @@ prunes it.
 Whether a vulnerable release matters depends on where it runs. `it.asset` is one
 lean kind for the deployment facts dependency judgments rely on, keyed by `slug`:
 `title`, `owner` (the team that answers for it), `environment` (`prod`,
-`staging`, `dev`), `exposure` (`internet`, `internal`, `isolated`) and
-`criticality` (`critical`, `high`, `medium`, `low`). `security.inventory.asset`
+`staging`, `dev`), `exposure` (ranked `isolated` < `internal` < `internet`)
+and `criticality` (ranked `low` < `medium` < `high` < `critical`). The two
+ranked fields are ordered enums (Cruxible 0.6), so queries compare and sort
+them by rank: `cruxible query it.asset --where 'criticality>=high' --order-by
+-exposure` lists the high and critical assets, internet-facing first (`where`
+`criticality__gte="high"` in the SDK). `security.inventory.asset`
 links an SBOM inventory to the asset it runs as (when one build runs as several,
 link the most exposed). Both are optional: an inventory with no asset is triaged
 exactly as before. One write records an asset and links it (`cruxible write
@@ -384,8 +388,10 @@ asset.json`; the reviewer approves it like any other write):
 ```
 
 `cruxible query --name security.asset_urgent_exposures` is the worklist
-(`security.urgent_exposures`, same rows and order) with each row's asset, owner,
-environment, exposure and criticality. A judgment that relies on the asset pins
+(`security.urgent_exposures`, same rows) with each row's asset, owner,
+environment, exposure and criticality, ranked by deployment risk: the most
+exposed asset first, then the most critical, then KEV-listed, then EPSS; rows of
+an inventory with no asset come last. A judgment that relies on the asset pins
 the fields it relied on (Cruxible 0.6 `based_on`), so it stays quiet while they
 hold and comes back on its own when one changes. For an internal-only service
 (`cruxible write judgment.json --no-accept`; the reviewer approves it):
@@ -486,7 +492,7 @@ valid for 90 days from submission (`"expires": "90d"`):
 
 | Line | Settle Mandate | What may settle |
 |---|---|---|
-| `security.sbom-import.app` | `security.sbom-import.app-settle` (scope named by hand) | Create inventory, component and occurrence Subjects; create/revise scope on extracted records; retire scope on absence |
+| `security.sbom-import.app` | `security.sbom-import.app-settle` (`scope: observations`) | Every ClaimType the import writes (`scope`, `osv_package`), pinned at its digest: create/revise on extracted records, retire on absence; create the inventory, component and occurrence Subjects |
 | `security.osv-query` | `security.osv-query-settle` (scope named by hand) | Create vulnerability Subjects; create/revise component `affected_by` on extracted records; retire on complete answered absence |
 | `security.kev-triage` | `security.kev-triage-settle` (`scope: observations`) | Every KEV ClaimType the Procedure writes, pinned at its digest: create/revise on extracted records; `listed_in`'s inverse and the dates' retirement on complete absence; create the `security.catalog` Subject |
 | `security.epss-triage` | `security.epss-triage-settle` (`scope: observations`) | Every EPSS ClaimType the Procedure writes (score, percentile, date), pinned at its digest: create/revise on extracted records |
@@ -495,13 +501,11 @@ valid for 90 days from submission (`"expires": "90d"`):
 `scope: observations` (Cruxible 0.6) is one grant over every ClaimType a Line's
 Procedure writes, lowered at submission to the same per-ClaimType scope you
 would write by hand; core refuses it for a Procedure that writes any ClaimType
-permitting `normative`, so it can never settle a judgment. Two Lines keep a
-scope named by hand: OSV, because `affected_by` also carries an agent's
-package-level "none of V" judgment (it permits `normative`), and the SBOM
-import, because it creates the inventory and the component as nested ends of
-each occurrence, which 0.6's observation grant does not count
-(`procedure_mandate_observations_creation_unavailable`). Each hand-named scope
-lists exactly one observation ClaimType.
+permitting `normative`, so it can never settle a judgment. Its
+`subject_creation` may name the nested key ends a creating spec makes (the SBOM
+import's inventory and component, beside the occurrence). Only OSV keeps a
+scope named by hand, one ClaimType, because `affected_by` also carries an
+agent's package-level "none of V" judgment (it permits `normative`).
 
 No Mandate settles `security.exposure.justification`,
 `security.app_exposure.justification` or `security.app_exposure.verdict`. Read
@@ -540,13 +544,14 @@ move is core's rule, not the kit's:
   so both demote (`subject_creation`), and their Lines need `cruxible line
   enable --runbook security.start` again and a re-grant (submit the template's
   Mandate again). An operator whose inventory already exists can grant the
-  SBOM Line without `subject_creation`, so a release that adds a package goes
-  to review; that grant then survives every pure move with its enablement.
+  SBOM Line `scope: observations` without `subject_creation`, so a release that
+  adds a package goes to review; that grant then survives every pure move with
+  its enablement.
 - `kit add` and `kit upgrade` never keep settle, even for a pure build.
 
 `test_cli_gate.py` runs exactly this on a real daemon: the shipped grants
 demote with `subject_creation`, and the SBOM grant without it keeps settle
-(`security.occurrence.scope`) and its Line's enablement.
+(`security.occurrence.scope` and `.osv_package`) and its Line's enablement.
 
 ## SBOM formats and container distro packages
 

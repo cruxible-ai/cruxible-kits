@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "Who can reach the asset over the network. A dependency judgment that relies on it pins it (--based-on it.asset/<slug>#exposure), so a change brings the judgment back in next as claim_dependency_stale.",
+  "description": "Who can reach the asset over the network, ranked isolated < internal < internet. A dependency judgment that relies on it pins it (--based-on it.asset/<slug>#exposure), so a change brings the judgment back in next as claim_dependency_stale.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -101,9 +101,10 @@
   "value": {
     "kind": "enum",
     "members": [
-      "internet",
+      "isolated",
       "internal",
-      "isolated"
-    ]
+      "internet"
+    ],
+    "ordered": true
   }
 }
