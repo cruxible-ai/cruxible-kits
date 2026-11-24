@@ -78,8 +78,10 @@ def findings_world(
     tmp_path: Path,
     *,
     scans: tuple[tuple[str, str, str], ...] = (("semgrep", REPO, SEMGREP),),
+    automation: Mapping[str, Any] | None = None,
 ) -> Any:
-    """The whole kit plus the code-findings vocabulary, provider, Procedures and Lines."""
+    """The whole kit plus the code-findings vocabulary, provider, Procedures and Lines
+    (``automation`` instead of the gate's own dated Lines, as an adopter submits it)."""
 
     from cruxible_client.contracts.authoring.inputs import ProcedureInput
     from tests.core_support._identity_support import accept_tree
@@ -96,7 +98,11 @@ def findings_world(
     accept_capture_kinds(instance, layouts, name="sarif-layouts")
     for index, member in enumerate(findings.procedures()["members"]):
         author(instance, ProcedureInput.model_validate(member), name=f"findings-procedure-{index}")
-    submit(instance, findings.automation(scans, now=NOW), name="findings-automation")
+    submit(
+        instance,
+        dict(automation) if automation is not None else findings.automation(scans, now=NOW),
+        name="findings-automation",
+    )
     return instance
 
 
@@ -963,3 +969,68 @@ def test_the_sarif_thin_extracts_resolve_to_the_specs_they_replaced(tmp_path: Pa
     assert_extracts_resolve_as_recorded(
         instance, (findings.IMPORT_PROCEDURE, findings.ATTENTION_PROCEDURE)
     )
+
+
+def test_the_shipped_sarif_template_adopts_verbatim_and_its_example_settles(
+    tmp_path: Path,
+) -> None:
+    """examples/sarif/automation-sarif.json is ready to submit: adopted byte for byte
+    (expires: 90d, no valid_from, no date edited), a run on the daemon's own clock
+    reads the shipped example SARIF at the template's path and settles both findings
+    under the import's grant. That grant names its ClaimTypes by hand because
+    severity also permits normative: the same grant as scope: observations refuses."""
+
+    import copy
+    from datetime import UTC, datetime
+
+    import template
+    from cruxible_core.authoring.lowering import AuthoringLoweringError
+    from cruxible_core.documents.workspace_file import WorkspaceFileReader
+    from cruxible_core.service.procedures.procedure_runs import (
+        LineRunRequest,
+        service_run_playbill_line,
+    )
+    from tests.support.operation_world import actor
+    from tests.test_procedures.test_completeness_transfer import _Clock
+
+    adopted = json.loads(template.SARIF_TEMPLATE.read_text())
+    mandates = [m for m in adopted["members"] if m["kind"] == "procedure_mandate"]
+    assert mandates and all(
+        m["expires"] == "90d" and "valid_from" not in m and "expires_at" not in m
+        for m in mandates
+    )
+    suffix, repo, path = template.SARIF_SCAN
+    line = findings.import_line_name(suffix)
+    observing = copy.deepcopy(adopted)
+    for member in observing["members"]:
+        if member["kind"] == "procedure_mandate" and member["grants"] == "settle":
+            member["scope"] = "observations"
+            member.pop("namespace", None)
+    (tmp_path / "observing").mkdir()
+    with pytest.raises(AuthoringLoweringError, match="normative"):
+        findings_world(tmp_path / "observing", automation=observing)
+
+    instance = findings_world(tmp_path, automation=adopted)
+    example = template.SARIF_TEMPLATE.parent / "semgrep-demo.sarif"
+    write_file(tmp_path, path, example.read_bytes())
+    state = service_run_playbill_line(
+        instance,
+        path_identity_digest=line,
+        request=LineRunRequest(line=line),
+        actor_context=actor(),
+        caller_rung=2,
+        # The daemon's own clock: the template's window opened at submission.
+        daemon_clock=_Clock(datetime.now(UTC)),
+        provider_runtime_operator=Scanner().operator(),  # type: ignore[arg-type]
+        workspace_file_reader=WorkspaceFileReader(
+            instance_id=instance.descriptor.instance_id,
+            operating_profile="local",
+            attached_roots=(instance.root.parent / "workspace",),
+            managed_roots=(instance.root,),
+        ),
+    )
+    assert state.status == "succeeded", state.terminal
+    assert state.terminal_egress[0].settle_outcome == "settled", state.terminal_egress
+    rows = query_rows(instance, findings.VERDICTS_QUERY, repo=repo)
+    assert {(r["weakness"], r["locus"].split("#", 1)[0]) for r in rows} == {SQLI, TRAVERSAL}
+

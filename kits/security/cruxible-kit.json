@@ -739,7 +739,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:bb7496c536c00fbe96ef47b29307c3e497de21b4aa1a0c258d88249bdb79fca5"
+      "sha256": "sha256:b02118b8855f9e6993ff1f1e302cdf0f0e27c2175b179993288068fc9481109c"
     },
     {
       "path": "automation.json",
@@ -749,7 +749,17 @@
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:6fdc5fc8c4b90bce7932dd906342785f9e581c6e7d3720eedf705c82e145fcc1"
+      "sha256": "sha256:aea8f3d0afd12f616bcec9003e929b68e0d8b839474a17937cbebb7b6bbe1c33"
+    },
+    {
+      "path": "examples/sarif/automation-sarif.json",
+      "role": "example",
+      "sha256": "sha256:2ea800e5544282c1bf016002812abbf11b4851646f582337dcd3d614895ad830"
+    },
+    {
+      "path": "examples/sarif/semgrep-demo.sarif",
+      "role": "example",
+      "sha256": "sha256:1c635a343fccfac66848af74442824eaba1b1e91d09e5d11964765687539a4be"
     },
     {
       "path": "examples/sboms/cruxible-env.cdx.json",

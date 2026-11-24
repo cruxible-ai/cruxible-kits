@@ -48,8 +48,14 @@ occurrence, which core 0.6.0's observation grant cannot name
 (``inventory.SBOM_SETTLE_SCOPE``). Every Line either Runbook names, plus the unkeyed Line, is enabled with
 one command: ``cruxible line enable security.osv-unkeyed --runbook security.start``.
 
-    python template.py           # rewrite ../../automation.json
-    python template.py --check   # fail when it is out of date
+The SARIF intake is a second, smaller change set beside the example it reads,
+``examples/sarif/automation-sarif.json`` (``sarif_template``): the import Line
+for one scanner's SARIF file, its Mandates (``expires: 90d``) and the attention
+Line with its landing Trigger. It lives under ``examples/`` so it travels in the
+kit bundle (``kit pull``) with ``examples/sarif/semgrep-demo.sarif``.
+
+    python template.py           # rewrite ../../automation.json and the SARIF template
+    python template.py --check   # fail when either is out of date
 """
 
 from __future__ import annotations
@@ -64,12 +70,17 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import definitions as kit  # noqa: E402
+import findings  # noqa: E402
 import inventory  # noqa: E402
 import osv  # noqa: E402
 import triage  # noqa: E402
 
 KIT = HERE.parents[1]
 TEMPLATE = KIT / "automation.json"
+SARIF_TEMPLATE = KIT / "examples" / "sarif" / "automation-sarif.json"
+#: The example scan: Line suffix, repository (host/owner/repo) and workspace path of
+#: the SARIF file (tailor all three; the example file is examples/sarif/semgrep-demo.sarif).
+SARIF_SCAN = ("semgrep", "github.com/example/demo-app", "scans/semgrep.sarif")
 START = "security.start"
 MAINTAIN = "security.maintain"
 MAINTAIN_TRIGGER = "security.maintain-daily"
@@ -160,23 +171,48 @@ def template() -> dict[str, Any]:
     }
 
 
+def sarif_template() -> dict[str, Any]:
+    value = findings.automation([SARIF_SCAN])
+    return {
+        "kind": "change_set",
+        "rationale": (
+            "Adopt the security kit's SARIF intake for one scanner: the import Line, which "
+            "reads the SARIF file under its own logical source and writes code findings by "
+            "key (settling the scanner's observations: rule, reported_by, severity, "
+            "reported_at, verification; never a verdict), its Mandates, valid for 90 days "
+            "from submission, and the observe-only attention Line its landing Trigger runs, "
+            "which posts regressions and location gaps to the inbox. The import's settle "
+            "grant names its ClaimTypes by hand: severity also permits normative (the "
+            "verifier's own severity), so scope: observations refuses it. Tailor the Line "
+            "suffix, the repository and the SARIF path before submitting."
+        ),
+        "members": value["members"],
+    }
+
+
 def render() -> str:
     return json.dumps(template(), indent=1) + "\n"
+
+
+def render_sarif() -> str:
+    return json.dumps(sarif_template(), indent=1) + "\n"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    content = render()
-    if args.check:
-        if not TEMPLATE.is_file() or TEMPLATE.read_text() != content:
-            print(f"{TEMPLATE} is out of date: run source/pilot/template.py", file=sys.stderr)
-            return 1
-        return 0
-    TEMPLATE.write_text(content)
-    print(f"wrote {TEMPLATE}")
-    return 0
+    stale = 0
+    for target, content in ((TEMPLATE, render()), (SARIF_TEMPLATE, render_sarif())):
+        if args.check:
+            if not target.is_file() or target.read_text() != content:
+                print(f"{target} is out of date: run source/pilot/template.py", file=sys.stderr)
+                stale = 1
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content)
+        print(f"wrote {target}")
+    return stale
 
 
 if __name__ == "__main__":

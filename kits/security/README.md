@@ -460,14 +460,18 @@ them with `cruxible principal add NAME --key-dir /outside/workspace/NAME-keys
 to that directory (a principal that approves also needs `--mode
 graph_write`).
 
-To import a scanner's SARIF file, author a Line for `security.sarif-import`
-yourself (the automation template doesn't include one): bind `read` to
-`cruxible-builtin#workspace.file` and `derive` to
-`security-sarif-provider#sarif.findings`, with parameters `relative_path` (the
-SARIF file), `logical_source` (`sarif.<scanner>`) and `repo`
-(`host/owner/repo`). A full scan that no longer reports a finding marks it
-`fixed`; a partial scan never does. Scanner observations land on the same
-finding Subjects as agents' reports.
+To import a scanner's SARIF file, submit
+[examples/sarif/automation-sarif.json](examples/sarif/automation-sarif.json), a
+ready-to-submit change set for one scanner: the `security.sarif-import.semgrep`
+Line (`read` bound to `cruxible-builtin#workspace.file`, `derive` to
+`security-sarif-provider#sarif.findings`, parameters `relative_path`,
+`logical_source` `sarif.semgrep` and `repo`), its Mandates (`expires: 90d`) and
+the attention Line its landing Trigger runs. Tailor the suffix, the repository
+and the SARIF path; [examples/sarif/semgrep-demo.sarif](examples/sarif/semgrep-demo.sarif)
+is a demo log to try it with ([examples/README.md](examples/README.md#static-analysis-sarif)).
+A full scan that no longer reports a finding marks it `fixed`; a partial scan
+never does. Scanner observations land on the same finding Subjects as agents'
+reports.
 
 ## Automation authority
 
