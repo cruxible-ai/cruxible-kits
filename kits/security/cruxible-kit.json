@@ -941,6 +941,11 @@
       "path": "scripts/init_plan.py",
       "role": "script",
       "sha256": "sha256:d7e27d1eed2de6c7b79fa33be5cdc824c7911f1273e6afce05c119678f75981a"
+    },
+    {
+      "path": "skills/security-audit/SKILL.md",
+      "role": "skill",
+      "sha256": "sha256:5dbe3cf5710f60645f151b8c1406a523ee3a110579e2c015ab4ebf4682ad9001"
     }
   ],
   "kit_id": "security",
