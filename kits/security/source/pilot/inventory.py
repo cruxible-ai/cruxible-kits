@@ -571,6 +571,16 @@ def vocabulary_members() -> list[dict[str, Any]]:
         },
         {"kind": "query_definition", "query_definition": INVENTORY_COMPONENTS_SPEC},
         *params_contract_members(SBOM_PROCEDURE, *SBOM_PARAMS),
+        {
+            "kind": "contract",
+            "name": f"{SBOM_PROCEDURE}.params",
+            "version": 3,
+            "description": SBOM_PARAMS_V3[0],
+            "fields": {
+                field: {"type": spelling, "description": text}
+                for field, (spelling, text) in SBOM_PARAMS_V3[1].items()
+            },
+        },
     ]
 
 
@@ -617,6 +627,40 @@ SBOM_PARAMS = (
         ),
     },
 )
+#: Version 3 of security.sbom-import.params (adds SPDX 2.2/2.3 JSON and distro osv_package
+#: descriptions while keeping version 1 and version 2 unchanged as predecessors).
+SBOM_PARAMS_V3 = (
+    "What a Line on security.sbom-import reads: one SBOM file in the workspace "
+    "(CycloneDX JSON or SPDX 2.2/2.3 JSON, detected by content) and the source label it "
+    "is recorded under; one Line per SBOM file. Each component's occurrence takes the "
+    "scope the SBOM states (CycloneDX scope, or SPDX relationships; required when none is "
+    "stated) and, for container distro packages with a stated release and source package, "
+    "its osv_package. A scope other than required, optional or excluded is refused for "
+    "that component, which keeps the scope it held; a purl listed twice with two scopes "
+    "writes nothing for that purl.",
+    {
+        "relative_path": (
+            _PATH,
+            "Workspace-relative path of one CycloneDX JSON SBOM (bomFormat CycloneDX; "
+            "tested with spec 1.6) or SPDX 2.2/2.3 JSON SBOM (spdxVersion SPDX-2.2 or "
+            "SPDX-2.3; e.g. GitHub dependency-graph export, syft -o spdx-json, trivy "
+            "--format spdx-json), detected by content: at most 1 MiB and 20000 components "
+            "(CycloneDX nested at most 16 levels deep). The root component's purl "
+            "(CycloneDX metadata.component.purl or SPDX described package's purl) names "
+            "the inventory; without one, the inventory is named by this path, so moving "
+            "the file starts a new inventory. Every component needs a purl: one without "
+            "is counted but not imported, and the run then retires nothing. A generator "
+            "for the project's ecosystem writes the file (cyclonedx-py, syft, cdxgen, "
+            "trivy); Cruxible does not.",
+        ),
+        "logical_source": (
+            _SOURCE,
+            "Source label the SBOM Capture and its derived component list are recorded "
+            "under, lowercase (the template uses cyclonedx.sbom.app). Give each SBOM Line "
+            "its own; evidence requirements and landing Triggers can name it.",
+        ),
+    },
+)
 _PATH_REF = "$params.relative_path"
 _INVENTORY_REF = "$steps.listed.header.inventory"
 
@@ -641,7 +685,7 @@ def sbom_spec() -> dict[str, Any]:
             "the SBOM no longer lists has its scope retired.",
             "input": {},
             "output": {},
-            "parameter_contract": params_contract(SBOM_PROCEDURE),
+            "parameter_contract": f"{SBOM_PROCEDURE}.params@3",
             "slots": _SLOTS,
             "hard_caps": _CAPS,
             "steps": [

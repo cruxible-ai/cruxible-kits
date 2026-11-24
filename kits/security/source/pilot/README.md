@@ -144,7 +144,7 @@ state.
   creates all three kinds and settles `scope`.
 - **One Line per SBOM file.** A Line names only the file's path and its logical
   source (`cyclonedx.sbom.<name>`). What the file must contain is the
-  `relative_path` description on `security.sbom-import.params@2`. A generator
+  `relative_path` description on `security.sbom-import.params@3`. A generator
   for the project's ecosystem writes it; for a Python project with a
   `requirements.txt`:
   `uvx --from cyclonedx-bom cyclonedx-py requirements requirements.txt --of JSON -o sbom.cdx.json`

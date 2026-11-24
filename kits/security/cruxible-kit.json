@@ -545,6 +545,10 @@
       "path": "contracts/security.sbom-import.params/v2.json"
     },
     {
+      "artifact_digest": "sha256:1a021b631d2b3b2d542eade9d80a384f82ff3cd99e1b67de0f56db95202a5260",
+      "path": "contracts/security.sbom-import.params/v3.json"
+    },
+    {
       "artifact_digest": "sha256:c9e026cdd5674f13c9b9932cc879f45ab43021ab9658feeb247bf8bb9e1a2b0e",
       "path": "contracts/security.sbom.components.request/v1.json"
     },
@@ -621,7 +625,7 @@
       "path": "procedures/security.sarif-import.json"
     },
     {
-      "artifact_digest": "sha256:60c67f055a59261bee15bc5f01f3d87d4a5f27619637c499a04c97d25c6431d7",
+      "artifact_digest": "sha256:19c1b84b2dd2fd085511ce8b1dd775cf05c0ea2052409aa0cc753c0889d9bbe8",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -811,7 +815,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:4ed70fd951147d12a56a32e5df751d090c48988c20dadc06536ce832c2421528"
+      "sha256": "sha256:bcb2480cc1d58216760e4ffb28e60ebe589c1f47c835af5811b5d2c98a08d135"
     },
     {
       "path": "automation.json",
@@ -922,12 +926,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:de04ac30f4ae7255e427ca78595ff3e021d8c88a88565171b2f063c44cce27f7",
-      "git_oid": "1bea0e299d0921d00507e6ddb74e5bf70259b914",
-      "semantic_root": "sha256:6179e82059ab3e00618a123b29edca403dd7d2bc4a2c8cc8daf72ff5f637b678",
+      "generation_root": "sha256:587f0ea517bbf58964e097d5304e950869d14a22ccac581422808d2f05e13177",
+      "git_oid": "6b8de40f27b82f24d13af21ce7169dfd14c63384",
+      "semantic_root": "sha256:9854bf7627b463fdd1f82075f48422abba31ade7d4f4b8aac649542a62ad7038",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_2cf7c37881114cff",
+    "instance_id": "inst_812fa91074f44b33",
     "principal_id": "owner"
   },
   "providers": [

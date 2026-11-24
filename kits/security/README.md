@@ -76,8 +76,8 @@ cruxible init --principal-id owner --require-independent-approval
 # prints the base kit's proposal; the reviewer approves it (see Review below):
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
-# Preview the install (writes nothing); it prints the coordinate to commit at:
-cruxible kit add /path/to/cruxible-kits/kits/security
+# Preview the install without writing or prompting; prints the coordinate to commit at:
+cruxible kit add /path/to/cruxible-kits/kits/security --dry-run
 cruxible kit add /path/to/cruxible-kits/kits/security --commit --at OID
 # The commit prints three provider-install proposals. The reviewer approves each:
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
@@ -105,8 +105,11 @@ same holds for a refusal whose repair is `cruxible kit add security`
 fetches the registry release, so until it is published run `cruxible kit add
 /path/to/cruxible-kits/kits/security` instead.
 
-`cruxible kit add PATH` without `--commit` previews the plan and writes
-nothing (`--json` for the full plan).
+`cruxible kit add PATH --dry-run` previews the plan without writing or
+prompting (`--json` prints the full plan non-interactively). In an interactive
+terminal, bare `cruxible kit add PATH` previews and asks `Commit this change?
+[y/N]` (`--yes` commits without asking); without a TTY it previews and prints
+the `--commit --at OID` command.
 
 ### Review: a second agent approves
 
