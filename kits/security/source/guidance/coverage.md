@@ -20,16 +20,21 @@ agent count or "auth reviewed" is not.
 
 ## Status
 
-| Status | Means | Cite |
+| Status | Means | Cite (one piece of evidence) |
 |---|---|---|
-| `checked` | examined, whatever the outcome | the exact passage you read (file evidence `path#<quoted passage>`, the function or handler, not the whole file) and a notes section: what you checked, hardening notes, safe patterns confirmed |
-| `blocked` | partly examined, then stopped | what you read, and the blocker: a missing sandbox capability or a fact outside source |
-| `deferred` | not reached this pass | the reason (ran out of time or budget) |
-| `out_of_scope` | deliberately excluded | the reason |
+| `checked` | examined, whatever the outcome | one line of the passage you examined, the line that decides the check (file evidence `path#<quoted line>`: a single line found once in the file, never a multi-line function body) |
+| `blocked` | partly examined, then stopped | your notes section naming what you read and the blocker: a missing sandbox capability or a fact outside source |
+| `deferred` | not reached this pass | your own words: the reason (ran out of time or budget) |
+| `out_of_scope` | deliberately excluded | your own words: the reason |
 
-A unit with findings is `checked` and its findings link to it with `found_in`. Cite the
-passage, not the file: drift is detected on the cited bytes, so a change elsewhere in the
-file doesn't reopen the unit. Re-checking a unit revises its status; the earlier one stays
+Each Claim carries exactly one piece of evidence. What you checked, hardening notes and safe
+patterns you confirmed go in the unit's notes section (a section of a catalogued notes file,
+written in its own write before the status); the `checked` status cites the code line, not the
+notes, so it is the code that reopens the unit.
+
+A unit with findings is `checked` and its findings link to it with `found_in`. Cite a line,
+not the file: drift is detected on the cited bytes, so a change elsewhere in the file doesn't
+reopen the unit. Re-checking a unit revises its status; the earlier one stays
 in history. A status that rests on a codebase fact (the middleware every route passes
 through) links it with `rests_on` and pins its `holds` on the status change (`"based_on":
 ["security.code_fact/<id>#holds"]` in the write file, or `--based-on
@@ -45,11 +50,19 @@ A quick or scoped pass covers less; it never lowers the bar for a finding or a v
 A scoped pass marks the surfaces it saw but excluded `out_of_scope`, never `checked`, and
 says it is partial. One pass never exhausts a target.
 
-Before calling a pass complete, look for what it missed: entry points with no unit,
-parallel paths to the same effect (batch, import, legacy, admin, retry, error paths),
-lifecycle modes (setup, migration, deletion, restore), exclusions without a reason, and
-units marked `checked` without a cited passage. Add the missing ones as units with no
-status.
+## Coverage critic pass
+
+Before calling a pass complete, review it against the target, not against your own units:
+- every starting file and entry point in scope (routes, handlers, CLI commands, message
+  consumers, scheduled jobs) is either a `checked` unit or an open unit with no status
+  queued for the next pass;
+- every `surface` names a symbol or route that exists in the file it names: open the file
+  and find it before you record the unit, so the key matches the next run;
+- parallel paths to the same effect (batch, import, legacy, admin, retry, error paths) and
+  lifecycle modes (setup, migration, deletion, restore) have their own units;
+- no exclusion lacks a reason, and no unit is `checked` without a cited line.
+
+Add the missing ones as units with no status.
 
 ## Planning the next audit
 

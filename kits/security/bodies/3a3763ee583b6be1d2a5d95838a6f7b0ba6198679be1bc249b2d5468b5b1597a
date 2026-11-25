@@ -66,12 +66,15 @@ boundary it crosses.
    words, not as a citation of the trace, so it never reopens the finding when the trace
    changes.
 4. **Then write what you saw**, in a second write citing the notes file, each Claim with role
-   `observation`:
-   - `reported_at` (`path:line`), citing the code there (file evidence
-     `path#<quoted line>`);
+   `observation` and exactly one piece of evidence:
+   - `reported_at` (`path:line`), citing the code line there (file evidence
+     `path#<quoted line>`: one line, found once in the file);
    - `rule` (the concern you checked, e.g. `audit:injection`), citing the notes file's
      `Trace` section (`{kind: section, file: <notes file>, section: [<title>, Trace]}`);
-   - `reported_by` = `audit`, citing the code.
+   - `reported_by` = `audit`, citing the same code line.
+
+   File evidence quotes a single line, never a multi-line function body: the trace section
+   carries the path, the code line carries the location.
 
    Cite the narrowest passage that decides the judgment: a whole file reopens it on every
    edit, and no citation never reopens it. A quoted code line is a pointer for reviewers,
@@ -85,14 +88,15 @@ boundary it crosses.
 
 ## Coverage
 
-Keep the unit you worked honest (see the coverage guidance): `checked` cites the passage
-you examined, `blocked` names what stopped you, `deferred` if you didn't get to it. A
+Keep the unit you worked honest (see the coverage guidance): `checked` cites one line of the
+passage you examined, `blocked` names what stopped you, `deferred` if you didn't get to it. A
 partial pass says it is partial. A boundary you notice outside your unit is a new unit:
 create it with its key and no status, so the next plan picks it up, instead of following
 it now.
 
-Hardening notes and safe patterns you confirmed go in the unit's notes section, which its
-`status` cites; they are never findings.
+Hardening notes and safe patterns you confirmed go in the unit's notes section, written in
+its own write before the status (the `checked` status cites the code line, as the coverage
+guidance says); they are never findings.
 
 ## Codebase facts
 
@@ -110,9 +114,9 @@ what one search answers. Facts are not a file map or an architecture document: e
 per repository. In one write: append a section to the repository's facts notes file (a
 catalogued workspace file) stating the fact, where it holds and its known exceptions;
 `create` the fact; `set` its `category` citing that section; `set` `holds` (`yes`, `partly` or
-`no`) citing the code passage that decides it. A change carries one piece of evidence, so
-the code backs `holds` and the notes back `category`. Link each judgment that rests on a fact
-with `rests_on`, and pin the fact on the judgment's own change: `"based_on":
+`no`) citing the single code line that decides it (`path#<quoted line>`). A change carries
+one piece of evidence, so the code backs `holds` and the notes back `category`. Link each
+judgment that rests on a fact with `rests_on`, and pin the fact on the judgment's own change: `"based_on":
 ["security.code_fact/<id>#holds"]` in the write file, or `--based-on
 security.code_fact/<id>#holds` (repeatable) on `cruxible set` and `cruxible write`. The write
 pins that Claim's exact version.

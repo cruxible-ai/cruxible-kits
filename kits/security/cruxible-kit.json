@@ -573,7 +573,7 @@
       "path": "contracts/security.weakened-dependent/v1.json"
     },
     {
-      "artifact_digest": "sha256:c39ac8368a491af98674cfe256b2987ad6e4ce920620d64d46d8e356bd873bfa",
+      "artifact_digest": "sha256:c0104ae5b8d60437e22671ad811fc8d8232626f5f5b86a03376093678849ed0d",
       "path": "documents/security.guidance.coverage.json"
     },
     {
@@ -581,11 +581,11 @@
       "path": "documents/security.guidance.dependency.json"
     },
     {
-      "artifact_digest": "sha256:6f863ea430015571c77523bf52964075557e8a1c893c477097df9d031cb47ce6",
+      "artifact_digest": "sha256:52731da959ba70796f54ba995e8cf00365c0c39e0b960ac4f781f8e794653376",
       "path": "documents/security.guidance.hunter.json"
     },
     {
-      "artifact_digest": "sha256:c066c8b5c5bcf260b34ccc0471fbd4a5586bf3e83ff84044f273c554ccce9ef0",
+      "artifact_digest": "sha256:ddcce3f8dabaa7f6e5b3cddfd232df03e3f38156158f74aac32d9db7f19474dc",
       "path": "documents/security.guidance.verifier.json"
     },
     {
@@ -815,7 +815,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:0356638ef3b56eb5b2c8c75d43e9af4d4c238c650183d30c598009c6bdb1ce47"
+      "sha256": "sha256:4eab2d3cf2fffd098da9fc644a99712132869a3500c9079c26614a80e88e2dc4"
     },
     {
       "path": "automation.json",
@@ -945,7 +945,7 @@
     {
       "path": "skills/security-audit/SKILL.md",
       "role": "skill",
-      "sha256": "sha256:5dbe3cf5710f60645f151b8c1406a523ee3a110579e2c015ab4ebf4682ad9001"
+      "sha256": "sha256:89e81b20a80d6a24bf60efad2853dc183a6b4c7d9c2e3cec3957882af74d0490"
     }
   ],
   "kit_id": "security",
@@ -956,12 +956,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:9f73d21d90242687f8a6bba406116d8467a889a8ef0cbcd9fc8e7fc7872f0de4",
-      "git_oid": "a31ee851031ee5188f3d9046382addea0245eb44",
-      "semantic_root": "sha256:1dbfcd84a52bfdb73e5997af44c0a5945c8ee5edc5991b39b016ff109d969b2c",
+      "generation_root": "sha256:46e2a6ca63b0dea3290546ff704513682aa1946496300f6dbff0f833a4eea43e",
+      "git_oid": "cb620b22025096663a7b611e6b83b97fced5ab6c",
+      "semantic_root": "sha256:27a1f8082294528799c8d98966ae11f4d0c1fdfe64735e84a626a01a71d1311e",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_a36f563496e349d9",
+    "instance_id": "inst_b497610bc8924cef",
     "principal_id": "owner"
   },
   "providers": [

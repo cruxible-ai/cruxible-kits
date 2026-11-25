@@ -52,14 +52,18 @@ your own words. `because` is one line of at most 280 characters, and enough on i
 for a plain refutation.
 
 - **Confirmed:** `verdict` cites the observed run output (file evidence
-  `path#<quoted result line>` on the output file or test log); `severity` cites your
-  reasoning section. Both pin what they relied on (below).
+  `path#<quoted result line>` on the output file or test log); `severity`, with role
+  `normative` (see Severity), cites your reasoning section. Both pin what they relied on
+  (below).
 - **Refuted:** `verdict` and `justification` cite your reasoning section, and pin
   `#reported_at` and any fact the refutation rests on.
 
-Cite the narrowest passage that decides the judgment: a whole file reopens it on every
-edit, and no citation never reopens it. A quoted code line (`path#<quoted line>`) is a
-pointer for reviewers, not a witness that the verdict still holds: it reopens the verdict
+Each Claim carries exactly one piece of evidence: the verdict and the severity are two
+changes, each with its own citation. File evidence quotes a single line found once in the
+file, never a multi-line function body. Cite the narrowest passage that decides the
+judgment: a whole file reopens it on every edit, and no citation never reopens it. A quoted
+code line (`path#<quoted line>`) is a pointer for reviewers, not a witness that the verdict
+still holds: it reopens the verdict
 only when those bytes change, and a refutation that depends on code elsewhere (`not_reachable`
 because nothing calls the function) can go false while the quoted line stays the same. When a
 check decides the verdict, cite the check's result where one exists (a scanner's findings
@@ -122,6 +126,11 @@ versions); `--clear-based-on` drops a pin made by mistake.
 Only confirmed findings get your severity, and it can't exceed the impact you
 demonstrated. A scan's severity on the same finding is the tool's observation; yours,
 normative, replaces it.
+
+Write `severity` with role `normative` (SDK: `role="normative"`; write file and MCP:
+`"role": "normative"`; CLI: `--role normative`). The field admits both roles and defaults to
+`observation`, which only a scan's findings document covers, so a severity written without
+the role lands `uncovered` instead of `supported`, and the reviewer rejects it.
 
 | Severity | Anchor |
 |---|---|

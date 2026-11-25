@@ -484,9 +484,36 @@ judgments rest on, and adds no host, cluster, network or vendor kinds; it owns
 
 ## The audit loop
 
-The audit loop needs no automation to start. Agents write through ordinary
-`cruxible write` calls, and each field's card links the guidance that governs
-it (`cruxible get Document:security.guidance.hunter`, and so on):
+The audit loop needs no automation to start. Agents write ordinary Claims, and
+each field's card links the guidance that governs it (`cruxible get
+Document:security.guidance.hunter`, and so on). The
+[security-audit skill](skills/security-audit/SKILL.md) runs the loop from that
+live guidance. Pick the surface by what the agent can do:
+
+| Surface | For | Why |
+|---|---|---|
+| Typed Python SDK: `cruxible python` with `.cruxible/world.pyi` | coding agents, whenever Python runs | the instance's kinds, fields and enum members as types (`cruxible python --check` refuses a misspelling before the write), notes sections as evidence (`cx.section(...)`), pins with `based_on=`; runs with the CLI's own interpreter in any repository, whatever its own Python or venv |
+| MCP | agents with no code execution | the same verbs as tools |
+| CLI: `cruxible orient`, `cruxible next`, `cruxible write --example`, `cruxible proposal ...` | quick inspection, and as a backup | one command per read or write |
+
+```bash
+cruxible python - <<'PY'
+from typing import TYPE_CHECKING, cast
+from cruxible_client import Cruxible
+if TYPE_CHECKING:
+    from world import World
+with Cruxible.connect() as cx:
+    w = cast("World", cx.world())
+    print(w.describe())
+PY
+```
+
+Whatever the surface, each Claim carries one piece of evidence: a code
+location or a fact's `holds` cites a single quoted line (`path#<quoted line>`,
+found once in the file, never a multi-line function body), and a judgment
+cites the notes section holding its reasoning (a `confirmed` verdict cites its
+check's output line instead). An agent's `severity` is written with role
+`normative`. The steps:
 
 1. A hunter works one coverage unit (`repo`, `surface`, `concern`), writes its
    trace to a notes file in the workspace catalog, and reports the finding:
