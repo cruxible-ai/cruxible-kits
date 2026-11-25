@@ -50,6 +50,17 @@ A quick or scoped pass covers less; it never lowers the bar for a finding or a v
 A scoped pass marks the surfaces it saw but excluded `out_of_scope`, never `checked`, and
 says it is partial. One pass never exhausts a target.
 
+## Parallel hunters
+
+Before dispatching hunters in parallel, partition the units: each unit, existing or to be
+created, belongs to exactly one hunter, so no two hunters create or revise the same unit at
+once (concurrent changes to one unit collide and one is readmitted against the other).
+Give code-fact topics that two partitions share to one hunter the same way. Hand each
+hunter its unit list and its own notes and facts files (`security/notes/<hunter>.md`,
+`security/facts/<hunter>.md`); hunters never append to one shared notes file. Units a
+hunter finds outside its list come back in its notes, and the coordinator records them
+after the hunters finish.
+
 ## Coverage critic pass
 
 Before calling a pass complete, review it against the target, not against your own units:

@@ -54,7 +54,10 @@ for a plain refutation.
 - **Confirmed:** `verdict` cites the observed run output (file evidence
   `path#<quoted result line>` on the output file or test log); `severity`, with role
   `normative` (see Severity), cites your reasoning section. Both pin what they relied on
-  (below).
+  (below). Before the section recommends a fix, check that the fix stops your check under
+  the real handler and middleware order: a guard or header added where it runs after the
+  cache, the router or a downstream handler has already acted fixes nothing. Rerun the
+  check against the fix when you can.
 - **Refuted:** `verdict` and `justification` cite your reasoning section, and pin
   `#reported_at` and any fact the refutation rests on.
 

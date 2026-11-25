@@ -31,10 +31,12 @@ live rather than assuming them here.
    ```
 
    `cruxible python --check SCRIPT` type-checks a script against the live
-   vocabulary before it writes. Draft new Subjects with `w.<kind>.define(...)`;
-   carry a notes section as a Claim's evidence with `cx.section(...)` (an
-   `AuthoredSection`); pin the Claims a judgment relied on with `based_on=` on
-   `cx.set(...)` or a `cx.changes(because=...)` batch.
+   vocabulary before it writes. The typed path is
+   `w.<kind>.define(...).set(...).write(because=...)` for new Subjects (and
+   `w.<kind>["<id>"].set(..., because=...)` for existing ones); carry a notes
+   section as evidence with `cx.section(...)`. Pass `based_on=` directly on
+   `.set(...)` or `.add(...)` (on typed World drafts, edits, and Subjects, or on
+   `cx.set(...)` and `cx.changes(because=...)` batches).
 2. **MCP** when you have no code execution: the same verbs as tools.
 3. **CLI** for quick inspection and as a backup: `cruxible orient`,
    `cruxible next`, `cruxible write --example`, `cruxible proposal ...`.
@@ -60,6 +62,11 @@ context window:
   backlog, dispatch one isolated Hunter session per unit (or batch), then
   dispatch a fresh Verifier session (ideally a different model or principal) to
   judge reported findings independently.
+- **Parallel hunters:** before dispatch, partition the coverage units so each
+  belongs to exactly one hunter (no two hunters create or revise the same unit
+  at once), and give each hunter its own notes and facts files named for that
+  hunter instead of one shared file. Units a hunter finds outside its partition
+  come back to the coordinator to record.
 - **Single-role session:** Perform only the role requested. A Hunter stops
   before writing any verdict; a Verifier judges each finding independently
   before reading other verdicts.

@@ -573,7 +573,7 @@
       "path": "contracts/security.weakened-dependent/v1.json"
     },
     {
-      "artifact_digest": "sha256:c0104ae5b8d60437e22671ad811fc8d8232626f5f5b86a03376093678849ed0d",
+      "artifact_digest": "sha256:ce455bb095610a1051f3a9eaa0dffe81bef8a0a379c3c8fabf708cfea775870e",
       "path": "documents/security.guidance.coverage.json"
     },
     {
@@ -581,11 +581,11 @@
       "path": "documents/security.guidance.dependency.json"
     },
     {
-      "artifact_digest": "sha256:52731da959ba70796f54ba995e8cf00365c0c39e0b960ac4f781f8e794653376",
+      "artifact_digest": "sha256:4d6b77b10b803556851e40c8bac50a57db41e84a2474e0bd25875942a1807573",
       "path": "documents/security.guidance.hunter.json"
     },
     {
-      "artifact_digest": "sha256:ddcce3f8dabaa7f6e5b3cddfd232df03e3f38156158f74aac32d9db7f19474dc",
+      "artifact_digest": "sha256:4c98dbdb9954cc2ac9ab0fb168677388d1781d28d9856bca7c3e63857ecf0940",
       "path": "documents/security.guidance.verifier.json"
     },
     {
@@ -945,7 +945,7 @@
     {
       "path": "skills/security-audit/SKILL.md",
       "role": "skill",
-      "sha256": "sha256:89e81b20a80d6a24bf60efad2853dc183a6b4c7d9c2e3cec3957882af74d0490"
+      "sha256": "sha256:e4d7fe504540781dc412b2a4038744b9ce41e2bc967ab889c828f839b36fc30c"
     }
   ],
   "kit_id": "security",
@@ -956,12 +956,12 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:46e2a6ca63b0dea3290546ff704513682aa1946496300f6dbff0f833a4eea43e",
-      "git_oid": "cb620b22025096663a7b611e6b83b97fced5ab6c",
-      "semantic_root": "sha256:27a1f8082294528799c8d98966ae11f4d0c1fdfe64735e84a626a01a71d1311e",
+      "generation_root": "sha256:00b8827ee9c3718f89586609f5463f2d0f8594dafedfbe8be32b9b9ba7eecae8",
+      "git_oid": "a62014d81e76e43e11f1773d3c6d4195b710a523",
+      "semantic_root": "sha256:8ad622fde17489476b1c7cd89a214bf4a1f6d5794d2e1aec2b75ef6cf4c4a09b",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_b497610bc8924cef",
+    "instance_id": "inst_8c361a2c971f4571",
     "principal_id": "owner"
   },
   "providers": [

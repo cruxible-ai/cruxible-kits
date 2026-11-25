@@ -47,6 +47,29 @@ unit (below). A known-vulnerable dependency is not a finding by itself: it belon
 dependency loop (SBOM, OSV, `security.exposure`) unless you show the path and the
 boundary it crosses.
 
+## Composition across components
+
+Many real defects sit between components that are each correct alone. Before calling a
+surface clean, check how the pieces compose:
+
+- **Ordering.** Read the middleware, filter and route registration order. A request-rewriting
+  or method-override step that runs before CSRF, auth or path checks changes what those
+  checks see; auth that runs after a cache can serve one principal's response to another.
+- **Credential headers and proxy or cache boundaries.** When auth reads a custom header
+  while a cache or proxy keys or bypasses only on `Authorization` or cookies, authenticated
+  responses can be cached and served to others. Check trusted-proxy defaults and which
+  forwarded headers (`X-Forwarded-For`, `X-Forwarded-Host`) the code believes.
+- **Configuration and input coercion.** Check how config values are parsed and compared:
+  `undefined` or `null` entries in a token or allowlist array that match a missing input,
+  unit mismatches (seconds against minutes or milliseconds), empty values read as
+  wildcards, and opt-in security features whose default fails open.
+- **Shared stores and key namespaces.** Queues, event stores, stream or subscription maps
+  and connection pools shared across sessions or tenants must key on that identity. Look for
+  keys built without it, and for type or string collisions (`1` against `"1"`, parts joined
+  without a separator) that let one principal reach another's entry.
+
+These are still held to the five-point bar above: name the composition in the trace.
+
 ## How to report
 
 1. **Key it** so another run or a scanner lands on the same Subject: `repo`
@@ -94,6 +117,11 @@ partial pass says it is partial. A boundary you notice outside your unit is a ne
 create it with its key and no status, so the next plan picks it up, instead of following
 it now.
 
+In a parallel run the coordinator assigns you units: create or revise only those. Write
+your notes and facts sections to the files it gives you alone (`security/notes/<hunter>.md`,
+`security/facts/<hunter>.md`), never to a file another hunter is writing. A boundary outside
+your assignment goes in your notes for the coordinator to record as a unit.
+
 Hardening notes and safe patterns you confirmed go in the unit's notes section, written in
 its own write before the status (the `checked` status cites the code line, as the coverage
 guidance says); they are never findings.
@@ -112,7 +140,7 @@ Record a fact when a judgment rests on something true beyond the passage you are
 and establishing it took real reading or more than one judgment will rest on it. Leave out
 what one search answers. Facts are not a file map or an architecture document: expect tens
 per repository. In one write: append a section to the repository's facts notes file (a
-catalogued workspace file) stating the fact, where it holds and its known exceptions;
+catalogued workspace file; in a parallel run, your own facts file) stating the fact, where it holds and its known exceptions;
 `create` the fact; `set` its `category` citing that section; `set` `holds` (`yes`, `partly` or
 `no`) citing the single code line that decides it (`path#<quoted line>`). A change carries
 one piece of evidence, so the code backs `holds` and the notes back `category`. Link each
