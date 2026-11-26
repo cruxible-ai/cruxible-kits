@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The kind of equipment (pump, chiller, compressor, gateway, motor, inverter).",
+  "description": "The kind of equipment (pump, chiller, compressor, camera, edge_hub, motor, inverter).",
   "evidence_admission_policy": {
     "rules": [
       {

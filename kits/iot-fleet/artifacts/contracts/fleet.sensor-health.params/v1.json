@@ -1,0 +1,14 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "Parameters for one hub's fleet.sensor-health landing Line.",
+  "fields": {
+    "logical_source": {
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    }
+  },
+  "name": "fleet.sensor-health.params",
+  "version": 1
+}

@@ -1,0 +1,17 @@
+{
+  "artifact_format": "cruxible-capability-v1",
+  "description": "Applies an EWMA gain filter, flatline/heartbeat check, and approved baseline comparison to one hub telemetry batch Capture and returns one derived analysis document with per-sensor health, per-asset operating state, and anomalies.",
+  "effect": "pure",
+  "in": {
+    "digest": "sha256:3a083e7aeea918f513e50c47560b5a18bdf4c1f236c24186b85401a8a41ad920",
+    "name": "fleet.telemetry.analyze.request",
+    "version": 1
+  },
+  "name": "fleet.telemetry.analyze",
+  "out": {
+    "digest": "sha256:afb2abdf19d9dc0fda325695a16bd45e3645c6d724e6b729a990336a52ca83ac",
+    "name": "fleet.telemetry.analyze.result",
+    "version": 1
+  },
+  "version": 1
+}

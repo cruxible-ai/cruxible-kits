@@ -1,0 +1,82 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
+  "definition": {
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "fleet.attention.input/v1"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "fleet.attention.output/v1"
+      }
+    },
+    "description": "Post one Line inbox item per unjudged fleet.anomaly at or above min_severity for review in cruxible next.",
+    "hard_caps": {
+      "max_capture_bytes": 0,
+      "max_items": 50000,
+      "max_provider_calls": 0,
+      "max_read_rows": 20000,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 120000000
+      }
+    },
+    "name": "fleet.attention",
+    "nodes": [
+      {
+        "fields": {},
+        "id": "summary",
+        "kind": "project"
+      },
+      {
+        "id": "open_items",
+        "kind": "read",
+        "parameters": {
+          "min_severity": "$params.min_severity"
+        },
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "fleet.anomalies_needing_triage"
+          }
+        }
+      },
+      {
+        "contract": {
+          "digest": "sha256:a9e8fb06b8b8e8ff2e5f1317a5ed0d900b5ef5b6cf168228c067809109bba299",
+          "name": "fleet.anomaly-attention",
+          "version": 1
+        },
+        "dedupe_key": [
+          "anomaly"
+        ],
+        "fields": {
+          "anomaly": "$item.anomaly",
+          "asset": "$item.asset",
+          "metric": "$item.metric",
+          "severity": "$item.severity"
+        },
+        "for_each": "$steps.open_items.rows",
+        "id": "post",
+        "kind": "post_inbox"
+      }
+    ],
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "fleet.attention.params/v1"
+      }
+    },
+    "returns": "summary",
+    "terminal_capability": 1
+  },
+  "definition_digest": "sha256:98c0548ffe937f66999afb668900cce4f4506de578506de680a2db9baac8db82",
+  "identity": {
+    "kind": "Procedure",
+    "name": "fleet.attention"
+  }
+}

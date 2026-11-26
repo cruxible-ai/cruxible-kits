@@ -1,0 +1,111 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 5000,
+    "max_traversal_depth": 10
+  },
+  "description": "Every approved operating baseline (asset slug, metric, low, high, unit) read by the telemetry ingest Line.",
+  "entry": {
+    "binding": "b",
+    "subject_kinds": [
+      "fleet.baseline"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "fleet.approved_baselines"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 20000,
+    "max_traversal_depth": 10
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "asset",
+        "value": {
+          "binding": "a",
+          "kind": "claim_value",
+          "predicate": "fleet.asset.name"
+        }
+      },
+      {
+        "name": "high",
+        "value": {
+          "binding": "b",
+          "kind": "claim_value",
+          "predicate": "fleet.baseline.high"
+        }
+      },
+      {
+        "name": "low",
+        "value": {
+          "binding": "b",
+          "kind": "claim_value",
+          "predicate": "fleet.baseline.low"
+        }
+      },
+      {
+        "name": "metric",
+        "value": {
+          "binding": "b",
+          "kind": "claim_value",
+          "predicate": "fleet.baseline.metric"
+        }
+      },
+      {
+        "name": "unit",
+        "value": {
+          "binding": "b",
+          "kind": "claim_value",
+          "predicate": "fleet.baseline.unit"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:da937de3a8f01e554e41327b50ac72218a2f235b6484adabed2bc0bf368bcc89",
+    "name": "fleet.approved-baseline",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "a",
+      "direction": "forward",
+      "from_binding": "b",
+      "predicate": "fleet.baseline.asset",
+      "target_subject_kinds": [
+        "fleet.asset"
+      ]
+    }
+  ],
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "b",
+      "kind": "claim_value",
+      "predicate": "fleet.baseline.status"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "literal",
+      "value": "approved"
+    },
+    "value_type": "string"
+  }
+}

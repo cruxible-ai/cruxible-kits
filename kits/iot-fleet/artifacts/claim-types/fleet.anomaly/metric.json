@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "observation",
-  "description": "The metric that broke its bound.",
+  "description": "The metric that broke its bound or failed health checks.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -37,6 +37,26 @@
           "observation"
         ],
         "rule_id": "own-words-or-file",
+        "subject_binding": "exact_claim_subject",
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
+      },
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "logical_sources": [],
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "fleet.telemetry-analysis"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "rule_id": "telemetry-analysis",
         "subject_binding": "exact_claim_subject",
         "tag": "cruxible-claim-evidence-admission-rule-v4"
       }

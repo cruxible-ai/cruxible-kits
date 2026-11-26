@@ -1,0 +1,20 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "Parameters for the observe-only fleet.attention Line.",
+  "fields": {
+    "min_severity": {
+      "type": {
+        "kind": "enum",
+        "members": [
+          "info",
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ]
+      }
+    }
+  },
+  "name": "fleet.attention.params",
+  "version": 1
+}

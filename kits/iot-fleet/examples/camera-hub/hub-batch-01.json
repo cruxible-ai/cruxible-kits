@@ -1,0 +1,38 @@
+{
+  "hub": "hub-north-01",
+  "captured_at": "2026-11-26T15:00:00Z",
+  "sensors": [
+    {
+      "sensor": "hub-north-01-temp",
+      "asset": "hub-north-01",
+      "metric": "temperature",
+      "unit": "centi-degC",
+      "last_seen_age_s": 25,
+      "samples": [4820, 4840, 4830, 4850, 4845, 4835]
+    },
+    {
+      "sensor": "cam-gate-01-temp",
+      "asset": "cam-gate-01",
+      "metric": "temperature",
+      "unit": "centi-degC",
+      "last_seen_age_s": 30,
+      "samples": [4200, 4220, 4210, 7400, 4230, 4225]
+    },
+    {
+      "sensor": "cam-dock-02-temp",
+      "asset": "cam-dock-02",
+      "metric": "temperature",
+      "unit": "centi-degC",
+      "last_seen_age_s": 20,
+      "samples": [4100, 4120, 4130, 4115, 4125, 4140]
+    },
+    {
+      "sensor": "cam-lot-03-temp",
+      "asset": "cam-lot-03",
+      "metric": "temperature",
+      "unit": "centi-degC",
+      "last_seen_age_s": 35,
+      "samples": [3950, 3960, 3955, 3970, 3965, 3958]
+    }
+  ]
+}

@@ -1,0 +1,387 @@
+{
+  "schema_version": 3,
+  "manifest": {
+    "path": "manifest.yaml",
+    "digest": "sha256:491eaa1bb5d73f7197f6ca1ac30ff96c9006e36d4bc80f03c4711c1a143d1d06"
+  },
+  "operations": [
+    {
+      "name": "telemetry.analyze",
+      "description": "Applies an EWMA gain filter, flatline check, and approved-baseline classifier to one hub telemetry batch Capture and returns one derived analysis document.",
+      "source": {
+        "path": "kits/iot-fleet/source/providers/iot-telemetry-provider/src/iot_telemetry_provider/telemetry.py",
+        "repository": "https://github.com/cruxible-ai/cruxible-kits"
+      },
+      "serves": [
+        "fleet.telemetry.analyze"
+      ],
+      "in": "fleet.telemetry.analyze.request@1",
+      "out": "fleet.telemetry.analyze.result@1",
+      "effect": "pure",
+      "refusals": {
+        "provider_declined": {
+          "contract": "telemetry.analyze.refusal.provider_declined@1",
+          "absorbable": false
+        }
+      },
+      "entrypoint": "iot_telemetry_provider.telemetry:telemetry_analyze"
+    }
+  ],
+  "declares": {
+    "contracts": [
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "fleet.approved-baseline",
+        "version": 1,
+        "description": "One approved operating baseline row passed to telemetry.analyze.",
+        "fields": {
+          "asset": {
+            "type": {
+              "kind": "string",
+              "max_len": 256,
+              "min_len": 1
+            }
+          },
+          "high": {
+            "type": {
+              "kind": "int"
+            }
+          },
+          "low": {
+            "type": {
+              "kind": "int"
+            }
+          },
+          "metric": {
+            "type": {
+              "kind": "enum",
+              "members": [
+                "vibration",
+                "temperature",
+                "pressure",
+                "flow",
+                "humidity",
+                "current",
+                "voltage",
+                "power"
+              ]
+            }
+          },
+          "unit": {
+            "optional": true,
+            "type": {
+              "kind": "string",
+              "max_len": 32,
+              "min_len": 1
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "fleet.telemetry-anomaly-row",
+        "version": 1,
+        "description": "Derived anomaly flagged by telemetry.analyze (sustained bound breach, flatlined sensor, or missed heartbeat).",
+        "fields": {
+          "asset": {
+            "type": {
+              "kind": "string",
+              "max_len": 256,
+              "min_len": 1
+            }
+          },
+          "metric": {
+            "type": {
+              "kind": "enum",
+              "members": [
+                "vibration",
+                "temperature",
+                "pressure",
+                "flow",
+                "humidity",
+                "current",
+                "voltage",
+                "power"
+              ]
+            }
+          },
+          "reason": {
+            "type": {
+              "kind": "string",
+              "max_len": 512,
+              "min_len": 1
+            }
+          },
+          "severity": {
+            "type": {
+              "kind": "enum",
+              "members": [
+                "info",
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "fleet.telemetry-asset-row",
+        "version": 1,
+        "description": "Derived operating state for one fleet.asset from a telemetry batch.",
+        "fields": {
+          "operating_state": {
+            "type": {
+              "kind": "enum",
+              "members": [
+                "normal",
+                "warning",
+                "fault",
+                "offline"
+              ]
+            }
+          },
+          "reason": {
+            "type": {
+              "kind": "string",
+              "max_len": 512,
+              "min_len": 1
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "fleet.telemetry-sensor-row",
+        "version": 1,
+        "description": "Derived health status for one fleet.sensor from a telemetry batch.",
+        "fields": {
+          "reason": {
+            "type": {
+              "kind": "string",
+              "max_len": 512,
+              "min_len": 1
+            }
+          },
+          "status": {
+            "type": {
+              "kind": "enum",
+              "members": [
+                "online",
+                "degraded",
+                "offline"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "fleet.telemetry.analyze.request",
+        "version": 1,
+        "description": "One hub telemetry JSON batch Capture, approved fleet.baseline rows, and EWMA gain filter / flatline parameters.",
+        "fields": {
+          "alpha": {
+            "type": {
+              "kind": "string",
+              "pattern": "^(0\\.[0-9]{1,6}|1(\\.0{1,6})?)$"
+            }
+          },
+          "baselines": {
+            "type": {
+              "item": {
+                "contract": {
+                  "digest": "sha256:da937de3a8f01e554e41327b50ac72218a2f235b6484adabed2bc0bf368bcc89",
+                  "name": "fleet.approved-baseline",
+                  "version": 1
+                },
+                "kind": "contract"
+              },
+              "kind": "list",
+              "max_items": 20000
+            }
+          },
+          "batches": {
+            "type": {
+              "item": {
+                "capture_kind": "fleet.telemetry-batch",
+                "kind": "capture"
+              },
+              "kind": "list",
+              "max_items": 16
+            }
+          },
+          "flatline_samples": {
+            "type": {
+              "kind": "int",
+              "max": 1000,
+              "min": 2
+            }
+          },
+          "logical_source": {
+            "type": {
+              "kind": "string",
+              "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+            }
+          },
+          "max_heartbeat_age_s": {
+            "type": {
+              "kind": "int",
+              "max": 86400,
+              "min": 60
+            }
+          },
+          "min_breach_samples": {
+            "type": {
+              "kind": "int",
+              "max": 1000,
+              "min": 1
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "fleet.telemetry.analyze.result",
+        "version": 1,
+        "description": "One derived JSON analysis document in the layout of CaptureKind fleet.telemetry-analysis.",
+        "fields": {
+          "document": {
+            "type": {
+              "capture_kind": "fleet.telemetry-analysis",
+              "kind": "capture"
+            }
+          }
+        }
+      },
+      {
+        "artifact_format": "cruxible-contract-v1",
+        "name": "telemetry.analyze.refusal.provider_declined",
+        "version": 1,
+        "description": "Detail of a provider_declined refusal (malformed telemetry batch or invalid filter parameters).",
+        "fields": {}
+      }
+    ],
+    "capture_kinds": [
+      {
+        "name": "fleet.telemetry-analysis",
+        "decoding": {
+          "format": "json",
+          "encoding": "identity",
+          "limits": {
+            "decoded_bytes": 8388608,
+            "depth": 16,
+            "records": 50000
+          }
+        },
+        "layout": {
+          "records": {
+            "anomalies": {
+              "at": "/anomalies/*",
+              "key": {
+                "name": {
+                  "at": "name",
+                  "type": "key_part<fleet.anomaly:name>"
+                }
+              },
+              "row": {
+                "name": "fleet.telemetry-anomaly-row",
+                "version": 1,
+                "digest": "sha256:2f5cb1bd4ebdc8d0e099252ea42707b37222e0a32dd959bac2f182d90efa205c"
+              },
+              "fields": {
+                "asset": {
+                  "at": "asset"
+                },
+                "metric": {
+                  "at": "metric"
+                },
+                "reason": {
+                  "at": "reason"
+                },
+                "severity": {
+                  "at": "severity"
+                }
+              },
+              "count_at": "/anomalies_count"
+            },
+            "assets": {
+              "at": "/assets/*",
+              "key": {
+                "name": {
+                  "at": "asset",
+                  "type": "key_part<fleet.asset:name>"
+                }
+              },
+              "row": {
+                "name": "fleet.telemetry-asset-row",
+                "version": 1,
+                "digest": "sha256:f2471a3bb98f3ab9315695bc2e354150a7b1dad02e73534eed65c498f1c49b2d"
+              },
+              "fields": {
+                "operating_state": {
+                  "at": "operating_state"
+                },
+                "reason": {
+                  "at": "reason"
+                }
+              },
+              "count_at": "/assets_count"
+            },
+            "sensors": {
+              "at": "/sensors/*",
+              "key": {
+                "name": {
+                  "at": "sensor",
+                  "type": "key_part<fleet.sensor:name>"
+                }
+              },
+              "row": {
+                "name": "fleet.telemetry-sensor-row",
+                "version": 1,
+                "digest": "sha256:39e48b29e3150971bff3d6daa843367fb3997ed3dcd7178bdd3f49a52cea1e32"
+              },
+              "fields": {
+                "reason": {
+                  "at": "reason"
+                },
+                "status": {
+                  "at": "status"
+                }
+              },
+              "count_at": "/sensors_count"
+            }
+          }
+        }
+      },
+      {
+        "name": "fleet.telemetry-batch",
+        "decoding": {
+          "format": "json",
+          "encoding": "identity",
+          "limits": {
+            "decoded_bytes": 8388608,
+            "depth": 16,
+            "records": 50000
+          }
+        }
+      }
+    ],
+    "built_against": [
+      {
+        "kind": "Capability",
+        "name": "fleet.telemetry.analyze",
+        "version": 1,
+        "digest": "sha256:6a8a7002a68b15556b572332790a627299d58165696eb3efbbcb9c043a8a8490"
+      },
+      {
+        "kind": "CaptureKind",
+        "name": "fleet.telemetry-analysis",
+        "digest": "sha256:d1fc96736b702b2a06ec0add1b1dfeeb0f1fe1a4e6a6c165f3c992f373d371b6"
+      }
+    ]
+  },
+  "runtime_requirements": []
+}
