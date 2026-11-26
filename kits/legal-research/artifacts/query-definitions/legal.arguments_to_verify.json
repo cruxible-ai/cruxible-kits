@@ -1,0 +1,112 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Draft arguments in active matters (stage before closed) not yet verified.",
+  "entry": {
+    "binding": "argument",
+    "subject_kinds": [
+      "legal.argument"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "legal.arguments_to_verify"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "matter",
+        "value": {
+          "binding": "argument",
+          "kind": "claim_value",
+          "predicate": "legal.argument.matter"
+        }
+      },
+      {
+        "name": "matter_stage",
+        "value": {
+          "binding": "matter",
+          "kind": "claim_value",
+          "predicate": "legal.matter.stage"
+        }
+      },
+      {
+        "name": "status",
+        "value": {
+          "binding": "argument",
+          "kind": "claim_value",
+          "predicate": "legal.argument.status"
+        }
+      },
+      {
+        "name": "title",
+        "value": {
+          "binding": "argument",
+          "kind": "claim_value",
+          "predicate": "legal.argument.title"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "matter",
+      "direction": "forward",
+      "from_binding": "argument",
+      "predicate": "legal.argument.matter",
+      "target_subject_kinds": [
+        "legal.matter"
+      ],
+      "where": {
+        "kind": "comparison",
+        "left": {
+          "binding": "matter",
+          "kind": "claim_value",
+          "predicate": "legal.matter.stage"
+        },
+        "operator": "lt",
+        "right": {
+          "kind": "literal",
+          "value": "closed"
+        },
+        "value_type": "string"
+      }
+    }
+  ],
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "argument",
+      "kind": "claim_value",
+      "predicate": "legal.argument.status"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "literal",
+      "value": "draft"
+    },
+    "value_type": "string"
+  }
+}

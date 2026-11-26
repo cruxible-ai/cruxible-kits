@@ -1,0 +1,41 @@
+{
+  "authority": {
+    "required_tier": "governed_write"
+  },
+  "body_digest": "sha256:763f450ad4612451d93371e2f8604c1f7333c74d4e95163f4e068baa1910d87d",
+  "document_kind": "fleet.guidance",
+  "format_version": 1,
+  "governance_scope": [
+    "fleet"
+  ],
+  "identity": "document:fleet.guidance.review-guidance",
+  "kind": "document",
+  "lifecycle": {
+    "activation_policy": "snapshot",
+    "revision": 1,
+    "status": "active"
+  },
+  "links": [
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:fleet.anomaly.disposition"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:fleet.asset.condition"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:fleet.baseline.status"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:fleet.firmware.status"
+    }
+  ],
+  "media_type": "text/markdown",
+  "pins": [],
+  "predecessor_digest": null,
+  "tag": "playbill-document-v1",
+  "title": "IoT fleet review guidance"
+}

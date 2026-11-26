@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A client or represented entity, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "legal.client"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "legal.client.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

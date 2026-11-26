@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-subject-kind-v2",
-  "description": "A purchased component, named by its part number.",
+  "description": "A purchased component (supplier MPN), named by its part number.",
   "identity": {
     "kind": "SubjectKind",
     "name": "supply.component"

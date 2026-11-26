@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "Where the argument stands. Pin a verified status (based_on) to the holdings it relies on, so a change to any of them flags it for re-verification.",
+  "description": "Where the argument stands. Pin a verified or filed status (based_on) to every relied-on and distinguished holding or statute status so any change flags it.",
   "evidence_admission_policy": {
     "rules": [
       {

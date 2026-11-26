@@ -254,6 +254,19 @@ def build(kit: Path, scratch: Path) -> None:
     try:
         session.initialize()
         session.submit("definitions", source.change_set())
+        if hasattr(source, "guidance_documents"):
+            def _store_body(path: Path) -> str:
+                return session.command("body", "store", str(path), "--json")["digest"]
+
+            for document in source.guidance_documents(_store_body):
+                name = document["identity"].removeprefix("document:")
+                doc_path = session.root / f"document.{name}.json"
+                doc_path.write_text(json.dumps(document, indent=1, sort_keys=True) + "\n")
+                result = session.command(
+                    "document", "propose", "--envelope", str(doc_path), "--name", name, "--json"
+                )
+                if result.get("outcome", {}).get("status") != "landed":
+                    raise RuntimeError(f"document {name} did not land: {result}")
         args = ["kit", "build", "--id", source.KIT_ID, "--version", source.VERSION]
         for prefix in source.OWNS:
             args += ["--owns", prefix]
@@ -266,6 +279,9 @@ def build(kit: Path, scratch: Path) -> None:
         raise RuntimeError("a definitions-only kit records no requires or providers")
     shutil.rmtree(kit / "artifacts", ignore_errors=True)
     shutil.copytree(out / "artifacts", kit / "artifacts")
+    shutil.rmtree(kit / "bodies", ignore_errors=True)
+    if (out / "bodies").is_dir():
+        shutil.copytree(out / "bodies", kit / "bodies")
     shutil.copyfile(out / "cruxible-kit.json", kit / "cruxible-kit.json")
     _load(ROOT / "scripts" / "kits.py", "kits_script").write_files(kit)
 

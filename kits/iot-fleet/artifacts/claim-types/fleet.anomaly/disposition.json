@@ -58,7 +58,7 @@
       "member": "confirmed"
     },
     {
-      "description": "A reviewed false positive.",
+      "description": "A reviewed false positive; state the justification.",
       "member": "dismissed"
     },
     {

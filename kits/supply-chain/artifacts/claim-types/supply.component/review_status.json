@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The outcome of the component's supplier review. Pin it (based_on) to the attestations it relied on, so a renewed or lapsed attestation reopens it.",
+  "description": "The outcome of the component's qualification review. Pin it (based_on) to the certificates and supplier status it relied on, so any renewal or lapse reopens it.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -62,7 +62,7 @@
       "member": "approved_for_prototype"
     },
     {
-      "description": "Cleared, with conditions the review states.",
+      "description": "Cleared, with conditions stated in the review.",
       "member": "approved_with_conditions"
     },
     {

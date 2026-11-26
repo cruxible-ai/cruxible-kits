@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "An industrial or edge asset (pump, chiller, motor, gateway), named by its asset tag.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "fleet.asset"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "fleet.asset.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

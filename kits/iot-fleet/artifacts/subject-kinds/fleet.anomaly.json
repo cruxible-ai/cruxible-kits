@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-subject-kind-v2",
-  "description": "An anomaly flagged on a pump or sensor, named by its slug.",
+  "description": "An anomaly flagged on an asset or sensor, named by its slug.",
   "identity": {
     "kind": "SubjectKind",
     "name": "fleet.anomaly"

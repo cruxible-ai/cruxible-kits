@@ -5,19 +5,23 @@
       "path": "capture-contracts/playbill.coordinator-self-source-v1.json"
     },
     {
-      "artifact_digest": "sha256:f265dff903e1e8f04dcf94c8889e60c4e2fae0709f8856c797f826cb36e63ac5",
+      "artifact_digest": "sha256:2df17520697252037421a8fcce2d81962ff251830c5b802aee5f4025e814794f",
+      "path": "claim-types/legal.argument/distinguishes.json"
+    },
+    {
+      "artifact_digest": "sha256:8cc7a9e3b07cd4f0c1282e4c5eb1262d3bf604e3e0adce7c1e7ff83ddbd694b6",
       "path": "claim-types/legal.argument/matter.json"
     },
     {
-      "artifact_digest": "sha256:d0c30566b649080ce740968f82b1bfe7a5cea0987352ee1c58b8cf92cb99ced9",
+      "artifact_digest": "sha256:a3b344dfee7e09ca770f9156702319dd58f5b8dbbcb12bd63a1d2282f4a97ea5",
       "path": "claim-types/legal.argument/name.json"
     },
     {
-      "artifact_digest": "sha256:68e8c2720a5f1927b069dca48a0d97d36a0c1ba983a717c5e75be0ab00e081fa",
+      "artifact_digest": "sha256:da891340b7ab7d11eaa1fbfb4e4544cc23d95cc2cb7fe19e9f69be036edcc766",
       "path": "claim-types/legal.argument/relies_on.json"
     },
     {
-      "artifact_digest": "sha256:3583fea108ea30eed6e4eb544af49d9bcfb1d0209abe7b24220b6ab23dc96776",
+      "artifact_digest": "sha256:c897e2b78f3ab9396d24323e27fc06d271d4ec3948bb091cd70732a1c8899b45",
       "path": "claim-types/legal.argument/status.json"
     },
     {
@@ -45,8 +49,28 @@
       "path": "claim-types/legal.case/name.json"
     },
     {
-      "artifact_digest": "sha256:2e64c6715a4e8ae7113b398ca5c8d6001f5922e4733728f25c3bc80cd4b3f6cf",
+      "artifact_digest": "sha256:c5e545b54cce3b4c2885f3b29087a40a836ddaf258953376bc0a1fa79a502cab",
       "path": "claim-types/legal.case/status.json"
+    },
+    {
+      "artifact_digest": "sha256:6080810490bac103cc0c0ae7b9eebe8c3834b7e4aec264b98f66fee5b5c8805c",
+      "path": "claim-types/legal.client/conflict_status.json"
+    },
+    {
+      "artifact_digest": "sha256:897593a4aa233ea4b33e77b9faf6a5f9c122bfe6017898a9ebf855796eaf3ed8",
+      "path": "claim-types/legal.client/entity_type.json"
+    },
+    {
+      "artifact_digest": "sha256:88b1a63fabce709f1b5a86ec991c62776a0325c5caf6520b5173e1933c2acb89",
+      "path": "claim-types/legal.client/name.json"
+    },
+    {
+      "artifact_digest": "sha256:2506aa99eeb42e56250a2ba76cdf19f9d96aaf901b1401e6b749a6a127552ee7",
+      "path": "claim-types/legal.client/status.json"
+    },
+    {
+      "artifact_digest": "sha256:0f4aee3f1f8f2e173e3a7af41a3b4ec24515f9081e8cac1e7773f8a9b426c03b",
+      "path": "claim-types/legal.client/title.json"
     },
     {
       "artifact_digest": "sha256:1d598cdf6041386f940ab8112dafc6f9f4101994beb128931c735241f4f309e8",
@@ -81,8 +105,16 @@
       "path": "claim-types/legal.holding/rule.json"
     },
     {
-      "artifact_digest": "sha256:5183e078631784ff4265cfc79b666230c4e63bc358061dce2f6e03a514a59a6b",
+      "artifact_digest": "sha256:bcc202b55f2c57b816900af821757ed25c95da60971c55d1c29c3f0873a007e5",
       "path": "claim-types/legal.holding/status.json"
+    },
+    {
+      "artifact_digest": "sha256:b006930e7959a3c6fdfa25ecabf41e551b374f1dfa535ae193d6c56aa2031532",
+      "path": "claim-types/legal.holding/weight.json"
+    },
+    {
+      "artifact_digest": "sha256:8c1b24629dcdbbba5afa804bc59414dd5b7ff048adf32022d684faef089760b5",
+      "path": "claim-types/legal.matter/client.json"
     },
     {
       "artifact_digest": "sha256:143c18b26de0e21a68f421d0401df56ada0136bce2cc5c989b6ad08fd26b6b35",
@@ -101,7 +133,31 @@
       "path": "claim-types/legal.matter/title.json"
     },
     {
-      "artifact_digest": "sha256:cbfe6a10c9b4b40508738e334404f56256d70740888f5aba718e02ebef7b3f4f",
+      "artifact_digest": "sha256:3b92a4842f4673e6e2e17b00e2b513d3b895e194f249ff9a75e0daa051cd2672",
+      "path": "claim-types/legal.statute/citation.json"
+    },
+    {
+      "artifact_digest": "sha256:43ad63cb914ca454fad85ce08d4e6563b2745f6433bd920234d1d27dcd09e1ce",
+      "path": "claim-types/legal.statute/jurisdiction.json"
+    },
+    {
+      "artifact_digest": "sha256:74714a3d74bf573b00cb3d32c5e6558610120f647b82a76f393edbb55d4005f0",
+      "path": "claim-types/legal.statute/name.json"
+    },
+    {
+      "artifact_digest": "sha256:1193c966e43b513a92c59e2dd1ab3f5e9bcfa6fcda559c9b90d425bc4501a289",
+      "path": "claim-types/legal.statute/status.json"
+    },
+    {
+      "artifact_digest": "sha256:e9aa7ff28ac3d080d27c6c488e4e700ee728104f695c6c3fc5637f55b370058e",
+      "path": "claim-types/legal.statute/title.json"
+    },
+    {
+      "artifact_digest": "sha256:730c903c41e249a94771d6c59523fa560d91b4bbc73f639310a03691cf741aa3",
+      "path": "documents/legal.guidance.review-guidance.json"
+    },
+    {
+      "artifact_digest": "sha256:513bf7b4839e0b31e9beb3ea3d98bcf9b8734c33037eb699748d2b054ee47654",
       "path": "query-definitions/legal.affected_arguments.json"
     },
     {
@@ -109,16 +165,28 @@
       "path": "query-definitions/legal.arguments_by_matter.json"
     },
     {
-      "artifact_digest": "sha256:2ff8eeac48e16f7a3e2765f09e1c420222888fa73493a1f1ec22f50a65368ce0",
+      "artifact_digest": "sha256:41e7237fa35ea925c35c823a51288c763368edcac56b840fc2bffc1b32dfccd0",
+      "path": "query-definitions/legal.arguments_to_verify.json"
+    },
+    {
+      "artifact_digest": "sha256:bbbdd8d6968c5ba023086690c3957031f4ae554b7c34c42a2ce0b382afc260b4",
       "path": "query-definitions/legal.holdings_by_case.json"
     },
     {
-      "artifact_digest": "sha256:2fb2944e32c5b47cb6adfa23b80279d2619c6842a1107669b0b5ec16cd540752",
+      "artifact_digest": "sha256:89e8464b994bee2d9aabad9173eacec52386d66795290d58f80bc93f9095ed42",
+      "path": "query-definitions/legal.matters_by_client.json"
+    },
+    {
+      "artifact_digest": "sha256:5d9c675f96211b279afe1e17cd85aabf01e892fa762380171445934152074336",
       "path": "subject-kinds/legal.argument.json"
     },
     {
       "artifact_digest": "sha256:b5d0fc7cc38fda180bffbe35ed80674146ef3a5958658386dede79bec89a1241",
       "path": "subject-kinds/legal.case.json"
+    },
+    {
+      "artifact_digest": "sha256:790b9773db0ad9bcbdb4d25e2f6d7567b439f1b7bc8f9489357c80b030204789",
+      "path": "subject-kinds/legal.client.json"
     },
     {
       "artifact_digest": "sha256:aa73fb74ff57a1a03b5c943a91c567d0d8e5a5924d4aed71d3e2b0000e40b416",
@@ -131,13 +199,17 @@
     {
       "artifact_digest": "sha256:3b8eac975e232f05fd30a9828afc7393e84cf7187792c0eb8a0848c2cc9898c5",
       "path": "subject-kinds/legal.matter.json"
+    },
+    {
+      "artifact_digest": "sha256:f5859ed354e75a80cdab9ad45233249111b5ab67a793f96c4893ddeb3c507218",
+      "path": "subject-kinds/legal.statute.json"
     }
   ],
   "files": [
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:336512afa3127c6a0ea3478424cb97aae656c2e6affbe2b858e99c425fe8c4ec"
+      "sha256": "sha256:ba8339a47eac917f3c2050d0fbd3516a224bee66544dd495a11bc81eb16fd234"
     }
   ],
   "kit_id": "legal-research",
@@ -147,14 +219,14 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:6a226d9339a98da3303c702832385ac0af6170c61af5ce5b06e85704061a0379",
-      "git_oid": "683b84931c04bb0654438f4e2d2400030bb14eb2",
-      "semantic_root": "sha256:00bb2987a5e604a5b9c6df12db2f8c95e5d9fda44a0d16224c189681037ee7cb",
+      "generation_root": "sha256:bc450690213ed6216841a2aa176c8c8ea53bdcb9a50c53fdc6c5d8d008c28774",
+      "git_oid": "aaddbded35481002fe4a7c40c60ee6713bfa34ca",
+      "semantic_root": "sha256:bd89e399c2fe2e3e974451e03dcd080713ca8d82cd86da25e27b9f9b7a9d4bcc",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_7e58156f41af470f",
+    "instance_id": "inst_fe7633fa3f8542c7",
     "principal_id": "owner"
   },
   "tag": "playbill-kit-manifest-v1",
-  "version": "1.0.0"
+  "version": "2.0.0"
 }

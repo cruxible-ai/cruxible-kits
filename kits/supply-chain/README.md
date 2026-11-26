@@ -2,48 +2,53 @@
 
 ## What it is
 
-A starter vocabulary for supply chain and vendor review: suppliers, the
-components they make, the products that use them, and each supplier's
-attestations to standards such as SOC 2 or ISO 9001. Facts read from BOMs and
-certificates are observations; supplier risk, attestation verdicts and
-component approvals are governed decisions that cite their source.
+A starter vocabulary for supply chain, BOM blast radius, and vendor review:
+suppliers, their facilities, the components they manufacture, the products that
+use them, each supplier's compliance certificates (SOC 2, ISO 9001, RoHS,
+AS9100, ISO 13485, and any other standard slug), and active incidents. ERP
+keeps pricing, inventory, and purchase orders; Cruxible holds qualification
+verdicts, sole-source exposure, and the exact audit evidence each decision
+rests on.
 
-A component's approval is pinned to the attestations it relied on, so it
-carries forward across every product that uses the component. When an
-attestation is renewed or revised, exactly the approvals that rest on it are
-flagged for a re-check, and a lapsing certificate shows up before it expires.
+A component's approval is pinned to the certificates and supplier standing it
+relied on, so it carries forward across every product that uses the component.
+When a certificate is renewed or revised, exactly the approvals that rest on it
+are flagged for a re-check, and lapsing certificates show up before they expire.
 
 ## What it answers
 
 | Question | Where the answer comes from |
 |---|---|
 | Which products does a supplier touch? | `supply.affected_products` (parameter `supplier`, such as `acme-sensors`) |
-| Which attestations lapse soon? | `supply.expiring_attestations` (lapsed, or lapsing within 30 days) |
-| Which critical parts lack production approval? | `supply.unapproved_critical_components` (criticality `high` or worse, reviewed or not) |
-| Which approvals rest on a changed attestation? | `cruxible next` lists each as `claim_dependency_stale` |
+| Which certificates lapse soon? | `supply.expiring_certificates` (lapsed, or lapsing within 30 days) |
+| Which critical parts lack production approval? | `supply.unapproved_critical_components` (`criticality >= high`, reviewed or not) |
+| Where are we exposed to sole-source risk? | `supply.sole_source_critical` (production products with sole-source critical parts or high-risk/suspended suppliers) |
+| Which supply incidents are still open? | `supply.open_incidents` (`open`, severity `medium` or worse) |
+| Which approvals rest on a changed certificate? | `cruxible next` lists each as `claim_dependency_stale` |
 
 ## How it models your world
 
 | Kind | Named by | Fields |
 |---|---|---|
 | `supply.supplier` | its slug (`acme-sensors`) | `title`, `country`, `risk_tier`, `status` |
-| `supply.component` | its part number (`fw-crypto-2.4`) | `title`, `supplier`, `category`, `criticality`, `review_status` |
+| `supply.facility` | its slug (`acme-penang-fab-2`) | `supplier`, `title`, `country`, `role`, `status` |
+| `supply.component` | its supplier MPN (`fw-crypto-2.4`) | `title`, `supplier`, `facility`, `category`, `criticality`, `review_status` |
 | `supply.product` | its SKU (`edge-gateway-v3`) | `title`, `lifecycle` |
 | `supply.usage` | its product and component (`edge-gateway-v3--fw-crypto-2.4`) | `quantity`, `sourcing` (`sole_source`, `primary`, `alternate`) |
-| `supply.attestation` | its supplier and standard (`acme-sensors--soc2-type2`) | `issued_at`, `valid_until`, `verdict` |
+| `supply.certificate` | its supplier and standard (`acme-sensors--soc2-type2`) | `facility`, `issued_at`, `valid_until`, `verdict` |
+| `supply.incident` | its slug (`penang-power-outage-2026`) | `affects`, `category`, `severity`, `disposition` |
 
-`supply.usage` and `supply.attestation` are pair kinds: the relationship has
-its own state, so it is its own Subject, keyed by its ends. A renewal revises
-the one attestation pair in place and keeps its history. `risk_tier` and
-`criticality` are ordered enums (`low` to `critical`). `review_status` runs
-`pending_review`, `approved_for_prototype`, `approved_for_production`,
-`approved_with_conditions`, `rejected`. Every field admits your own words or a
-passage of a catalogued workspace file; a verdict or approval should cite the
-report or certificate it rests on.
+`supply.usage` and `supply.certificate` are pair kinds keyed by their ends. A
+renewal revises the one certificate pair in place and keeps its history.
+`risk_tier`, `criticality`, `severity`, and `status` (`approved` to
+`disqualified`) are ordered enums so queries can compare rank. The kit also
+installs one governed review guidance Document
+(`document:supply.guidance.review-guidance`) attached to supplier risk/status,
+component review, certificate verdict, and incident disposition.
 
 ## Recording a judgment
 
-A production approval pinned to the attestation it relied on:
+A production approval pinned to the certificate it relied on:
 
 ```python
 from cruxible_client import Cruxible, FileEvidence
@@ -55,8 +60,8 @@ with Cruxible.connect() as cx:
         because="SOC 2 Type II accepted with no exceptions; sole source for two SKUs.",
         evidence=FileEvidence(file="vendors/acme-soc2-2025.md#Opinion: no exceptions noted."),
         based_on=[
-            "supply.attestation/acme-sensors--soc2-type2#verdict",
-            "supply.attestation/acme-sensors--soc2-type2#valid_until",
+            "supply.certificate/acme-sensors--soc2-type2#verdict",
+            "supply.certificate/acme-sensors--soc2-type2#valid_until",
         ],
     )
 ```
@@ -64,12 +69,10 @@ with Cruxible.connect() as cx:
 ## Install
 
 ```sh
-cruxible kit add /path/to/cruxible-kits/kits/supply-chain                  # preview; prints the coordinate
-cruxible kit add /path/to/cruxible-kits/kits/supply-chain --commit --at OID
+cruxible kit add supply-chain
 ```
 
-`cruxible kit add supply-chain:1.0.0` installs the same release from the
-registry once it is published. The kit carries definitions only: no values,
-Providers, Procedures or Lines. In the kits repository the release rebuilds
-from `kits/supply-chain/source/definitions.py` with
+The kit carries definitions and review guidance only: no values, Providers,
+Procedures, or Lines. In the kits repository the release rebuilds from
+`kits/supply-chain/source/definitions.py` with
 `python scripts/build_kit.py kits/supply-chain SCRATCH`.

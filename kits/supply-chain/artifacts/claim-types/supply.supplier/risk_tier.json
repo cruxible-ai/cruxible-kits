@@ -52,7 +52,24 @@
     "predecessor_digest": null,
     "state": "live"
   },
-  "member_descriptions": [],
+  "member_descriptions": [
+    {
+      "description": "Severe risk requiring executive sign-off or active replacement.",
+      "member": "critical"
+    },
+    {
+      "description": "Elevated geopolitical, financial, quality, or security risk.",
+      "member": "high"
+    },
+    {
+      "description": "Routine vendor with strong compliance posture and low disruption risk.",
+      "member": "low"
+    },
+    {
+      "description": "Moderate exposure; standard periodic review applies.",
+      "member": "medium"
+    }
+  ],
   "permitted_roles": [
     "normative"
   ],
