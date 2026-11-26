@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A telemetry sensor or edge device, named by its device id.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "fleet.sensor"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "fleet.sensor.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

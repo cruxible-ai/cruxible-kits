@@ -1,0 +1,83 @@
+{
+  "artifact_format": "cruxible-query-definition-v4",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 1
+  },
+  "description": "Attestations that have lapsed or lapse within 30 days.",
+  "entry": {
+    "binding": "attestation",
+    "subject_kinds": [
+      "supply.attestation"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "supply.expiring_attestations"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 1
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "standard",
+        "value": {
+          "binding": "attestation",
+          "kind": "claim_value",
+          "predicate": "supply.attestation.standard"
+        }
+      },
+      {
+        "name": "supplier",
+        "value": {
+          "binding": "attestation",
+          "kind": "claim_value",
+          "predicate": "supply.attestation.supplier"
+        }
+      },
+      {
+        "name": "valid_until",
+        "value": {
+          "binding": "attestation",
+          "kind": "claim_value",
+          "predicate": "supply.attestation.valid_until"
+        }
+      },
+      {
+        "name": "verdict",
+        "value": {
+          "binding": "attestation",
+          "kind": "claim_value",
+          "predicate": "supply.attestation.verdict"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "attestation",
+      "kind": "claim_value",
+      "predicate": "supply.attestation.valid_until"
+    },
+    "operator": "lt",
+    "right": {
+      "kind": "evaluation_time",
+      "offset_seconds": 2592000
+    },
+    "value_type": "timestamp"
+  }
+}

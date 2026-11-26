@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A product you build and ship, named by its SKU.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "supply.product"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "supply.product.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

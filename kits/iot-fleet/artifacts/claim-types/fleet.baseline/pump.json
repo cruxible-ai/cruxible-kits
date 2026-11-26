@@ -1,0 +1,67 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_subject_kinds": [
+    "fleet.baseline"
+  ],
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [],
+  "cardinality": "one",
+  "default_role": "normative",
+  "description": "The pump the baseline bounds; a key part.",
+  "evidence_admission_policy": {
+    "rules": [],
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
+  },
+  "evidence_requirement": "self",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "fleet.baseline.pump"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "member_descriptions": [],
+  "permitted_roles": [
+    "normative"
+  ],
+  "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
+  "predicate": "fleet.baseline.pump",
+  "referent_sensitivity": "identity",
+  "requires_complete_input": [],
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "value": {
+    "kind": "subject",
+    "subject_kinds": [
+      "fleet.pump"
+    ]
+  }
+}

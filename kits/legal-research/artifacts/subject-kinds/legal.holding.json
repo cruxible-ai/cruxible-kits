@@ -1,0 +1,32 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "One holding of a case on one issue, keyed by the case and issue.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "legal.holding"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "legal.holding.case",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "legal.holding.issue",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "The pumps at one site, with their condition and criticality.",
+  "entry": {
+    "binding": "pump",
+    "subject_kinds": [
+      "fleet.pump"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "fleet.pumps_by_site"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "parameters": [
+    {
+      "name": "site",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "condition",
+        "value": {
+          "binding": "pump",
+          "kind": "claim_value",
+          "predicate": "fleet.pump.condition"
+        }
+      },
+      {
+        "name": "criticality",
+        "value": {
+          "binding": "pump",
+          "kind": "claim_value",
+          "predicate": "fleet.pump.criticality"
+        }
+      },
+      {
+        "name": "firmware",
+        "value": {
+          "binding": "pump",
+          "kind": "claim_value",
+          "predicate": "fleet.pump.firmware"
+        }
+      },
+      {
+        "name": "model",
+        "value": {
+          "binding": "pump",
+          "kind": "claim_value",
+          "predicate": "fleet.pump.model"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "site",
+      "direction": "forward",
+      "from_binding": "pump",
+      "predicate": "fleet.pump.site",
+      "target_subject_kinds": [
+        "fleet.site"
+      ]
+    }
+  ],
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "site",
+      "kind": "claim_value",
+      "predicate": "fleet.site.name"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "parameter",
+      "parameter": "site"
+    },
+    "value_type": "string"
+  }
+}

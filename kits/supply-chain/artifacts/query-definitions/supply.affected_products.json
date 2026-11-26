@@ -1,0 +1,113 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Every product that uses a component from one supplier, with the component's review status.",
+  "entry": {
+    "binding": "use",
+    "subject_kinds": [
+      "supply.usage"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "supply.affected_products"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "parameters": [
+    {
+      "name": "supplier",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "component",
+        "value": {
+          "binding": "use",
+          "kind": "claim_value",
+          "predicate": "supply.usage.component"
+        }
+      },
+      {
+        "name": "product",
+        "value": {
+          "binding": "use",
+          "kind": "claim_value",
+          "predicate": "supply.usage.product"
+        }
+      },
+      {
+        "name": "review_status",
+        "value": {
+          "binding": "component",
+          "kind": "claim_value",
+          "predicate": "supply.component.review_status"
+        }
+      },
+      {
+        "name": "sourcing",
+        "value": {
+          "binding": "use",
+          "kind": "claim_value",
+          "predicate": "supply.usage.sourcing"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "component",
+      "direction": "forward",
+      "from_binding": "use",
+      "predicate": "supply.usage.component",
+      "target_subject_kinds": [
+        "supply.component"
+      ]
+    },
+    {
+      "binding": "supplier",
+      "direction": "forward",
+      "from_binding": "component",
+      "predicate": "supply.component.supplier",
+      "target_subject_kinds": [
+        "supply.supplier"
+      ]
+    }
+  ],
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "supplier",
+      "kind": "claim_value",
+      "predicate": "supply.supplier.name"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "parameter",
+      "parameter": "supplier"
+    },
+    "value_type": "string"
+  }
+}

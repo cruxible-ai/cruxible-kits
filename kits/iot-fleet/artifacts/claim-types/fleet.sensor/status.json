@@ -1,0 +1,116 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_subject_kinds": [
+    "fleet.sensor"
+  ],
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [
+    "nfc",
+    "trim"
+  ],
+  "cardinality": "one",
+  "default_role": "observation",
+  "description": "The device's last reported health. Its evidence goes stale 30 minutes after the last heartbeat, so a silent sensor reads as unknown, never as healthy.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contract_families": [
+          "workspace_file"
+        ],
+        "capture_contracts": [
+          {
+            "logical_sources": [],
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "rule_id": "own-words-or-file",
+        "subject_binding": "exact_claim_subject",
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
+      }
+    ],
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
+  },
+  "evidence_freshness": {
+    "stale_after": {
+      "microseconds": 1800000000,
+      "tag": "playbill-duration-v1"
+    },
+    "tag": "playbill-claim-evidence-freshness-v1"
+  },
+  "evidence_requirement": "self",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "fleet.sensor.status"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "member_descriptions": [
+    {
+      "description": "Reporting, with dropped or out-of-range samples.",
+      "member": "degraded"
+    },
+    {
+      "description": "Reported itself offline.",
+      "member": "offline"
+    },
+    {
+      "description": "Reporting on schedule.",
+      "member": "online"
+    }
+  ],
+  "permitted_roles": [
+    "observation"
+  ],
+  "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
+  "predicate": "fleet.sensor.status",
+  "referent_sensitivity": "identity",
+  "requires_complete_input": [],
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "value": {
+    "kind": "enum",
+    "members": [
+      "online",
+      "degraded",
+      "offline"
+    ]
+  }
+}

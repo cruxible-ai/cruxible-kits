@@ -1,0 +1,119 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_subject_kinds": [
+    "supply.component"
+  ],
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [
+    "nfc",
+    "trim"
+  ],
+  "cardinality": "one",
+  "default_role": "normative",
+  "description": "The outcome of the component's supplier review. Pin it (based_on) to the attestations it relied on, so a renewed or lapsed attestation reopens it.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contract_families": [
+          "workspace_file"
+        ],
+        "capture_contracts": [
+          {
+            "logical_sources": [],
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "rule_id": "own-words-or-file",
+        "subject_binding": "exact_claim_subject",
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
+      }
+    ],
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
+  },
+  "evidence_requirement": "self",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "supply.component.review_status"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "member_descriptions": [
+    {
+      "description": "Cleared for production builds.",
+      "member": "approved_for_production"
+    },
+    {
+      "description": "Cleared for prototype builds only.",
+      "member": "approved_for_prototype"
+    },
+    {
+      "description": "Cleared, with conditions the review states.",
+      "member": "approved_with_conditions"
+    },
+    {
+      "description": "Not yet reviewed.",
+      "member": "pending_review"
+    },
+    {
+      "description": "Not to be used.",
+      "member": "rejected"
+    }
+  ],
+  "permitted_roles": [
+    "normative"
+  ],
+  "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
+  "predicate": "supply.component.review_status",
+  "referent_sensitivity": "identity",
+  "requires_complete_input": [],
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "value": {
+    "kind": "enum",
+    "members": [
+      "pending_review",
+      "approved_for_prototype",
+      "approved_for_production",
+      "approved_with_conditions",
+      "rejected"
+    ]
+  }
+}

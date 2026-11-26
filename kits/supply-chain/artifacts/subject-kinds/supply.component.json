@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A purchased component, named by its part number.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "supply.component"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "supply.component.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

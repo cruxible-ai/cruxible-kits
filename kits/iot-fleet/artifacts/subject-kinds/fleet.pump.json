@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A pump in the fleet, named by its asset tag.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "fleet.pump"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "fleet.pump.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

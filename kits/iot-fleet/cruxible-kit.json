@@ -1,0 +1,176 @@
+{
+  "artifacts": [
+    {
+      "artifact_digest": "sha256:24934a988a47eb9f6bd485b637b436bafb903572f8e26ab5f36b3d8e80771e47",
+      "path": "capture-contracts/playbill.coordinator-self-source-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:c8f7e7fe94b150823f39524aff976fa243f2ada14a012cc0aa5861bd48d3276b",
+      "path": "claim-types/fleet.anomaly/asset.json"
+    },
+    {
+      "artifact_digest": "sha256:8a68fb1c7685b25f43db84db3e0b6b724ffebaee2cdd49568bdcee2be98e61ff",
+      "path": "claim-types/fleet.anomaly/disposition.json"
+    },
+    {
+      "artifact_digest": "sha256:4cbcae8664fc82d59f82ee71f70a07e660c268903ae5133f31bc4865427c7265",
+      "path": "claim-types/fleet.anomaly/metric.json"
+    },
+    {
+      "artifact_digest": "sha256:30c3d9a33651c81ae72fd56cab78c70dc2936740ab4634239a785e9b7276211a",
+      "path": "claim-types/fleet.anomaly/name.json"
+    },
+    {
+      "artifact_digest": "sha256:76a0ac377b20ee7d0f338a1c38cc5654f27082c336a7fbe7098aa9e6ae5fda22",
+      "path": "claim-types/fleet.anomaly/severity.json"
+    },
+    {
+      "artifact_digest": "sha256:0d54128aea3fb2d19a703a4a98b10c1812a932aa0bea0fc7876a089b50b1356e",
+      "path": "claim-types/fleet.baseline/high.json"
+    },
+    {
+      "artifact_digest": "sha256:025fe341702b8e9d341b5b33f3feb1937318ad8f720de51cacf34d2b31028b48",
+      "path": "claim-types/fleet.baseline/low.json"
+    },
+    {
+      "artifact_digest": "sha256:232305205f4c16b57ca7cfa5f18c375de37764067cf945808fc1bd6138a76ff0",
+      "path": "claim-types/fleet.baseline/metric.json"
+    },
+    {
+      "artifact_digest": "sha256:d8f5b5faa770cdf5b69d966aec7557e4af107d6d4881aa82d442d1ab1d2cdc97",
+      "path": "claim-types/fleet.baseline/pump.json"
+    },
+    {
+      "artifact_digest": "sha256:23c0bee911b05261b1478ca2bf0f42147f0eb0e4f2d23a43169366ddbfa83cbd",
+      "path": "claim-types/fleet.baseline/status.json"
+    },
+    {
+      "artifact_digest": "sha256:be26b6c995aa48aa644416f11df102b81f986eaf99c7c454e11ee30fadb0d7f1",
+      "path": "claim-types/fleet.baseline/unit.json"
+    },
+    {
+      "artifact_digest": "sha256:dd0f7f882ab5cc532b37795b8a04ff8a8e2d1240322d3245eec4f8a6be0969a7",
+      "path": "claim-types/fleet.pump/bearing_wear.json"
+    },
+    {
+      "artifact_digest": "sha256:2c5ca2f5c8778eaf072a06d69cba2d0373efe7b3d3ae91521387382e451768be",
+      "path": "claim-types/fleet.pump/condition.json"
+    },
+    {
+      "artifact_digest": "sha256:dbb1c74e56393dfaa7201ba9f7f209ea7fda02dec3e3e143f70c1a47482914c2",
+      "path": "claim-types/fleet.pump/criticality.json"
+    },
+    {
+      "artifact_digest": "sha256:2314c9632afd1822605055392cf4ec5945409b9c28e560870af76d544cc433af",
+      "path": "claim-types/fleet.pump/firmware.json"
+    },
+    {
+      "artifact_digest": "sha256:2aedad478b2e91044998d54deae6f28e1e1bf2d84de1ebb4b601229890ae1ea8",
+      "path": "claim-types/fleet.pump/last_inspected.json"
+    },
+    {
+      "artifact_digest": "sha256:7127ba722e7956b4393f943f7b90a4d26ee3f55a30ffd613d32caa4f369b474c",
+      "path": "claim-types/fleet.pump/model.json"
+    },
+    {
+      "artifact_digest": "sha256:9fc9df95e5d72a2e764a6ab856395c95bfe6ee638e04ad493a779165d4a83257",
+      "path": "claim-types/fleet.pump/name.json"
+    },
+    {
+      "artifact_digest": "sha256:a554b52c49556b23612bde4261dac2af807d48d169c62f8f560f3903f37656c5",
+      "path": "claim-types/fleet.pump/site.json"
+    },
+    {
+      "artifact_digest": "sha256:b3a61389b46804bc96f48295dba1e804f21ae59ac09420d678f83ea384d016d5",
+      "path": "claim-types/fleet.sensor/firmware.json"
+    },
+    {
+      "artifact_digest": "sha256:e1a23a3bd67dfef46f6e83c31d6c8cf8d2f789f35f56c4a68f44e7a2b3f1f77a",
+      "path": "claim-types/fleet.sensor/measures.json"
+    },
+    {
+      "artifact_digest": "sha256:82ff3c903f23c6dc30c8b8584a87b4fe0342064f424443bf6e4045dfca0c2a40",
+      "path": "claim-types/fleet.sensor/mounted_on.json"
+    },
+    {
+      "artifact_digest": "sha256:b131b2c633411407bbc1b50a647d9c4fdc4f75e75b73d2aae9e52ab4426462bb",
+      "path": "claim-types/fleet.sensor/name.json"
+    },
+    {
+      "artifact_digest": "sha256:1703a91bc060e414a01885d588357564b45de4af62b5d05c73d1443be1cef9fb",
+      "path": "claim-types/fleet.sensor/site.json"
+    },
+    {
+      "artifact_digest": "sha256:f0e6a090b578fda2d489e9cc5e9c36ea347337e4ca310dc36cd9c05f3d6550b7",
+      "path": "claim-types/fleet.sensor/status.json"
+    },
+    {
+      "artifact_digest": "sha256:d520b03896875f9a79e58b364127287b557fbd2b4412bb610a5e3b9dec30d534",
+      "path": "claim-types/fleet.site/name.json"
+    },
+    {
+      "artifact_digest": "sha256:b97a1afe696646f4b301a0413a6db5c7593b8b0630a406170b60cc1d2aa93e46",
+      "path": "claim-types/fleet.site/region.json"
+    },
+    {
+      "artifact_digest": "sha256:e2f670b5071e47a8ae6ffb0163782ec2a57985a7d10389d545fefcfc17864a0f",
+      "path": "claim-types/fleet.site/title.json"
+    },
+    {
+      "artifact_digest": "sha256:82645d8b3896694b3d7c43493187bed8b100329a95170b02cbb9f1599b50b585",
+      "path": "query-definitions/fleet.open_anomalies.json"
+    },
+    {
+      "artifact_digest": "sha256:9bb1c47af5f796de9d0235dda6ce5dd87f362c7f6f202ce8683f0e1bd1224a38",
+      "path": "query-definitions/fleet.pumps_by_site.json"
+    },
+    {
+      "artifact_digest": "sha256:61ea651ae8b9ebf4a6f0ff0d9f585bd13f1207d647c12bf986ab098f9935a846",
+      "path": "query-definitions/fleet.pumps_needing_attention.json"
+    },
+    {
+      "artifact_digest": "sha256:2c6007ffd96ad31d6d560efcfca5309c4ec57995935eab09b0401c23c2b5aa62",
+      "path": "subject-kinds/fleet.anomaly.json"
+    },
+    {
+      "artifact_digest": "sha256:209ba088fdefa9bb9bdacea61370f3b2ccd3dbf8f278eb2d04cfb7fb422c55df",
+      "path": "subject-kinds/fleet.baseline.json"
+    },
+    {
+      "artifact_digest": "sha256:02263ee3ebbcb7bc79c7ade5107c1b0aa264aca748ddb0493626b7a43d360849",
+      "path": "subject-kinds/fleet.pump.json"
+    },
+    {
+      "artifact_digest": "sha256:4dcc97eb38f7bb96e4ab2c1c34935c3ace9ee4db10afa313b98f14088b10b13f",
+      "path": "subject-kinds/fleet.sensor.json"
+    },
+    {
+      "artifact_digest": "sha256:e5abef29db0f59b5177d359f0858242c9d8449697233df64dca2b2118ef20fa9",
+      "path": "subject-kinds/fleet.site.json"
+    }
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "role": "readme",
+      "sha256": "sha256:9657e50b7199ed49ecf3c895afc4582377c5a6032128de8c106564419be4002a"
+    }
+  ],
+  "kit_id": "iot-fleet",
+  "owns": [
+    "fleet."
+  ],
+  "provenance": {
+    "coordinate": {
+      "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
+      "generation_root": "sha256:ff564832b07f7b4d834d2500faeab78ac59c8c0a7873de9c9eae1632d73f5937",
+      "git_oid": "fd580fee936b8908fb0a8c15348896d984f0bd3c",
+      "semantic_root": "sha256:f715bd5e384ac9dbe16d86043d0e748d2f080ff80fee687b4d4abc4570f7488c",
+      "tag": "playbill-accepted-coordinate-v1"
+    },
+    "instance_id": "inst_95b5ad1ecbe64029",
+    "principal_id": "owner"
+  },
+  "tag": "playbill-kit-manifest-v1",
+  "version": "1.0.0"
+}

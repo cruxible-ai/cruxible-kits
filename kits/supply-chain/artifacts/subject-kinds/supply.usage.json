@@ -1,0 +1,32 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A product's use of a component (a BOM line), keyed by the product and component.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "supply.usage"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "supply.usage.product",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "supply.usage.component",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

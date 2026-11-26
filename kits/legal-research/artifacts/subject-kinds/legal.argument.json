@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "An argument in a brief or memo, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "legal.argument"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "legal.argument.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

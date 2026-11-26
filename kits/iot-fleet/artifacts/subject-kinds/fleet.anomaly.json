@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "An anomaly flagged on a pump or sensor, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "fleet.anomaly"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "fleet.anomaly.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A reviewed operating bound for one metric of one pump, keyed by the pump and metric.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "fleet.baseline"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "fleet.baseline.pump",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "fleet.baseline.metric",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}
