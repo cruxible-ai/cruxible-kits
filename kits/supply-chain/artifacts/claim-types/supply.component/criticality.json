@@ -52,7 +52,24 @@
     "predecessor_digest": null,
     "state": "live"
   },
-  "member_descriptions": [],
+  "member_descriptions": [
+    {
+      "description": "Safety, security, or regulatory critical; outage halts shipments.",
+      "member": "critical"
+    },
+    {
+      "description": "Shortage halts production or requires engineering redesign.",
+      "member": "high"
+    },
+    {
+      "description": "Commodity part with trivial substitution.",
+      "member": "low"
+    },
+    {
+      "description": "Shortage slows builds or requires minor re-qualification.",
+      "member": "medium"
+    }
+  ],
   "permitted_roles": [
     "normative"
   ],

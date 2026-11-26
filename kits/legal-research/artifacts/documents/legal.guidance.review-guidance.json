@@ -1,0 +1,41 @@
+{
+  "authority": {
+    "required_tier": "governed_write"
+  },
+  "body_digest": "sha256:3fe15b14ecea6412709bae1d2c18b63a3bf40c123c932ee818068bd85b3e0cd2",
+  "document_kind": "legal.guidance",
+  "format_version": 1,
+  "governance_scope": [
+    "legal"
+  ],
+  "identity": "document:legal.guidance.review-guidance",
+  "kind": "document",
+  "lifecycle": {
+    "activation_policy": "snapshot",
+    "revision": 1,
+    "status": "active"
+  },
+  "links": [
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:legal.argument.status"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:legal.holding.rule"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:legal.holding.status"
+    },
+    {
+      "relation": "guides",
+      "target_identity": "ClaimType:legal.holding.weight"
+    }
+  ],
+  "media_type": "text/markdown",
+  "pins": [],
+  "predecessor_digest": null,
+  "tag": "playbill-document-v1",
+  "title": "Legal research review guidance"
+}

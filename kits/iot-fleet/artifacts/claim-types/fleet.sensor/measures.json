@@ -93,7 +93,9 @@
       "pressure",
       "flow",
       "humidity",
-      "current"
+      "current",
+      "voltage",
+      "power"
     ]
   }
 }

@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "Whether the supplier may be sourced from.",
+  "description": "Whether the supplier may be sourced from, ordered from approved to disqualified.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -52,7 +52,24 @@
     "predecessor_digest": null,
     "state": "live"
   },
-  "member_descriptions": [],
+  "member_descriptions": [
+    {
+      "description": "Cleared for production sourcing.",
+      "member": "approved"
+    },
+    {
+      "description": "Cleared with documented conditions or pending remediation.",
+      "member": "conditional"
+    },
+    {
+      "description": "Do not source from this vendor or facility.",
+      "member": "disqualified"
+    },
+    {
+      "description": "New orders paused pending investigation or re-audit.",
+      "member": "suspended"
+    }
+  ],
   "permitted_roles": [
     "normative"
   ],
@@ -92,6 +109,7 @@
       "conditional",
       "suspended",
       "disqualified"
-    ]
+    ],
+    "ordered": true
   }
 }

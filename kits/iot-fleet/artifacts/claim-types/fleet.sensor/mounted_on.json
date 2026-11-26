@@ -11,7 +11,7 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The pump the sensor is mounted on, when it watches one.",
+  "description": "The asset the sensor is mounted on, when it watches one.",
   "evidence_admission_policy": {
     "rules": [
       {
@@ -85,7 +85,7 @@
   "value": {
     "kind": "subject",
     "subject_kinds": [
-      "fleet.pump"
+      "fleet.asset"
     ]
   }
 }

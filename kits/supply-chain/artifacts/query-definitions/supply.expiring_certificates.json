@@ -1,0 +1,83 @@
+{
+  "artifact_format": "cruxible-query-definition-v4",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 1
+  },
+  "description": "Certificates that have lapsed or lapse within 30 days.",
+  "entry": {
+    "binding": "cert",
+    "subject_kinds": [
+      "supply.certificate"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "supply.expiring_certificates"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 1
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "standard",
+        "value": {
+          "binding": "cert",
+          "kind": "claim_value",
+          "predicate": "supply.certificate.standard"
+        }
+      },
+      {
+        "name": "supplier",
+        "value": {
+          "binding": "cert",
+          "kind": "claim_value",
+          "predicate": "supply.certificate.supplier"
+        }
+      },
+      {
+        "name": "valid_until",
+        "value": {
+          "binding": "cert",
+          "kind": "claim_value",
+          "predicate": "supply.certificate.valid_until"
+        }
+      },
+      {
+        "name": "verdict",
+        "value": {
+          "binding": "cert",
+          "kind": "claim_value",
+          "predicate": "supply.certificate.verdict"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "cert",
+      "kind": "claim_value",
+      "predicate": "supply.certificate.valid_until"
+    },
+    "operator": "lt",
+    "right": {
+      "kind": "evaluation_time",
+      "offset_seconds": 2592000
+    },
+    "value_type": "timestamp"
+  }
+}

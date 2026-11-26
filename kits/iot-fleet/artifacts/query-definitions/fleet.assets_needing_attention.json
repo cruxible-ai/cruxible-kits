@@ -1,0 +1,110 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 1
+  },
+  "description": "Assets whose operating_state is warning or worse, or whose reviewed condition is degraded or worse.",
+  "entry": {
+    "binding": "asset",
+    "subject_kinds": [
+      "fleet.asset"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "fleet.assets_needing_attention"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 1
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "asset_type",
+        "value": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "fleet.asset.asset_type"
+        }
+      },
+      {
+        "name": "condition",
+        "value": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "fleet.asset.condition"
+        }
+      },
+      {
+        "name": "criticality",
+        "value": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "fleet.asset.criticality"
+        }
+      },
+      {
+        "name": "operating_state",
+        "value": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "fleet.asset.operating_state"
+        }
+      },
+      {
+        "name": "site",
+        "value": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "fleet.asset.site"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "where": {
+    "filters": [
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "fleet.asset.condition"
+        },
+        "operator": "gte",
+        "right": {
+          "kind": "literal",
+          "value": "degraded"
+        },
+        "value_type": "string"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "fleet.asset.operating_state"
+        },
+        "operator": "gte",
+        "right": {
+          "kind": "literal",
+          "value": "warning"
+        },
+        "value_type": "string"
+      }
+    ],
+    "kind": "any_of"
+  }
+}

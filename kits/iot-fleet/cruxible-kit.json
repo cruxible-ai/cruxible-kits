@@ -5,15 +5,19 @@
       "path": "capture-contracts/playbill.coordinator-self-source-v1.json"
     },
     {
-      "artifact_digest": "sha256:c8f7e7fe94b150823f39524aff976fa243f2ada14a012cc0aa5861bd48d3276b",
+      "artifact_digest": "sha256:a32a76f06ca846c5f374efea3314d0649b9979c99c743ea66f8eb9984aaa82f8",
       "path": "claim-types/fleet.anomaly/asset.json"
     },
     {
-      "artifact_digest": "sha256:8a68fb1c7685b25f43db84db3e0b6b724ffebaee2cdd49568bdcee2be98e61ff",
+      "artifact_digest": "sha256:0bc2800f36244ba01fa9dd3573369d56d6705249d56ef282f8bff5c2d908a461",
       "path": "claim-types/fleet.anomaly/disposition.json"
     },
     {
-      "artifact_digest": "sha256:4cbcae8664fc82d59f82ee71f70a07e660c268903ae5133f31bc4865427c7265",
+      "artifact_digest": "sha256:c54ada912078754844b1bdd0b5975eac1c40fc3526fb8c3fec08ea97fd2bb36b",
+      "path": "claim-types/fleet.anomaly/justification.json"
+    },
+    {
+      "artifact_digest": "sha256:56894144f6874cdf0ff9b489e4476eeac361e00437da621369b946b1eda4edc1",
       "path": "claim-types/fleet.anomaly/metric.json"
     },
     {
@@ -25,6 +29,46 @@
       "path": "claim-types/fleet.anomaly/severity.json"
     },
     {
+      "artifact_digest": "sha256:9370e7924a6ae16d858232bbbff6ffa64ed1bff1c13e2480af5a92ae7b8c28bb",
+      "path": "claim-types/fleet.asset/asset_type.json"
+    },
+    {
+      "artifact_digest": "sha256:be0dc1ecff9c80d1e9af31f193270d46faa4d9f09608b904a7870465d9b0d79a",
+      "path": "claim-types/fleet.asset/condition.json"
+    },
+    {
+      "artifact_digest": "sha256:86a5e22a57d0c1951c4e59c3260c1a4045b5023bcb656e3ea7a510adf917cdb2",
+      "path": "claim-types/fleet.asset/criticality.json"
+    },
+    {
+      "artifact_digest": "sha256:c9c36983a389895931cfe2a8e906262ff497bb0e2125041eb017ff240f9f03ce",
+      "path": "claim-types/fleet.asset/firmware.json"
+    },
+    {
+      "artifact_digest": "sha256:f1f16c111616bc2127ab6941e84d8605be60fcb2321e2583ab3e08cc0d806dfd",
+      "path": "claim-types/fleet.asset/last_inspected.json"
+    },
+    {
+      "artifact_digest": "sha256:5559e9f8a3c8e3e362ab378591f11fa622bbd5d14fe11066b3771eb55e9ca585",
+      "path": "claim-types/fleet.asset/model.json"
+    },
+    {
+      "artifact_digest": "sha256:e0c499b254eb07fdc4d7af48f76c70d3b5503a3f88b8910e0167a682fd27fd1c",
+      "path": "claim-types/fleet.asset/name.json"
+    },
+    {
+      "artifact_digest": "sha256:c7d132fe6c26ff589a85b957cf9c934aa96fc787cc4b055cd927456284a00aaf",
+      "path": "claim-types/fleet.asset/operating_state.json"
+    },
+    {
+      "artifact_digest": "sha256:8958d00d029ccb12c1084865d6af2a37554065c6689f04b617371dd9e18e11ac",
+      "path": "claim-types/fleet.asset/site.json"
+    },
+    {
+      "artifact_digest": "sha256:34b349c741480ab16c0377249b0496367be747724d3ade81922f54ea6eb4fc8f",
+      "path": "claim-types/fleet.baseline/asset.json"
+    },
+    {
       "artifact_digest": "sha256:0d54128aea3fb2d19a703a4a98b10c1812a932aa0bea0fc7876a089b50b1356e",
       "path": "claim-types/fleet.baseline/high.json"
     },
@@ -33,63 +77,71 @@
       "path": "claim-types/fleet.baseline/low.json"
     },
     {
-      "artifact_digest": "sha256:232305205f4c16b57ca7cfa5f18c375de37764067cf945808fc1bd6138a76ff0",
+      "artifact_digest": "sha256:6251c483b83add9c0139b0f4f5f4ec1bbf9ba781b2473aa25a4e70d0643ca8f6",
       "path": "claim-types/fleet.baseline/metric.json"
     },
     {
-      "artifact_digest": "sha256:d8f5b5faa770cdf5b69d966aec7557e4af107d6d4881aa82d442d1ab1d2cdc97",
-      "path": "claim-types/fleet.baseline/pump.json"
-    },
-    {
-      "artifact_digest": "sha256:23c0bee911b05261b1478ca2bf0f42147f0eb0e4f2d23a43169366ddbfa83cbd",
+      "artifact_digest": "sha256:5ee922dc3473760e85457d3241b4120150e5840e8f4d6a2469128fe35238dc48",
       "path": "claim-types/fleet.baseline/status.json"
     },
     {
-      "artifact_digest": "sha256:be26b6c995aa48aa644416f11df102b81f986eaf99c7c454e11ee30fadb0d7f1",
+      "artifact_digest": "sha256:ac9ff4edea414038b0871d281c496ffc4c6233fb990fb947a177bdc69cbdafde",
       "path": "claim-types/fleet.baseline/unit.json"
     },
     {
-      "artifact_digest": "sha256:dd0f7f882ab5cc532b37795b8a04ff8a8e2d1240322d3245eec4f8a6be0969a7",
-      "path": "claim-types/fleet.pump/bearing_wear.json"
+      "artifact_digest": "sha256:fae114b33e8d689cb478ca5fddca3c8bacb8686fb44feb2253b1949216cdbe34",
+      "path": "claim-types/fleet.firmware/applies_to.json"
     },
     {
-      "artifact_digest": "sha256:2c5ca2f5c8778eaf072a06d69cba2d0373efe7b3d3ae91521387382e451768be",
-      "path": "claim-types/fleet.pump/condition.json"
+      "artifact_digest": "sha256:1ce3e7ca1fb147231841b0b8ae697764812221639ca51f59e8806c2ea7950d9f",
+      "path": "claim-types/fleet.firmware/name.json"
     },
     {
-      "artifact_digest": "sha256:dbb1c74e56393dfaa7201ba9f7f209ea7fda02dec3e3e143f70c1a47482914c2",
-      "path": "claim-types/fleet.pump/criticality.json"
+      "artifact_digest": "sha256:fc25461fbad983167c3b175a185c9000bd4710cdbab7ccfa9301ccf2e67437c0",
+      "path": "claim-types/fleet.firmware/status.json"
     },
     {
-      "artifact_digest": "sha256:2314c9632afd1822605055392cf4ec5945409b9c28e560870af76d544cc433af",
-      "path": "claim-types/fleet.pump/firmware.json"
+      "artifact_digest": "sha256:a9b7d92188bad7e133bf869799f27208d079b08c22887ba0373609d18d188361",
+      "path": "claim-types/fleet.firmware/vendor.json"
     },
     {
-      "artifact_digest": "sha256:2aedad478b2e91044998d54deae6f28e1e1bf2d84de1ebb4b601229890ae1ea8",
-      "path": "claim-types/fleet.pump/last_inspected.json"
+      "artifact_digest": "sha256:32ddb5b924c655a453a0e24b46d7f7183ca4b79c622331ca25fe2f58b2daf0b2",
+      "path": "claim-types/fleet.firmware/version.json"
     },
     {
-      "artifact_digest": "sha256:7127ba722e7956b4393f943f7b90a4d26ee3f55a30ffd613d32caa4f369b474c",
-      "path": "claim-types/fleet.pump/model.json"
+      "artifact_digest": "sha256:823e009c8861252602b7ec1397ddaa731dd660d79f6395a026711e0953b1fcab",
+      "path": "claim-types/fleet.maintenance/asset.json"
     },
     {
-      "artifact_digest": "sha256:9fc9df95e5d72a2e764a6ab856395c95bfe6ee638e04ad493a779165d4a83257",
-      "path": "claim-types/fleet.pump/name.json"
+      "artifact_digest": "sha256:a38af1980efb8b2b389611c6d8f5c008d0b7796edc3e5e9caad070df7895dd96",
+      "path": "claim-types/fleet.maintenance/kind.json"
     },
     {
-      "artifact_digest": "sha256:a554b52c49556b23612bde4261dac2af807d48d169c62f8f560f3903f37656c5",
-      "path": "claim-types/fleet.pump/site.json"
+      "artifact_digest": "sha256:7b00bb53f393ca745f03c0f171954dce512d0c88296aac57c1f77a532a58754f",
+      "path": "claim-types/fleet.maintenance/name.json"
     },
     {
-      "artifact_digest": "sha256:b3a61389b46804bc96f48295dba1e804f21ae59ac09420d678f83ea384d016d5",
+      "artifact_digest": "sha256:e89e5a63e95e26bde226f67712f596bb5322ca27ee52c9b5d93d2ea5b80b460e",
+      "path": "claim-types/fleet.maintenance/performed_on.json"
+    },
+    {
+      "artifact_digest": "sha256:6f7d145f2de0eeea8938fa335fbc079340303aa18ed1802d9653a6394e01b75d",
+      "path": "claim-types/fleet.maintenance/resolves.json"
+    },
+    {
+      "artifact_digest": "sha256:7f7c566a76438136470046fed130554a0313b6985246f876ea2bd24b84fa5581",
+      "path": "claim-types/fleet.maintenance/status.json"
+    },
+    {
+      "artifact_digest": "sha256:0d336c5ce0eed924c9cd69da9164c744b1af9d994e71e123a27b9d070c9f316d",
       "path": "claim-types/fleet.sensor/firmware.json"
     },
     {
-      "artifact_digest": "sha256:e1a23a3bd67dfef46f6e83c31d6c8cf8d2f789f35f56c4a68f44e7a2b3f1f77a",
+      "artifact_digest": "sha256:7221ee8836e91867e47dd2546e823c0b1b548937f6865f1d3c5d387fd75791db",
       "path": "claim-types/fleet.sensor/measures.json"
     },
     {
-      "artifact_digest": "sha256:82ff3c903f23c6dc30c8b8584a87b4fe0342064f424443bf6e4045dfca0c2a40",
+      "artifact_digest": "sha256:467c9380ee1aa4cf68697cd3cf9ae4d32a508c6a154ef03a0df00dde3f37aa05",
       "path": "claim-types/fleet.sensor/mounted_on.json"
     },
     {
@@ -117,28 +169,44 @@
       "path": "claim-types/fleet.site/title.json"
     },
     {
+      "artifact_digest": "sha256:b2cacd02415c36f29a16ef86b525b74cc8f1113f02860fbb44d5b1b40c49e2e4",
+      "path": "documents/fleet.guidance.review-guidance.json"
+    },
+    {
+      "artifact_digest": "sha256:9375f2bd486539db0069d6561c03b91218bcdec21624885ca042ab004bbdfe3f",
+      "path": "query-definitions/fleet.assets_by_site.json"
+    },
+    {
+      "artifact_digest": "sha256:dd5e4deed7b6f15b5bd3a68562840b9c1f1e9253158371d99c415d361bed5d19",
+      "path": "query-definitions/fleet.assets_needing_attention.json"
+    },
+    {
+      "artifact_digest": "sha256:e6c2580183852aa579fe4f96c85f70526bef120e576a9149dac525efa2940cfb",
+      "path": "query-definitions/fleet.assets_on_recalled_firmware.json"
+    },
+    {
       "artifact_digest": "sha256:82645d8b3896694b3d7c43493187bed8b100329a95170b02cbb9f1599b50b585",
       "path": "query-definitions/fleet.open_anomalies.json"
     },
     {
-      "artifact_digest": "sha256:9bb1c47af5f796de9d0235dda6ce5dd87f362c7f6f202ce8683f0e1bd1224a38",
-      "path": "query-definitions/fleet.pumps_by_site.json"
-    },
-    {
-      "artifact_digest": "sha256:61ea651ae8b9ebf4a6f0ff0d9f585bd13f1207d647c12bf986ab098f9935a846",
-      "path": "query-definitions/fleet.pumps_needing_attention.json"
-    },
-    {
-      "artifact_digest": "sha256:2c6007ffd96ad31d6d560efcfca5309c4ec57995935eab09b0401c23c2b5aa62",
+      "artifact_digest": "sha256:8a552405f7a4d05d4e4f274a254ea1a6d98642fd2415e20fc28f151a101eb33a",
       "path": "subject-kinds/fleet.anomaly.json"
     },
     {
-      "artifact_digest": "sha256:209ba088fdefa9bb9bdacea61370f3b2ccd3dbf8f278eb2d04cfb7fb422c55df",
+      "artifact_digest": "sha256:b8ab5ef2cbc1df4e7cf24d6614e02a87ba7cb5d0e23feadf41c99e9e00d2f9b9",
+      "path": "subject-kinds/fleet.asset.json"
+    },
+    {
+      "artifact_digest": "sha256:329e226059f4a7b26ae4ef0b150ae48537cbab0a322090144716404b24d96cea",
       "path": "subject-kinds/fleet.baseline.json"
     },
     {
-      "artifact_digest": "sha256:02263ee3ebbcb7bc79c7ade5107c1b0aa264aca748ddb0493626b7a43d360849",
-      "path": "subject-kinds/fleet.pump.json"
+      "artifact_digest": "sha256:8d3af04bf383609832677493477a7118719a2f0dc38c6fe2194f81284644b128",
+      "path": "subject-kinds/fleet.firmware.json"
+    },
+    {
+      "artifact_digest": "sha256:55e6a90b75e78464bd7d403374108f77ee298685b603de972ec188be373e8a8a",
+      "path": "subject-kinds/fleet.maintenance.json"
     },
     {
       "artifact_digest": "sha256:4dcc97eb38f7bb96e4ab2c1c34935c3ace9ee4db10afa313b98f14088b10b13f",
@@ -153,7 +221,7 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:9657e50b7199ed49ecf3c895afc4582377c5a6032128de8c106564419be4002a"
+      "sha256": "sha256:65335b3912fc53dc4283d77649b63a2f72f08aeded42e981be0c8982e08e1391"
     }
   ],
   "kit_id": "iot-fleet",
@@ -163,14 +231,14 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:ff564832b07f7b4d834d2500faeab78ac59c8c0a7873de9c9eae1632d73f5937",
-      "git_oid": "fd580fee936b8908fb0a8c15348896d984f0bd3c",
-      "semantic_root": "sha256:f715bd5e384ac9dbe16d86043d0e748d2f080ff80fee687b4d4abc4570f7488c",
+      "generation_root": "sha256:29aa910ca9e142aff2d4e4e98782c4ef445dd728db459d503454f6530d5f1954",
+      "git_oid": "dd4e363cb429afd804eb0744aae04a6a5b1bcdc6",
+      "semantic_root": "sha256:d7939bca2256940b9d4b7d47d31d87e08bc119f1a5a5e4e15b4a0746c45c4339",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_95b5ad1ecbe64029",
+    "instance_id": "inst_fe1dbe2340af4115",
     "principal_id": "owner"
   },
   "tag": "playbill-kit-manifest-v1",
-  "version": "1.0.0"
+  "version": "2.0.0"
 }

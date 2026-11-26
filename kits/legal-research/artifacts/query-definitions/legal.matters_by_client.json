@@ -1,0 +1,96 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "The matters opened for one client, with their forum and stage.",
+  "entry": {
+    "binding": "matter",
+    "subject_kinds": [
+      "legal.matter"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "legal.matters_by_client"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "parameters": [
+    {
+      "name": "client",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "forum",
+        "value": {
+          "binding": "matter",
+          "kind": "claim_value",
+          "predicate": "legal.matter.forum"
+        }
+      },
+      {
+        "name": "stage",
+        "value": {
+          "binding": "matter",
+          "kind": "claim_value",
+          "predicate": "legal.matter.stage"
+        }
+      },
+      {
+        "name": "title",
+        "value": {
+          "binding": "matter",
+          "kind": "claim_value",
+          "predicate": "legal.matter.title"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "client",
+      "direction": "forward",
+      "from_binding": "matter",
+      "predicate": "legal.matter.client",
+      "target_subject_kinds": [
+        "legal.client"
+      ]
+    }
+  ],
+  "where": {
+    "kind": "comparison",
+    "left": {
+      "binding": "client",
+      "kind": "claim_value",
+      "predicate": "legal.client.name"
+    },
+    "operator": "eq",
+    "right": {
+      "kind": "parameter",
+      "parameter": "client"
+    },
+    "value_type": "string"
+  }
+}

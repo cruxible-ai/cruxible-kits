@@ -1,0 +1,198 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Production products relying on a sole-source component with high/critical criticality or a high-risk/suspended supplier.",
+  "entry": {
+    "binding": "use",
+    "subject_kinds": [
+      "supply.usage"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "supply.sole_source_critical"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "component",
+        "value": {
+          "binding": "use",
+          "kind": "claim_value",
+          "predicate": "supply.usage.component"
+        }
+      },
+      {
+        "name": "criticality",
+        "value": {
+          "binding": "component",
+          "kind": "claim_value",
+          "predicate": "supply.component.criticality"
+        }
+      },
+      {
+        "name": "product",
+        "value": {
+          "binding": "use",
+          "kind": "claim_value",
+          "predicate": "supply.usage.product"
+        }
+      },
+      {
+        "name": "supplier",
+        "value": {
+          "binding": "component",
+          "kind": "claim_value",
+          "predicate": "supply.component.supplier"
+        }
+      },
+      {
+        "name": "supplier_risk",
+        "value": {
+          "binding": "supplier",
+          "kind": "claim_value",
+          "predicate": "supply.supplier.risk_tier"
+        }
+      },
+      {
+        "name": "supplier_status",
+        "value": {
+          "binding": "supplier",
+          "kind": "claim_value",
+          "predicate": "supply.supplier.status"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "product",
+      "direction": "forward",
+      "from_binding": "use",
+      "predicate": "supply.usage.product",
+      "target_subject_kinds": [
+        "supply.product"
+      ],
+      "where": {
+        "kind": "comparison",
+        "left": {
+          "binding": "product",
+          "kind": "claim_value",
+          "predicate": "supply.product.lifecycle"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "literal",
+          "value": "production"
+        },
+        "value_type": "string"
+      }
+    },
+    {
+      "binding": "component",
+      "direction": "forward",
+      "from_binding": "use",
+      "predicate": "supply.usage.component",
+      "target_subject_kinds": [
+        "supply.component"
+      ]
+    },
+    {
+      "binding": "supplier",
+      "direction": "forward",
+      "from_binding": "component",
+      "predicate": "supply.component.supplier",
+      "target_subject_kinds": [
+        "supply.supplier"
+      ]
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "filters": [
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "component",
+              "kind": "claim_value",
+              "predicate": "supply.component.criticality"
+            },
+            "operator": "gte",
+            "right": {
+              "kind": "literal",
+              "value": "high"
+            },
+            "value_type": "string"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "supplier",
+              "kind": "claim_value",
+              "predicate": "supply.supplier.risk_tier"
+            },
+            "operator": "gte",
+            "right": {
+              "kind": "literal",
+              "value": "high"
+            },
+            "value_type": "string"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "supplier",
+              "kind": "claim_value",
+              "predicate": "supply.supplier.status"
+            },
+            "operator": "gte",
+            "right": {
+              "kind": "literal",
+              "value": "suspended"
+            },
+            "value_type": "string"
+          }
+        ],
+        "kind": "any_of"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "use",
+          "kind": "claim_value",
+          "predicate": "supply.usage.sourcing"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "literal",
+          "value": "sole_source"
+        },
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of"
+  }
+}

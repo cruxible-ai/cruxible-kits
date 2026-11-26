@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The component's part number (fw-crypto-2.4); its key.",
+  "description": "The supplier's manufacturer part number (MPN, e.g. fw-crypto-2.4); its key. Alternate suppliers get their own component Subject and appear as alternate rows in supply.usage.",
   "evidence_admission_policy": {
     "rules": [],
     "tag": "cruxible-claim-evidence-admission-policy-v4"

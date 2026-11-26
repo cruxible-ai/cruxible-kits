@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The argument's slug, usually its brief section (motion-section-3b); its key.",
+  "description": "The argument's slug within the matter (motion-section-3b); a key part.",
   "evidence_admission_policy": {
     "rules": [],
     "tag": "cruxible-claim-evidence-admission-policy-v4"
@@ -63,7 +63,7 @@
   "revision_evidence": "replace",
   "value": {
     "kind": "string",
-    "max_len": 256,
+    "max_len": 128,
     "min_len": 1
   }
 }

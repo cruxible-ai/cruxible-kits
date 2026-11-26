@@ -66,6 +66,14 @@
           "kind": "claim_value",
           "predicate": "legal.argument.status"
         }
+      },
+      {
+        "name": "title",
+        "value": {
+          "binding": "argument",
+          "kind": "claim_value",
+          "predicate": "legal.argument.title"
+        }
       }
     ]
   },

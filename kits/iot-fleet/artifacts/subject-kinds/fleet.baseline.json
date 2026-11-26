@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-subject-kind-v2",
-  "description": "A reviewed operating bound for one metric of one pump, keyed by the pump and metric.",
+  "description": "A reviewed operating bound for one metric of one asset, keyed by the asset and metric.",
   "identity": {
     "kind": "SubjectKind",
     "name": "fleet.baseline"
@@ -8,7 +8,7 @@
   "identity_rule": {
     "parts": [
       {
-        "claim_type": "fleet.baseline.pump",
+        "claim_type": "fleet.baseline.asset",
         "normalizer": {
           "normalizer": "none",
           "version": 1

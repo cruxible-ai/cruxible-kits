@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The unit low and high count in, small enough to keep them whole (um/s, centi-degC, mbar).",
+  "description": "The unit low and high count in, small enough to keep them whole (um/s, centi-degC, mbar, mA).",
   "evidence_admission_policy": {
     "rules": [
       {

@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A firmware release tracked across assets and sensors, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "fleet.firmware"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "fleet.firmware.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

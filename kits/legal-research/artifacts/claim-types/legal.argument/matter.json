@@ -11,33 +11,9 @@
   "canonical_form": [],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The matter it is made in.",
+  "description": "The matter the argument belongs to; a key part.",
   "evidence_admission_policy": {
-    "rules": [
-      {
-        "admission": "direct",
-        "attestation_requirement": "none",
-        "capture_contract_families": [
-          "workspace_file"
-        ],
-        "capture_contracts": [
-          {
-            "logical_sources": [],
-            "role": "capture-contract",
-            "target": {
-              "kind": "CaptureContract",
-              "name": "playbill.coordinator-self-source-v1"
-            }
-          }
-        ],
-        "claim_roles": [
-          "normative"
-        ],
-        "rule_id": "own-words-or-file",
-        "subject_binding": "exact_claim_subject",
-        "tag": "cruxible-claim-evidence-admission-rule-v4"
-      }
-    ],
+    "rules": [],
     "tag": "cruxible-claim-evidence-admission-policy-v4"
   },
   "evidence_requirement": "self",

@@ -1,0 +1,119 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_subject_kinds": [
+    "fleet.anomaly"
+  ],
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [
+    "nfc",
+    "trim"
+  ],
+  "cardinality": "one",
+  "default_role": "normative",
+  "description": "Structured reason backing the anomaly's disposition.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contract_families": [
+          "workspace_file"
+        ],
+        "capture_contracts": [
+          {
+            "logical_sources": [],
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "normative"
+        ],
+        "rule_id": "own-words-or-file",
+        "subject_binding": "exact_claim_subject",
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
+      }
+    ],
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
+  },
+  "evidence_requirement": "self",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "fleet.anomaly.justification"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "member_descriptions": [
+    {
+      "description": "Equipment operating profile changed; baseline update needed.",
+      "member": "baseline_outdated"
+    },
+    {
+      "description": "Verified physical or firmware fault requiring maintenance.",
+      "member": "confirmed_fault"
+    },
+    {
+      "description": "Expected reading during scheduled work.",
+      "member": "maintenance_window"
+    },
+    {
+      "description": "Alert caused by an uncalibrated or drifting sensor.",
+      "member": "sensor_drift"
+    },
+    {
+      "description": "Brief spike that cleared without sustained fault.",
+      "member": "transient_spike"
+    }
+  ],
+  "permitted_roles": [
+    "normative"
+  ],
+  "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
+  "predicate": "fleet.anomaly.justification",
+  "referent_sensitivity": "identity",
+  "requires_complete_input": [],
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "value": {
+    "kind": "enum",
+    "members": [
+      "sensor_drift",
+      "maintenance_window",
+      "transient_spike",
+      "baseline_outdated",
+      "confirmed_fault"
+    ]
+  }
+}

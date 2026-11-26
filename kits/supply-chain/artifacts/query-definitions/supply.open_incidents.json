@@ -1,0 +1,94 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 1
+  },
+  "description": "Open supply incidents of medium severity or worse.",
+  "entry": {
+    "binding": "incident",
+    "subject_kinds": [
+      "supply.incident"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "supply.open_incidents"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 1
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "affects",
+        "value": {
+          "binding": "incident",
+          "kind": "claim_value",
+          "predicate": "supply.incident.affects"
+        }
+      },
+      {
+        "name": "category",
+        "value": {
+          "binding": "incident",
+          "kind": "claim_value",
+          "predicate": "supply.incident.category"
+        }
+      },
+      {
+        "name": "severity",
+        "value": {
+          "binding": "incident",
+          "kind": "claim_value",
+          "predicate": "supply.incident.severity"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "where": {
+    "filters": [
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "incident",
+          "kind": "claim_value",
+          "predicate": "supply.incident.disposition"
+        },
+        "operator": "eq",
+        "right": {
+          "kind": "literal",
+          "value": "open"
+        },
+        "value_type": "string"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "incident",
+          "kind": "claim_value",
+          "predicate": "supply.incident.severity"
+        },
+        "operator": "gte",
+        "right": {
+          "kind": "literal",
+          "value": "medium"
+        },
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of"
+  }
+}

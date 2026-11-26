@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "observation",
-  "description": "The country the supplier manufactures in.",
+  "description": "The supplier's headquarters or primary country.",
   "evidence_admission_policy": {
     "rules": [
       {

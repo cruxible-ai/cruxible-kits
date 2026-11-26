@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "The holdings recorded for one case, with their rule and status.",
+  "description": "The holdings recorded for one case, with their rule, weight and status.",
   "entry": {
     "binding": "holding",
     "subject_kinds": [
@@ -71,6 +71,14 @@
           "binding": "holding",
           "kind": "claim_value",
           "predicate": "legal.holding.status"
+        }
+      },
+      {
+        "name": "weight",
+        "value": {
+          "binding": "holding",
+          "kind": "claim_value",
+          "predicate": "legal.holding.weight"
         }
       }
     ]
