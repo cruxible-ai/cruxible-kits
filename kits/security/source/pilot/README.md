@@ -14,17 +14,19 @@ Queries, provider and guidance, never their Lines.
 |---|---|
 | `definitions.py` | Every authoring payload, in install order: CaptureKinds (their layouts staged after the vocabulary), vocabulary (Contracts, ClaimTypes, SubjectKinds, Queries), Procedures, automation (Lines, Mandates), and state (catalog, vulnerabilities, seeds); the KEV and EPSS layouts |
 | `capabilities.py` | The kit's four capabilities and their request and result Contracts, and the offline rendering the kit providers' registrations copy (`../providers/build_registrations.py`) |
-| `template.py` | The automation template (`../../automation.json`): the Lines and Mandates, the `security.start` and `security.maintain` Runbooks, the one daily Trigger `security.maintain-daily` aimed at `security.maintain`, and the unkeyed Line's landing Trigger `security.osv-matches-landed` |
+| `template.py` | The automation template (`../../automation.json`): the Lines and Mandates, the `security.start` and `security.maintain` Runbooks, the one daily Trigger `security.maintain-daily` aimed at `security.maintain`, and the unkeyed Line's landing Trigger `security.osv-matches-landed`; also the `kit adopt` recipes (`../../recipes/`: `default`, `sbom`, `sarif`, `schedule`) and their declarations (`../recipes.json`) |
 | `inventory.py` | The SBOM import, the inventory and component kinds, the pair kinds (occurrence, exposure, app_exposure) and their ClaimTypes, and `affected_by` (with its inverse) |
 | `osv.py` | The OSV Procedure and Line, the unkeyed Procedure, Line and Trigger (advisories with no CVE alias to the inbox), and the OSV response kind |
 | `triage.py` | The triage, confirmed and track-record Queries, and the judgment writes: `judgment()`, `app_judgment()`, `affected_judgment()`, `reverse_judgment()`, and `investigation()` (under investigation) |
 | `findings.py` | Code findings: the SARIF import and attention Procedures, the finding kind, its scan and judgment ClaimTypes, and their Lines; security audits: the coverage unit, `found_in` and the audit Queries |
+| `assets.py` | The deployment anchor: `it.asset` (keyed by `slug`; `title`, `owner`, `environment`, `exposure`, `criticality`) and `security.inventory.asset`, the inventory's optional link to it; `triage.ASSET_URGENT` reads them |
 | `facts.py` | Codebase facts: `security.code_fact` (keyed by repo and topic; `category`, `holds`), `rests_on` on findings, app exposures and coverage units, and their Queries |
 | `install.py` | Installs everything into an instance through the served CLI |
 | `dependency_replay.py` | Gate support: runs the real provider code in-process on recorded OSV exchanges |
 | `test_pilot_gate.py`, `test_inventory_gate.py`, `test_dependency_gate.py`, `test_findings_gate.py`, `test_audit_gate.py`, `test_facts_gate.py`, `test_start_gate.py` | The gate, run on recorded real bytes |
-| `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive), serving the kit's capabilities of the same names under `security.`, with its recorded OSV exchanges |
-| `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure), serving `security.sarif.findings`, and its SARIF test data |
+| `test_cli_gate.py` | The committed kit on a real Cruxible 0.6 daemon through the public CLI (`CRUXIBLE_KIT_E2E=1`; provider installs fetch from PyPI): `init --require-independent-approval`, `kit add`, the template verbatim, `line enable --runbook`, a judgment pinned to `it.asset/<slug>#exposure` resurfacing, the package upgrade, and a pure `@derive` build installed with `provider install --move` |
+| `../providers/security-osv-provider` | The protocol-2 provider: `sbom.components` (derive), `osv.query` (fetch), `osv.match` (derive; both derives are `@derive` functions on cruxible-provider-runtime 0.6, so a rebuilt build is a pure `provider install --move`), serving the kit's capabilities of the same names under `security.`, with its recorded OSV exchanges |
+| `../providers/security-sarif-provider` | The code-findings derive `sarif.findings` (pure, a `@derive` function), serving `security.sarif.findings`, and its SARIF test data |
 | `../providers/build_registrations.py` | Writes both kit providers' `registration.json` (schema 3) from the kit's definitions |
 | `../guidance/dependency.md` | Judging a dependency exposure: the review guidance the two justifications and the app-level verdict point to |
 
@@ -53,7 +55,7 @@ definitions (`kit build` leaves them out). The kit owns four:
 
 | Capability | Effect | Sends | Gets back |
 |---|---|---|---|
-| `security.osv.query@1` | external_read | components, logical source | OSV's responses, `list<capture<security.osv-response>>` |
+| `security.osv.query@2` | external_read | components, logical source, distro purls and their OSV packages (`@1`, without them, stays as its predecessor) | OSV's responses, `list<capture<security.osv-response>>` |
 | `security.osv.match@1` | pure | responses, components, logical source | `capture<security.osv-matches>` |
 | `security.sbom.components@1` | pure | `capture<security.cyclonedx-sbom>`, path, logical source | `capture<security.sbom-components>` |
 | `security.sarif.findings@1` | pure | `list<capture<security.sarif-log>>`, held findings, repo, logical source | `capture<security.sarif-findings>` |
@@ -114,9 +116,10 @@ never change (a new identity is a new pair).
 |---|---|---|
 | `security.inventory` | `inventory_id`: the SBOM's `metadata.component` purl, or its workspace path when it has none | (none; created by the import) |
 | `security.component` | `purl`: purl@version, with qualifiers dropped by the `purl-type` package normalizer: one package release, the same in every inventory | `affected_by` (many, Subject-valued → vulnerability: OSV's observation; its inverse "none of V" is an agent's package-level not_affected judgment) |
-| `security.occurrence` | (`inventory`, `component`) | `scope`: the CycloneDX scope (`required`, `optional`, `excluded`; `required` when the SBOM states none). The membership fact (R3): live while the SBOM lists the component, retired when it no longer does |
+| `security.occurrence` | (`inventory`, `component`) | `scope`: the CycloneDX scope (`required`, `optional`, `excluded`; `required` when the SBOM states none; SPDX's relationships map onto it). The membership fact (R3): live while the SBOM lists the component, retired when it no longer does. `osv_package` (observation): for a distro package, `ECOSYSTEM\|NAME\|VERSION`, the OSV source package its SBOM states |
 | `security.exposure` | (`component`, `vulnerability`) | `justification`: `vulnerable_code_not_present` only (package level, normative; cites the code read or own words) |
 | `security.app_exposure` | (`occurrence`, `vulnerability`) | `justification`: `component_not_present`, `vulnerable_code_not_in_execute_path`, `vulnerable_code_cannot_be_controlled_by_adversary` or `inline_mitigations_already_exist` (one inventory, normative; cites the code read or own words). `verdict`: `affected` (alone: reachable here, citing the code on the call path) or `not_affected` (optional beside a justification) |
+| `it.asset` | `slug` | `title`, `owner`, `environment` (prod/staging/dev), `exposure` (ordered: isolated < internal < internet), `criticality` (ordered: low < medium < high < critical): normative, own words or a cited file; `security.inventory.asset` (one, normative) links an inventory to it |
 | `security.vulnerability` | `cve_id` | KEV and EPSS fields (see `definitions.py`); created by value when OSV first names it |
 
 `security.inventory_components` lists one inventory's current components
@@ -141,7 +144,7 @@ state.
   creates all three kinds and settles `scope`.
 - **One Line per SBOM file.** A Line names only the file's path and its logical
   source (`cyclonedx.sbom.<name>`). What the file must contain is the
-  `relative_path` description on `security.sbom-import.params@2`. A generator
+  `relative_path` description on `security.sbom-import.params@3`. A generator
   for the project's ecosystem writes it; for a Python project with a
   `requirements.txt`:
   `uvx --from cyclonedx-bom cyclonedx-py requirements requirements.txt --of JSON -o sbom.cdx.json`
@@ -184,7 +187,12 @@ claims.
   component's own package (matched by the advisory's `package.purl`, version
   and qualifiers dropped; PyPI names under PEP 503), sorted as text (log4j-core
   2.14.1 × CVE-2021-44228: `2.12.2, 2.15.0, 2.3.1`). Every `affected_by` cites
-  that document, where agents read them; the kit compares no versions.
+  that document, where agents read them; the kit compares no versions. Each
+  record also carries the list as one line, `fixed_versions` (row
+  `security.osv-affected@2`, at most 240 characters, `none listed` when empty),
+  which the claims template writes into the Claim's reason: `OSV
+  GHSA-jfh8-c2jp-5v3q lists CVE-2021-44228 for ...@2.14.1 (fixed in: 2.12.2,
+  2.15.0, 2.3.1).` (`test_each_affected_by_reason_names_the_fixed_versions`).
 - **`expect` is the derived document's `queried` header**: only components OSV
   answered in full are judged. A vulnerability OSV no longer lists for one of
   them retires on the complete read (`mirror`), and settles (K-B2-G4).
@@ -214,24 +222,30 @@ claims.
 
 ## Distro coverage and "not checked" (K-B1-6)
 
-OSV's distribution ecosystems (Debian, Ubuntu, Alpine, the RPM distributions)
-are keyed by **source** package name. An SBOM lists **binary** packages: to OSV,
-`pkg:deb/debian/libc6` is `glibc` and `libssl3` is `openssl`. Version 1 cannot
-map binary names to source names, so:
+OSV's distribution ecosystems are keyed by release and **source** package; an
+SBOM lists **binary** packages (`pkg:deb/debian/libc6` is `glibc` to OSV), and
+the component's purl key keeps neither the `distro` nor the `upstream`
+qualifier. `sbom.components` resolves each distro entry from what the SBOM
+states (`security_osv_provider/distro.py`: the release table, the `upstream`
+qualifier, Syft and Trivy properties, SPDX `sourceInfo`) to `osv_package`, the
+import writes it on the occurrence, `security.osv_distro_packages` feeds it to
+`osv.query` (capability `@2`), which asks `{package: {ecosystem, name},
+version}` and names the package in the batch coordinate, and `osv.match` maps
+the answer back to the binary component, with the fixed versions of that
+ecosystem and source package (`test_distro_gate.py`). Without a stated release
+or source, or with two different packages from two inventories:
 
-- every distro component (purl type `deb`, `rpm` or `apk`) is left out of the
-  OSV query and out of `queried`;
-- such a component reads **not checked**. It is never clean: no `affected_by`
-  is written for it, and nothing says it is unaffected;
+- the component is left out of the OSV query and out of `queried`;
+- it reads **not checked** (`distro_source_name_unknown`), never clean, and the
+  derived SBOM document's `distro` header counts why;
 - absence never retires its Claims, because only components OSV answered in
   full are judged.
 
 The same applies to a component whose OSV answer was incomplete: a failed or
-truncated batch, or an advisory record OSV could not serve. Post-v1, binary
-names will map to source names, from SBOM source-name metadata (syft
-`sourceName`) or from a distro name table. The recorded exchanges in
-`security-osv-provider/tests/recordings` show the gap: `libc6@2.36-9+deb12u7`
-gets no answer, while `glibc` at the same version gets 33 advisories.
+truncated batch, or an advisory record OSV could not serve. The recorded
+exchanges in `security-osv-provider/tests/recordings` show why: `libc6@2.36-9+deb12u7`
+gets no answer, while `glibc` at the same version in `Debian:12` gets 33
+advisories.
 
 ## Judgments: not_affected and affected (K-B2-J1, D-R46 R4)
 
@@ -303,10 +317,12 @@ creates a judgment pair.
 | Query | Rows |
 |---|---|
 | `security.urgent_exposures` | One per (inventory, component, vulnerability) occurrence nobody has judged (no package-level justification, no app-level judgment): KEV-listed first (by `kev_date_added`), then by EPSS score; with the occurrence id, its scope, KEV dates, ransomware use and EPSS |
+| `security.asset_urgent_exposures` | The same rows, ranked most exposed then most critical asset first (ordered enums; `test_exposure_and_criticality_compare_and_order_by_their_declared_rank`), then KEV and EPSS, each with the IT asset its inventory runs as (`security.inventory.asset`, an optional hop) and the asset's owner, environment, exposure and criticality; empty for an inventory linked to no asset (`test_the_asset_worklist_is_the_worklist_with_each_inventorys_asset_beside_it`). A judgment pinned to `it.asset/<slug>#exposure` comes back in `next` as `claim_dependency_stale` when it changes (`test_a_judgment_pinned_to_the_assets_exposure_resurfaces_when_the_exposure_changes`) |
 | `security.kev_triage_backlog` | The KEV-listed rows of the above (pairs under investigation stay) |
-| `security.confirmed_exposures` | One per occurrence judged `affected` whose SBOM still lists the component, with its app_exposure id and the same fields, KEV first then EPSS; the fixed versions are in the `osv.match` document the component's `affected_by` Claim cites |
+| `security.confirmed_exposures` | One per occurrence judged `affected` whose SBOM still lists the component, with its app_exposure id and the same fields, KEV first then EPSS; the fixed versions are in the reason of the component's `affected_by` Claim (and the `osv.match` document it cites) |
 | `security.not_affected_judgments` | Every package-level judgment: exposure, component, CVE, justification |
-| `security.app_not_affected_judgments` | Every app-level judgment: app_exposure, inventory, component, CVE, justification |
+| `security.app_not_affected_judgments` | Every current app-level judgment (its occurrence still holds a scope): app_exposure, inventory, component, CVE, justification |
+| `security.departed_app_not_affected_judgments` | The app-level judgments whose component the inventory's SBOM no longer lists (an upgraded or removed release), same row: kept as history while `next` lists each as `claim_dependency_stale` (`test_upgrading_a_package_moves_its_app_judgment_out_of_the_current_track_record`) |
 | `security.watched_vulnerabilities` | One per vulnerability some inventoried component is affected by (K-B1-2); a package-level judgment drops it, an app-level one does not (a Subject-shaped query takes no optional hop) |
 | `security.covered_app_exposures` | One per occurrence OSV still lists V for whose app-level not_affected judgment is resolved |
 | `security.covered_package_exposures` | One per occurrence holding a scope of a component whose package-level judgment is resolved (every inventory holding it), except an occurrence confirmed affected at app level |
@@ -542,7 +558,7 @@ notes document a Claim cites.
   nothing and is complete (`test_epss_with_nothing_watched_asks_nothing_and_writes_nothing`;
   `security.start` on an inventory nothing affects:
   `test_start_on_an_inventory_nothing_affects_completes_and_asks_epss_nothing`).
-- **The provider runtime.** `cruxible-provider-runtime` 0.5.0 is not on PyPI
+- **The provider runtime.** `cruxible-provider-runtime` 0.6.0 is not on PyPI
   yet: each kit provider's committed `uv.lock` names it by path, and the release
-  bundles its wheel, built from the recorded providers commit, as a transferred
-  dependency.
+  bundles its wheel, built reproducibly from the recorded providers commit, as a
+  transferred dependency.

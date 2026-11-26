@@ -37,7 +37,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -1010,7 +1010,7 @@ def logical_source(suffix: str) -> str:
 
 
 def automation(
-    scans: Sequence[tuple[str, str, str]], *, now: datetime, settle: bool = True
+    scans: Sequence[tuple[str, str, str]], *, now: datetime | None = None, settle: bool = True
 ) -> dict[str, Any]:
     """Two Lines per scan, (line suffix, repository, workspace path) each.
 
@@ -1018,10 +1018,16 @@ def automation(
     (``sarif.<suffix>``), so absence only retires what the same scanner's file
     wrote (D-R18). The attention Line runs on the landing of the import's
     derived document (a capture_landing Trigger on that logical source).
+
+    The import's settle grant names its ClaimTypes by hand: ``severity`` also
+    permits ``normative`` (the verifier's own severity judgment), so core refuses
+    ``scope: observations`` for this Line; the explicit scope settles the scanner's
+    observations and never a judgment. ``now`` dates the Mandates; without it they
+    run for ``MANDATE_SPAN`` from submission.
     """
 
-    valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
-    expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
+    from definitions import mandate_window
+
     members: list[dict[str, Any]] = []
     for suffix, repo, path in scans:
         line, attention, source = (
@@ -1046,8 +1052,7 @@ def automation(
                 "line_name": line,
                 "grants": "propose",
                 "namespace": ["claims", "subjects"],
-                "valid_from": valid_from,
-                "expires_at": expires_at,
+                **mandate_window(now),
             },
         ]
         if settle:
@@ -1058,8 +1063,7 @@ def automation(
                     "line_name": line,
                     "grants": "settle",
                     "namespace": ["claims"],
-                    "valid_from": valid_from,
-                    "expires_at": expires_at,
+                    **mandate_window(now),
                     "subject_creation": [FINDING],
                     "scope": [
                         {"claim_type": claim_type, "changes": changes}

@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A decided case, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "legal.case"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "legal.case.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

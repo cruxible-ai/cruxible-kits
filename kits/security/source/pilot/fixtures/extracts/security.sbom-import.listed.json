@@ -11,6 +11,10 @@
     "named_by": {
       "at": "named_by"
     },
+    "osv_package": {
+      "at": "osv_package",
+      "presence": "optional"
+    },
     "scope": {
       "at": "scope",
       "canonicalize": "claim_type"
@@ -38,6 +42,6 @@
   "row": {
     "digest": "sha256:f8b48814c88ac2cdeadc62e9c4f9c65ee0e8b62ccbd118a3af5cfa1ea2076532",
     "name": "security.sbom-component",
-    "version": 1
+    "version": 2
   }
 }

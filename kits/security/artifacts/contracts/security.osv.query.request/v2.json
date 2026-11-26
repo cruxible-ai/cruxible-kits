@@ -1,0 +1,49 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "The components to ask OSV about, as purl@version, the logical source the responses are stated under, and the distro packages (purl types deb, rpm, apk) the SBOM import resolved to an OSV source package. A distro component is asked by that package (ecosystem, source name, version); one without it is never asked, never in queried, and reads not checked.",
+  "fields": {
+    "components": {
+      "type": {
+        "item": {
+          "kind": "string",
+          "max_len": 256
+        },
+        "kind": "list",
+        "max_items": 20000
+      }
+    },
+    "distro_packages": {
+      "description": "ECOSYSTEM|NAME|VERSION for each distro_purls entry (security.occurrence.osv_package). A purl given two different packages is never asked.",
+      "optional": true,
+      "type": {
+        "item": {
+          "kind": "string",
+          "max_len": 256
+        },
+        "kind": "list",
+        "max_items": 20000
+      }
+    },
+    "distro_purls": {
+      "description": "The distro components that have an OSV package, one per distro_packages entry, in the same order.",
+      "optional": true,
+      "type": {
+        "item": {
+          "kind": "string",
+          "max_len": 256
+        },
+        "kind": "list",
+        "max_items": 20000
+      }
+    },
+    "logical_source": {
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    }
+  },
+  "name": "security.osv.query.request",
+  "predecessor_digest": "sha256:dc317950f92ce175d69ca0c30ff013d11c89aac8ea5087a6470f52ae508416da",
+  "version": 2
+}

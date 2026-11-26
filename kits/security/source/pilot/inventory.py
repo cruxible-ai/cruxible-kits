@@ -52,7 +52,7 @@ or a distro name table).
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from cruxible_client.contracts.authoring.inputs import ProcedureInput
@@ -89,6 +89,8 @@ WORKSPACE_FILE = "cruxible-builtin#workspace.file"
 DEPENDENCY_PROVIDER = "security-osv-provider"
 SBOM_COMPONENTS = f"{DEPENDENCY_PROVIDER}#sbom.components"
 SCOPE = OCCURRENCE + ".scope"
+#: The OSV package a distro occurrence is asked as (``ECOSYSTEM|NAME|VERSION``).
+OSV_PACKAGE = OCCURRENCE + ".osv_package"
 #: CycloneDX's component scopes; ``required`` is the specification's default.
 SCOPES = ("required", "optional", "excluded")
 #: The VEX justification a package-level judgment states (R4): the vulnerable
@@ -158,12 +160,13 @@ SBOM_COMPONENTS_LAYOUT: dict[str, Any] = {
         "components": {
             "at": "/components/*",
             "key": {"purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"}},
-            "row": f"{SBOM_ROW}@1",
+            "row": f"{SBOM_ROW}@2",
             "fields": {
                 "name": {"at": "name", "presence": "optional"},
                 "scope": {"at": "scope", "canonicalize": "claim_type"},
                 "named_by": {"at": "named_by"},
                 "warning": {"at": "warning", "presence": "optional"},
+                "osv_package": {"at": "osv_package", "presence": "optional"},
             },
             "count_at": "/count",
         }
@@ -186,8 +189,8 @@ OSV_MATCHES_LAYOUT: dict[str, Any] = {
                 "purl": {"at": "purl", "type": f"key_part<{COMPONENT}:purl>"},
                 "cve_id": {"at": "cve_id", "type": f"key_part<{VULN}:cve_id>"},
             },
-            "row": "security.osv-affected@1",
-            "fields": {"osv_id": {"at": "osv_id"}},
+            "row": "security.osv-affected@2",
+            "fields": {"osv_id": {"at": "osv_id"}, "fixed_versions": {"at": "fixed_versions"}},
             "count_at": "/count",
         },
         "not_checked": {
@@ -221,9 +224,13 @@ def capture_kinds() -> dict[str, dict[str, Any]]:
     derived kinds the dependency plane emits (sbom.components, osv.match).
 
     A derived kind takes the ``http_response`` shape: a provider derive returns
-    its document as external Capture wire, which ``procedure_output`` does not
-    admit (e2). Both derived kinds declare their layout, the shape the capability
-    promises and every operation serving it carries.
+    its document as external Capture wire under the Line's logical source.
+    Cruxible 0.6 also commits a pure operation's output into a ``procedure_output``
+    kind (CAS-only), but the kit keeps these kinds as they were, so a 0.6 build of
+    the derives writes byte-identical documents under the same CaptureKinds and
+    absence keeps binding to each Line's logical source. Both derived kinds declare
+    their layout, the shape the capability promises and every operation serving it
+    carries.
     """
 
     return {
@@ -374,6 +381,25 @@ def claim_type_records() -> list[dict[str, Any]]:
                 "rules": [_rule("sbom", ["observation"], SBOM_COMPONENTS_KIND)]
             },
         },
+        {
+            "predicate": OSV_PACKAGE,
+            "allowed_subject_kinds": [OCCURRENCE],
+            "cardinality": "one",
+            "value": {"kind": "string", "max_len": 256},
+            "description": "The OSV package this inventory's distro package (deb, rpm, apk) is "
+            "asked as, ECOSYSTEM|NAME|VERSION (Debian:12|glibc|2.36-9+deb12u7): OSV keys "
+            "distro ecosystems by release and source package, which the SBOM states (the purl's "
+            "distro and upstream qualifiers, Syft or Trivy properties, SPDX sourceInfo) and the "
+            "component's purl key drops. Absent when the SBOM states neither: the component "
+            "then reads not checked, never clean.",
+            "permitted_roles": ["observation"],
+            "default_role": "observation",
+            "evidence_requirement": "captured",
+            "revision_evidence": "replace",
+            "evidence_admission_policy": {
+                "rules": [_rule("sbom", ["observation"], SBOM_COMPONENTS_KIND)]
+            },
+        },
         _judgment(
             EXPOSURE,
             "justification",
@@ -504,6 +530,29 @@ def vocabulary_members() -> list[dict[str, Any]]:
                 "warning": "enum[sbom_unnamed]?",
             },
         },
+        # Version 2 adds a distro package's OSV source package; version 1 stays as its
+        # predecessor.
+        {
+            "kind": "contract",
+            "name": SBOM_ROW,
+            "version": 2,
+            "description": "One component an SBOM lists, with its scope, and for a distro "
+            "package (deb, rpm, apk) the OSV package it is asked as when the SBOM states its "
+            "release and source package.",
+            "fields": {
+                "name": "string{max_len: 256}?",
+                "scope": f"enum_of {SCOPE}",
+                "named_by": "enum[metadata_component, file_path]",
+                "warning": "enum[sbom_unnamed]?",
+                "osv_package": {
+                    "type": "string{min_len: 5, max_len: 256}?",
+                    "description": "ECOSYSTEM|NAME|VERSION: the OSV ecosystem (Debian:12, "
+                    "Alpine:v3.19, Red Hat, ...), the source package and its version; absent "
+                    "for a non-distro component or one whose release or source the SBOM does "
+                    "not state.",
+                },
+            },
+        },
         *(
             {"kind": "claim_type", "claim_type": t.model_dump(mode="json", by_alias=True)}
             for t in claim_types()
@@ -522,6 +571,16 @@ def vocabulary_members() -> list[dict[str, Any]]:
         },
         {"kind": "query_definition", "query_definition": INVENTORY_COMPONENTS_SPEC},
         *params_contract_members(SBOM_PROCEDURE, *SBOM_PARAMS),
+        {
+            "kind": "contract",
+            "name": f"{SBOM_PROCEDURE}.params",
+            "version": 3,
+            "description": SBOM_PARAMS_V3[0],
+            "fields": {
+                field: {"type": spelling, "description": text}
+                for field, (spelling, text) in SBOM_PARAMS_V3[1].items()
+            },
+        },
     ]
 
 
@@ -568,6 +627,40 @@ SBOM_PARAMS = (
         ),
     },
 )
+#: Version 3 of security.sbom-import.params (adds SPDX 2.2/2.3 JSON and distro osv_package
+#: descriptions while keeping version 1 and version 2 unchanged as predecessors).
+SBOM_PARAMS_V3 = (
+    "What a Line on security.sbom-import reads: one SBOM file in the workspace "
+    "(CycloneDX JSON or SPDX 2.2/2.3 JSON, detected by content) and the source label it "
+    "is recorded under; one Line per SBOM file. Each component's occurrence takes the "
+    "scope the SBOM states (CycloneDX scope, or SPDX relationships; required when none is "
+    "stated) and, for container distro packages with a stated release and source package, "
+    "its osv_package. A scope other than required, optional or excluded is refused for "
+    "that component, which keeps the scope it held; a purl listed twice with two scopes "
+    "writes nothing for that purl.",
+    {
+        "relative_path": (
+            _PATH,
+            "Workspace-relative path of one CycloneDX JSON SBOM (bomFormat CycloneDX; "
+            "tested with spec 1.6) or SPDX 2.2/2.3 JSON SBOM (spdxVersion SPDX-2.2 or "
+            "SPDX-2.3; e.g. GitHub dependency-graph export, syft -o spdx-json, trivy "
+            "--format spdx-json), detected by content: at most 1 MiB and 20000 components "
+            "(CycloneDX nested at most 16 levels deep). The root component's purl "
+            "(CycloneDX metadata.component.purl or SPDX described package's purl) names "
+            "the inventory; without one, the inventory is named by this path, so moving "
+            "the file starts a new inventory. Every component needs a purl: one without "
+            "is counted but not imported, and the run then retires nothing. A generator "
+            "for the project's ecosystem writes the file (cyclonedx-py, syft, cdxgen, "
+            "trivy); Cruxible does not.",
+        ),
+        "logical_source": (
+            _SOURCE,
+            "Source label the SBOM Capture and its derived component list are recorded "
+            "under, lowercase (the template uses cyclonedx.sbom.app). Give each SBOM Line "
+            "its own; evidence requirements and landing Triggers can name it.",
+        ),
+    },
+)
 _PATH_REF = "$params.relative_path"
 _INVENTORY_REF = "$steps.listed.header.inventory"
 
@@ -586,12 +679,13 @@ def sbom_spec() -> dict[str, Any]:
     return refs(
         {
             "procedure": SBOM_PROCEDURE,
-            "description": "Read one CycloneDX JSON SBOM from the workspace and write each "
-            "component's occurrence in the inventory it describes, with its scope; a "
-            "component the SBOM no longer lists has its scope retired.",
+            "description": "Read one CycloneDX or SPDX 2.x JSON SBOM from the workspace and "
+            "write each component's occurrence in the inventory it describes, with its scope "
+            "(and, for a distro package, the OSV source package it is asked as); a component "
+            "the SBOM no longer lists has its scope retired.",
             "input": {},
             "output": {},
-            "parameter_contract": params_contract(SBOM_PROCEDURE),
+            "parameter_contract": f"{SBOM_PROCEDURE}.params@3",
             "slots": _SLOTS,
             "hard_caps": _CAPS,
             "steps": [
@@ -650,7 +744,14 @@ def sbom_spec() -> dict[str, Any]:
                             "{$item.key.purl} with scope {$item.fields.scope} (inventory "
                             "{$steps.listed.header.inventory}, named by "
                             "{$item.fields.named_by}).",
-                        }
+                        },
+                        {
+                            "type": OSV_PACKAGE,
+                            "value": "$item.fields.osv_package",
+                            "when_absent": "mirror",
+                            "rationale": "The SBOM at {$params.relative_path} states the "
+                            "source package OSV is asked by for {$item.key.purl}.",
+                        },
                     ],
                 },
             ],
@@ -667,15 +768,10 @@ def procedure_members() -> list[dict[str, Any]]:
 
 # -- 4. Automation ----------------------------------------------------------------------
 
-#: The import settles each occurrence's scope on the extracted record and retires
-#: it on absence, creating components, inventories and occurrences (G4).
-SBOM_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
-    SCOPE: {
-        "create": {"basis": ["extracted"]},
-        "revise": {"basis": ["extracted"]},
-        "retire": {"basis": ["absence"]},
-    },
-}
+#: The Subjects the import creates by key: the occurrence and, as its nested key
+#: ends, the inventory and the component (core 0.6.0 counts nested ``create:
+#: if_absent`` ends under a creating spec, so an observation grant may name them).
+SBOM_CREATES = (COMPONENT, INVENTORY, OCCURRENCE)
 
 
 #: The findings an SBOM import Line routes to its inbox (D-R10). Not
@@ -689,7 +785,10 @@ def sbom_line_name(suffix: str) -> str:
 
 
 def sbom_automation(
-    sboms: Sequence[tuple[str, str]], *, now: datetime, findings: Sequence[str] = SBOM_FINDINGS
+    sboms: Sequence[tuple[str, str]],
+    *,
+    now: datetime | None = None,
+    findings: Sequence[str] = SBOM_FINDINGS,
 ) -> list[dict[str, Any]]:
     """One Line per SBOM file, (line suffix, workspace path) each. The Line names
     only the file: the inventory comes from the SBOM itself (K-B1-G1).
@@ -699,10 +798,16 @@ def sbom_automation(
     one SBOM never touches its occurrence in another inventory. (``workspace.file``
     reads one path, and a Line run takes no per-run input before R-ON5, so one
     Line per file is the v1 form; D-R41 globs are optional.)
+
+    Every ClaimType the import writes (``scope``, ``osv_package``) is observation-only,
+    so the settle grant is the one ``scope: observations`` grant: core lowers it to
+    exactly those ClaimTypes, pinned at their digests, and ``subject_creation`` names
+    the inventory, its components and their occurrences (``SBOM_CREATES``). ``now``
+    dates the Mandates; without it they run for ``MANDATE_SPAN`` from submission.
     """
 
-    valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
-    expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
+    from definitions import mandate_window, observation_grant
+
     members: list[dict[str, Any]] = []
     for suffix, path in sboms:
         line = sbom_line_name(suffix)
@@ -723,22 +828,8 @@ def sbom_automation(
                 "line_name": line,
                 "grants": "propose",
                 "namespace": ["claims", "subjects"],
-                "valid_from": valid_from,
-                "expires_at": expires_at,
+                **mandate_window(now),
             },
-            {
-                "kind": "procedure_mandate",
-                "name": line + "-settle",
-                "line_name": line,
-                "grants": "settle",
-                "namespace": ["claims"],
-                "valid_from": valid_from,
-                "expires_at": expires_at,
-                "subject_creation": [COMPONENT, INVENTORY, OCCURRENCE],
-                "scope": [
-                    {"claim_type": claim_type, "changes": changes}
-                    for claim_type, changes in SBOM_SETTLE_SCOPE.items()
-                ],
-            },
+            observation_grant(line, now=now, subject_creation=SBOM_CREATES),
         ]
     return members

@@ -9,6 +9,10 @@
       "path": "capabilities/security.osv.query/v1.json"
     },
     {
+      "artifact_digest": "sha256:292537c1062cf977164012d70d6d024e7e8dc30cb6e39e6c9d0d242113336b46",
+      "path": "capabilities/security.osv.query/v2.json"
+    },
+    {
       "artifact_digest": "sha256:8b9ead1dac93b805c082e28dd7f59cef36850c69c7404f74a400e2df81f15ab9",
       "path": "capabilities/security.sarif.findings/v1.json"
     },
@@ -33,7 +37,7 @@
       "path": "capture-contracts/security.kev-catalog.json"
     },
     {
-      "artifact_digest": "sha256:8d47c9bac9000ac258ef9b35ed64d7ab2abb677306abac3dac7f6f44582f4787",
+      "artifact_digest": "sha256:d8011c86652b8176fea41f94e631e20620df9b9b9829f27d1071e338efe8b62c",
       "path": "capture-contracts/security.osv-matches.json"
     },
     {
@@ -49,8 +53,32 @@
       "path": "capture-contracts/security.sarif-log.json"
     },
     {
-      "artifact_digest": "sha256:252f9f4e802b98bd2d7f8329cfdee2cabf7d1271bf6be73072b17e7830bbd0dd",
+      "artifact_digest": "sha256:a11e768fc4b333d9d651c7e8226a424b3aabdf54c471d234ee8247b40a3e0524",
       "path": "capture-contracts/security.sbom-components.json"
+    },
+    {
+      "artifact_digest": "sha256:24869eb5e040a0f7a5c93a8a86e96b9ecd52ad43702d0e5b500e070c15d58724",
+      "path": "claim-types/it.asset/criticality.json"
+    },
+    {
+      "artifact_digest": "sha256:eb352cc5f6ce0e50bad0914704b6d43d23ae4ed7e59e8ef31630dd82387f0c24",
+      "path": "claim-types/it.asset/environment.json"
+    },
+    {
+      "artifact_digest": "sha256:330a26099eafd498c32b67940b124e78b3cbfa8d00ae25496db53315cdf1261d",
+      "path": "claim-types/it.asset/exposure.json"
+    },
+    {
+      "artifact_digest": "sha256:3d925a7049d6e9ac682eb810538f8c915fd3851e5690c0d4f686b83dbceb5f44",
+      "path": "claim-types/it.asset/owner.json"
+    },
+    {
+      "artifact_digest": "sha256:19b7d9c5b72336a34765893cf253085c2ad7a97354df49c3b3105afae0fc6be9",
+      "path": "claim-types/it.asset/slug.json"
+    },
+    {
+      "artifact_digest": "sha256:32774f5c208c9a1533dd90ec44b5a6e383ac101e59c1655a07ba9e2f1f925bad",
+      "path": "claim-types/it.asset/title.json"
     },
     {
       "artifact_digest": "sha256:5930e867f68027f46b020bd462736efe89b4ddc75a25c7038bc840b63cdcd2ff",
@@ -185,6 +213,10 @@
       "path": "claim-types/security.finding/weakness.json"
     },
     {
+      "artifact_digest": "sha256:cda34b9cfd78fd0d7073eaecb5702764d85302b8935608e3079649dad515df82",
+      "path": "claim-types/security.inventory/asset.json"
+    },
+    {
       "artifact_digest": "sha256:5654fbd4696c4fe42e14ec425de1ca5413ad84c86fdf744e60d929721991ebe3",
       "path": "claim-types/security.inventory/inventory_id.json"
     },
@@ -195,6 +227,10 @@
     {
       "artifact_digest": "sha256:caa3bde97b57b12bc2eeaebf8437546074f96c2ba69c8cf2739c93ab26c9224a",
       "path": "claim-types/security.occurrence/inventory.json"
+    },
+    {
+      "artifact_digest": "sha256:fdc5af6e81c0c453d73b421a2d8af9dba5bfdf98b042635a9282ccd48df425f8",
+      "path": "claim-types/security.occurrence/osv_package.json"
     },
     {
       "artifact_digest": "sha256:5bce85117e09dbe805f7fa6d0939acdb687d5799da92ccf067a20da11d7d2216",
@@ -235,6 +271,10 @@
     {
       "artifact_digest": "sha256:a19ebecb01435e321090212c9feb18c15254d7f1aeca2ac4834d30ccbd5db6ab",
       "path": "contracts/security.app-judgment/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:94f3ab55694c09711262b1107bb550f721ff08fc0a3bd9803d48a493667241a7",
+      "path": "contracts/security.asset-exposure-row/v1.json"
     },
     {
       "artifact_digest": "sha256:2611a7cdefe9b073ac149755e1f0a3b95b47e55110b0f8ff04f3074fb4966b50",
@@ -349,8 +389,16 @@
       "path": "contracts/security.osv-affected/v1.json"
     },
     {
+      "artifact_digest": "sha256:c7a5f160b502385d5847d4e50a77c330f0087382f395efe59359dcfb3db660c1",
+      "path": "contracts/security.osv-affected/v2.json"
+    },
+    {
       "artifact_digest": "sha256:4de925ed01e09b5197fcebe37fbb91d7e70ecbb1037d773344eeca7545bf2cb0",
       "path": "contracts/security.osv-component/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:742b2ffdc44428ee61659463109229a495e3491412d2b2b84f269e5fb5bcc494",
+      "path": "contracts/security.osv-distro-package/v1.json"
     },
     {
       "artifact_digest": "sha256:547d75c18258a54d5c6f5de344c905efbf3e81b265a920dfb557ddf3d00fc963",
@@ -403,6 +451,10 @@
     {
       "artifact_digest": "sha256:dc317950f92ce175d69ca0c30ff013d11c89aac8ea5087a6470f52ae508416da",
       "path": "contracts/security.osv.query.request/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:91b6f85057b71e59b83c865ca816c13e6378e91a7bc8160e32ef1f2279d6e72e",
+      "path": "contracts/security.osv.query.request/v2.json"
     },
     {
       "artifact_digest": "sha256:e36fce5e52b76ec23fe6d372775cd9ebe0fddb131af1ad4fea8614de95126113",
@@ -473,6 +525,10 @@
       "path": "contracts/security.sbom-component/v1.json"
     },
     {
+      "artifact_digest": "sha256:6002ca8933120edb73444582d49d7ae779354cfe4f5c914fb573238ccbb3c07e",
+      "path": "contracts/security.sbom-component/v2.json"
+    },
+    {
       "artifact_digest": "sha256:a20f93116adbcfd7108143dd6fde3904613c17974411004f99a78bf642035d3a",
       "path": "contracts/security.sbom-import.input/v1.json"
     },
@@ -487,6 +543,10 @@
     {
       "artifact_digest": "sha256:ad1dd13d2a96cc11de093ce362842f0f9404d8a51ad6afde2af4d1ea5a122a41",
       "path": "contracts/security.sbom-import.params/v2.json"
+    },
+    {
+      "artifact_digest": "sha256:1a021b631d2b3b2d542eade9d80a384f82ff3cd99e1b67de0f56db95202a5260",
+      "path": "contracts/security.sbom-import.params/v3.json"
     },
     {
       "artifact_digest": "sha256:c9e026cdd5674f13c9b9932cc879f45ab43021ab9658feeb247bf8bb9e1a2b0e",
@@ -513,19 +573,19 @@
       "path": "contracts/security.weakened-dependent/v1.json"
     },
     {
-      "artifact_digest": "sha256:85339d40cd6f4a8c913a490bff5373aa9cba8a1a28ec6c04316b09670af48c19",
+      "artifact_digest": "sha256:ce455bb095610a1051f3a9eaa0dffe81bef8a0a379c3c8fabf708cfea775870e",
       "path": "documents/security.guidance.coverage.json"
     },
     {
-      "artifact_digest": "sha256:21a88cdfbaacfab2bf2a1199f7b2162db0634ede8a789e97cb8b881bd59c9ff9",
+      "artifact_digest": "sha256:afcfbfdc021d71e0882732fc57168560d79edfbd15f7a3fd8435d212a0c1b23f",
       "path": "documents/security.guidance.dependency.json"
     },
     {
-      "artifact_digest": "sha256:0c38e5a30cdafb43d5f8c6a1d173a46e82fa735a4d6b6878e16b874b8747eef9",
+      "artifact_digest": "sha256:4d6b77b10b803556851e40c8bac50a57db41e84a2474e0bd25875942a1807573",
       "path": "documents/security.guidance.hunter.json"
     },
     {
-      "artifact_digest": "sha256:95b3f5dcb0214e52f94e393876177478e2e352ed2630a53751674b748d372258",
+      "artifact_digest": "sha256:4c98dbdb9954cc2ac9ab0fb168677388d1781d28d9856bca7c3e63857ecf0940",
       "path": "documents/security.guidance.verifier.json"
     },
     {
@@ -549,7 +609,7 @@
       "path": "procedures/security.kev-triage.json"
     },
     {
-      "artifact_digest": "sha256:71f40b8d473b7aeac74841c6939ecf86c98469a96bab57d932c719412b44a25f",
+      "artifact_digest": "sha256:ea5637bb06e0419cc87197ce6f8337867c8af6edd15b3700ab4f26569380fdd4",
       "path": "procedures/security.osv-query.json"
     },
     {
@@ -565,7 +625,7 @@
       "path": "procedures/security.sarif-import.json"
     },
     {
-      "artifact_digest": "sha256:8e2acbdec20c009b456e2c638ede21201ebb9429203f6485f6e1a6bb0698ef07",
+      "artifact_digest": "sha256:19c1b84b2dd2fd085511ce8b1dd775cf05c0ea2052409aa0cc753c0889d9bbe8",
       "path": "procedures/security.sbom-import.json"
     },
     {
@@ -577,8 +637,12 @@
       "path": "query-definitions/security.app_exposures_resting_on.json"
     },
     {
-      "artifact_digest": "sha256:ab9408f7f512d79f3ecd1b6cf21c7ae0efbc08a6f26b2295e1e3b80663ceb705",
+      "artifact_digest": "sha256:ceecbc9a9097fad7d96348f0fe5a5fc03143de46454d4490cb507487d61f6f28",
       "path": "query-definitions/security.app_not_affected_judgments.json"
+    },
+    {
+      "artifact_digest": "sha256:04d018f17d660de7303c6f818312870f9ae71e57b2ec350808ad3e46ff0937a7",
+      "path": "query-definitions/security.asset_urgent_exposures.json"
     },
     {
       "artifact_digest": "sha256:16c30258df02e29e0da7c519b338e1c17ce9b1f80555a93bdf94ff1a53cff030",
@@ -611,6 +675,10 @@
     {
       "artifact_digest": "sha256:657c5f8f0508a04d316292ea092481c6178ad0946a1d12706576dc99c5213577",
       "path": "query-definitions/security.covered_package_exposures.json"
+    },
+    {
+      "artifact_digest": "sha256:52754f8831e7b845e199eff8b8ca0f0c54330ccb69af07f0edc5f291910b0709",
+      "path": "query-definitions/security.departed_app_not_affected_judgments.json"
     },
     {
       "artifact_digest": "sha256:e57994613cb35662dc33e98eaaee2380fc52eecd00c017c34956706b8dfd1ef6",
@@ -647,6 +715,10 @@
     {
       "artifact_digest": "sha256:30b9bbafbd283893ff5428caefee99adf721fcb92b4c6dca7d1d2bb7a9fde29e",
       "path": "query-definitions/security.osv_components.json"
+    },
+    {
+      "artifact_digest": "sha256:f16c07f89bb52c66f625da01d1d08e620d0cc40d18b18fb3e4c1c91b425fcb8d",
+      "path": "query-definitions/security.osv_distro_packages.json"
     },
     {
       "artifact_digest": "sha256:795d036c5053232ea9b7f17285098578d5650070b4fa302d5f3abbfaa344a19a",
@@ -687,6 +759,10 @@
     {
       "artifact_digest": "sha256:fe168d97872c270f7e3c539ad89705125e85ed6cf188a88b4d73c99f293c95bc",
       "path": "query-definitions/security.weakened_causes_of_findings.json"
+    },
+    {
+      "artifact_digest": "sha256:7e4c309879dd7a5171e832c64296584200d27a346c1071480760b476f3d1d817",
+      "path": "subject-kinds/it.asset.json"
     },
     {
       "artifact_digest": "sha256:061126b45d10af9d7e3894e0347a09e4286dfaaa92c6719a230420e847972660",
@@ -739,17 +815,27 @@
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:da7f182fceaf8800572b0bbb11aa42f6a1c552f44cca40325426738579eccd5e"
+      "sha256": "sha256:4eab2d3cf2fffd098da9fc644a99712132869a3500c9079c26614a80e88e2dc4"
     },
     {
       "path": "automation.json",
       "role": "reference",
-      "sha256": "sha256:110531b3a3f418950db15baea5d9b077b9c216901f1dee4297eb91d6d3c17357"
+      "sha256": "sha256:097ae29cdbc9ee4f6515a5e31a1ff32d3687f868b3cb4d494db55003b43b6bc3"
     },
     {
       "path": "examples/README.md",
       "role": "example",
-      "sha256": "sha256:6fdc5fc8c4b90bce7932dd906342785f9e581c6e7d3720eedf705c82e145fcc1"
+      "sha256": "sha256:1670f60941e6a4a82e36ae220e3106b48c6d1bf92f594bbfc2e9794e5d49ce0e"
+    },
+    {
+      "path": "examples/sarif/automation-sarif.json",
+      "role": "example",
+      "sha256": "sha256:2ea800e5544282c1bf016002812abbf11b4851646f582337dcd3d614895ad830"
+    },
+    {
+      "path": "examples/sarif/semgrep-demo.sarif",
+      "role": "example",
+      "sha256": "sha256:1c635a343fccfac66848af74442824eaba1b1e91d09e5d11964765687539a4be"
     },
     {
       "path": "examples/sboms/cruxible-env.cdx.json",
@@ -765,6 +851,26 @@
       "path": "examples/sboms/log4j-demo-app.cdx.json",
       "role": "example",
       "sha256": "sha256:c3b27bcff76ed582f4d2da67cf13fbe462fac3f823b2e28a9cef2ec04a730fed"
+    },
+    {
+      "path": "recipes/default.json",
+      "role": "recipe",
+      "sha256": "sha256:ffe6f1205bca6809693d20f1fc6dc3780d5fd8c51ca97813d8af2d7b96ada879"
+    },
+    {
+      "path": "recipes/sarif.json",
+      "role": "recipe",
+      "sha256": "sha256:b998e826ee181dc66fff1f7ec1f6abacc000a63be10e7b190048b985995a547f"
+    },
+    {
+      "path": "recipes/sbom.json",
+      "role": "recipe",
+      "sha256": "sha256:838da2384c16c0ee902f439e734995ecd81cc1bb361a9100c066373325613d9b"
+    },
+    {
+      "path": "recipes/schedule.json",
+      "role": "recipe",
+      "sha256": "sha256:2f814e86ab3e92a3a052ea790dc9678618c054f679599c4640b20c4638eded0a"
     },
     {
       "path": "reference/ai-and-llm.md",
@@ -825,21 +931,37 @@
       "path": "reference/web-protocol-and-auth.md",
       "role": "reference",
       "sha256": "sha256:cf30c24c472f71f950dd7d64cd3785ab25abfb69c8e490b447fe1ca8b2f6904f"
+    },
+    {
+      "path": "scripts/export_vex.py",
+      "role": "script",
+      "sha256": "sha256:501d353347b8fba4d79708798ec1b405500d7c118c9b5407c976dcedf6d386f7"
+    },
+    {
+      "path": "scripts/init_plan.py",
+      "role": "script",
+      "sha256": "sha256:d7e27d1eed2de6c7b79fa33be5cdc824c7911f1273e6afce05c119678f75981a"
+    },
+    {
+      "path": "skills/security-audit/SKILL.md",
+      "role": "skill",
+      "sha256": "sha256:e4d7fe504540781dc412b2a4038744b9ce41e2bc967ab889c828f839b36fc30c"
     }
   ],
   "kit_id": "security",
   "owns": [
+    "it.",
     "security."
   ],
   "provenance": {
     "coordinate": {
-      "compiler_digest": "sha256:5b1e93a005c680b1709f9c58c6fba03ef8ff87f9ec4b38b1b7fab6fb04891be8",
-      "generation_root": "sha256:9563d91159efcb7442a41d274b3aae345f0080a11a1f1b488a6e86a462db129e",
-      "git_oid": "412ae7d8ae117bfd5c79f338a281e923231bad4f",
-      "semantic_root": "sha256:980c21592b16500ed86908f957b5fffa1bf365fd12708ecc5551874ed2f066e4",
+      "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
+      "generation_root": "sha256:00b8827ee9c3718f89586609f5463f2d0f8594dafedfbe8be32b9b9ba7eecae8",
+      "git_oid": "a62014d81e76e43e11f1773d3c6d4195b710a523",
+      "semantic_root": "sha256:8ad622fde17489476b1c7cd89a214bf4a1f6d5794d2e1aec2b75ef6cf4c4a09b",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_9d580ca115fb40fc",
+    "instance_id": "inst_8c361a2c971f4571",
     "principal_id": "owner"
   },
   "providers": [
@@ -868,13 +990,13 @@
     {
       "dependencies": [
         {
-          "filename": "cruxible_provider_runtime-0.5.0-py3-none-any.whl",
-          "sha256": "sha256:356e276998f1daff0dc3479ffd57019ad3146f11692a7639de2d357b852acbc3"
+          "filename": "cruxible_provider_runtime-0.6.0-py3-none-any.whl",
+          "sha256": "sha256:dcdb2646e6abd7353dc9766be1f58d442f5b81e41237a710af3e4bc3b1bd4d5e"
         }
       ],
       "lock": {
-        "filename": "security-osv-provider-0.1.0.dev0.uv.lock",
-        "sha256": "sha256:654514306cbb030e437aadebded0e5c0a06711d3ba6a29c34986be4ba1a4e4c6"
+        "filename": "security-osv-provider-0.2.0.dev0.uv.lock",
+        "sha256": "sha256:49bf816db2d2c7ebc2d938c26c38db5aadc69334befa56cd1965563bd5094625"
       },
       "operations": [
         "osv.match",
@@ -883,33 +1005,156 @@
       ],
       "package": "security-osv-provider",
       "provider_id": "security-osv-provider",
-      "version": "0.1.0.dev0",
+      "version": "0.2.0.dev0",
       "wheel": {
-        "filename": "security_osv_provider-0.1.0.dev0-py3-none-any.whl",
-        "sha256": "sha256:647f64c0fb70925585c70d162838862408c265c724853401b1ea1820a369cc9b"
+        "filename": "security_osv_provider-0.2.0.dev0-py3-none-any.whl",
+        "sha256": "sha256:4b8c1560143cd461a3695b87e91e61fe2d5eb4654a1fae7329d45dd5f75423d7"
       }
     },
     {
       "dependencies": [
         {
-          "filename": "cruxible_provider_runtime-0.5.0-py3-none-any.whl",
-          "sha256": "sha256:356e276998f1daff0dc3479ffd57019ad3146f11692a7639de2d357b852acbc3"
+          "filename": "cruxible_provider_runtime-0.6.0-py3-none-any.whl",
+          "sha256": "sha256:dcdb2646e6abd7353dc9766be1f58d442f5b81e41237a710af3e4bc3b1bd4d5e"
         }
       ],
       "lock": {
-        "filename": "security-sarif-provider-0.1.0.dev0.uv.lock",
-        "sha256": "sha256:157909ee97757038f9261e41e89947ad18073c67866c320be2e7833477b47190"
+        "filename": "security-sarif-provider-0.2.0.dev0.uv.lock",
+        "sha256": "sha256:d390661174d60963a765706c2b921d601eec7485649d022fc8eb58b04b401653"
       },
       "operations": [
         "sarif.findings"
       ],
       "package": "security-sarif-provider",
       "provider_id": "security-sarif-provider",
-      "version": "0.1.0.dev0",
+      "version": "0.2.0.dev0",
       "wheel": {
-        "filename": "security_sarif_provider-0.1.0.dev0-py3-none-any.whl",
-        "sha256": "sha256:7edb001591a3e611522d8d85605de72f2891195f5bf6721df2a59571cc3e5fe0"
+        "filename": "security_sarif_provider-0.2.0.dev0-py3-none-any.whl",
+        "sha256": "sha256:a84053d5bcbf5a57b8b1c86934ba8667a2f7ed106c174f839f4f75a1e5b51a22"
       }
+    }
+  ],
+  "recipes": [
+    {
+      "description": "The dependency loop's shared backbone: OSV, KEV and EPSS Lines and Mandates, the attention and OSV unkeyed Lines, and the security.start (fans out to every SBOM import Line) and security.maintain Runbooks.",
+      "name": "default",
+      "params": {
+        "expires": {
+          "default": "90d",
+          "description": "How long each Mandate stays valid from submission: hours, days, weeks or years (36h, 90d, 12w, 1y).",
+          "example": null,
+          "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+          "required": false,
+          "type": "string",
+          "values": []
+        },
+        "min_epss": {
+          "default": "0.1",
+          "description": "EPSS score (0 to 1) at or above which an unjudged pair goes to the inbox (KEV-listed and unscored pairs always do).",
+          "example": null,
+          "pattern": "^(0(\\.[0-9]{1,6})?|1(\\.0{1,6})?)$",
+          "required": false,
+          "type": "string",
+          "values": []
+        }
+      },
+      "path": "recipes/default.json"
+    },
+    {
+      "description": "One scanner's SARIF intake: the import Line, its Mandates, and the attention Line with its landing Trigger. Adopt again under another name per scanner.",
+      "name": "sarif",
+      "params": {
+        "expires": {
+          "default": "90d",
+          "description": "How long each Mandate stays valid from submission: hours, days, weeks or years (36h, 90d, 12w, 1y).",
+          "example": null,
+          "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+          "required": false,
+          "type": "string",
+          "values": []
+        },
+        "name": {
+          "default": null,
+          "description": "Short identifier for this input: the Line suffix and logical source suffix; unique per input of this kind.",
+          "example": "semgrep",
+          "pattern": "^[a-z][a-z0-9_-]{0,48}$",
+          "required": true,
+          "type": "string",
+          "values": []
+        },
+        "relative_path": {
+          "default": null,
+          "description": "Workspace-relative path of the scanner's SARIF 2.1.0 file.",
+          "example": "scans/semgrep.sarif",
+          "pattern": "^(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*)(?:/(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*))*$",
+          "required": true,
+          "type": "string",
+          "values": []
+        },
+        "repo": {
+          "default": null,
+          "description": "The scanned repository as host/owner/repo, lowercase; a SARIF run naming another repository writes nothing.",
+          "example": "github.com/example/demo-app",
+          "pattern": "^[a-z0-9.-]+/[^/\\s]+/[^/\\s]+$",
+          "required": true,
+          "type": "string",
+          "values": []
+        }
+      },
+      "path": "recipes/sarif.json"
+    },
+    {
+      "description": "One SBOM import Line (CycloneDX or SPDX 2.2/2.3 JSON) and its Mandates. Adopt again under another name per SBOM; security.start runs them all.",
+      "name": "sbom",
+      "params": {
+        "expires": {
+          "default": "90d",
+          "description": "How long each Mandate stays valid from submission: hours, days, weeks or years (36h, 90d, 12w, 1y).",
+          "example": null,
+          "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+          "required": false,
+          "type": "string",
+          "values": []
+        },
+        "name": {
+          "default": null,
+          "description": "Short identifier for this input: the Line suffix and logical source suffix; unique per input of this kind.",
+          "example": "app",
+          "pattern": "^[a-z][a-z0-9_-]{0,48}$",
+          "required": true,
+          "type": "string",
+          "values": []
+        },
+        "relative_path": {
+          "default": null,
+          "description": "Workspace-relative path of the SBOM JSON file.",
+          "example": "sbom.cdx.json",
+          "pattern": "^(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*)(?:/(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*))*$",
+          "required": true,
+          "type": "string",
+          "values": []
+        }
+      },
+      "path": "recipes/sbom.json"
+    },
+    {
+      "depends_on": [
+        "default"
+      ],
+      "description": "The daily Trigger security.maintain-daily, which runs security.maintain. Skip it when CI runs the Runbooks.",
+      "name": "schedule",
+      "params": {
+        "cron": {
+          "default": "0 14 * * *",
+          "description": "Five-field cron expression, read in UTC.",
+          "example": null,
+          "pattern": null,
+          "required": false,
+          "type": "string",
+          "values": []
+        }
+      },
+      "path": "recipes/schedule.json"
     }
   ],
   "requires": [
@@ -918,6 +1163,20 @@
       "min_version": "1.0.0"
     }
   ],
+  "scripts": [
+    {
+      "description": "Export the exposure judgments as deterministic OpenVEX v0.2.0 or CycloneDX 1.5 VEX, read at one pinned coordinate (--format openvex|cyclonedx, --inventory, --out).",
+      "mode": "read_only",
+      "name": "export-vex",
+      "path": "scripts/export_vex.py"
+    },
+    {
+      "description": "Inspect the workspace (SBOMs, SARIF files, lockfiles, Dockerfiles, the origin remote) and print the kit adopt, SBOM generator and first-run commands that fit it. Reads files only.",
+      "mode": "read_only",
+      "name": "init-plan",
+      "path": "scripts/init_plan.py"
+    }
+  ],
   "tag": "playbill-kit-manifest-v1",
-  "version": "1.3.0"
+  "version": "1.4.0"
 }

@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A supplier or vendor, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "supply.supplier"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "supply.supplier.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Arguments relying on a holding that is no longer fully good law.",
+  "entry": {
+    "binding": "argument",
+    "subject_kinds": [
+      "legal.argument"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "legal.affected_arguments"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "holding",
+        "value": {
+          "binding": "holding",
+          "field": "subject_id",
+          "kind": "subject_field"
+        }
+      },
+      {
+        "name": "holding_status",
+        "value": {
+          "binding": "holding",
+          "kind": "claim_value",
+          "predicate": "legal.holding.status"
+        }
+      },
+      {
+        "name": "matter",
+        "value": {
+          "binding": "argument",
+          "kind": "claim_value",
+          "predicate": "legal.argument.matter"
+        }
+      },
+      {
+        "name": "status",
+        "value": {
+          "binding": "argument",
+          "kind": "claim_value",
+          "predicate": "legal.argument.status"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "traversal": [
+    {
+      "binding": "holding",
+      "direction": "forward",
+      "from_binding": "argument",
+      "predicate": "legal.argument.relies_on",
+      "target_subject_kinds": [
+        "legal.holding"
+      ],
+      "where": {
+        "kind": "comparison",
+        "left": {
+          "binding": "holding",
+          "kind": "claim_value",
+          "predicate": "legal.holding.status"
+        },
+        "operator": "gt",
+        "right": {
+          "kind": "literal",
+          "value": "good_law"
+        },
+        "value_type": "string"
+      }
+    }
+  ]
+}

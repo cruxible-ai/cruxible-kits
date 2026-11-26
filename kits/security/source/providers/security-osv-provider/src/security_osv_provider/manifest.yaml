@@ -5,7 +5,7 @@ schema_version: 2
 provider_id: security-osv-provider
 distribution:
   name: security-osv-provider
-  version: 0.1.0.dev0
+  version: 0.2.0.dev0
 entrypoint_group: cruxible.providers
 supported_protocol_majors: [2]
 implementations:
@@ -19,16 +19,16 @@ implementations:
     declared_endpoints:
       - "https://api.osv.dev"
     deterministic: false
-  # Serves osv.match: pure. Reads this run's OSV responses (Capture bytes passed
+  # Serves osv.match: pure, a @derive function. Reads this run's OSV responses (Capture bytes passed
   # by core, b1) and the components asked about; emits one derived JSON document.
-  - entrypoint: "security_osv_provider.osv:OsvMatch"
+  - entrypoint: "security_osv_provider.osv:osv_match"
     backends: [local_env, container]
     requires_extras: []
     declared_endpoints: []
     deterministic: true
-  # Serves sbom.components: pure. Reads one SBOM Capture (bytes passed by core)
+  # Serves sbom.components: pure, a @derive function. Reads one SBOM Capture (bytes passed by core)
   # and emits one derived JSON document: the inventory key and its components.
-  - entrypoint: "security_osv_provider.sbom:SbomComponents"
+  - entrypoint: "security_osv_provider.sbom:sbom_components"
     backends: [local_env, container]
     requires_extras: []
     declared_endpoints: []

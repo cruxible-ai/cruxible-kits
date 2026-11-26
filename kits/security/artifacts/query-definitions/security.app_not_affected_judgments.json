@@ -7,7 +7,7 @@
     "max_results": 200,
     "max_traversal_depth": 10
   },
-  "description": "Every app-level not_affected judgment: the inventory, the component, the vulnerability and the VEX justification.",
+  "description": "Every current app-level not_affected judgment: the inventory, the component, the vulnerability and the VEX justification, while the inventory's SBOM still lists the component (its occurrence holds a scope). A judgment on a release the SBOM no longer lists is in security.departed_app_not_affected_judgments.",
   "entry": {
     "binding": "ae",
     "subject_kinds": [
@@ -123,6 +123,11 @@
   ],
   "where": {
     "filters": [
+      {
+        "binding": "o",
+        "kind": "claim_presence",
+        "predicate": "security.occurrence.scope"
+      },
       {
         "filters": [
           {

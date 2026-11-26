@@ -1,0 +1,32 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A supplier's attestation to one standard, keyed by the supplier and standard; a renewal revises it in place.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "supply.attestation"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "supply.attestation.supplier",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      },
+      {
+        "claim_type": "supply.attestation.standard",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

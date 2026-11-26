@@ -1,4 +1,4 @@
-# Building the security kit for Cruxible 0.5
+# Building the security kit for Cruxible 0.6
 
 The release is the dependency loop in `pilot/`: SBOM import, OSV, KEV, EPSS,
 pair Subjects, triage queries and the governed dependency-judgment guidance;
@@ -7,10 +7,12 @@ the SARIF import Procedures and provider, the audit Queries and the hunter,
 verifier and coverage guidance. The reference pages (`../reference/`) ship as
 plain kit files.
 The former 1.3 release's system-model/incident recipes, gates and upgrade variant
-have been retired. Kit version 1.3.0 is still unpublished; this rebuild uses the
-0.5 artifact format (capabilities, CaptureKind layouts, thin EXTRACT nodes,
-`requires: base`) and protocol-2 provider packages at registration schema 3.
-Nothing here publishes it.
+have been retired. Kit version 1.4.0 (1.3.0 was never published) is built on
+Cruxible 0.6.0 with the same artifact format as 1.3.0 (capabilities, CaptureKind
+layouts, thin EXTRACT nodes, `requires: base`) and protocol-2 provider packages
+at registration schema 3; it adds `it.asset` (the build owns `it.` beside
+`security.`), and its automation template needs 0.6 (`expires`, `scope:
+observations`). Nothing here publishes it.
 
 From `kits/security`, use the Python interpreter with the target core and its
 client available. `PYTHONPATH` must include that core checkout, its `src`, its
@@ -18,31 +20,52 @@ client available. `PYTHONPATH` must include that core checkout, its `src`, its
 `cruxible` beside that interpreter (or `CRUXIBLE_BIN`) must use the same core.
 
 ```sh
-python source/build_release.py /short/new/scratch --providers-checkout /path/to/cruxible-providers
+python source/build_release.py /short/new/scratch --providers-checkout /path/to/cruxible-providers \
+    --published-wheels DIR   # until cruxible-provider-runtime 0.6.0 is on PyPI
 ```
 
 The scratch directory must not exist. Its daemon socket requires a short path.
 Only scratch and this kit directory are written; the core and providers
-checkouts are read-only. `uv` and cached hatchling 1.32.1 are needed: the kit's
-own providers build with `uv build --offline`, and the three committed locks are
+checkouts are read-only (the builder reads other commits with `git archive`).
+`uv` and cached hatchling 1.33.0 are needed (1.32.1 was yanked): the kit's own
+providers build with `uv build --offline`, and the three committed locks are
 checked, never re-resolved.
 
-The kit's own providers, OSV and SARIF (each 0.1.0.dev0), are bundled: the kit
-carries their wheels and locks with the published `cruxible-provider-runtime`
-0.5.0 wheel their locks name by path. The general-purpose
-`cruxible-provider-web` 0.7.0 is a published dependency: `kit build
---default-provider` records the published wheel's sha256 and the lock it embeds,
-the kit carries none of its files, and `kit add` installs it by name from the
-consumer's provider index. The builder downloads both published wheels from PyPI
-into scratch (or reads them from `--published-wheels DIR`) and refuses unless
-each has the sha256 `build_release.PUBLISHED` records and its package files are
-the providers checkout's source byte for byte. That checkout must be at the
-reviewed commit `build_release.PROVIDERS_COMMIT` records (`b3fa37a`); the web
-package vendored under `providers/cruxible-provider-web` (its `src/`,
-`pyproject.toml` and `uv.lock`, which must be the lock the published wheel
-embeds) must be that commit's copy. The runtime wheel also sits beside the web
-wheel in the build's scratch package, so the automation-template check can seed
-the web build the template binds by name. Provider installation fetches locked
+The recipes `kit adopt` renders (`../recipes/*.json`, declared in
+`recipes.json`) are written by `pilot/template.py` from the same definitions as
+`../automation.json` (`python pilot/template.py --check` fails when any is stale,
+and the builder refuses then); the read-only scripts `kit run` executes
+(`../scripts/export_vex.py`, `../scripts/init_plan.py`) are declared in
+`scripts.json`. The builder passes both to `kit build --recipes/--scripts`
+(`scripts/build_kit.py`'s `adoption_args`), which renders every recipe with its
+defaults and examples and refuses the build unless each authors cleanly against
+the kit's exported definitions. Recipes and scripts are inert kit files: they
+change the manifest's `bundle_digest`, never its `content_digest`.
+
+The kit's own providers, OSV and SARIF (each 0.2.0.dev0; their pure operations
+are `@derive` functions), are bundled: the kit carries their wheels and locks
+with the `cruxible-provider-runtime` 0.6.0 wheel their locks name by path. The
+general-purpose `cruxible-provider-web` 0.7.0 is a published dependency: `kit
+build --default-provider` records the published wheel's sha256 and the lock it
+embeds, the kit carries none of its files, and `kit add` installs it by name
+from the consumer's provider index (its own environment, on the runtime 0.5.0
+its lock pins). The builder downloads the published wheels from PyPI into
+scratch (or copies them from `--published-wheels DIR`) and refuses unless each
+has the sha256 `build_release` records (`PUBLISHED`, `WEB_RUNTIME`) and its
+package files are the reviewed source byte for byte. The providers checkout
+must be at `build_release.PROVIDERS_COMMIT` (`ca12589`, runtime 0.6.0), whose
+runtime source the 0.6.0 wheel is checked against; web and its runtime are
+checked against `WEB_COMMIT` (`b3fa37a`, where web 0.7.0 was published), read
+with `git archive`, and the web package vendored under
+`providers/cruxible-provider-web` (its `src/`, `pyproject.toml` and `uv.lock`,
+which must be the lock the published wheel embeds) must be that commit's copy.
+Runtime 0.6.0 is not on PyPI yet: `PUBLISHED` records the sha256 of the
+reproducible build of `PROVIDERS_COMMIT`'s runtime source (`uv build --wheel`
+with `SOURCE_DATE_EPOCH=1794009600` and hatchling 1.33.0, `dcdb2646…`), passed
+with `--published-wheels`; once PyPI serves 0.6.0, record the sha256 it
+publishes and rebuild. Each runtime wheel also sits beside its package in the
+build's scratch, so the automation-template check can seed the web build the
+template binds by name. Provider installation fetches locked
 registry dependencies from PyPI. No manual pip install or development
 environment is created.
 
@@ -78,7 +101,10 @@ python ../../scripts/kits.py check
 ```
 
 Run `pilot/test_*.py` with the same core on `PYTHONPATH` and
-`CRUXIBLE_PROVIDERS_CHECKOUT` set. `test_start_gate.py` exercises production kit
+`CRUXIBLE_PROVIDERS_CHECKOUT` set. `pilot/test_cli_gate.py` drives the committed
+directory on a real daemon through the public CLI (`CRUXIBLE_KIT_E2E=1
+CRUXIBLE_BIN=$(which cruxible)`; it installs providers, so it needs the
+package index). `test_start_gate.py` exercises production kit
 build and a fresh consumer install of the actual committed directory, including
 its guidance body and exported template. Other pilot gates test the dependency
 loop and the SARIF/audit extension using recorded bytes; `test_pilot_gate.py` and

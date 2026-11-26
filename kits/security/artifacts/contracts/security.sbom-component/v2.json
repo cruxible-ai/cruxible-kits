@@ -1,0 +1,49 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One component an SBOM lists, with its scope, and for a distro package (deb, rpm, apk) the OSV package it is asked as when the SBOM states its release and source package.",
+  "fields": {
+    "name": {
+      "optional": true,
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "named_by": {
+      "type": {
+        "kind": "enum",
+        "members": [
+          "metadata_component",
+          "file_path"
+        ]
+      }
+    },
+    "osv_package": {
+      "description": "ECOSYSTEM|NAME|VERSION: the OSV ecosystem (Debian:12, Alpine:v3.19, Red Hat, ...), the source package and its version; absent for a non-distro component or one whose release or source the SBOM does not state.",
+      "optional": true,
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "min_len": 5
+      }
+    },
+    "scope": {
+      "type": {
+        "claim_type": "security.occurrence.scope",
+        "kind": "enum_of"
+      }
+    },
+    "warning": {
+      "optional": true,
+      "type": {
+        "kind": "enum",
+        "members": [
+          "sbom_unnamed"
+        ]
+      }
+    }
+  },
+  "name": "security.sbom-component",
+  "predecessor_digest": "sha256:04c4e110e39869026e7e4e74bbf4aca3bba92f21187c4783f544627872af67c6",
+  "version": 2
+}

@@ -1,0 +1,156 @@
+{
+  "artifacts": [
+    {
+      "artifact_digest": "sha256:24934a988a47eb9f6bd485b637b436bafb903572f8e26ab5f36b3d8e80771e47",
+      "path": "capture-contracts/playbill.coordinator-self-source-v1.json"
+    },
+    {
+      "artifact_digest": "sha256:46dcf7461bc2cd44468754cc9c46a98840be130ed2e8dccb23429a63c4151e29",
+      "path": "claim-types/supply.attestation/issued_at.json"
+    },
+    {
+      "artifact_digest": "sha256:47093d4d86506aad6afa7bfd0109ec0d99513be346e0f2b252a57b9857b3c6b3",
+      "path": "claim-types/supply.attestation/standard.json"
+    },
+    {
+      "artifact_digest": "sha256:9f144743bc11ff7c96e427138522675484a9ae3a3652347fbd6c78444b36f13b",
+      "path": "claim-types/supply.attestation/supplier.json"
+    },
+    {
+      "artifact_digest": "sha256:f2a9576e4fe19f61d8add1d722be4a5f9c023cddbae66c5fd35f5c8250c8a2a9",
+      "path": "claim-types/supply.attestation/valid_until.json"
+    },
+    {
+      "artifact_digest": "sha256:ec5bd034fd395b58c0d97e7f7577a50c7acdbe331122b48ac5c6940113098710",
+      "path": "claim-types/supply.attestation/verdict.json"
+    },
+    {
+      "artifact_digest": "sha256:69f66f97b734abbe92d88dd994df95e7caef94588e34606b5a1e06de5db9a14c",
+      "path": "claim-types/supply.component/category.json"
+    },
+    {
+      "artifact_digest": "sha256:97bcec333075d5ce5b9e5606cb53d7ee10138a46baa0b346f433515a5517691a",
+      "path": "claim-types/supply.component/criticality.json"
+    },
+    {
+      "artifact_digest": "sha256:afef0b0551b292979aad80d0c7980c02f94e3e23a16597546622ae59938c999f",
+      "path": "claim-types/supply.component/name.json"
+    },
+    {
+      "artifact_digest": "sha256:f12484a9dda03076f54c15a8457b2dba6c79ea4cb18fd9b84013601c62e90578",
+      "path": "claim-types/supply.component/review_status.json"
+    },
+    {
+      "artifact_digest": "sha256:e46bbaeaa8dcb46f9d61b7d8193874e072c903009f64c9a2e049dcada9f50c8e",
+      "path": "claim-types/supply.component/supplier.json"
+    },
+    {
+      "artifact_digest": "sha256:82f18cdd418dd53c3a3f7d6715339128bc394129bce13236561ece025e230d35",
+      "path": "claim-types/supply.component/title.json"
+    },
+    {
+      "artifact_digest": "sha256:9eb35dab5bacd8872e95a689856e6d891391655b2f328f4f3065ff91358c4175",
+      "path": "claim-types/supply.product/lifecycle.json"
+    },
+    {
+      "artifact_digest": "sha256:2b78c9345e4a68492cba32e607480dda669f8ccbf4505b09712cd76dbfa0cc34",
+      "path": "claim-types/supply.product/name.json"
+    },
+    {
+      "artifact_digest": "sha256:96ba4692655a8b02ec2c56ed7b0cd1e0df70b2c53d91c67e331c7242dae4f5e2",
+      "path": "claim-types/supply.product/title.json"
+    },
+    {
+      "artifact_digest": "sha256:cdaf227844caeacd0b6d184babf9751d8a8a8d72b74a2203c989d1e79f03f693",
+      "path": "claim-types/supply.supplier/country.json"
+    },
+    {
+      "artifact_digest": "sha256:72e25371ed40bb82853f488925535c2f7b6c9c6c3ab89f5dc61699c9066ca132",
+      "path": "claim-types/supply.supplier/name.json"
+    },
+    {
+      "artifact_digest": "sha256:0fadea8682e5555802f5e576ce051e1b1a4faf2e9a903b22ad2ca0d83563711c",
+      "path": "claim-types/supply.supplier/risk_tier.json"
+    },
+    {
+      "artifact_digest": "sha256:419cee2540577c495ef8399e8eb671b259dbede0ed1001bc6f9ec26a621deef7",
+      "path": "claim-types/supply.supplier/status.json"
+    },
+    {
+      "artifact_digest": "sha256:a194dce8aeadc3f187eef7ffb8647d765e6d1135b4429a75570504b9840e5cf4",
+      "path": "claim-types/supply.supplier/title.json"
+    },
+    {
+      "artifact_digest": "sha256:6900c4cbf001a6ee25c4baa6530b7fe88489d3b487c0b60082716067c51343fc",
+      "path": "claim-types/supply.usage/component.json"
+    },
+    {
+      "artifact_digest": "sha256:281faa3c5c0e39118f01802c38c2d00ca5b31e2fb8c510e280583a73d25f8112",
+      "path": "claim-types/supply.usage/product.json"
+    },
+    {
+      "artifact_digest": "sha256:047df67faf09d5a0dc25ddc957598b3bb291f7c1022be663ec3bb949b7fb84e2",
+      "path": "claim-types/supply.usage/quantity.json"
+    },
+    {
+      "artifact_digest": "sha256:d2015aa9fba66d92e6a43b57f717b05135c9d42342ce7b290b8bc4e22f634af7",
+      "path": "claim-types/supply.usage/sourcing.json"
+    },
+    {
+      "artifact_digest": "sha256:e62d02bfbd0baae3f4bb200a10ef990aa7946bc846fb37b040de8da72944fa62",
+      "path": "query-definitions/supply.affected_products.json"
+    },
+    {
+      "artifact_digest": "sha256:d2ad6b51ec792c77b5c69304e6c54f6b0fb5caabaa858cd8703c79e3772fa4f8",
+      "path": "query-definitions/supply.expiring_attestations.json"
+    },
+    {
+      "artifact_digest": "sha256:ccb7942f41b11bb327755207e27807cb73fda6afaed5cc2c0fc8df062b325b1f",
+      "path": "query-definitions/supply.unapproved_critical_components.json"
+    },
+    {
+      "artifact_digest": "sha256:23999db20939ee32606961cf22ba0d96c3f2d0e6ee4a814471c3d970cdb3f6e5",
+      "path": "subject-kinds/supply.attestation.json"
+    },
+    {
+      "artifact_digest": "sha256:009fc6e9585657f5bc1fc0204b1e492fe480dedad50010bec273b4e174abb6f3",
+      "path": "subject-kinds/supply.component.json"
+    },
+    {
+      "artifact_digest": "sha256:0f0e32ba5c7c30391948738f5a3152be4fabc1c09016eb046d38caaf449e90f2",
+      "path": "subject-kinds/supply.product.json"
+    },
+    {
+      "artifact_digest": "sha256:806efff003ec391c7dca546b2cea9afe70382e889bf73a8e3a33bfca4131e2cf",
+      "path": "subject-kinds/supply.supplier.json"
+    },
+    {
+      "artifact_digest": "sha256:269ce4548af7f636e34a069ca475c7813145011f8e5f12bddbaede3ecbb3bb39",
+      "path": "subject-kinds/supply.usage.json"
+    }
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "role": "readme",
+      "sha256": "sha256:74a02816964a403542e7616c749534ea7f8afd1f6b31c532e6867b7084df6aca"
+    }
+  ],
+  "kit_id": "supply-chain",
+  "owns": [
+    "supply."
+  ],
+  "provenance": {
+    "coordinate": {
+      "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
+      "generation_root": "sha256:7a9a10dc1643afad995b9c528cd41a5cb40ac8279c55271eadb91f251cc0d5fe",
+      "git_oid": "09be4c2900eeedf0f9ccc5f5054b25abfb9cc0b5",
+      "semantic_root": "sha256:8dd1984aa4b0fa47ec6abf1d1ef04140c09572d6316fda889759f0b5333eb88f",
+      "tag": "playbill-accepted-coordinate-v1"
+    },
+    "instance_id": "inst_4cc8e2ea0ab04587",
+    "principal_id": "owner"
+  },
+  "tag": "playbill-kit-manifest-v1",
+  "version": "1.0.0"
+}

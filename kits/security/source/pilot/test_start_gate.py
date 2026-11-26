@@ -45,23 +45,16 @@ def test_the_committed_template_is_the_generated_one() -> None:
 def adopted_world(
     tmp_path: Path, sbom: bytes, tailor: Callable[[dict[str, Any]], None] | None = None
 ) -> Any:
-    """The kit's definitions, the committed template adopted, and its SBOM Line's
-    file in the workspace. Every Mandate is re-dated around the wall clock (valid
-    from 2026-01-01 to 30 days ahead), as an adopter tailors them, so runs on the
-    daemon's own clock admit. ``tailor`` edits the template first, as an adopter
-    does (a Line's parameters, another SBOM Line)."""
-
-    from datetime import UTC, datetime
+    """The kit's definitions, the committed template adopted VERBATIM, and its SBOM
+    Line's file in the workspace. Every Mandate is ``expires: 90d`` with no
+    ``valid_from`` (0.6.0), so the window starts when the template is submitted and
+    runs on the daemon's own clock admit with no date edited. ``tailor`` edits the
+    template first, as an adopter does (a Line's parameters, another SBOM Line)."""
 
     instance = kit_world(tmp_path, automation=False)
     adopted = json.loads(template.TEMPLATE.read_text())
     if tailor is not None:
         tailor(adopted)
-    expires_at = datetime.now(UTC) + timedelta(days=30)
-    for member in adopted["members"]:
-        if member["kind"] == "procedure_mandate":
-            member["valid_from"] = "2026-01-01T00:00:00Z"
-            member["expires_at"] = expires_at.strftime("%Y-%m-%dT%H:%M:%SZ")
     submit(instance, adopted, name="automation-template")
     write_file(tmp_path, template.SBOM[1], sbom)
     return instance
@@ -557,8 +550,8 @@ def test_the_template_authors_and_the_start_runbook_has_no_order_problems(
         tree,
         KitBuildRequest(
             kit_id="security",
-            version="1.3.0",
-            owns=("security.",),
+            version="1.4.0",
+            owns=("it.", "security."),
         ),
         providers=providers,
     )
@@ -719,8 +712,8 @@ def test_the_real_security_kit_builds_through_production_service_build_kit(
         instance,
         KitBuildRequest(
             kit_id="security",
-            version="1.3.0",
-            owns=("security.",),
+            version="1.4.0",
+            owns=("it.", "security."),
             providers=providers,
             automation_template=KitAutomationTemplate(
                 path="automation.json", content=content
@@ -767,7 +760,8 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     )
 
     bundle = read_kit_directory(Path(__file__).resolve().parents[2])
-    assert bundle.manifest.owns == ("security.",)
+    # security. and the deployment anchor's it. (held until an IT asset kit owns it).
+    assert bundle.manifest.owns == ("it.", "security.")
     # The base kit's definitions (web., workspace.) are required, never carried; so
     # are the provider-named Contracts the providers now carry themselves.
     assert [(item.kit_id, item.min_version) for item in bundle.manifest.requires] == [
@@ -775,10 +769,18 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
     ]
     assert {
         path.split("/")[1].split(".")[0] for path in bundle.contents() if "/" in path
-    } <= {"security", "playbill"}, sorted(bundle.contents())
+    } <= {"security", "playbill", "it"}, sorted(bundle.contents())
+    assert sorted(p for p in bundle.contents() if "/it." in p) == [
+        *(f"claim-types/it.asset/{field}.json" for field in sorted(
+            ("criticality", "environment", "exposure", "owner", "slug", "title")
+        )),
+        "subject-kinds/it.asset.json",
+    ], sorted(bundle.contents())
     assert sorted(path for path in bundle.contents() if path.startswith("capabilities/")) == [
-        f"capabilities/security.{name}/v1.json"
-        for name in ("osv.match", "osv.query", "sarif.findings", "sbom.components")
+        f"capabilities/security.{name}.json"
+        for name in (
+            "osv.match/v1", "osv.query/v1", "osv.query/v2", "sarif.findings/v1", "sbom.components/v1"
+        )
     ]
     assert bundle.manifest.automation_template == "automation.json"
     assert {p.package for p in bundle.manifest.providers} == {
@@ -858,9 +860,10 @@ def test_a_truly_fresh_instance_kit_add_of_the_real_security_kit_succeeds(
         provider_path(provider.build) in tree for provider in bundle.manifest.providers
     )
     with consumer.accepted_history_reader() as history:
-        # One registration per provider (three), one kit change. Registration schema 3:
-        # each provider carries its own shapes, so no Contract change precedes them.
-        assert int(history.sequence) - before_generation == 4
+        # Cruxible 0.6: one atomic change, the three provider registrations and the
+        # kit's definitions together. Registration schema 3: each provider carries
+        # its own shapes, so no Contract change precedes them.
+        assert int(history.sequence) - before_generation == 1
 
     from cruxible_core.service.runbook_preview import service_preview_runbook
 
@@ -1427,7 +1430,7 @@ def test_a_line_for_one_inventory_posts_only_its_pairs_at_its_own_threshold(
 
     def tailor(adopted: dict[str, Any]) -> None:
         members = adopted["members"]
-        members += inventory.sbom_automation((other,), now=template.DATED)
+        members += inventory.sbom_automation((other,))
         members += [
             triage.attention_line(
                 DEMO_LINE,

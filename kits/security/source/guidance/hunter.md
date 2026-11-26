@@ -47,6 +47,29 @@ unit (below). A known-vulnerable dependency is not a finding by itself: it belon
 dependency loop (SBOM, OSV, `security.exposure`) unless you show the path and the
 boundary it crosses.
 
+## Composition across components
+
+Many real defects sit between components that are each correct alone. Before calling a
+surface clean, check how the pieces compose:
+
+- **Ordering.** Read the middleware, filter and route registration order. A request-rewriting
+  or method-override step that runs before CSRF, auth or path checks changes what those
+  checks see; auth that runs after a cache can serve one principal's response to another.
+- **Credential headers and proxy or cache boundaries.** When auth reads a custom header
+  while a cache or proxy keys or bypasses only on `Authorization` or cookies, authenticated
+  responses can be cached and served to others. Check trusted-proxy defaults and which
+  forwarded headers (`X-Forwarded-For`, `X-Forwarded-Host`) the code believes.
+- **Configuration and input coercion.** Check how config values are parsed and compared:
+  `undefined` or `null` entries in a token or allowlist array that match a missing input,
+  unit mismatches (seconds against minutes or milliseconds), empty values read as
+  wildcards, and opt-in security features whose default fails open.
+- **Shared stores and key namespaces.** Queues, event stores, stream or subscription maps
+  and connection pools shared across sessions or tenants must key on that identity. Look for
+  keys built without it, and for type or string collisions (`1` against `"1"`, parts joined
+  without a separator) that let one principal reach another's entry.
+
+These are still held to the five-point bar above: name the composition in the trace.
+
 ## How to report
 
 1. **Key it** so another run or a scanner lands on the same Subject: `repo`
@@ -66,12 +89,15 @@ boundary it crosses.
    words, not as a citation of the trace, so it never reopens the finding when the trace
    changes.
 4. **Then write what you saw**, in a second write citing the notes file, each Claim with role
-   `observation`:
-   - `reported_at` (`path:line`), citing the code there (file evidence
-     `path#<quoted line>`);
+   `observation` and exactly one piece of evidence:
+   - `reported_at` (`path:line`), citing the code line there (file evidence
+     `path#<quoted line>`: one line, found once in the file);
    - `rule` (the concern you checked, e.g. `audit:injection`), citing the notes file's
      `Trace` section (`{kind: section, file: <notes file>, section: [<title>, Trace]}`);
-   - `reported_by` = `audit`, citing the code.
+   - `reported_by` = `audit`, citing the same code line.
+
+   File evidence quotes a single line, never a multi-line function body: the trace section
+   carries the path, the code line carries the location.
 
    Cite the narrowest passage that decides the judgment: a whole file reopens it on every
    edit, and no citation never reopens it. A quoted code line is a pointer for reviewers,
@@ -79,19 +105,26 @@ boundary it crosses.
    decides what you claim (a scanner's findings imported through `security.sarif-import`,
    a local check's output file), cite its result.
 5. **Link it:** `found_in` → the coverage unit you were working; `rests_on` → each
-   codebase fact the finding rests on (below).
+   codebase fact the finding rests on (below). Your Claims here are observations, so they
+   pin nothing; the verifier's verdict pins your `reported_at`.
 6. **Leave `verdict`, `severity` and `justification` alone.**
 
 ## Coverage
 
-Keep the unit you worked honest (see the coverage guidance): `checked` cites the passage
-you examined, `blocked` names what stopped you, `deferred` if you didn't get to it. A
+Keep the unit you worked honest (see the coverage guidance): `checked` cites one line of the
+passage you examined, `blocked` names what stopped you, `deferred` if you didn't get to it. A
 partial pass says it is partial. A boundary you notice outside your unit is a new unit:
 create it with its key and no status, so the next plan picks it up, instead of following
 it now.
 
-Hardening notes and safe patterns you confirmed go in the unit's notes section, which its
-`status` cites; they are never findings.
+In a parallel run the coordinator assigns you units: create or revise only those. Write
+your notes and facts sections to the files it gives you alone (`security/notes/<hunter>.md`,
+`security/facts/<hunter>.md`), never to a file another hunter is writing. A boundary outside
+your assignment goes in your notes for the coordinator to record as a unit.
+
+Hardening notes and safe patterns you confirmed go in the unit's notes section, written in
+its own write before the status (the `checked` status cites the code line, as the coverage
+guidance says); they are never findings.
 
 ## Codebase facts
 
@@ -107,15 +140,19 @@ Record a fact when a judgment rests on something true beyond the passage you are
 and establishing it took real reading or more than one judgment will rest on it. Leave out
 what one search answers. Facts are not a file map or an architecture document: expect tens
 per repository. In one write: append a section to the repository's facts notes file (a
-catalogued workspace file) stating the fact, where it holds and its known exceptions;
+catalogued workspace file; in a parallel run, your own facts file) stating the fact, where it holds and its known exceptions;
 `create` the fact; `set` its `category` citing that section; `set` `holds` (`yes`, `partly` or
-`no`) citing the code passage that decides it. A change carries one piece of evidence, so
-the code backs `holds` and the notes back `category`. Link each judgment that rests on a fact
-with `rests_on`.
+`no`) citing the single code line that decides it (`path#<quoted line>`). A change carries
+one piece of evidence, so the code backs `holds` and the notes back `category`. Link each
+judgment that rests on a fact with `rests_on`, and pin the fact on the judgment's own change: `"based_on":
+["security.code_fact/<id>#holds"]` in the write file, or `--based-on
+security.code_fact/<id>#holds` (repeatable) on `cruxible set` and `cruxible write`. The write
+pins that Claim's exact version.
 
-When a fact's cited code changes, `next` lists its `holds` as `citation_drifted`. Core does
-not act on `rests_on`: the judgments resting on that fact do not come back with it. Look
-them up with `security.findings_resting_on`, `security.coverage_units_resting_on` and
+When a fact's cited code changes, `next` lists its `holds` as `citation_drifted`. Setting
+`holds` to `partly` or `no` revises it, and every judgment that pinned it
+comes back in `next` as `claim_dependency_stale`. `rests_on` alone does nothing: a judgment
+linked without a pin does not come back with the fact. Look those up with `security.findings_resting_on`, `security.coverage_units_resting_on` and
 `security.app_exposures_resting_on` (`--param fact=security.code_fact/<id>`), and after
 setting `holds` to `partly` or `no`, with the repository's `*_on_weakened_facts` Queries
 (each judgment once; `security.weakened_causes_of_*` says which facts). A

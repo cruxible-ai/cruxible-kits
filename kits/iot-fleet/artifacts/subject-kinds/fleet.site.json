@@ -1,0 +1,25 @@
+{
+  "artifact_format": "cruxible-subject-kind-v2",
+  "description": "A site or facility the fleet runs at, named by its slug.",
+  "identity": {
+    "kind": "SubjectKind",
+    "name": "fleet.site"
+  },
+  "identity_rule": {
+    "parts": [
+      {
+        "claim_type": "fleet.site.name",
+        "normalizer": {
+          "normalizer": "none",
+          "version": 1
+        }
+      }
+    ],
+    "rule": "keys",
+    "uniqueness": "unique"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  }
+}

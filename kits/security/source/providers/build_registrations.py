@@ -12,6 +12,11 @@ The refusal Contracts are the providers' own and are written here. Nothing is
 installed on an instance from these copies; core fits them against the kit's
 capabilities when a Line binds a slot.
 
+The pure operations are ``@derive`` functions (cruxible-provider-runtime 0.6):
+each declares its own name, description, capability, Contracts, effect and
+refusals, and the table below must say exactly the same (``check_derives``,
+run before every write), so the registration and the code cannot drift apart.
+
 ``--check`` writes nothing and exits 1 when a committed registration is stale;
 ``build_release.py`` runs it before building.
 """
@@ -72,16 +77,17 @@ PACKAGES: dict[str, dict[str, Any]] = {
                 "out": capabilities.OSV_MATCH + ".result@1",
                 "effect": "pure",
                 "refusals": _refusals("osv.match"),
-                "entrypoint": "security_osv_provider.osv:OsvMatch",
+                "entrypoint": "security_osv_provider.osv:osv_match",
             },
             {
                 "name": "osv.query",
                 "description": "Asks api.osv.dev about each component (one POST /v1/querybatch "
-                "per 1000, then GET /v1/vulns/{id} for every advisory named) and returns every "
-                "response as canonical JSON, one Capture each; distro packages are never asked.",
+                "per 1000, then GET /v1/vulns/{id} for every advisory named), a distro package "
+                "by the OSV source package its SBOM states, and returns every response as "
+                "canonical JSON, one Capture each; a distro package with none is never asked.",
                 "source": _source("security-osv-provider", "osv"),
                 "serves": [capabilities.OSV_QUERY],
-                "in": capabilities.OSV_QUERY + ".request@1",
+                "in": capabilities.OSV_QUERY + ".request@2",
                 "out": capabilities.OSV_QUERY + ".result@1",
                 "effect": "external_read",
                 "refusals": _refusals("osv.query"),
@@ -89,16 +95,17 @@ PACKAGES: dict[str, dict[str, Any]] = {
             },
             {
                 "name": "sbom.components",
-                "description": "Reads one CycloneDX JSON SBOM: one document naming its "
-                "inventory and each distinct component by purl with its scope, nested "
-                "components flattened, unidentified ones counted.",
+                "description": "Reads one CycloneDX or SPDX 2.x JSON SBOM: one document naming "
+                "its inventory and each distinct component by purl with its scope, nested "
+                "components flattened, unidentified ones counted, distro packages with the OSV "
+                "source package they are asked as.",
                 "source": _source("security-osv-provider", "sbom"),
                 "serves": [capabilities.SBOM_COMPONENTS],
                 "in": capabilities.SBOM_COMPONENTS + ".request@1",
                 "out": capabilities.SBOM_COMPONENTS + ".result@1",
                 "effect": "pure",
                 "refusals": _refusals("sbom.components"),
-                "entrypoint": "security_osv_provider.sbom:SbomComponents",
+                "entrypoint": "security_osv_provider.sbom:sbom_components",
             },
         ],
         "refusals": [
@@ -133,7 +140,7 @@ PACKAGES: dict[str, dict[str, Any]] = {
                 "out": capabilities.SARIF_FINDINGS + ".result@1",
                 "effect": "pure",
                 "refusals": _refusals("sarif.findings"),
-                "entrypoint": "security_sarif_provider.sarif:SarifFindings",
+                "entrypoint": "security_sarif_provider.sarif:sarif_findings",
             }
         ],
         "refusals": [
@@ -151,6 +158,41 @@ def package_root(package: str) -> Path:
     return HERE / package / "src" / package.replace("-", "_")
 
 
+def check_derives(package: str) -> None:
+    """Refuse a pure operation whose entrypoint is not a ``@derive`` function declaring
+    exactly what this table registers for it."""
+
+    import importlib
+
+    from cruxible_provider_runtime import DeriveOperation
+
+    sys.path.insert(0, str(HERE / package / "src"))
+    try:
+        for item in PACKAGES[package]["operations"]:
+            if item["effect"] != "pure":
+                continue
+            module, _, attribute = item["entrypoint"].partition(":")
+            operation = getattr(importlib.import_module(module), attribute)
+            if not isinstance(operation, DeriveOperation):
+                raise ValueError(f"{item['entrypoint']} is not a @derive function")
+            declared = {
+                "name": operation.name,
+                "description": operation.description,
+                "serves": list(operation.serves),
+                "in": operation.input_contract,
+                "out": operation.output_contract,
+                "effect": operation.effect,
+                "refusals": {code: dict(value) for code, value in operation.refusals.items()},
+            }
+            registered = {key: item[key] for key in declared}
+            if declared != registered:
+                raise ValueError(
+                    f"{item['entrypoint']} declares {declared}, the registration {registered}"
+                )
+    finally:
+        sys.path.remove(str(HERE / package / "src"))
+
+
 def write(package: str, *, check: bool) -> bool:
     """Write (or with ``check``, compare) one package's registration; True when current."""
 
@@ -159,6 +201,7 @@ def write(package: str, *, check: bool) -> bool:
 
     from cruxible_provider_runtime.registration import write_registration
 
+    check_derives(package)
     spec = PACKAGES[package]
     root = package_root(package)
     contracts, kinds, built_against = capabilities.provider_shapes()

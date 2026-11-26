@@ -1,6 +1,6 @@
 {
  "kind": "change_set",
- "rationale": "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS Lines and their Mandates, and the two observe-only attention Lines that post exposures to the inbox (unjudged pairs KEV-listed, with an EPSS score at or above min_epss, 0.1 as shipped, or not yet scored; contested pairs); the observe-only OSV unkeyed Line and its Trigger security.osv-matches-landed, which posts one summary item (count, sample, the match document) when the OSV Line's match document lists advisories with no CVE alias; the security.start Runbook that seeds a fresh instance; and the security.maintain Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, EPSS, attention; the SBOM import runs when the SBOM changes). Tailor the Line names, the SBOM path, the cron time, the attention threshold and the Mandate dates before submitting.",
+ "rationale": "Adopt the security kit's dependency loop: the SBOM import, OSV, KEV and EPSS Lines and their Mandates, and the two observe-only attention Lines that post exposures to the inbox (unjudged pairs KEV-listed, with an EPSS score at or above min_epss, 0.1 as shipped, or not yet scored; contested pairs); the observe-only OSV unkeyed Line and its Trigger security.osv-matches-landed, which posts one summary item (count, sample, the match document) when the OSV Line's match document lists advisories with no CVE alias; the security.start Runbook that seeds a fresh instance; and the security.maintain Runbook that the one daily Trigger security.maintain-daily runs (OSV, KEV, EPSS, attention; the SBOM import runs when the SBOM changes). The SBOM, KEV and EPSS Lines each take one scope: observations settle grant; OSV's names affected_by by hand (that field also carries agents' judgments). Every Mandate is valid for 90 days from submission. Tailor the Line names, the SBOM path, the cron time and the attention threshold before submitting.",
  "members": [
   {
    "kind": "line",
@@ -42,96 +42,18 @@
     "claims",
     "subjects"
    ],
-   "valid_from": "2026-11-06T00:00:00Z",
-   "expires_at": "2027-02-05T00:00:00Z"
+   "expires": "90d"
   },
   {
    "kind": "procedure_mandate",
    "name": "security.kev-triage-settle",
    "line_name": "security.kev-triage",
    "grants": "settle",
-   "namespace": [
-    "claims"
-   ],
-   "valid_from": "2026-11-06T00:00:00Z",
-   "expires_at": "2027-02-05T00:00:00Z",
+   "scope": "observations",
+   "expires": "90d",
    "subjects": "expected",
    "subject_creation": [
     "security.catalog"
-   ],
-   "scope": [
-    {
-     "claim_type": "security.vulnerability.listed_in",
-     "changes": {
-      "create": {
-       "basis": [
-        "extracted",
-        "absence"
-       ]
-      },
-      "revise": {
-       "basis": [
-        "extracted",
-        "absence"
-       ]
-      }
-     }
-    },
-    {
-     "claim_type": "security.vulnerability.kev_date_added",
-     "changes": {
-      "create": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "revise": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "retire": {
-       "basis": [
-        "absence"
-       ]
-      }
-     }
-    },
-    {
-     "claim_type": "security.vulnerability.kev_due_date",
-     "changes": {
-      "create": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "revise": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "retire": {
-       "basis": [
-        "absence"
-       ]
-      }
-     }
-    },
-    {
-     "claim_type": "security.vulnerability.kev_ransomware_use",
-     "changes": {
-      "create": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "revise": {
-       "basis": [
-        "extracted"
-       ]
-      }
-     }
-    }
    ]
   },
   {
@@ -173,67 +95,16 @@
    "namespace": [
     "claims"
    ],
-   "valid_from": "2026-11-06T00:00:00Z",
-   "expires_at": "2027-02-05T00:00:00Z"
+   "expires": "90d"
   },
   {
    "kind": "procedure_mandate",
    "name": "security.epss-triage-settle",
    "line_name": "security.epss-triage",
    "grants": "settle",
-   "namespace": [
-    "claims"
-   ],
-   "valid_from": "2026-11-06T00:00:00Z",
-   "expires_at": "2027-02-05T00:00:00Z",
-   "subjects": "expected",
-   "scope": [
-    {
-     "claim_type": "security.vulnerability.epss_score",
-     "changes": {
-      "create": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "revise": {
-       "basis": [
-        "extracted"
-       ]
-      }
-     }
-    },
-    {
-     "claim_type": "security.vulnerability.epss_percentile",
-     "changes": {
-      "create": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "revise": {
-       "basis": [
-        "extracted"
-       ]
-      }
-     }
-    },
-    {
-     "claim_type": "security.vulnerability.epss_score_date",
-     "changes": {
-      "create": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "revise": {
-       "basis": [
-        "extracted"
-       ]
-      }
-     }
-    }
-   ]
+   "scope": "observations",
+   "expires": "90d",
+   "subjects": "expected"
   },
   {
    "kind": "line",
@@ -267,45 +138,19 @@
     "claims",
     "subjects"
    ],
-   "valid_from": "2026-11-06T00:00:00Z",
-   "expires_at": "2027-02-05T00:00:00Z"
+   "expires": "90d"
   },
   {
    "kind": "procedure_mandate",
    "name": "security.sbom-import.app-settle",
    "line_name": "security.sbom-import.app",
    "grants": "settle",
-   "namespace": [
-    "claims"
-   ],
-   "valid_from": "2026-11-06T00:00:00Z",
-   "expires_at": "2027-02-05T00:00:00Z",
+   "scope": "observations",
+   "expires": "90d",
    "subject_creation": [
     "security.component",
     "security.inventory",
     "security.occurrence"
-   ],
-   "scope": [
-    {
-     "claim_type": "security.occurrence.scope",
-     "changes": {
-      "create": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "revise": {
-       "basis": [
-        "extracted"
-       ]
-      },
-      "retire": {
-       "basis": [
-        "absence"
-       ]
-      }
-     }
-    }
    ]
   },
   {
@@ -347,8 +192,7 @@
     "claims",
     "subjects"
    ],
-   "valid_from": "2026-11-06T00:00:00Z",
-   "expires_at": "2027-02-05T00:00:00Z"
+   "expires": "90d"
   },
   {
    "kind": "procedure_mandate",
@@ -358,8 +202,7 @@
    "namespace": [
     "claims"
    ],
-   "valid_from": "2026-11-06T00:00:00Z",
-   "expires_at": "2027-02-05T00:00:00Z",
+   "expires": "90d",
    "subject_creation": [
     "security.vulnerability"
    ],
@@ -435,7 +278,7 @@
   {
    "kind": "runbook",
    "name": "security.start",
-   "description": "Seed a fresh instance: import the SBOM, ask OSV what affects it, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures. OSV advisories with no CVE id get one summary inbox item from security.osv-unkeyed, which its Trigger security.osv-matches-landed runs on each OSV result once the Line is enabled.",
+   "description": "Seed a fresh instance: import the SBOM, ask OSV what affects it, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures. OSV advisories with no CVE id get one summary inbox item from security.osv-unkeyed, which its Trigger security.osv-matches-landed runs on each OSV result once the Line is enabled. Enable every Line at once: cruxible line enable security.osv-unkeyed --runbook security.start.",
    "steps": [
     {
      "line": "security.sbom-import.app"
@@ -460,7 +303,7 @@
   {
    "kind": "runbook",
    "name": "security.maintain",
-   "description": "Daily refresh: ask OSV what affects the inventory, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures. OSV advisories with no CVE id get one summary inbox item from security.osv-unkeyed, which its Trigger security.osv-matches-landed runs on each OSV result once the Line is enabled.",
+   "description": "Daily refresh: ask OSV what affects the inventory, read KEV and EPSS for what it found, then post to the inbox the pairs nobody has judged that are KEV-listed, have an EPSS score at or above the attention Line's min_epss or have no EPSS score yet, and the pairs whose judgment does not count. The whole worklist stays in security.urgent_exposures. OSV advisories with no CVE id get one summary inbox item from security.osv-unkeyed, which its Trigger security.osv-matches-landed runs on each OSV result once the Line is enabled. Enable every Line at once: cruxible line enable security.osv-unkeyed --runbook security.start.",
    "steps": [
     {
      "line": "security.osv-query"

@@ -59,13 +59,15 @@ def run_operation(
     later run's reads (at its own clock) see this run's evidence as current.
     """
 
-    from security_osv_provider.osv import OsvMatch, OsvQuery
-    from security_osv_provider.sbom import SbomComponents
+    from security_osv_provider.osv import OsvQuery, osv_match
+    from security_osv_provider.sbom import sbom_components
 
+    # The two derives are @derive operations: the decorated function is the
+    # entrypoint object, called with the run context as the harness calls it.
     if context.operation == "sbom.components":
-        provider: Any = SbomComponents()
+        provider: Any = sbom_components
     elif context.operation == "osv.match":
-        provider = OsvMatch()
+        provider = osv_match
     elif context.operation == "osv.query":
         if osv_transport is None:
             raise AssertionError("osv.query ran but the scenario gave no OSV origin")

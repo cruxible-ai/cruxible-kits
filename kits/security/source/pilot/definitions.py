@@ -456,6 +456,11 @@ def vocabulary() -> dict[str, Any]:
     import triage
 
     members += osv.vocabulary_members([*claim_types, *inventory_claim_types()])
+    # The deployment anchor (it.asset and the inventory's link) before the triage
+    # Query that reads it.
+    import assets
+
+    members += assets.vocabulary_members()
     members += triage.vocabulary_members()
     # Codebase facts: the fact kind, app_exposure.rests_on and their Queries.
     import facts
@@ -464,7 +469,8 @@ def vocabulary() -> dict[str, Any]:
     return {
         "kind": "change_set",
         "rationale": "Security kit vocabulary: SBOM inventory (occurrences), KEV and EPSS "
-        "facts, the judgment pairs, and the watch list and worklists that join them.",
+        "facts, the judgment pairs, the it.asset deployment anchor, and the watch list and "
+        "worklists that join them.",
         "members": members,
     }
 
@@ -895,39 +901,56 @@ FINDINGS = [
     "claim_not_in_source",
 ]
 
-#: KEV settles by basis (B4c): records create and revise on the extracted record;
-#: the complete read's absence writes and revises the inverse and retires the dates.
-KEV_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
-    VULN + ".listed_in": {
-        "create": {"basis": ["extracted", "absence"]},
-        "revise": {"basis": ["extracted", "absence"]},
-    },
-    VULN + ".kev_date_added": {
-        "create": {"basis": ["extracted"]},
-        "revise": {"basis": ["extracted"]},
-        "retire": {"basis": ["absence"]},
-    },
-    VULN + ".kev_due_date": {
-        "create": {"basis": ["extracted"]},
-        "revise": {"basis": ["extracted"]},
-        "retire": {"basis": ["absence"]},
-    },
-    VULN + ".kev_ransomware_use": {
-        "create": {"basis": ["extracted"]},
-        "revise": {"basis": ["extracted"]},
-    },
-}
-#: EPSS is clean: records create and revise on the extracted record, nothing else.
-EPSS_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
-    VULN + predicate: {"create": {"basis": ["extracted"]}, "revise": {"basis": ["extracted"]}}
-    for predicate in (".epss_score", ".epss_percentile", ".epss_score_date")
-}
+#: How long every automation Mandate stays valid, counted from the moment the change
+#: set is submitted: core 0.6.0 takes ``expires`` (a span) with no ``valid_from``, so
+#: the template carries no dates for an adopter to edit.
+MANDATE_SPAN = "90d"
+
+
+def mandate_window(now: datetime | None) -> dict[str, str]:
+    """A Mandate's validity: the span from submission, or (``now`` given, as a gate
+    pinning its clock does) the dated window from the day before ``now`` to 90 days
+    after it."""
+
+    if now is None:
+        return {"expires": MANDATE_SPAN}
+    return {
+        "valid_from": (now - timedelta(days=1)).isoformat().replace("+00:00", "Z"),
+        "expires_at": (now + timedelta(days=90)).isoformat().replace("+00:00", "Z"),
+    }
+
+
+def observation_grant(
+    line: str,
+    *,
+    now: datetime | None,
+    subject_creation: Sequence[str] = (),
+    subjects_expected: bool = False,
+) -> dict[str, Any]:
+    """The one settle grant of a Line whose writes are all observations (0.6.0,
+    ``scope: observations``): core lowers it to the exact per-ClaimType scope the
+    Line's pinned Procedure writes (creates and revises on extracted and measured
+    records, retirements and inverses on complete absence), pinned at each
+    ClaimType's digest. It refuses a ClaimType that also permits ``normative``, so a
+    judgment can never settle under it. ``subject_creation`` names the kinds the
+    run may create by key without review."""
+
+    return {
+        "kind": "procedure_mandate",
+        "name": line + "-settle",
+        "line_name": line,
+        "grants": "settle",
+        "scope": "observations",
+        **mandate_window(now),
+        **({"subjects": "expected"} if subjects_expected else {}),
+        **({"subject_creation": sorted(subject_creation)} if subject_creation else {}),
+    }
 
 
 def automation(
     watch: Sequence[str],
     *,
-    now: datetime,
+    now: datetime | None = None,
     settle: bool = True,
     sboms: Sequence[tuple[str, str]] = (),
     osv_line: bool = True,
@@ -938,27 +961,23 @@ def automation(
 
     The automation template (``template.py``) runs OSV, KEV and EPSS on one daily
     Trigger aimed at its maintenance Runbook. The one Line with a Trigger of its
-    own is ``security.osv-unkeyed``, on each landing of the OSV match document."""
-    valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
-    expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
+    own is ``security.osv-unkeyed``, on each landing of the OSV match document.
+
+    Every KEV and EPSS ClaimType is observation-only, so each Line's settle grant is
+    the one ``scope: observations`` grant (:func:`observation_grant`). ``now`` dates
+    the Mandates (a gate pinning its clock); without it they are valid for
+    ``MANDATE_SPAN`` from submission."""
     del watch
     lines = (
-        (KEV_LINE, KEV_PROCEDURE, KEV_URL, KEV_SOURCE, "https://www.cisa.gov", KEV_SETTLE_SCOPE),
-        (
-            EPSS_LINE,
-            EPSS_PROCEDURE,
-            EPSS_API,
-            EPSS_SOURCE,
-            "https://api.first.org",
-            EPSS_SETTLE_SCOPE,
-        ),
+        (KEV_LINE, KEV_PROCEDURE, KEV_URL, KEV_SOURCE, "https://www.cisa.gov"),
+        (EPSS_LINE, EPSS_PROCEDURE, EPSS_API, EPSS_SOURCE, "https://api.first.org"),
     )
     fetch = {
         KEV_LINE: ("catalog.capture", WEB_FETCH),
         EPSS_LINE: ("scores_api.captures", WEB_FETCH_PAGES),
     }
     members: list[dict[str, Any]] = []
-    for line, procedure, url, source, origin, scope in lines:
+    for line, procedure, url, source, origin in lines:
         output, binding = fetch[line]
         members.append(
             {
@@ -980,27 +999,18 @@ def automation(
                 "grants": "propose",
                 # KEV creates the catalog Subject its listed_in names.
                 "namespace": ["claims", "subjects"] if line == KEV_LINE else ["claims"],
-                "valid_from": valid_from,
-                "expires_at": expires_at,
+                **mandate_window(now),
             }
         )
         if settle:
             members.append(
-                {
-                    "kind": "procedure_mandate",
-                    "name": line + "-settle",
-                    "line_name": line,
-                    "grants": "settle",
-                    "namespace": ["claims"],
-                    "valid_from": valid_from,
-                    "expires_at": expires_at,
-                    "subjects": "expected",
-                    **({"subject_creation": [CATALOG]} if line == KEV_LINE else {}),
-                    "scope": [
-                        {"claim_type": claim_type, "changes": changes}
-                        for claim_type, changes in scope.items()
-                    ],
-                }
+                observation_grant(
+                    line,
+                    now=now,
+                    subjects_expected=True,
+                    # KEV creates the catalog Subject its listed_in names, once.
+                    subject_creation=[CATALOG] if line == KEV_LINE else (),
+                )
             )
     from inventory import sbom_automation
 

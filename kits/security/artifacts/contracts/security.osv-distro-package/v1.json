@@ -1,0 +1,20 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One distro component an inventory holds and the OSV package its SBOM states it is asked as (ECOSYSTEM|NAME|VERSION).",
+  "fields": {
+    "osv_package": {
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    },
+    "purl": {
+      "type": {
+        "kind": "string",
+        "max_len": 256
+      }
+    }
+  },
+  "name": "security.osv-distro-package",
+  "version": 1
+}

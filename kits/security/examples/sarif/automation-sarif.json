@@ -1,0 +1,157 @@
+{
+ "kind": "change_set",
+ "rationale": "Adopt the security kit's SARIF intake for one scanner: the import Line, which reads the SARIF file under its own logical source and writes code findings by key (settling the scanner's observations: rule, reported_by, severity, reported_at, verification; never a verdict), its Mandates, valid for 90 days from submission, and the observe-only attention Line its landing Trigger runs, which posts regressions and location gaps to the inbox. The import's settle grant names its ClaimTypes by hand: severity also permits normative (the verifier's own severity), so scope: observations refuses it. Tailor the Line suffix, the repository and the SARIF path before submitting.",
+ "members": [
+  {
+   "kind": "line",
+   "name": "security.sarif-import.semgrep",
+   "procedure_name": "security.sarif-import",
+   "bindings": {
+    "read": "cruxible-builtin#workspace.file",
+    "derive": "security-sarif-provider#sarif.findings"
+   },
+   "parameters": {
+    "relative_path": "scans/semgrep.sarif",
+    "logical_source": "sarif.semgrep",
+    "repo": "github.com/example/demo-app"
+   },
+   "acquisition": {},
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested",
+     "claim_not_in_source"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.sarif-import.semgrep-propose",
+   "line_name": "security.sarif-import.semgrep",
+   "grants": "propose",
+   "namespace": [
+    "claims",
+    "subjects"
+   ],
+   "expires": "90d"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.sarif-import.semgrep-settle",
+   "line_name": "security.sarif-import.semgrep",
+   "grants": "settle",
+   "namespace": [
+    "claims"
+   ],
+   "expires": "90d",
+   "subject_creation": [
+    "security.finding"
+   ],
+   "scope": [
+    {
+     "claim_type": "security.finding.rule",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.finding.reported_by",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.finding.severity",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.finding.reported_at",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "retire": {
+       "basis": [
+        "absence"
+       ]
+      }
+     }
+    },
+    {
+     "claim_type": "security.finding.verification",
+     "changes": {
+      "create": {
+       "basis": [
+        "extracted"
+       ]
+      },
+      "revise": {
+       "basis": [
+        "extracted"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "kind": "line",
+   "name": "security.sarif-attention.semgrep",
+   "procedure_name": "security.sarif-attention",
+   "bindings": {
+    "derive": "security-sarif-provider#sarif.findings"
+   },
+   "parameters": {
+    "logical_source": "sarif.semgrep",
+    "repo": "github.com/example/demo-app"
+   },
+   "trigger_input": "findings.document",
+   "acquisition": {
+    "findings.document": {}
+   },
+   "max_authority": "observe"
+  },
+  {
+   "kind": "trigger",
+   "name": "security.sarif-findings-landed.semgrep",
+   "line_name": "security.sarif-attention.semgrep",
+   "schedule": {
+    "kind": "capture_landing",
+    "capture_contract": "security.sarif-findings",
+    "logical_sources": [
+     "sarif.semgrep"
+    ]
+   }
+  }
+ ]
+}

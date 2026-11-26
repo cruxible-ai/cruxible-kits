@@ -1,0 +1,105 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "subject",
+  "default_budgets": {
+    "max_results": 200,
+    "max_traversal_depth": 1
+  },
+  "description": "High or critical components not approved for production, reviewed or not.",
+  "entry": {
+    "binding": "component",
+    "subject_kinds": [
+      "supply.component"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "supply.unapproved_critical_components"
+  },
+  "maximum_budgets": {
+    "max_results": 2000,
+    "max_traversal_depth": 1
+  },
+  "projection": {
+    "fields": [
+      {
+        "name": "criticality",
+        "value": {
+          "binding": "component",
+          "kind": "claim_value",
+          "predicate": "supply.component.criticality"
+        }
+      },
+      {
+        "name": "review_status",
+        "value": {
+          "binding": "component",
+          "kind": "claim_value",
+          "predicate": "supply.component.review_status"
+        }
+      },
+      {
+        "name": "supplier",
+        "value": {
+          "binding": "component",
+          "kind": "claim_value",
+          "predicate": "supply.component.supplier"
+        }
+      }
+    ]
+  },
+  "result_shape": "subject",
+  "where": {
+    "filters": [
+      {
+        "filters": [
+          {
+            "binding": "component",
+            "kind": "claim_presence",
+            "negated": true,
+            "predicate": "supply.component.review_status"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "component",
+              "kind": "claim_value",
+              "predicate": "supply.component.review_status"
+            },
+            "operator": "ne",
+            "right": {
+              "kind": "literal",
+              "value": "approved_for_production"
+            },
+            "value_type": "string"
+          }
+        ],
+        "kind": "any_of"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "component",
+          "kind": "claim_value",
+          "predicate": "supply.component.criticality"
+        },
+        "operator": "gte",
+        "right": {
+          "kind": "literal",
+          "value": "high"
+        },
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of"
+  }
+}

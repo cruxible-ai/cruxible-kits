@@ -21,12 +21,13 @@ jobs:
       - name: Install the kit tooling
         # cruxible-client ships the artifact library; the core (cruxible) runs the
         # format and acceptance checks `kit add` runs. Both pinned to the core
-        # release these kits are built for (0.5.0, from PyPI).
+        # release these kits are built for (0.6.0, from PyPI; the security kit's
+        # 1.4.0 template needs 0.6).
         run: >-
           uv venv &&
           uv pip install
-          "cruxible-client==0.5.0"
-          "cruxible==0.5.0"
+          "cruxible-client==0.6.0"
+          "cruxible==0.6.0"
       - name: Check every kit
         run: uv run --no-project python scripts/kits.py check
       - name: Publish new kit versions

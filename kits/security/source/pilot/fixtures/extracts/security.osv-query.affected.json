@@ -4,6 +4,9 @@
     "count_at": "/count"
   },
   "fields": {
+    "fixed_versions": {
+      "at": "fixed_versions"
+    },
     "osv_id": {
       "at": "osv_id"
     }
@@ -30,6 +33,6 @@
   "row": {
     "digest": "sha256:78e3bcd86138b59ec55cdac71ea154aaf3e26bebdaca1896679c46ba9b39bc35",
     "name": "security.osv-affected",
-    "version": 1
+    "version": 2
   }
 }

@@ -1,0 +1,53 @@
+{
+ "kind": "change_set",
+ "rationale": "kit adopt security:sbom: the SBOM import Line security.sbom-import.{{name}}, reading {{relative_path}} (CycloneDX or SPDX 2.2/2.3 JSON) under the logical source cyclonedx.sbom.{{name}}, and its propose and scope: observations settle Mandates, valid for {{expires}} from submission. security.start runs it with every other SBOM import Line.",
+ "members": [
+  {
+   "kind": "line",
+   "name": "security.sbom-import.{{name}}",
+   "procedure_name": "security.sbom-import",
+   "bindings": {
+    "read": "cruxible-builtin#workspace.file",
+    "derive": "security-osv-provider#sbom.components"
+   },
+   "parameters": {
+    "relative_path": "{{relative_path}}",
+    "logical_source": "cyclonedx.sbom.{{name}}"
+   },
+   "acquisition": {},
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "slot_contested"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.sbom-import.{{name}}-propose",
+   "line_name": "security.sbom-import.{{name}}",
+   "grants": "propose",
+   "namespace": [
+    "claims",
+    "subjects"
+   ],
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "security.sbom-import.{{name}}-settle",
+   "line_name": "security.sbom-import.{{name}}",
+   "grants": "settle",
+   "scope": "observations",
+   "expires": "{{expires}}",
+   "subject_creation": [
+    "security.component",
+    "security.inventory",
+    "security.occurrence"
+   ]
+  }
+ ]
+}

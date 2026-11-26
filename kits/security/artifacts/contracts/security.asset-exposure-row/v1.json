@@ -1,0 +1,102 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One exposure in deployment context: the exposure row's fields and the IT asset its inventory runs as, with the asset's owner, environment, exposure and criticality (all empty when the inventory is linked to no asset).",
+  "fields": {
+    "asset": {
+      "optional": true,
+      "type": {
+        "kind": "string"
+      }
+    },
+    "component": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "criticality": {
+      "optional": true,
+      "type": {
+        "claim_type": "it.asset.criticality",
+        "kind": "enum_of"
+      }
+    },
+    "cve_id": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "environment": {
+      "optional": true,
+      "type": {
+        "claim_type": "it.asset.environment",
+        "kind": "enum_of"
+      }
+    },
+    "epss_percentile": {
+      "optional": true,
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    },
+    "epss_score": {
+      "optional": true,
+      "type": {
+        "kind": "decimal",
+        "max": "1",
+        "min": "0"
+      }
+    },
+    "exposure": {
+      "optional": true,
+      "type": {
+        "claim_type": "it.asset.exposure",
+        "kind": "enum_of"
+      }
+    },
+    "inventory": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "kev_date_added": {
+      "optional": true,
+      "type": {
+        "kind": "date"
+      }
+    },
+    "kev_due_date": {
+      "optional": true,
+      "type": {
+        "kind": "date"
+      }
+    },
+    "kev_ransomware_use": {
+      "optional": true,
+      "type": {
+        "claim_type": "security.vulnerability.kev_ransomware_use",
+        "kind": "enum_of"
+      }
+    },
+    "occurrence": {
+      "type": {
+        "kind": "string"
+      }
+    },
+    "owner": {
+      "optional": true,
+      "type": {
+        "kind": "string"
+      }
+    },
+    "scope": {
+      "type": {
+        "claim_type": "security.occurrence.scope",
+        "kind": "enum_of"
+      }
+    }
+  },
+  "name": "security.asset-exposure-row",
+  "version": 1
+}

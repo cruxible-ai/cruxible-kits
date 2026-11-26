@@ -47,7 +47,7 @@ def run(content: bytes, path: str = "sboms/demo.cdx.json") -> Any:
     from cruxible_provider_runtime.protocol import Budgets
     from cruxible_provider_runtime.provider_api import ProviderRunContext
 
-    return sbom.SbomComponents()(
+    return sbom.sbom_components(
         ProviderRunContext(
             run_id="run-test",
             input={

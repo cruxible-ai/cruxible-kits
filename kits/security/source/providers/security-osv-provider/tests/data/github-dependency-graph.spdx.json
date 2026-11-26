@@ -1,0 +1,131 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "com.github.example/demo-app",
+  "documentNamespace": "https://spdx.org/spdxdocs/protobom/0b8a0b2b-6f7e-4f61-9b3a-2f2f2e1a9c11",
+  "creationInfo": {
+    "creators": [
+      "Tool: protobom-v0.0.13",
+      "Tool: GitHub.com-Dependency-Graph"
+    ],
+    "created": "2026-11-20T10:00:00Z"
+  },
+  "documentDescribes": [
+    "SPDXRef-com.github.example-demo-app"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-com.github.example-demo-app",
+      "name": "com.github.example/demo-app",
+      "versionInfo": "main",
+      "downloadLocation": "git+https://github.com/example/demo-app",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:github/example/demo-app@main"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-npm-express-4.17.1",
+      "name": "npm:express",
+      "versionInfo": "4.17.1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/express@4.17.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-npm-babel-core-7.23.0",
+      "name": "npm:@babel/core",
+      "versionInfo": "7.23.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40babel/core@7.23.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-npm-fsevents-2.3.3",
+      "name": "npm:fsevents",
+      "versionInfo": "2.3.3",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/fsevents"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-npm-lodash-4.17.20",
+      "name": "npm:lodash",
+      "versionInfo": "4.17.20",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "supplier": "Organization: OpenJS Foundation",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/lodash@4.17.20"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-actions-checkout-4",
+      "name": "actions/checkout",
+      "versionInfo": "4.*.*",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-com.github.example-demo-app"
+    },
+    {
+      "spdxElementId": "SPDXRef-com.github.example-demo-app",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-npm-express-4.17.1"
+    },
+    {
+      "spdxElementId": "SPDXRef-com.github.example-demo-app",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-npm-lodash-4.17.20"
+    },
+    {
+      "spdxElementId": "SPDXRef-npm-babel-core-7.23.0",
+      "relationshipType": "DEV_DEPENDENCY_OF",
+      "relatedSpdxElement": "SPDXRef-com.github.example-demo-app"
+    },
+    {
+      "spdxElementId": "SPDXRef-npm-fsevents-2.3.3",
+      "relationshipType": "OPTIONAL_DEPENDENCY_OF",
+      "relatedSpdxElement": "SPDXRef-com.github.example-demo-app"
+    },
+    {
+      "spdxElementId": "SPDXRef-npm-lodash-4.17.20",
+      "relationshipType": "DEV_DEPENDENCY_OF",
+      "relatedSpdxElement": "SPDXRef-com.github.example-demo-app"
+    }
+  ]
+}

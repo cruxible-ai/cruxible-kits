@@ -9,8 +9,10 @@
     python scripts/kits.py publish [--dry-run]  # push versions the registry lacks
 
 A kit's inert files are its top-level Markdown (README.md, reference.md), everything
-under ``examples/`` and ``reference/``, every agent skill under ``skills/<name>/`` and the automation
-template its manifest names (``automation_template``, D-R48). They travel in the
+under ``examples/`` and ``reference/``, every agent skill under ``skills/<name>/``, the automation
+template its manifest names (``automation_template``, D-R48) and the recipe and script
+files its manifest declares (``recipes`` under ``recipes/``, ``scripts`` under
+``scripts/``: Cruxible 0.6's ``kit adopt`` and ``kit run``). They travel in the
 bundle for the kit's reader (``cruxible kit pull`` / ``kit docs``) but stay out of the
 release's content digest, so a docs fix keeps every definition digest; the image digest
 still changes, so a published version needs a patch bump for one.
@@ -80,9 +82,28 @@ def _automation_template(directory: Path) -> str | None:
     return named if isinstance(named, str) else None
 
 
+def _adoption_paths(directory: Path) -> list[str]:
+    """The recipe and script files the manifest declares (``kit adopt`` / ``kit run``)."""
+
+    manifest = directory / KIT_MANIFEST_FILE
+    if not manifest.is_file():
+        return []
+    raw = json.loads(manifest.read_bytes())
+    paths = []
+    for label in ("recipes", "scripts"):
+        for item in raw.get(label) or ():
+            path = item.get("path") if isinstance(item, dict) else None
+            if not isinstance(path, str):
+                raise ValueError(f"a declared {label[:-1]} names no path")
+            if not (directory / path).is_file():
+                raise ValueError(f"the manifest declares {label[:-1]} file {path}, which is missing")
+            paths.append(path)
+    return paths
+
+
 def _inert_paths(directory: Path) -> list[str]:
-    """The kit's inert files: top-level Markdown, ``examples/``, ``reference/``, ``skills/`` and the
-    automation template the manifest names."""
+    """The kit's inert files: top-level Markdown, ``examples/``, ``reference/``, ``skills/``, the
+    automation template the manifest names and its declared recipe and script files."""
 
     paths = [path.name for path in directory.glob("*.md") if path.is_file()]
     template = _automation_template(directory)
@@ -90,6 +111,7 @@ def _inert_paths(directory: Path) -> list[str]:
         if not (directory / template).is_file():
             raise ValueError(f"the manifest names automation template {template}, which is missing")
         paths.append(template)
+    paths += _adoption_paths(directory)
     for name in _INERT_DIRECTORIES:
         root = directory / name
         if not root.is_dir():
@@ -109,6 +131,34 @@ def _inert_files(directory: Path) -> tuple[KitFile, ...]:
     return tuple(
         kit_file_entry(path, (directory / path).read_bytes()) for path in _inert_paths(directory)
     )
+
+
+def _recipe_problems(bundle: KitBundle) -> list[str]:
+    """Each declared recipe that does not render (with its defaults and examples, after
+    its dependencies) into one valid ``change_set``: the client-side half of what
+    ``kit build`` checks; the build also authors each against the kit's definitions."""
+
+    recipes = bundle.manifest.recipes
+    if not recipes:
+        return []
+    from cruxible_client.contracts.kit_recipes import (
+        KitRecipeError,
+        preflight_values,
+        render_recipe,
+        render_with_dependencies,
+        validate_rendered_recipe,
+    )
+
+    contents = bundle.file_contents()
+    problems = []
+    for recipe in recipes:
+        try:
+            own = render_recipe(recipe, contents[recipe.path], preflight_values(recipe))
+            validate_rendered_recipe(recipe.name, own)
+            render_with_dependencies(recipes, recipe.name, contents)
+        except (KitRecipeError, KeyError, ValueError) as error:
+            problems.append(f"recipe {recipe.name}: {error}")
+    return problems
 
 
 def _skill_link_problems(directory: Path) -> list[str]:
@@ -311,6 +361,9 @@ def _check(core: _CoreCheck) -> int:
                 raise ValueError("packing is not deterministic")
             if bundle.manifest.files != _inert_files(directory):
                 raise ValueError("the manifest's inert files are stale: run scripts/kits.py files")
+            recipes = _recipe_problems(bundle)
+            if recipes:
+                raise ValueError("; ".join(recipes))
             links = _skill_link_problems(directory)
             if links:
                 raise ValueError("; ".join(links))

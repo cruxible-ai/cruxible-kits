@@ -1,5 +1,6 @@
 # The security kit's dependency plane (D-R37 template form). One distribution,
 # one lock, one identity unit; three operations:
+# The two derives are @derive functions (cruxible-provider-runtime 0.6).
 #   sbom.components (derive, pure): one SBOM Capture -> one derived JSON
 #                   document (the inventory key and its components, K-B1-G1);
 #   osv.query       (fetch, external_read): OSV's raw responses, one Capture each;
@@ -8,26 +9,26 @@
 #                   versions, `queried`, `not_checked`).
 [project]
 name = "security-osv-provider"
-version = "0.1.0.dev0"
+version = "0.2.0.dev0"
 description = "Security kit provider: OSV.dev queries (raw responses) and their match derivation."
 requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{ name = "The Cruxible maintainers" }]
 dependencies = [
-  "cruxible-provider-runtime>=0.5.0",
+  "cruxible-provider-runtime>=0.6.0",
   "httpx>=0.27",
 ]
 
 [project.entry-points."cruxible.providers"]
 "osv.query" = "security_osv_provider.osv:OsvQuery"
-"osv.match" = "security_osv_provider.osv:OsvMatch"
-"sbom.components" = "security_osv_provider.sbom:SbomComponents"
+"osv.match" = "security_osv_provider.osv:osv_match"
+"sbom.components" = "security_osv_provider.sbom:sbom_components"
 
 [dependency-groups]
 dev = ["pytest>=8.2"]
 
 [build-system]
-requires = ["hatchling==1.32.1"]
+requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

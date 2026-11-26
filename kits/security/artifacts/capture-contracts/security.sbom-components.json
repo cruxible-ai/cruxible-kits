@@ -77,6 +77,10 @@
           "named_by": {
             "at": "named_by"
           },
+          "osv_package": {
+            "at": "osv_package",
+            "presence": "optional"
+          },
           "scope": {
             "at": "scope",
             "canonicalize": "claim_type"
@@ -93,9 +97,9 @@
           }
         },
         "row": {
-          "digest": "sha256:04c4e110e39869026e7e4e74bbf4aca3bba92f21187c4783f544627872af67c6",
+          "digest": "sha256:6002ca8933120edb73444582d49d7ae779354cfe4f5c914fb573238ccbb3c07e",
           "name": "security.sbom-component",
-          "version": 1
+          "version": 2
         }
       }
     }

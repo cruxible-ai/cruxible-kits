@@ -1,0 +1,167 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "debian",
+  "documentNamespace": "https://anchore.com/syft/image/debian-6c3c4b2d",
+  "creationInfo": {
+    "licenseListVersion": "3.22",
+    "creators": [
+      "Organization: Anchore, Inc",
+      "Tool: syft-1.4.1"
+    ],
+    "created": "2026-11-20T10:00:00Z"
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-DocumentRoot-Image-debian",
+      "name": "debian",
+      "versionInfo": "sha256:6c3c4b2d0fd7c4d1a8b2a3e3c6d5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "primaryPackagePurpose": "CONTAINER",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:oci/debian@sha256%3A6c3c4b2d0fd7c4d1a8b2a3e3c6d5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7?arch=amd64&tag=12"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-deb-libc6-1",
+      "name": "libc6",
+      "versionInfo": "2.36-9+deb12u7",
+      "supplier": "Person: Debian Maintainers <debian@example.org>",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "sourceInfo": "acquired package info from DPKG DB: /var/lib/dpkg/status",
+      "licenseConcluded": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:libc6:libc6:2.36-9+deb12u7:*:*:*:*:*:*:*"
+        },
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:deb/debian/libc6@2.36-9%2Bdeb12u7?arch=amd64&upstream=glibc&distro=debian-12"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-deb-libssl3-2",
+      "name": "libssl3",
+      "versionInfo": "3.0.11-1~deb12u2",
+      "supplier": "Person: Debian Maintainers <debian@example.org>",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "sourceInfo": "acquired package info from DPKG DB: /var/lib/dpkg/status",
+      "licenseConcluded": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:libssl3:libssl3:3.0.11-1~deb12u2:*:*:*:*:*:*:*"
+        },
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:deb/debian/libssl3@3.0.11-1~deb12u2?arch=amd64&upstream=openssl&distro=debian-12"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-deb-bash-3",
+      "name": "bash",
+      "versionInfo": "5.2.15-2+b2",
+      "supplier": "Person: Debian Maintainers <debian@example.org>",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "sourceInfo": "acquired package info from DPKG DB: /var/lib/dpkg/status",
+      "licenseConcluded": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:bash:bash:5.2.15-2+b2:*:*:*:*:*:*:*"
+        },
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:deb/debian/bash@5.2.15-2%2Bb2?arch=amd64&distro=debian-12"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-deb-libgcc-s1-4",
+      "name": "libgcc-s1",
+      "versionInfo": "12.2.0-14",
+      "supplier": "Person: Debian Maintainers <debian@example.org>",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "sourceInfo": "acquired package info from DPKG DB: /var/lib/dpkg/status",
+      "licenseConcluded": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:libgcc-s1:libgcc-s1:12.2.0-14:*:*:*:*:*:*:*"
+        },
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:deb/debian/libgcc-s1@12.2.0-14?arch=amd64&upstream=gcc-12%4012.2.0-14&distro=debian-12"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-python-requests-5",
+      "name": "requests",
+      "versionInfo": "2.31.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "sourceInfo": "acquired package info from installed python package manifest file",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/requests@2.31.0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-DocumentRoot-Image-debian"
+    },
+    {
+      "spdxElementId": "SPDXRef-DocumentRoot-Image-debian",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-deb-libc6-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-DocumentRoot-Image-debian",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-deb-libssl3-2"
+    },
+    {
+      "spdxElementId": "SPDXRef-DocumentRoot-Image-debian",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-deb-bash-3"
+    },
+    {
+      "spdxElementId": "SPDXRef-DocumentRoot-Image-debian",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-deb-libgcc-s1-4"
+    },
+    {
+      "spdxElementId": "SPDXRef-DocumentRoot-Image-debian",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-python-requests-5"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
   "schema_version": 3,
   "manifest": {
     "path": "manifest.yaml",
-    "digest": "sha256:313705c481c5727030975eff34395a37bca242e24586c966022f4d1700969639"
+    "digest": "sha256:829e3511ebf07243247a80c40cf905db05a8e06f7b8546d60453dc83d65fa4cc"
   },
   "operations": [
     {
@@ -24,7 +24,7 @@
           "absorbable": false
         }
       },
-      "entrypoint": "security_sarif_provider.sarif:SarifFindings"
+      "entrypoint": "security_sarif_provider.sarif:sarif_findings"
     }
   ],
   "declares": {

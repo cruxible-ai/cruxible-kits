@@ -10,7 +10,15 @@ fresh state root under the scratch directory (which must not exist; the socket
 needs a short path), runs ``cruxible init``, submits the change set, exports it
 with ``cruxible kit build`` and replaces the kit's manifest and ``artifacts/``
 with the export. The inert-file list is refreshed last; README and ``source/``
-are left as they are. The daemon is stopped even when a step fails; command
+are left as they are.
+
+Recipes and scripts (Cruxible 0.6, ``kit adopt`` / ``kit run``): a kit that
+declares them in ``source/recipes.json`` and ``source/scripts.json`` (JSON lists of
+the manifest's ``recipes`` and ``scripts`` entries, each ``path`` a file of the kit
+under ``recipes/`` or ``scripts/``) has them passed to ``kit build --recipes`` /
+``--scripts``, which renders every recipe with its defaults and examples and
+refuses the build unless each authors cleanly against the kit's definitions
+(:func:`adoption_args`; the security kit's builder uses it too). The daemon is stopped even when a step fails; command
 receipts and the daemon log stay under the scratch directory for the caller to
 read and delete.
 
@@ -25,6 +33,7 @@ import argparse
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -32,6 +41,8 @@ import time
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+
+from cruxible_client._safe_files import HeldRoot
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -170,6 +181,69 @@ class Session:
             raise RuntimeError(f"{name} did not land: {result}")
 
 
+#: Where a kit declares its recipes and scripts (build inputs, not shipped).
+RECIPE_SPECS = Path("source") / "recipes.json"
+SCRIPT_SPECS = Path("source") / "scripts.json"
+#: Each declaration list's option and the kit directory its files must sit under.
+ADOPTION_ROLES = (("--recipes", RECIPE_SPECS, "recipes"), ("--scripts", SCRIPT_SPECS, "scripts"))
+#: A declared file's path: segments of letters, digits, ``_``, ``.`` and ``-``
+#: beneath its role directory, never ``.`` or ``..``.
+_DECLARED_PATH = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]*(?:/[A-Za-z0-9_][A-Za-z0-9._-]*)*$")
+
+
+def _declared_path(source: Path, spec: Any, role: str) -> str:
+    """A declared file's kit-relative path, checked to name a file under ``role/``."""
+
+    path = spec.get("path") if isinstance(spec, dict) else None
+    if not isinstance(path, str) or not _DECLARED_PATH.fullmatch(path):
+        raise ValueError(f"{source}: {path!r} is not a normalized relative path inside the kit")
+    parts = path.split("/")
+    if len(parts) < 2 or parts[0] != role or any(part in (".", "..") for part in parts):
+        raise ValueError(f"{source}: {path} is not a file under the kit's {role}/ directory")
+    return path
+
+
+def adoption_args(kit: Path, workspace: Path) -> list[str]:
+    """``kit build`` options for the kit's declared recipes and scripts.
+
+    ``kit build`` reads each declared file relative to the workspace root, so every
+    one is copied from the kit to the same relative path under ``workspace``, and
+    each declaration list is written beside the workspace. Empty when the kit
+    declares neither.
+
+    Every read is held beneath the kit directory (:class:`HeldRoot`: opened once,
+    then component by component with ``O_NOFOLLOW``), so a declaration list or a
+    declared file that is, or sits under, a symbolic link is refused rather than
+    staged from wherever it points. Each declared path must be a normalized path
+    under its role's directory (``recipes/`` for ``--recipes``, ``scripts/`` for
+    ``--scripts``), checked before anything is copied."""
+
+    # Read and check everything first: nothing is copied unless every list is sound.
+    lists: list[tuple[str, Path, bytes, list[tuple[str, bytes]]]] = []
+    with HeldRoot(kit) as held:
+        for option, relative, role in ADOPTION_ROLES:
+            try:
+                raw = held.read(relative.as_posix())
+            except FileNotFoundError:
+                continue
+            source = kit / relative
+            specs = json.loads(raw)
+            if not isinstance(specs, list) or not specs:
+                raise ValueError(f"{source} must be a non-empty JSON list")
+            paths = [_declared_path(source, spec, role) for spec in specs]
+            lists.append((option, relative, raw, [(path, held.read(path)) for path in paths]))
+    args: list[str] = []
+    for option, relative, raw, files in lists:
+        for path, content in files:
+            target = workspace.joinpath(*path.split("/"))
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+        declared = workspace.parent / f"kit-{relative.stem}.json"
+        declared.write_bytes(raw)
+        args += [option, str(declared)]
+    return args
+
+
 def build(kit: Path, scratch: Path) -> None:
     source = _load(kit / "source" / "definitions.py", f"{kit.name}_definitions")
     if source.KIT_ID != kit.name:
@@ -183,6 +257,7 @@ def build(kit: Path, scratch: Path) -> None:
         args = ["kit", "build", "--id", source.KIT_ID, "--version", source.VERSION]
         for prefix in source.OWNS:
             args += ["--owns", prefix]
+        args += adoption_args(kit, session.workspace)
         session.command(*args, "--out", str(out), "--json")
     finally:
         session.stop()

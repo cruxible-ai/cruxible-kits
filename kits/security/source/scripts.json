@@ -1,0 +1,14 @@
+[
+ {
+  "name": "export-vex",
+  "path": "scripts/export_vex.py",
+  "description": "Export the exposure judgments as deterministic OpenVEX v0.2.0 or CycloneDX 1.5 VEX, read at one pinned coordinate (--format openvex|cyclonedx, --inventory, --out).",
+  "mode": "read_only"
+ },
+ {
+  "name": "init-plan",
+  "path": "scripts/init_plan.py",
+  "description": "Inspect the workspace (SBOMs, SARIF files, lockfiles, Dockerfiles, the origin remote) and print the kit adopt, SBOM generator and first-run commands that fit it. Reads files only.",
+  "mode": "read_only"
+ }
+]

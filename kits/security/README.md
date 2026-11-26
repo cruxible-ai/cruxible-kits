@@ -1,4 +1,4 @@
-# Security kit for Cruxible 0.5
+# Security kit for Cruxible 0.6
 
 This kit is a starting point, not a schema you have to adopt. It seeds an
 instance with security vocabulary, guidance Documents, reference pages and an
@@ -7,14 +7,15 @@ revise the kit's definitions, add your own, and adapt or replace its
 automation, all by ordinary authoring. Facts copied from sources settle
 automatically; judgments always need review.
 
-This release is kit version **1.3.0**, built for Cruxible **0.5** and
-provider protocol **2**. It requires the base kit (`base` 1.0.0, which
+This release is kit version **1.4.0**, built for Cruxible **0.6** (0.6.0 or
+later) and provider protocol **2**; its own providers run on
+`cruxible-provider-runtime` 0.6.0 or later. It requires the base kit (`base` 1.0.0, which
 `cruxible init` installs) for reading workspace files and fetching web pages.
 It covers two loops:
 
 | Loop | What it does |
 |---|---|
-| Dependency | Import a CycloneDX SBOM, ask OSV which vulnerabilities affect its components, read CISA KEV and FIRST EPSS for them, then judge each exposure: a not_affected justification, or an `affected` verdict that keeps it on the confirmed list until fixed |
+| Dependency | Import a CycloneDX or SPDX JSON SBOM (container distro packages included), ask OSV which vulnerabilities affect its components, read CISA KEV and FIRST EPSS for them, then judge each exposure: a not_affected justification, or an `affected` verdict that keeps it on the confirmed list until fixed |
 | Audit | Agents (and optionally SARIF scanners) report code findings by key, a second agent judges each one, and coverage units record what was checked against which code |
 
 Every observation cites retained source bytes. Missing or incomplete input
@@ -23,13 +24,15 @@ stays unknown; it never means unaffected or clean.
 | Installed definitions | Purpose |
 |---|---|
 | `security.inventory`, `security.component` | An application's inventory and exact package releases |
-| `security.occurrence` | The pair (inventory, component), with its scope |
+| `security.occurrence` | The pair (inventory, component), with its scope and, for a distro package, the OSV source package it is asked as (`osv_package`) |
 | `security.vulnerability`, `security.component.affected_by` | OSV's affected packages and vulnerabilities |
 | `security.exposure`, `security.app_exposure` | Package-level and app-level judgment pairs: a `justification` (not_affected), or on the app-level pair the `verdict` `affected` |
 | `security.urgent_exposures`, `security.kev_triage_backlog` | Exposures nobody has judged, with KEV and EPSS context |
 | `security.unjudged_exposures_over`, `security.inventory_unjudged_exposures_over` | Exposures nobody has judged whose vulnerability is KEV-listed, or has an EPSS score at or above `min_epss`, or has no EPSS score yet, in every inventory or in one: what the unjudged attention Lines post |
 | `security.confirmed_exposures` | Exposures judged `affected` whose SBOM still lists the component: fix pending, with KEV and EPSS context |
+| `security.not_affected_judgments`, `security.app_not_affected_judgments`, `security.departed_app_not_affected_judgments` | The track record: every package-level judgment; every app-level judgment whose component the inventory's SBOM still lists; and the app-level judgments on a release the SBOM no longer lists (an upgrade or removal), kept as history |
 | `security.covered_app_exposures`, `security.covered_package_exposures`, `security.pair_without_judgment_exposures` | Exposures a resolved not_affected judgment covers (app or package level), and worklist pairs that exist with no judgment on them (a withdrawn judgment, or a pair created before judging; a Query cannot tell which): with the worklist and confirmed list, the row counts say how many are covered, new, confirmed and in that last state |
+| `it.asset`, `security.inventory.asset`, `security.asset_urgent_exposures` | The deployment anchor: one IT asset (`slug`; `title`, `owner`, `environment`, `exposure`, `criticality`), an inventory's optional link to the asset it runs as, and the worklist with each row's asset beside it (empty for an inventory with no asset). A judgment that relies on the asset pins it (`--based-on it.asset/<slug>#exposure`) and comes back in `next` when it changes ([Deployment context](#deployment-context-itasset)) |
 | `security.watched_vulnerabilities` | Vulnerabilities affecting imported components |
 | `security.finding` | One weakness at one place in one repository: `rule`, `reported_by`, `reported_at`, `verification`, `severity`, and the judgments `verdict`, `justification`, `fixed_by`, `found_in` |
 | `security.coverage_unit` | One surface of one repository checked for one concern, with its `status` |
@@ -62,24 +65,80 @@ of the Contracts and layouts it serves) and a frozen lock; installing a
 provider can download the dependencies its lock pins. For a machine with no
 index access, see the isolated-deployment page of the Cruxible docs.
 
+## Quickstart: zero authoring
+
+Cruxible 0.6 installs the kit as one proposal and adopts its automation from
+recipes the kit ships: you name values (`--param`), never edit JSON. In a Git
+workspace with the daemon running:
+
+```sh
+# 1. Own the instance; the reviewer approves the base kit init proposes.
+cruxible init --principal-id owner --require-independent-approval
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
+# 2. Install the kit: ONE proposal (its providers and definitions together).
+cruxible kit add security:1.4.0 --commit
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
+# 3. Adopt the shared Lines and Runbooks, then one SBOM import per SBOM file.
+cruxible kit adopt security --yes
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
+cruxible kit adopt security:sbom --param name=app --param relative_path=sbom.cdx.json --yes
+cruxible kit adopt security:sbom --param name=api --param relative_path=services/api/sbom.cdx.json --yes
+cruxible kit adopt security:schedule --yes          # optional: the daily Trigger
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve ID1 ID2 ID3 --yes
+# 4. Enable, run, read, export.
+cruxible line enable security.osv-unkeyed --runbook security.start
+cruxible runbook preview security.start
+cruxible runbook run security.start
+cruxible next
+cruxible kit run security:export-vex -- --format openvex -o vex.openvex.json
+```
+
+`PROPOSAL_ID` is the short id each command prints (12 hex characters; `cruxible
+proposal list --status open` lists them). Until `security:1.4.0` is published
+to the registry, install from a checkout: `cruxible kit add
+/path/to/cruxible-kits/kits/security --commit`.
+
+`cruxible kit run security:init-plan` reads the workspace (SBOMs, SARIF files,
+lockfiles, Dockerfiles, the origin remote) and prints these commands with your
+paths filled in, plus a generator command when no SBOM exists yet (one per
+ecosystem, each writing its own `sbom-<ecosystem>.cdx.json` when there are
+several), and for each SARIF file the commands that enable its attention Line and
+run its import. It writes nothing, calls nothing and follows no symbolic link.
+
+| Recipe | `kit adopt` | Adds |
+|---|---|---|
+| `default` | `security` | OSV, KEV and EPSS Lines and Mandates, the attention and OSV unkeyed Lines, the `security.start` and `security.maintain` Runbooks (`min_epss`, `expires`) |
+| `sbom` | `security:sbom --param name=N --param relative_path=P` | One SBOM import Line `security.sbom-import.N` (CycloneDX or SPDX JSON at `P`) and its Mandates; adopt once per SBOM |
+| `sarif` | `security:sarif --param name=N --param relative_path=P --param repo=host/owner/repo` | One scanner's SARIF import Line, Mandates, attention Line and landing Trigger; adopt once per scanner |
+| `schedule` | `security:schedule` | The daily Trigger `security.maintain-daily` (`cron`, 14:00 UTC as shipped); leave it out when CI runs the Runbooks |
+
+`security.start` runs the SBOM imports as one fan-out step, `{"procedure":
+"security.sbom-import"}`: every live Line of that Procedure, in Line-name order,
+so the second (or tenth) SBOM joins the Runbook with no edit, and `line enable
+--runbook security.start` enables them all. With no SBOM Line yet the step is
+skipped and the run goes on. `cruxible kit adopt security --list` shows every
+recipe's parameters; `--dry-run` previews a recipe (Lines, providers, network
+origins, Mandate grants and expiry) and `--render` prints its change set. Each
+adoption is an ordinary governed change set under your principal, reviewed
+like any other. The rest of this README is the hand-authored path
+([automation.json](automation.json)) and what each part does.
+
 ## Install and first answers
 
-Use Cruxible 0.5 with its daemon running and a Git workspace selected. From a
+Use Cruxible 0.6 with its daemon running and a Git workspace selected. From a
 checkout of this repository (replace paths for your workspace):
 
 ```sh
-cruxible init --principal-id owner \
-  --reviewer-key-dir /outside/workspace/reviewer-keys --require-independent-approval
-# init prints the base kit's proposal; the reviewer approves it (see Review below):
+cruxible init --principal-id owner --require-independent-approval
+# init makes the reviewer too (key beside the owner's, outside the workspace) and
+# prints the base kit's proposal; the reviewer approves it (see Review below):
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
-# Preview the install (writes nothing); it prints the coordinate to commit at:
-cruxible kit add /path/to/cruxible-kits/kits/security
-cruxible kit add /path/to/cruxible-kits/kits/security --commit --at OID
-# The commit prints three provider-install proposals. The reviewer approves each:
-CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
-# Then the kit's definitions are proposed automatically; kit status names that proposal:
-cruxible kit status --offline
+# Preview the install without writing or prompting:
+cruxible kit add /path/to/cruxible-kits/kits/security --dry-run
+# The commit prints ONE proposal: the three providers and the kit's definitions.
+cruxible kit add /path/to/cruxible-kits/kits/security --commit
+CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal review PROPOSAL_ID
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
 ```
@@ -87,30 +146,34 @@ cruxible kit status --offline
 The base kit must be installed first: `init` proposes it, and once it is
 accepted `cruxible kit status --offline` shows `base`. Without it, `kit add`
 refuses with the repair `cruxible kit add base`. Nothing else needs to be
-accepted beforehand. Under independent approval a kit add is four proposals,
-not one: one install proposal for each of the three providers (each carries
-its own copies of the shapes it serves), then the kit's definitions, which
-are proposed automatically, as the kit's author, once the three installs
-have activated, because they are checked against the installed providers.
-The reviewer approves all four. With one owner and self-approval (below) the
-same commit installs everything in one step.
-`cruxible kit add security:1.3.0` installs the same release from the registry
-(`ghcr.io/cruxible-ai/kits/security:1.3.0`) once it is published; before
+accepted beforehand. Under independent approval a kit add is one proposal:
+the three provider builds (each carrying its own copies of the shapes it
+serves) and the kit's definitions, checked together; `proposal review` lists
+every provider's operations and network endpoints beside the definitions, and
+one approval activates them all. With one owner and self-approval (below) the
+same commit installs everything at once.
+`cruxible kit add security:1.4.0` installs the same release from the registry
+(`ghcr.io/cruxible-ai/kits/security:1.4.0`) once it is published; before
 then it refuses (`cruxible.kit.not_found`), so use the local directory. The
 same holds for a refusal whose repair is `cruxible kit add security`
 (`requires_missing`, from something that requires this kit): that command
 fetches the registry release, so until it is published run `cruxible kit add
 /path/to/cruxible-kits/kits/security` instead.
 
-`cruxible kit add PATH` without `--commit` previews the plan and writes
-nothing (`--json` for the full plan).
+`cruxible kit add PATH --dry-run` previews the plan without writing or
+prompting (`--json` prints the full plan non-interactively). In an interactive
+terminal, bare `cruxible kit add PATH` previews and asks `Commit this change?
+[y/N]` (`--yes` commits without asking); without a TTY it previews and prints
+the `--commit --at OID` command.
 
 ### Review: a second agent approves
 
-An agent never approves its own proposals. `--reviewer-key-dir` adds a second
-principal, `reviewer`, with its key and settings (`cruxible.env`) in that
-directory, outside the workspace; `--require-independent-approval` makes the
-approval policy `independent_approval_required`, so every proposal (the base
+An agent never approves its own proposals. `--require-independent-approval`
+adds a second principal, `reviewer`, with its key and settings (`cruxible.env`)
+in a directory beside the owner's key, outside the workspace and the daemon
+state (`$XDG_CONFIG_HOME/cruxible/keys/INSTANCE/reviewer`; init prints its
+`CRUXIBLE_ENV_FILE`, and `--reviewer-key-dir DIR` puts it elsewhere), and makes
+the approval policy `independent_approval_required`, so every proposal (the base
 kit's, each provider install, the kit's definitions, the automation
 template's, each judgment) activates only once a principal other than its
 author approves it; the author's own `proposal approve` is refused
@@ -140,14 +203,13 @@ was initialized without a reviewer, add one first and then the policy:
 --signer-key OWNER_KEY --mode graph_write`, then `cruxible authoring example
 approval-policy > policy.json` and `cruxible authoring submit policy.json`.
 
-The kit's definitions proposal is planned against the instance as it was when
-it was proposed. If other writes land before the reviewer approves it, it is
-stale and the approval refuses (`readmit_requires_resubmission`): run the same
-`cruxible kit add ... --commit` again (with `--at` the new coordinate), have
-the reviewer approve the new proposal, and withdraw the stale one (`cruxible
-proposal withdraw PROPOSAL_ID --reason TEXT`), which otherwise stays open. A
-provider-install proposal does not go stale this way: its approval lands the
-same change set at the new head and signs that.
+The kit add proposal is planned against the instance as it was when it was
+proposed. If other writes land before the reviewer approves it, approval lands
+the same change set at the new head and signs that when it still applies there;
+when it does not, the approval refuses (`readmit_requires_resubmission`): run
+the same `cruxible kit add ... --commit` again, have the reviewer approve the
+new proposal, and withdraw the stale one (`cruxible proposal withdraw
+PROPOSAL_ID --reason TEXT`), which otherwise stays open.
 
 If you want to approve everything yourself, initialize without the reviewer:
 `cruxible init --principal-id owner` leaves the policy `self_approval_allowed`,
@@ -174,12 +236,17 @@ submitting. It is a template, never installed or submitted by `kit add`:
   uvx --from cyclonedx-bom cyclonedx-py requirements requirements.txt --of JSON -o sbom.cdx.json
   ```
 
+  An SPDX JSON SBOM works the same way (a container image: `syft IMAGE -o
+  spdx-json=sbom.spdx.json`; see [SBOM formats](#sbom-formats-and-container-distro-packages)).
+
   For a demo, copy
   [examples/sboms/log4j-demo-app.cdx.json](examples/sboms/log4j-demo-app.cdx.json)
   to `sbom.cdx.json` instead.
 - Set the one daily cron time in UTC (the `security.maintain-daily` Trigger,
-  14:00 UTC as shipped; see [Schedule](#schedule)) and each Mandate's
-  `valid_from` and `expires_at` to your observation window.
+  14:00 UTC as shipped; see [Schedule](#schedule)). There are no dates to edit:
+  every Mandate is `"expires": "90d"` with no `valid_from`, so its window starts
+  when you submit the template and runs 90 days (Cruxible 0.6 stores both as
+  instants). Renew before then (`cruxible next` lists each as `mandate_expiring`).
 - Review the settlement scopes below before adopting them.
 
 ```sh
@@ -190,8 +257,9 @@ CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal review PROPOSAL_ID
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 # (Owner-only setup, self_approval_allowed: `cruxible proposal approve PROPOSAL_ID --yes`.)
 cruxible runbook preview security.start
-# Posts OSV advisories with no CVE id (below) when the OSV step lands its result:
-cruxible line enable security.osv-unkeyed
+# Enable every Line at once: the six the start Runbook names, and the unkeyed Line
+# (no Runbook step: it posts OSV advisories with no CVE id when OSV lands a result):
+cruxible line enable security.osv-unkeyed --runbook security.start
 # Review the preview separately before running (about half a minute on a 32-component SBOM):
 cruxible runbook run security.start
 cruxible query --name security.urgent_exposures
@@ -250,6 +318,14 @@ Capture's metadata). The document holds advisory ids, their CVE ids and fixed
 versions only; read each advisory itself at
 `https://osv.dev/vulnerability/<osv_id>`.
 
+For an advisory with a CVE, the fixed versions also travel on the `affected_by`
+Claim itself: its reason reads `OSV GHSA-jfh8-c2jp-5v3q lists CVE-2021-44228
+for pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1 (fixed in: 2.12.2,
+2.15.0, 2.3.1)`, so `cruxible get <claim>` shows where to upgrade without
+decoding the match document. They are no Claim (nothing reacts to their
+change): the reason records them as OSV listed them when it first reported the
+pair, and the newest match document holds the current list.
+
 An inbox item is a call for attention, not storage. When the list an author
 wants seen already exists as state (a Query) or as evidence (a Capture, such as
 the OSV match document), post one summary item that points at it (a count, a
@@ -297,24 +373,33 @@ then EPSS, then the two attention Lines) once a day, and each OSV result runs
 each step runs under its Line's own enablement, and the Runbook never adds
 authority of its own: a step whose Line is not enabled stops the run there.
 (A `runbook run` you start yourself runs every step as you, enabled or not.)
-Enable all seven Lines with `cruxible
-line enable NAME`: `security.sbom-import.app`, `security.osv-query`,
+`cruxible line enable security.osv-unkeyed --runbook security.start` enables
+all seven Lines in one command, one receipt line each (enabled, already
+enabled, or refused with its repair): `security.osv-unkeyed`, then every Line
+the start Runbook names (`security.sbom-import.app`, `security.osv-query`,
 `security.kev-triage`, `security.epss-triage`,
-`security.exposure-attention.unjudged`, `security.exposure-attention.contested`
-and `security.osv-unkeyed`. `cruxible next` lists any of them you have never
+`security.exposure-attention.unjudged` and
+`security.exposure-attention.contested`). The unkeyed Line is named on its own
+because no Runbook step can name it (it binds the Capture that triggers it).
+`cruxible next` lists any of them you have never
 enabled as `line_not_enabled`; that row is expected for a Line you chose to
 leave off (for example the SBOM import, if you only ever run it by hand with
 `line run`). Editing a Line disables it again. The SBOM import is not on the clock: the
 SBOM changes when the repository does, so rerun `cruxible runbook run
 security.start` (or `cruxible line run security.sbom-import.app`) with fresh
-SBOM bytes. Renew Mandates before expiry and review Procedure upgrades.
+SBOM bytes. Renew Mandates before expiry (`cruxible line grant LINE
+--settle-observations` re-grants KEV's and EPSS's for another 90 days) and review
+Procedure upgrades.
 
 ### Schedule
 
 The kit ships one daily Trigger, `security.maintain-daily`, at 14:00 UTC
-(`"schedule": {"kind": "cron", "expression": "0 14 * * *"}` in
-`automation.json`). The expression is standard five-field cron, always read in
-UTC. To change it, edit the Trigger's `expression` before submitting the
+(`"schedule": {"kind": "cron", "expression": "0 14 * * *"}`): the
+`schedule` recipe (`cruxible kit adopt security:schedule`, or `--param
+cron="30 6 * * *"` for another time), also in `automation.json`. A
+repository whose CI runs the Runbooks leaves it out. The expression is
+standard five-field cron, always read in UTC. To change it, adopt the recipe
+with another `cron`, edit the Trigger's `expression` before submitting the
 template, or later revise the Trigger with an ordinary authoring change set
 (the same member with a new expression) and have it reviewed like any other.
 The Trigger fires only while the daemon runs, and an instant missed while it
@@ -324,16 +409,111 @@ was down is not run later. `cruxible next` then shows a
 
 A run in which nothing upstream changed still fetches OSV, KEV and EPSS and
 records what it read, so it takes time and stored bytes
-<!-- TODO(0.5.0): measured bytes per unchanged run -->; weigh that before
+<!-- TODO: measured bytes per unchanged run -->; weigh that before
 running it more often than daily. The records are part of the instance: the
 daemon's `exhaust` directory is backed up with the ledger, and no command
 prunes it.
 
+## Deployment context: `it.asset`
+
+Whether a vulnerable release matters depends on where it runs. `it.asset` is one
+lean kind for the deployment facts dependency judgments rely on, keyed by `slug`:
+`title`, `owner` (the team that answers for it), `environment` (`prod`,
+`staging`, `dev`), `exposure` (ranked `isolated` < `internal` < `internet`)
+and `criticality` (ranked `low` < `medium` < `high` < `critical`). The two
+ranked fields are ordered enums (Cruxible 0.6), so queries compare and sort
+them by rank: `cruxible query it.asset --where 'criticality>=high' --order-by
+-exposure` lists the high and critical assets, internet-facing first (`where`
+`criticality__gte="high"` in the SDK). `security.inventory.asset`
+links an SBOM inventory to the asset it runs as (when one build runs as several,
+link the most exposed). Both are optional: an inventory with no asset is triaged
+exactly as before. One write records an asset and links it (`cruxible write
+asset.json`; the reviewer approves it like any other write):
+
+```json
+{
+ "because": "Payments API: prod, reachable only through the internal load balancer (infra/lb.tf).",
+ "changes": [
+  {"op": "create", "label": "asset", "subject_kind": "it.asset",
+   "key": [{"predicate": "it.asset.slug", "value": "payments-api"}]},
+  {"op": "set", "subject": {"created": "asset"}, "field": "title", "value": "Payments API"},
+  {"op": "set", "subject": {"created": "asset"}, "field": "owner", "value": "payments-team"},
+  {"op": "set", "subject": {"created": "asset"}, "field": "environment", "value": "prod"},
+  {"op": "set", "subject": {"created": "asset"}, "field": "exposure", "value": "internal"},
+  {"op": "set", "subject": {"created": "asset"}, "field": "criticality", "value": "critical"},
+  {"op": "set", "subject": "security.inventory/pkg:maven/com.example/payments-api@1.4.0",
+   "field": "asset", "value": {"created": "asset"}}
+ ]
+}
+```
+
+`cruxible query --name security.asset_urgent_exposures` is the worklist
+(`security.urgent_exposures`, same rows) with each row's asset, owner,
+environment, exposure and criticality, ranked by deployment risk: the most
+exposed asset first, then the most critical, then KEV-listed, then EPSS; rows of
+an inventory with no asset come last. A judgment that relies on the asset pins
+the fields it relied on (Cruxible 0.6 `based_on`), so it stays quiet while they
+hold and comes back on its own when one changes. For an internal-only service
+(`cruxible write judgment.json --no-accept`; the reviewer approves it):
+
+```json
+{
+ "because": "Internal-only service: no untrusted client reaches the JNDI lookup (notes/log4shell.md#reachability).",
+ "changes": [
+  {"op": "create", "label": "pair", "subject_kind": "security.app_exposure",
+   "key": [{"predicate": "security.app_exposure.occurrence", "value": "security.occurrence/OCCURRENCE"},
+           {"predicate": "security.app_exposure.vulnerability", "value": "security.vulnerability/cve-2021-44228"}]},
+  {"op": "set", "subject": {"created": "pair"}, "field": "justification",
+   "value": "vulnerable_code_cannot_be_controlled_by_adversary", "role": "normative",
+   "based_on": ["it.asset/payments-api#exposure", "security.occurrence/OCCURRENCE#scope"]}
+ ]
+}
+```
+
+The write resolves each `kind/id#field` to that field's one live Claim and pins
+its exact version. When the asset's `exposure` later becomes `internet` (or the
+SBOM drops the release, retiring the `scope`), `cruxible next` lists the
+judgment as `claim_dependency_stale`, naming the Claim that changed: re-judge it
+and pin again, or retire it. The governed dependency guidance says which fields
+each judgment pins.
+
+The `it.` prefix is reserved for a future IT asset kit (inbound discovery Lines
+and the inventory kinds they need). This kit holds only the anchor its
+judgments rest on, and adds no host, cluster, network or vendor kinds; it owns
+`it.` until that kit does.
+
 ## The audit loop
 
-The audit loop needs no automation to start. Agents write through ordinary
-`cruxible write` calls, and each field's card links the guidance that governs
-it (`cruxible get Document:security.guidance.hunter`, and so on):
+The audit loop needs no automation to start. Agents write ordinary Claims, and
+each field's card links the guidance that governs it (`cruxible get
+Document:security.guidance.hunter`, and so on). The
+[security-audit skill](skills/security-audit/SKILL.md) runs the loop from that
+live guidance. Pick the surface by what the agent can do:
+
+| Surface | For | Why |
+|---|---|---|
+| Typed Python SDK: `cruxible python` with `.cruxible/world.pyi` | coding agents, whenever Python runs | the instance's kinds, fields and enum members as types (`cruxible python --check` refuses a misspelling before the write), notes sections as evidence (`cx.section(...)`), pins with `based_on=`; runs with the CLI's own interpreter in any repository, whatever its own Python or venv |
+| MCP | agents with no code execution | the same verbs as tools |
+| CLI: `cruxible orient`, `cruxible next`, `cruxible write --example`, `cruxible proposal ...` | quick inspection, and as a backup | one command per read or write |
+
+```bash
+cruxible python - <<'PY'
+from typing import TYPE_CHECKING, cast
+from cruxible_client import Cruxible
+if TYPE_CHECKING:
+    from world import World
+with Cruxible.connect() as cx:
+    w = cast("World", cx.world())
+    print(w.describe())
+PY
+```
+
+Whatever the surface, each Claim carries one piece of evidence: a code
+location or a fact's `holds` cites a single quoted line (`path#<quoted line>`,
+found once in the file, never a multi-line function body), and a judgment
+cites the notes section holding its reasoning (a `confirmed` verdict cites its
+check's output line instead). An agent's `severity` is written with role
+`normative`. The steps:
 
 1. A hunter works one coverage unit (`repo`, `surface`, `concern`), writes its
    trace to a notes file in the workspace catalog, and reports the finding:
@@ -377,28 +557,44 @@ them with `cruxible principal add NAME --key-dir /outside/workspace/NAME-keys
 to that directory (a principal that approves also needs `--mode
 graph_write`).
 
-To import a scanner's SARIF file, author a Line for `security.sarif-import`
-yourself (the automation template doesn't include one): bind `read` to
-`cruxible-builtin#workspace.file` and `derive` to
-`security-sarif-provider#sarif.findings`, with parameters `relative_path` (the
-SARIF file), `logical_source` (`sarif.<scanner>`) and `repo`
-(`host/owner/repo`). A full scan that no longer reports a finding marks it
-`fixed`; a partial scan never does. Scanner observations land on the same
-finding Subjects as agents' reports.
+To import a scanner's SARIF file, adopt the `sarif` recipe once per scanner
+(`cruxible kit adopt security:sarif --param name=semgrep --param
+relative_path=scans/semgrep.sarif --param repo=github.com/acme/api`), or submit
+[examples/sarif/automation-sarif.json](examples/sarif/automation-sarif.json), the
+same change set for one scanner, by hand: the `security.sarif-import.semgrep`
+Line (`read` bound to `cruxible-builtin#workspace.file`, `derive` to
+`security-sarif-provider#sarif.findings`, parameters `relative_path`,
+`logical_source` `sarif.semgrep` and `repo`), its Mandates (`expires: 90d`) and
+the attention Line its landing Trigger runs. Tailor the suffix, the repository
+and the SARIF path; [examples/sarif/semgrep-demo.sarif](examples/sarif/semgrep-demo.sarif)
+is a demo log to try it with ([examples/README.md](examples/README.md#static-analysis-sarif)).
+A full scan that no longer reports a finding marks it `fixed`; a partial scan
+never does. Scanner observations land on the same finding Subjects as agents'
+reports.
 
 ## Automation authority
 
 The committed template retains its existing `max_authority: settle` on the four
 source Lines. It does **not** start propose-only. These scoped grants may settle source
-observations without another approval after you approve the template:
+observations without another approval after you approve the template. Each is
+valid for 90 days from submission (`"expires": "90d"`):
 
 | Line | Settle Mandate | What may settle |
 |---|---|---|
-| `security.sbom-import.app` | `security.sbom-import.app-settle` | Create inventory, component and occurrence Subjects; create/revise scope on extracted records; retire scope on absence |
-| `security.osv-query` | `security.osv-query-settle` | Create vulnerability Subjects; create/revise component `affected_by` on extracted records; retire on complete answered absence |
-| `security.kev-triage` | `security.kev-triage-settle` | Create/revise `listed_in` on extracted/absent records; create/revise KEV dates on extracted records and retire dates on absence; create/revise ransomware use on extracted records |
-| `security.epss-triage` | `security.epss-triage-settle` | Create/revise EPSS score, percentile and date from extracted records |
+| `security.sbom-import.app` | `security.sbom-import.app-settle` (`scope: observations`) | Every ClaimType the import writes (`scope`, `osv_package`), pinned at its digest: create/revise on extracted records, retire on absence; create the inventory, component and occurrence Subjects |
+| `security.osv-query` | `security.osv-query-settle` (scope named by hand) | Create vulnerability Subjects; create/revise component `affected_by` on extracted records; retire on complete answered absence |
+| `security.kev-triage` | `security.kev-triage-settle` (`scope: observations`) | Every KEV ClaimType the Procedure writes, pinned at its digest: create/revise on extracted records; `listed_in`'s inverse and the dates' retirement on complete absence; create the `security.catalog` Subject |
+| `security.epss-triage` | `security.epss-triage-settle` (`scope: observations`) | Every EPSS ClaimType the Procedure writes (score, percentile, date), pinned at its digest: create/revise on extracted records |
 | `security.exposure-attention.unjudged`, `.contested` (and any per-inventory Line you add), `security.osv-unkeyed` | none (`max_authority: observe`) | Nothing: they only post inbox items, and change no accepted state |
+
+`scope: observations` (Cruxible 0.6) is one grant over every ClaimType a Line's
+Procedure writes, lowered at submission to the same per-ClaimType scope you
+would write by hand; core refuses it for a Procedure that writes any ClaimType
+permitting `normative`, so it can never settle a judgment. Its
+`subject_creation` may name the nested key ends a creating spec makes (the SBOM
+import's inventory and component, beside the occurrence). Only OSV keeps a
+scope named by hand, one ClaimType, because `affected_by` also carries an
+agent's package-level "none of V" judgment (it permits `normative`).
 
 No Mandate settles `security.exposure.justification`,
 `security.app_exposure.justification` or `security.app_exposure.verdict`. Read
@@ -416,10 +612,101 @@ as `claim_dependency_stale`. A pair holding both a justification and an
 `affected` verdict, or a contested verdict or justification, counts as not
 judged and stays in the worklists.
 
+## Provider upgrades
+
+The kit's own pure operations (`sbom.components`, `osv.match`,
+`sarif.findings`) are `@derive` functions on `cruxible-provider-runtime` 0.6:
+each declares `effect: pure` with no endpoint, so a rebuilt build of the same
+operations is a pure, non-widening move. Install it with `cruxible provider
+install WHEEL --lock LOCK --dependency RUNTIME_WHEEL --move`: one proposal
+registers the build and moves every Line bound to the old build onto it, and
+the reviewer approves it once. What each Line's settle grant does on that
+move is core's rule, not the kit's:
+
+- A settle grant that covers only observation ClaimTypes, **creates no
+  Subjects** and is read by no Mandate condition keeps settle, and its Line
+  stays enabled on its successor (the move output says `retains observation
+  settle on ...`).
+- Any other grant demotes to propose in the same proposal and says why. As
+  shipped, `security.sbom-import.app-settle` and `security.osv-query-settle`
+  create Subjects (the inventory, components and occurrences; vulnerabilities),
+  so both demote (`subject_creation`), and their Lines need `cruxible line
+  enable --runbook security.start` again and a re-grant (submit the template's
+  Mandate again). An operator whose inventory already exists can grant the
+  SBOM Line `scope: observations` without `subject_creation`, so a release that
+  adds a package goes to review; that grant then survives every pure move with
+  its enablement.
+- `kit add` and `kit upgrade` never keep settle, even for a pure build.
+
+`test_cli_gate.py` runs exactly this on a real daemon: the shipped grants
+demote with `subject_creation`, and the SBOM grant without it keeps settle
+(`security.occurrence.scope` and `.osv_package`) and its Line's enablement.
+
+## SBOM formats and container distro packages
+
+The SBOM import reads CycloneDX JSON and SPDX 2.2/2.3 JSON (GitHub's
+dependency-graph export, `syft -o spdx-json`, `trivy --format spdx-json`),
+detected by content. In SPDX, a package with a `purl` external reference is a
+component, the described package names the inventory, and relationships give
+the scope (`DEV_`/`TEST_`/`BUILD_DEPENDENCY_OF` excluded,
+`OPTIONAL_DEPENDENCY_OF` optional, the rest required).
+
+OSV keys distro packages (`deb`, `rpm`, `apk`) by release and **source**
+package (`libc6` is `glibc` to OSV), and a component's purl key drops both.
+So the import records what the SBOM states as the occurrence's `osv_package`
+(`ECOSYSTEM|NAME|VERSION`, listed by `security.osv_distro_packages`), and OSV is
+asked by it:
+
+| purl | OSV ecosystem |
+|---|---|
+| `pkg:deb/debian/...?distro=debian-12` | `Debian:12` |
+| `pkg:deb/ubuntu/...?distro=ubuntu-22.04` | `Ubuntu:22.04` |
+| `pkg:apk/alpine/...?distro=alpine-3.19.1` (Trivy: `distro=3.19.1`) | `Alpine:v3.19` |
+| `pkg:apk/wolfi/...`, `pkg:apk/chainguard/...` | `Wolfi`, `Chainguard` |
+| `pkg:rpm/redhat/...` | `Red Hat` |
+| `pkg:rpm/rocky/...?distro=rocky-9.3`, `pkg:rpm/almalinux/...?distro=almalinux-9.3` | `Rocky Linux:9`, `AlmaLinux:9` |
+
+The source package comes from the purl's `upstream` qualifier, Syft
+(`syft:package:metadata:source`) or Trivy (`aquasecurity:trivy:SrcName`)
+properties, or SPDX `sourceInfo`; in a Syft SBOM a deb or apk package with no
+source stated is its own source (Syft states it only when it differs).
+Nothing is guessed: a distro package with no or an unknown release, or no
+stated source, is never asked and reads **not checked**, never clean; the
+derived SBOM document counts each reason under `distro`
+(`no_distro_qualifier`, `unknown_distro`, `no_source_package`, `no_version`).
+OSV's finding lands on the binary component (`libc6` affected by glibc's CVE),
+with the release's own fixed versions in its reason.
+
+## Exporting VEX
+
+The kit's read-only script `export-vex` ([scripts/export_vex.py](scripts/export_vex.py))
+writes the judgments as a CycloneDX 1.5 VEX or OpenVEX v0.2.0 document
+(standard library and `cruxible_client` only). `cruxible kit run` checks the
+script against the installed release (the receipt's bundle digest and the
+file's sha256) and runs it here, never in the daemon:
+
+```sh
+cruxible kit run security:export-vex -- --format openvex -o vex.openvex.json
+cruxible kit run security:export-vex -- --format cyclonedx --inventory pkg:maven/com.example/app@1.0.0 > vex.cdx.json
+```
+
+From a pulled kit directory, `cruxible python scripts/export_vex.py --format
+openvex` runs the same file.
+
+Every read is pinned to the head as the export starts, and the document names
+that coordinate (instance, generation, git oid, state digest); the timestamp is
+the generation's own and the serial derives from the coordinate, so a re-export
+at the same coordinate is byte-identical. One statement per current exposure:
+confirmed `affected` (CycloneDX `exploitable`, with OSV's fixed versions),
+resolved app- or package-level not_affected (with its justification and
+reason), and everything else on the worklist, contested judgments included,
+as `in_triage` / `under_investigation`; the export refuses rather than ever
+state a contested pair `not_affected`. Releases the SBOM no longer lists are
+left out. Each statement cites its Claims and their Captures.
+
 ## Limits and maintenance
 
-Distro purls (`deb`, `rpm`, `apk`) need source-package mapping and are currently
-**not checked** by OSV. Failed/incomplete OSV responses never authorize absence
+Failed/incomplete OSV responses never authorize absence
 retirement. The SBOM workspace-file limit is 1 MiB: split larger inventories.
 An SBOM saying a package is present does not establish runtime reachability.
 

@@ -1,0 +1,89 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_subject_kinds": [
+    "security.occurrence"
+  ],
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [
+    "nfc",
+    "trim"
+  ],
+  "cardinality": "one",
+  "default_role": "observation",
+  "description": "The OSV package this inventory's distro package (deb, rpm, apk) is asked as, ECOSYSTEM|NAME|VERSION (Debian:12|glibc|2.36-9+deb12u7): OSV keys distro ecosystems by release and source package, which the SBOM states (the purl's distro and upstream qualifiers, Syft or Trivy properties, SPDX sourceInfo) and the component's purl key drops. Absent when the SBOM states neither: the component then reads not checked, never clean.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "logical_sources": [],
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "security.sbom-components"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "rule_id": "sbom",
+        "subject_binding": "exact_claim_subject",
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
+      }
+    ],
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
+  },
+  "evidence_requirement": "captured",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "security.occurrence.osv_package"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "member_descriptions": [],
+  "permitted_roles": [
+    "observation"
+  ],
+  "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
+  "predicate": "security.occurrence.osv_package",
+  "referent_sensitivity": "identity",
+  "requires_complete_input": [],
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "value": {
+    "kind": "string",
+    "max_len": 256
+  }
+}

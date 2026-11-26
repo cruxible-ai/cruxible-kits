@@ -52,13 +52,21 @@ your own words. `because` is one line of at most 280 characters, and enough on i
 for a plain refutation.
 
 - **Confirmed:** `verdict` cites the observed run output (file evidence
-  `path#<quoted result line>` on the output file or test log); `severity` cites your
-  reasoning section.
-- **Refuted:** `verdict` and `justification` cite your reasoning section.
+  `path#<quoted result line>` on the output file or test log); `severity`, with role
+  `normative` (see Severity), cites your reasoning section. Both pin what they relied on
+  (below). Before the section recommends a fix, check that the fix stops your check under
+  the real handler and middleware order: a guard or header added where it runs after the
+  cache, the router or a downstream handler has already acted fixes nothing. Rerun the
+  check against the fix when you can.
+- **Refuted:** `verdict` and `justification` cite your reasoning section, and pin
+  `#reported_at` and any fact the refutation rests on.
 
-Cite the narrowest passage that decides the judgment: a whole file reopens it on every
-edit, and no citation never reopens it. A quoted code line (`path#<quoted line>`) is a
-pointer for reviewers, not a witness that the verdict still holds: it reopens the verdict
+Each Claim carries exactly one piece of evidence: the verdict and the severity are two
+changes, each with its own citation. File evidence quotes a single line found once in the
+file, never a multi-line function body. Cite the narrowest passage that decides the
+judgment: a whole file reopens it on every edit, and no citation never reopens it. A quoted
+code line (`path#<quoted line>`) is a pointer for reviewers, not a witness that the verdict
+still holds: it reopens the verdict
 only when those bytes change, and a refutation that depends on code elsewhere (`not_reachable`
 because nothing calls the function) can go false while the quoted line stays the same. When a
 check decides the verdict, cite the check's result where one exists (a scanner's findings
@@ -78,7 +86,8 @@ attestation lapse.
 
 An unsure attestation stays on the `reported_at` Claim it examined. When `reported_at` is
 revised (the code moved, or another report), the attestation doesn't follow: the finding
-comes back through drift, and you judge it again.
+comes back through drift, and you judge it again. A verdict that pins `#reported_at` comes
+back the same way, as `claim_dependency_stale`.
 
 Deployment controls, proxies, identity policy and topology are real controls. When the
 repository doesn't show them, assume neither that they exist nor that they don't.
@@ -89,15 +98,42 @@ The repository's facts (`security.code_facts`: what enforces what, where trust c
 which helpers are hazards) are other agents' reading of the code, each citing the passage
 that decides it. Read them before reconstructing a control, then check the ones your
 verdict leans on: a fact is a lead, not proof. Link the verdict's finding to each fact it
-rests on with `rests_on`. If a fact no longer holds, set its `holds` to `partly` or `no`
-citing the passage (see the hunter guidance for recording a new one); core does not bring
-back what rests on it, so look that up with the `*_resting_on` Queries.
+rests on with `rests_on`, and pin its `holds` (`security.code_fact/<id>#holds`) on the
+verdict. If a fact no longer holds, set its `holds` to `partly` or `no` citing the passage
+(see the hunter guidance for recording a new one): every judgment that pinned it comes back
+in `next` as `claim_dependency_stale`. `rests_on` alone brings nothing back, so for a
+judgment linked without a pin look it up with the `*_resting_on` Queries.
+
+## Pin what the verdict relied on
+
+A verdict is made from live Claims: the location you judged, and the facts you leaned on.
+Pin each, on the `verdict` (and `severity`) change: `"based_on": ["kind/id#field", ...]` in
+the write file, or `--based-on kind/id#field` (repeatable) on `cruxible set` and `cruxible
+write`. The write pins each field's one live Claim at its exact version; when one is revised
+or retired, `next` lists the verdict as `claim_dependency_stale`, naming it.
+
+- Always `security.finding/<id>#reported_at`: the location you re-read. A scanner or a
+  reporter moving it revises that Claim, and the verdict comes back instead of standing on
+  code it never saw.
+- A scanner's `verification` when the verdict rests on it: `security.finding/<id>#verification`
+  (a full rescan marking the finding `fixed` brings a `confirmed` verdict back).
+- `security.code_fact/<id>#holds` for each fact the verdict `rests_on`: when someone sets it
+  to `partly` or `no`, the verdict comes back on its own.
+- A deployment fact you relied on (who can reach the service): `it.asset/<slug>#exposure`.
+
+Re-judging pins again: set the verdict with `--based-on` the same fields (their current
+versions); `--clear-based-on` drops a pin made by mistake.
 
 ## Severity
 
 Only confirmed findings get your severity, and it can't exceed the impact you
 demonstrated. A scan's severity on the same finding is the tool's observation; yours,
 normative, replaces it.
+
+Write `severity` with role `normative` (SDK: `role="normative"`; write file and MCP:
+`"role": "normative"`; CLI: `--role normative`). The field admits both roles and defaults to
+`observation`, which only a scan's findings document covers, so a severity written without
+the role lands `uncovered` instead of `supported`, and the reviewer rejects it.
 
 | Severity | Anchor |
 |---|---|
@@ -114,7 +150,8 @@ it feels.
 
 Write the verdict with `accept: never`. A different agent approves it after reading this
 guidance and trying once more to break it: re-read the cited code, rerun the check, look
-for the control you missed. Neither the reporter nor the verifier approves. A revision that
+for the control you missed, and check the verdict pins `#reported_at` and each fact it
+rests on. Neither the reporter nor the verifier approves. A revision that
 strengthens the verdict or changes the trace, the result or the severity is a new judgment
 and needs an approver who took no part in the earlier one. The approver acts as its own
 principal (the kit's default setup has a `reviewer` principal, normally a subagent using the

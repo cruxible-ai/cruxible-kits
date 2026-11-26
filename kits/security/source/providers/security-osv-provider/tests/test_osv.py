@@ -114,7 +114,7 @@ def query(components: list[str], origin: Recorded) -> list[dict[str, Any]]:
 
 
 def derive(responses: list[dict[str, Any]], components: list[str]) -> tuple[bytes, dict]:
-    result = osv.OsvMatch()(
+    result = osv.osv_match(
         context(
             {"responses": responses, "components": components, "logical_source": "osv.dev.query"},
             osv.MATCH,
@@ -302,10 +302,10 @@ def test_match_is_byte_identical_across_runs_with_the_network_blocked(
 
     monkeypatch.setattr(socket, "socket", blocked)
     monkeypatch.setattr(socket, "create_connection", blocked)
-    first = osv.OsvMatch()(
+    first = osv.osv_match(
         context({"responses": responses, "components": components}, osv.MATCH)
     ).output
-    second = osv.OsvMatch()(
+    second = osv.osv_match(
         context({"responses": responses, "components": components}, osv.MATCH)
     ).output
     assert first == second
@@ -321,6 +321,12 @@ def test_fixed_versions_are_the_packages_own_fixed_events_sorted_as_text() -> No
     # packages' fixes, which are not this component's).
     assert rows[("log4j-core@2.14.1", "CVE-2021-44228")]["fixed"] == ["2.12.2", "2.15.0", "2.3.1"]
     assert rows[("log4j-api@2.14.1", "CVE-2026-49844")]["fixed"] == ["2.25.5", "2.26.1"]
+    # The same list as one line, for the affected_by Claim's reason.
+    assert rows[("log4j-core@2.14.1", "CVE-2021-44228")]["fixed_versions"] == "2.12.2, 2.15.0, 2.3.1"
+    assert all(
+        r["fixed_versions"] == (", ".join(r["fixed"]) if r.get("fixed") else osv.NONE_LISTED)
+        for r in document["affected"]
+    )
     # An advisory with no fixed event for the package carries no list.
     assert all("fixed" not in r or r["fixed"] for r in document["affected"])
     assert document["count"] == len(document["affected"])
@@ -390,7 +396,9 @@ def test_work_grows_linearly_with_components(n: int, monkeypatch: pytest.MonkeyP
     responses = query(purls, origin)
     assert len(origin.requests) == 1 + n
     counts = {"decode": 0, "index": 0}
-    real_input, real_index = osv.capture_input, osv.fixed_index
+    # Each member is decoded once, as the @derive harness hands it over (a
+    # CaptureView), and read once by the match.
+    real_input, real_index = osv._read, osv.fixed_index
 
     def counted_input(view: Any) -> Any:
         counts["decode"] += 1
@@ -400,7 +408,7 @@ def test_work_grows_linearly_with_components(n: int, monkeypatch: pytest.MonkeyP
         counts["index"] += 1
         return real_index(record)
 
-    monkeypatch.setattr(osv, "capture_input", counted_input)
+    monkeypatch.setattr(osv, "_read", counted_input)
     monkeypatch.setattr(osv, "fixed_index", counted_index)
     _content, document = derive(responses, purls)
     assert len(document["affected"]) == n
@@ -561,11 +569,18 @@ def test_registration_names_each_operation_and_its_entrypoint(operation: str) ->
     module, _, name = entry["entrypoint"].partition(":")
     assert operation in getattr(importlib.import_module(module), name).operations
     assert entry["effect"] == ("external_read" if operation == osv.QUERY else "pure")
+    if operation != osv.QUERY:
+        # The pure operations are @derive functions declaring what is registered.
+        from cruxible_provider_runtime import DeriveOperation
+
+        served = getattr(importlib.import_module(module), name)
+        assert isinstance(served, DeriveOperation) and served.declared_endpoints == ()
+        assert (served.input_contract, served.output_contract) == (entry["in"], entry["out"])
     carried = {(item["name"], item["version"]) for item in registration["declares"]["contracts"]}
     for contract in (entry["in"], entry["out"]):
         cname, _, version = contract.partition("@")
         assert (cname, int(version)) in carried
-    assert entry["serves"] == [entry["in"].removesuffix(".request@1")]
+    assert entry["serves"] == [entry["in"].rpartition(".request@")[0]]
     import hashlib
 
     manifest = (root / "manifest.yaml").read_bytes()
@@ -582,3 +597,12 @@ def test_the_registration_carries_exactly_what_the_kit_renders() -> None:
     import build_registrations
 
     assert build_registrations.write("security-osv-provider", check=True)
+
+
+def test_fixed_versions_text_is_cut_whole_at_its_bound() -> None:
+    versions = [f"1.{i:04d}.0" for i in range(32)]
+    text = osv.fixed_text(versions)
+    assert len(text) <= osv.MAX_FIXED_TEXT and text.endswith(", ...")
+    assert all(part in versions for part in text.removesuffix(", ...").split(", "))
+    assert osv.fixed_text([]) == osv.NONE_LISTED
+    assert osv.fixed_text(["2.17.1"]) == "2.17.1"

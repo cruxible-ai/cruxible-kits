@@ -18,8 +18,12 @@ visible ``scope`` -> inventory.
   above (:func:`exposure_counts`): covered, new, confirmed, and worklist pairs that
   exist with no judgment on them.
 - ``security.not_affected_judgments`` / ``security.app_not_affected_judgments``:
-  the track record: every package-level and app-level judgment with its VEX
-  justification. ``get <claim> --detail history`` on its Claims gives who
+  the track record: every package-level judgment, and every app-level judgment
+  whose occurrence the inventory's SBOM still lists, with its VEX justification.
+  ``security.departed_app_not_affected_judgments`` keeps the app-level judgments
+  whose component the SBOM no longer lists (an upgraded or removed release), so
+  an upgrade clears the old release's judgment from the current view without
+  losing it. ``get <claim> --detail history`` on its Claims gives who
   stated it and when; a source that later disagrees surfaces as a
   ``held_disagrees`` finding in the OSV Line's inbox.
 
@@ -77,6 +81,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Literal
 
+from assets import ASSET, INVENTORY_ASSET
 from definitions import VULN
 from inventory import (
     APP_EXPOSURE,
@@ -91,9 +96,14 @@ from inventory import (
 )
 
 URGENT = "security.urgent_exposures"
+#: The worklist with each inventory's IT asset beside it (an optional hop).
+ASSET_URGENT = "security.asset_urgent_exposures"
 BACKLOG = "security.kev_triage_backlog"
 JUDGMENTS = "security.not_affected_judgments"
 APP_JUDGMENTS = "security.app_not_affected_judgments"
+#: App-level judgments whose component the inventory's SBOM no longer lists: the
+#: history the current track record leaves out (an upgraded or removed release).
+DEPARTED_APP_JUDGMENTS = "security.departed_app_not_affected_judgments"
 CONFIRMED = "security.confirmed_exposures"
 COVERED_APP = "security.covered_app_exposures"
 COVERED_PACKAGE = "security.covered_package_exposures"
@@ -128,6 +138,7 @@ ATTENTION_MIN_EPSS = "0.1"
 #: the first rows in worklist order: KEV-listed first, then by EPSS score.
 ATTENTION_MAX_ITEMS = 100
 CONFIRMED_ROW = "security.confirmed-exposure"
+ASSET_EXPOSURE_ROW = "security.asset-exposure-row"
 EXPOSURE_ROW = "security.exposure-row"
 JUDGMENT_ROW = "security.judgment"
 APP_JUDGMENT_ROW = "security.app-judgment"
@@ -207,6 +218,35 @@ URGENT_SPEC: dict[str, Any] = {
     "fields": list(_FIELDS),
     "order": ["-v.kev_date_added", "-v.epss_score"],
 }
+#: The worklist in deployment context: the same rows as ``security.urgent_exposures``,
+#: each with the IT asset its inventory runs as (``security.inventory.asset``) and
+#: that asset's owner, environment, exposure and criticality, ranked by deployment
+#: risk: the most exposed asset first, then the most critical (both ordered enums,
+#: so the order is their declared rank), then KEV-listed, then EPSS. The hop is
+#: optional, so an inventory linked to no asset keeps every row, with those columns
+#: empty, after the linked ones; nothing else in the kit reads the asset.
+ASSET_URGENT_SPEC: dict[str, Any] = {
+    "query": ASSET_URGENT,
+    "description": "The worklist (security.urgent_exposures, same rows) with the IT asset each "
+    "inventory runs as: its slug, owner, environment, exposure and criticality, most exposed "
+    "asset first (internet, internal, isolated), then most critical, then KEV-listed, then by "
+    "EPSS score. An inventory linked to no asset (security.inventory.asset) lists its rows "
+    "with those empty, last. A judgment that relies on the asset's exposure pins it: "
+    "--based-on it.asset/<slug>#exposure.",
+    "from": {"v": VULN},
+    "hops": [*_HOPS, {"a": f"i.{INVENTORY_ASSET}: {ASSET}"}],
+    "where": _NOT_JUDGED,
+    "row": f"{ASSET_EXPOSURE_ROW}@1",
+    "fields": [
+        *_FIELDS,
+        {"asset": "a.slug"},
+        "a.owner",
+        "a.environment",
+        "a.exposure",
+        "a.criticality",
+    ],
+    "order": ["-a.exposure", "-a.criticality", "-v.kev_date_added", "-v.epss_score"],
+}
 BACKLOG_SPEC: dict[str, Any] = {
     **URGENT_SPEC,
     "query": BACKLOG,
@@ -233,12 +273,21 @@ JUDGMENTS_SPEC: dict[str, Any] = {
         "e.justification",
     ],
 }
+#: The app-level track record walks from the judgment pairs, like the confirmed
+#: list, and keeps the same membership test: a judgment counts as current only while
+#: its occurrence holds a scope (the inventory's SBOM still lists the component).
+#: Upgrading the package lists a new release (a new component and occurrence), so the
+#: old release's judgment moves to the departed list instead of reading as current;
+#: core also lists it in ``next`` as ``claim_dependency_stale`` (its pair's occurrence
+#: lost its last observation).
 APP_JUDGMENTS_SPEC: dict[str, Any] = {
     "query": APP_JUDGMENTS,
-    "description": "Every app-level not_affected judgment: the inventory, the component, "
-    "the vulnerability and the VEX justification.",
+    "description": "Every current app-level not_affected judgment: the inventory, the "
+    "component, the vulnerability and the VEX justification, while the inventory's SBOM still "
+    "lists the component (its occurrence holds a scope). A judgment on a release the SBOM no "
+    "longer lists is in security.departed_app_not_affected_judgments.",
     "from": {"ae": APP_EXPOSURE},
-    "where": _APP_NOT_AFFECTED,
+    "where": f"{_APP_NOT_AFFECTED} and exists o.scope",
     "hops": [
         {"o": f"ae.{APP_EXPOSURE}.occurrence!: {OCCURRENCE}"},
         {"v": f"ae.{APP_EXPOSURE}.vulnerability!: {VULN}"},
@@ -253,6 +302,16 @@ APP_JUDGMENTS_SPEC: dict[str, Any] = {
         "v.cve_id",
         "ae.justification",
     ],
+}
+DEPARTED_APP_JUDGMENTS_SPEC: dict[str, Any] = {
+    **APP_JUDGMENTS_SPEC,
+    "query": DEPARTED_APP_JUDGMENTS,
+    "description": "Every app-level not_affected judgment whose component the inventory's "
+    "SBOM no longer lists (its occurrence holds no scope): the judgment on an upgraded or "
+    "removed release, kept as history. next lists each as claim_dependency_stale until it is "
+    "retired; a release listed again moves its judgment back to "
+    "security.app_not_affected_judgments.",
+    "where": f"{_APP_NOT_AFFECTED} and not exists o.scope",
 }
 #: Confirmed, fix pending: from the judgment pairs (one per judged occurrence), so
 #: OSV later dropping its listing never hides a confirmed exposure; the
@@ -434,6 +493,22 @@ def vocabulary_members() -> list[dict[str, Any]]:
         },
         {
             "kind": "contract",
+            "name": ASSET_EXPOSURE_ROW,
+            "version": 1,
+            "description": "One exposure in deployment context: the exposure row's fields and "
+            "the IT asset its inventory runs as, with the asset's owner, environment, exposure "
+            "and criticality (all empty when the inventory is linked to no asset).",
+            "fields": {
+                **_EXPOSURE_FIELDS,
+                "asset": "string?",
+                "owner": "string?",
+                "environment": f"enum_of {ASSET}.environment?",
+                "exposure": f"enum_of {ASSET}.exposure?",
+                "criticality": f"enum_of {ASSET}.criticality?",
+            },
+        },
+        {
+            "kind": "contract",
             "name": JUDGMENT_ROW,
             "version": 1,
             "description": "One package-level judgment: its exposure pair, component, CVE "
@@ -462,10 +537,12 @@ def vocabulary_members() -> list[dict[str, Any]]:
     ]
     for spec in (
         URGENT_SPEC,
+        ASSET_URGENT_SPEC,
         BACKLOG_SPEC,
         CONFIRMED_SPEC,
         JUDGMENTS_SPEC,
         APP_JUDGMENTS_SPEC,
+        DEPARTED_APP_JUDGMENTS_SPEC,
         COVERED_APP_SPEC,
         COVERED_PACKAGE_SPEC,
         PAIR_WITHOUT_JUDGMENT_SPEC,
@@ -758,6 +835,30 @@ def _key(kind: str, **parts: Any) -> list[dict[str, Any]]:
     return [{"predicate": f"{kind}.{name}", "value": value} for name, value in parts.items()]
 
 
+def pin(subject: str, field: str) -> str:
+    """A ``based_on`` pin by slot (Cruxible 0.6): ``kind/id#field`` names that field's one
+    live Claim, which the write resolves at its base and pins at its exact version.
+
+    Revising or retiring a pinned Claim (an SBOM rerun retiring a scope, KEV or EPSS
+    revising a value, an asset's exposure changing) never retires the judgment:
+    ``next`` lists it as ``claim_dependency_stale`` until it is re-pinned or retired.
+    """
+
+    return f"{subject}#{field}"
+
+
+def asset_exposure(slug: str) -> str:
+    """The pin of an IT asset's exposure: ``it.asset/<slug>#exposure``."""
+
+    return pin(f"{ASSET}/{slug}", "exposure")
+
+
+def _pinned(change: dict[str, Any], based_on: Sequence[str]) -> dict[str, Any]:
+    if based_on:
+        change["based_on"] = list(based_on)
+    return change
+
+
 def judgment(
     purl: str,
     cve_id: str,
@@ -765,6 +866,7 @@ def judgment(
     reason: str,
     because: str,
     retire: Sequence[str] = (),
+    based_on: Sequence[str] = (),
     accept: Accept = "never",
 ) -> dict[str, Any]:
     """A package-level not_affected judgment: ONE ``write`` request.
@@ -775,8 +877,9 @@ def judgment(
     the pair ``security.exposure`` (component, V) -- or lands on it when it
     exists -- and sets its ``justification``. It lands or refuses whole.
 
-    ``purl`` is the component's key (its purl@version). ``accept`` defaults to
-    ``never`` (K-CF2a): a different agent approves it.
+    ``purl`` is the component's key (its purl@version). ``based_on`` pins the live
+    Claims the judgment relied on on its justification (:func:`pin`). ``accept``
+    defaults to ``never`` (K-CF2a): a different agent approves it.
     """
 
     if reason not in PACKAGE_JUSTIFICATIONS:
@@ -804,13 +907,16 @@ def judgment(
                 "subject_kind": EXPOSURE,
                 "key": _key(EXPOSURE, component=component, vulnerability=vulnerability),
             },
-            {
-                "op": "set",
-                "subject": {"created": "exposure"},
-                "field": "justification",
-                "value": reason,
-                "role": "normative",
-            },
+            _pinned(
+                {
+                    "op": "set",
+                    "subject": {"created": "exposure"},
+                    "field": "justification",
+                    "value": reason,
+                    "role": "normative",
+                },
+                based_on,
+            ),
         ],
     }
 
@@ -825,14 +931,17 @@ def _app_pair(occurrence: str, cve_id: str) -> dict[str, Any]:
     }
 
 
-def _app_set(field: str, value: str) -> dict[str, Any]:
-    return {
-        "op": "set",
-        "subject": {"created": "app_exposure"},
-        "field": field,
-        "value": value,
-        "role": "normative",
-    }
+def _app_set(field: str, value: str, based_on: Sequence[str] = ()) -> dict[str, Any]:
+    return _pinned(
+        {
+            "op": "set",
+            "subject": {"created": "app_exposure"},
+            "field": field,
+            "value": value,
+            "role": "normative",
+        },
+        based_on,
+    )
 
 
 def app_judgment(
@@ -842,6 +951,7 @@ def app_judgment(
     reason: str,
     because: str,
     verdict: bool = False,
+    based_on: Sequence[str] = (),
     accept: Accept = "never",
 ) -> dict[str, Any]:
     """An app-level not_affected judgment for one inventory: ONE ``write`` request.
@@ -855,6 +965,11 @@ def app_judgment(
     The justification alone is the not_affected judgment. ``verdict`` also sets
     ``verdict = not_affected``: required when it reverses an affected verdict
     (the set revises that Claim in the same write), optional otherwise.
+
+    ``based_on`` pins, on the justification, the live Claims it relied on: the
+    occurrence's scope, KEV or EPSS, or the asset's exposure for a reason about
+    reachability (``asset_exposure("payments-api")``). When one changes, ``next``
+    lists the judgment as ``claim_dependency_stale``.
     """
 
     if reason not in APP_JUSTIFICATIONS:
@@ -868,7 +983,7 @@ def app_judgment(
         "changes": [
             _app_pair(occurrence, cve_id),
             *([_app_set("verdict", APP_VERDICTS[1])] if verdict else []),
-            _app_set("justification", reason),
+            _app_set("justification", reason, based_on),
         ],
     }
 
@@ -879,6 +994,7 @@ def affected_judgment(
     *,
     because: str,
     evidence: Mapping[str, Any] | None = None,
+    based_on: Sequence[str] = (),
     accept: Accept = "never",
 ) -> dict[str, Any]:
     """An app-level affected verdict for one inventory: ONE ``write`` request.
@@ -892,7 +1008,7 @@ def affected_judgment(
     ``security.confirmed_exposures``; every other inventory's exposure stays.
     """
 
-    change = _app_set("verdict", APP_VERDICTS[0])
+    change = _app_set("verdict", APP_VERDICTS[0], based_on)
     if evidence is not None:
         change["evidence"] = dict(evidence)
     return {

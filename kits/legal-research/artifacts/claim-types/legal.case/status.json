@@ -1,0 +1,120 @@
+{
+  "admission_policy": {
+    "corroboration_requirements": [],
+    "freeze_requirements": [],
+    "tag": "playbill-claim-admission-policy-v1"
+  },
+  "allowed_subject_kinds": [
+    "legal.case"
+  ],
+  "artifact_format": "cruxible-claim-type-v11",
+  "canonical_form": [
+    "nfc",
+    "trim"
+  ],
+  "cardinality": "one",
+  "default_role": "observation",
+  "description": "How later courts have treated the case, lowest first; cite the later opinion or citator report.",
+  "evidence_admission_policy": {
+    "rules": [
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contract_families": [
+          "workspace_file"
+        ],
+        "capture_contracts": [
+          {
+            "logical_sources": [],
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "playbill.coordinator-self-source-v1"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "rule_id": "own-words-or-file",
+        "subject_binding": "exact_claim_subject",
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
+      }
+    ],
+    "tag": "cruxible-claim-evidence-admission-policy-v4"
+  },
+  "evidence_requirement": "self",
+  "identity": {
+    "kind": "ClaimType",
+    "name": "legal.case.status"
+  },
+  "lifecycle": {
+    "predecessor_digest": null,
+    "state": "live"
+  },
+  "member_descriptions": [
+    {
+      "description": "A later court questioned its reasoning without departing from it.",
+      "member": "criticized"
+    },
+    {
+      "description": "A later court declined to apply it on different facts.",
+      "member": "distinguished"
+    },
+    {
+      "description": "No negative treatment.",
+      "member": "good_law"
+    },
+    {
+      "description": "A later court narrowed it.",
+      "member": "limited"
+    },
+    {
+      "description": "Overruled, reversed or vacated: no longer law.",
+      "member": "overruled"
+    }
+  ],
+  "permitted_roles": [
+    "observation"
+  ],
+  "pins": [],
+  "precedence": {
+    "revisable_by_procedures": [
+      "environment_binding",
+      "observation",
+      "derivation"
+    ],
+    "roles": [
+      "normative",
+      "environment_binding",
+      "observation",
+      "derivation"
+    ]
+  },
+  "predicate": "legal.case.status",
+  "referent_sensitivity": "identity",
+  "requires_complete_input": [],
+  "resolution_policy": {
+    "cardinality": "one",
+    "conflict_result": "unresolved",
+    "eligible_verdicts": [
+      "supported"
+    ],
+    "require_current": true,
+    "required_basis_kinds": [],
+    "selector": "only_contender",
+    "tag": "playbill-claim-resolution-policy-v1"
+  },
+  "revision_evidence": "replace",
+  "value": {
+    "kind": "enum",
+    "members": [
+      "good_law",
+      "distinguished",
+      "criticized",
+      "limited",
+      "overruled"
+    ],
+    "ordered": true
+  }
+}

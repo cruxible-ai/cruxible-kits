@@ -38,6 +38,16 @@
         }
       },
       {
+        "id": "distro",
+        "kind": "read",
+        "query": {
+          "target": {
+            "kind": "QueryDefinition",
+            "name": "security.osv_distro_packages"
+          }
+        }
+      },
+      {
         "captures": {
           "responses": {
             "target": {
@@ -49,6 +59,8 @@
         "id": "osv",
         "input": {
           "components": "$steps.components.rows.[*].purl",
+          "distro_packages": "$steps.distro.rows.[*].osv_package",
+          "distro_purls": "$steps.distro.rows.[*].purl",
           "logical_source": "$params.logical_source"
         },
         "kind": "call",
@@ -81,15 +93,15 @@
         "kind": "extract",
         "records": "affected",
         "row": {
-          "digest": "sha256:435d69a8bd74b0a7d2d4bb5c4b31a593ba7c8d6908dce07f5bad4c55c340222d",
+          "digest": "sha256:c7a5f160b502385d5847d4e50a77c330f0087382f395efe59359dcfb3db660c1",
           "name": "security.osv-affected",
-          "version": 1
+          "version": 2
         }
       },
       {
         "claims": [
           {
-            "rationale": "OSV {$item.fields.osv_id} lists {$item.key.cve_id} for {$item.key.purl}.",
+            "rationale": "OSV {$item.fields.osv_id} lists {$item.key.cve_id} for {$item.key.purl} (fixed in: {$item.fields.fixed_versions}).",
             "type": {
               "target": {
                 "kind": "ClaimType",
@@ -134,15 +146,15 @@
       },
       "query": {
         "capability": {
-          "digest": "sha256:ca605cd0876ef311f60b13964913a8b96536f182138f515aa893acdf8b700aef",
+          "digest": "sha256:292537c1062cf977164012d70d6d024e7e8dc30cb6e39e6c9d0d242113336b46",
           "name": "security.osv.query",
-          "version": 1
+          "version": 2
         }
       }
     },
     "terminal_capability": 3
   },
-  "definition_digest": "sha256:5fc0eb17eef8049cf81cca409de73e397610d0b8b38aca964f71378fbb737d72",
+  "definition_digest": "sha256:1d5cc2cef477432eba144d81a0ac4355327470552e0faa8da5ad3021e5bde5d1",
   "identity": {
     "kind": "Procedure",
     "name": "security.osv-query"

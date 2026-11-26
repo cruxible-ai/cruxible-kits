@@ -23,6 +23,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+import assets  # noqa: E402
 import dependency_replay  # noqa: E402
 import facts  # noqa: E402
 import inventory  # noqa: E402
@@ -329,6 +330,21 @@ def test_osv_writes_affected_by_creating_each_vulnerability(tmp_path: Path) -> N
     assert log4shell["fixed"] == ["2.12.2", "2.15.0", "2.3.1"]
     # The watch list (K-B1-2) now comes from OSV: Log4Shell is watched.
     assert LOG4SHELL in watched(instance) and len(watched(instance)) == 9
+
+
+def test_each_affected_by_reason_names_the_fixed_versions(tmp_path: Path) -> None:
+    """The versions OSV lists as fixed are no Claim (D-R44), but each affected_by
+    Claim's reason carries them as one line, so ``cruxible get <claim>`` shows where
+    to upgrade without decoding the match document."""
+
+    instance = world(tmp_path)
+    run_osv(instance)
+    claim = affected_claim(instance, CORE, LOG4SHELL)
+    evidence = get(instance, claim, detail="evidence").evidence
+    assert evidence.rationale == (
+        f"OSV GHSA-jfh8-c2jp-5v3q lists {LOG4SHELL} for {CORE} "
+        "(fixed in: 2.12.2, 2.15.0, 2.3.1)."
+    ), evidence.rationale
 
 
 def test_an_identical_osv_run_writes_nothing(tmp_path: Path) -> None:
@@ -952,7 +968,7 @@ def test_the_track_record_lists_each_judgment_with_its_justification(tmp_path: P
     )
     for claim in claims:
         (revision,) = get(instance, claim, detail="history").history.revisions
-        assert revision.actor == "owner" and revision.accepted
+        assert revision.actor == "owner" and revision.git_oid and revision.proposed_at
 
 
 def test_reversing_a_judgment_retires_its_none_and_justification_together(
@@ -1279,6 +1295,257 @@ def test_a_confirmed_exposure_clears_when_the_sbom_drops_the_component_and_next_
     assert [row.subject_identity for row in stale] == [f"Claim:{claim}"], stale
     (entry,) = stale[0].detail["stale_inputs"]
     assert entry["subject_end"] == f"Subject:{inventory.OCCURRENCE}/{occurrence}"
+
+
+def upgraded_sbom(purl: str, to: str) -> bytes:
+    """The demo SBOM with one component moved to another release (an upgrade)."""
+
+    document = json.loads(DEMO_SBOM.read_bytes())
+    for item in document["components"]:
+        if item.get("purl") == purl:
+            item["purl"] = purl.rpartition("@")[0] + "@" + to
+            item["version"] = to
+    return json.dumps(document).encode()
+
+
+def test_upgrading_a_package_moves_its_app_judgment_out_of_the_current_track_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """upgrade-case-findings-1117 (kit items 2-3). An app-level not_affected judgment
+    on log4j-core 2.14.1 reads as current only while the SBOM lists 2.14.1. The SBOM
+    upgraded to 2.17.1 retires the old occurrence's scope: the judgment leaves
+    ``security.app_not_affected_judgments`` for
+    ``security.departed_app_not_affected_judgments`` (kept, not lost), and ``next``
+    lists it as ``claim_dependency_stale`` naming the occurrence that left."""
+
+    monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
+    instance = world(tmp_path)
+    run_osv(instance)
+    occurrence = occurrence_of(instance, DEMO_APP, CORE)
+    outcome = app_judge(instance, DEMO_APP, CORE, LOG4SHELL)
+    claim = justification_claim(instance, outcome.changes[1].subject)
+    (row,) = query_rows(instance, triage.APP_JUDGMENTS)
+    assert (row["inventory"], row["component"], row["cve_id"]) == (DEMO_APP, CORE, LOG4SHELL)
+    assert query_rows(instance, triage.DEPARTED_APP_JUDGMENTS) == []
+    assert _next_rows(instance, tmp_path, "claim_dependency_stale") == []
+
+    write_file(tmp_path, DEMO_PATH, upgraded_sbom(CORE, "2.17.1"))
+    import_sbom(instance, "demo", minute=2)
+    fixed = CORE.rpartition("@")[0] + "@2.17.1"
+    assert {r["purl"] for r in query_rows(
+        instance,
+        inventory.INVENTORY_COMPONENTS,
+        params={"inventory": f"{inventory.INVENTORY}/{DEMO_APP}"},
+    )} == {API, fixed, SLF4J}
+    assert query_rows(instance, triage.APP_JUDGMENTS) == []
+    (gone,) = query_rows(instance, triage.DEPARTED_APP_JUDGMENTS)
+    assert (gone["inventory"], gone["component"], gone["cve_id"], gone["justification"]) == (
+        DEMO_APP,
+        CORE,
+        LOG4SHELL,
+        APP_REASON,
+    )
+    stale = _next_rows(instance, tmp_path, "claim_dependency_stale")
+    assert [row.subject_identity for row in stale] == [f"Claim:{claim}"], stale
+    (entry,) = stale[0].detail["stale_inputs"]
+    assert entry["subject_end"] == f"Subject:{inventory.OCCURRENCE}/{occurrence}"
+
+
+ASSET = "payments-api"
+
+
+def describe_asset(instance: Any, inventory_id: str, *, exposure: str = "internal") -> Any:
+    """One write: the IT asset ``payments-api`` with its five stated fields, and the
+    inventory's link to it (as the dependency guidance shows)."""
+
+    def stated(field: str, value: str) -> dict[str, Any]:
+        return {"op": "set", "subject": {"created": "asset"}, "field": field, "value": value}
+
+    outcome = write(
+        instance,
+        {
+            "because": "Payments API runs in prod behind the internal load balancer only.",
+            "accept": "if_allowed",
+            "changes": [
+                {
+                    "op": "create",
+                    "label": "asset",
+                    "subject_kind": assets.ASSET,
+                    "key": [{"predicate": f"{assets.ASSET}.slug", "value": ASSET}],
+                },
+                stated("title", "Payments API"),
+                stated("owner", "payments-team"),
+                stated("environment", "prod"),
+                stated("exposure", exposure),
+                stated("criticality", "critical"),
+                {
+                    "op": "set",
+                    "subject": f"{inventory.INVENTORY}/{inventory_id}",
+                    "field": "asset",
+                    "value": {"created": "asset"},
+                },
+            ],
+        },
+    )
+    assert outcome.status == "accepted", outcome
+    return outcome
+
+
+def test_the_asset_worklist_is_the_worklist_with_each_inventorys_asset_beside_it(
+    tmp_path: Path,
+) -> None:
+    """``security.asset_urgent_exposures`` lists exactly the worklist's rows: an
+    inventory linked to no asset keeps every row with the asset columns empty (the
+    hop is optional), and a linked one carries its asset's deployment facts."""
+
+    instance = world(tmp_path, other=True)
+    run_osv(instance)
+    urgent = exposures(instance)
+
+    def asset_rows() -> dict[tuple[str, str, str], tuple[Any, ...]]:
+        return {
+            (r["inventory"], r["component"], r["cve_id"]): (
+                r.get("asset"),
+                r.get("owner"),
+                r.get("environment"),
+                r.get("exposure"),
+                r.get("criticality"),
+            )
+            for r in query_rows(instance, triage.ASSET_URGENT)
+        }
+
+    before = asset_rows()
+    assert set(before) == urgent and urgent
+    assert set(before.values()) == {(None, None, None, None, None)}
+    describe_asset(instance, DEMO_APP)
+    after = asset_rows()
+    assert set(after) == urgent
+    linked = ("payments-api", "payments-team", "prod", "internal", "critical")
+    for (inventory_id, _purl, _cve), columns in after.items():
+        expected = linked if inventory_id == DEMO_APP else (None, None, None, None, None)
+        assert columns == expected, (inventory_id, columns)
+
+
+def _asset(instance: Any, slug: str, exposure: str, criticality: str, inventory_id: str | None) -> None:
+    """One asset with its ranked fields, linked to an inventory when one is named."""
+
+    def stated(field: str, value: str) -> dict[str, Any]:
+        return {"op": "set", "subject": {"created": "asset"}, "field": field, "value": value}
+
+    changes = [
+        {"op": "create", "label": "asset", "subject_kind": assets.ASSET,
+         "key": [{"predicate": f"{assets.ASSET}.slug", "value": slug}]},
+        stated("environment", "prod"),
+        stated("exposure", exposure),
+        stated("criticality", criticality),
+    ]
+    if inventory_id is not None:
+        changes.append({"op": "set", "subject": f"{inventory.INVENTORY}/{inventory_id}",
+                        "field": "asset", "value": {"created": "asset"}})
+    outcome = write(instance, {"because": f"The {slug} deployment.", "accept": "if_allowed",
+                               "changes": changes})
+    assert outcome.status == "accepted", outcome
+
+
+def test_exposure_and_criticality_compare_and_order_by_their_declared_rank(tmp_path: Path) -> None:
+    """``it.asset.exposure`` (isolated < internal < internet) and ``.criticality`` (low <
+    medium < high < critical) are ordered enums: a query compares them by rank and
+    ``-field`` sorts the highest first, and the asset worklist puts the most exposed,
+    then most critical, asset's rows first."""
+
+    assert assets.EXPOSURES == ("isolated", "internal", "internet")
+    assert assets.CRITICALITIES == ("low", "medium", "high", "critical")
+    instance = world(tmp_path, other=True)
+    run_osv(instance)
+    _asset(instance, "payments-api", "internal", "critical", DEMO_APP)
+    _asset(instance, "edge-gateway", "internet", "medium", OTHER_APP)
+    _asset(instance, "build-box", "isolated", "low", None)
+
+    def slugs(**request: Any) -> list[str]:
+        rows = query_rows(instance, None, kind=assets.ASSET, select=("slug",), **request)
+        return [r["slug"] for r in rows]
+
+    assert slugs(where=[{"field": "criticality", "gte": "high"}]) == ["payments-api"]
+    assert slugs(where=[{"field": "exposure", "gte": "internal"}], order_by=["-exposure"]) == [
+        "edge-gateway", "payments-api"]
+    assert slugs(order_by=["-criticality"]) == ["payments-api", "edge-gateway", "build-box"]
+    assert slugs(where=[{"field": "exposure", "lt": "internal"}]) == ["build-box"]
+    # Comparing the unordered environment field refuses rather than compare text.
+    with pytest.raises(Exception, match="operator_not_applicable"):
+        slugs(where=[{"field": "environment", "gte": "prod"}])
+
+    rows = query_rows(instance, triage.ASSET_URGENT)
+    assert {r["inventory"] for r in rows} == {DEMO_APP, OTHER_APP}
+    ranked = [r["exposure"] for r in rows]
+    # Every internet-facing row first, then the internal asset's: the declared rank.
+    assert ranked == sorted(ranked, key=lambda e: -assets.EXPOSURES.index(e)), ranked
+    assert ranked[0] == "internet" and ranked[-1] == "internal"
+
+
+def test_a_judgment_pinned_to_the_assets_exposure_resurfaces_when_the_exposure_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """kit-gate-judgment-resurfaces. An app-level not_affected judgment ("internal-only
+    service") pinned with ``based_on`` to ``it.asset/payments-api#exposure`` and the
+    occurrence's ``scope`` stays quiet while neither changes. When the asset's exposure
+    flips to ``internet``, ``next`` lists the judgment as ``claim_dependency_stale``
+    naming the revised exposure Claim; the judgment itself still stands until someone
+    re-judges it."""
+
+    monkeypatch.setenv("CRUXIBLE_STATE_ROOT", str(tmp_path / "server-state"))
+    instance = world(tmp_path)
+    run_osv(instance)
+    describe_asset(instance, DEMO_APP)
+    occurrence = occurrence_of(instance, DEMO_APP, CORE)
+    outcome = write(
+        instance,
+        triage.app_judgment(
+            occurrence,
+            LOG4SHELL,
+            reason="vulnerable_code_cannot_be_controlled_by_adversary",
+            because="Internal-only service: no untrusted client reaches the JNDI lookup.",
+            based_on=[
+                triage.asset_exposure(ASSET),
+                triage.pin(f"{inventory.OCCURRENCE}/{occurrence}", "scope"),
+            ],
+            accept="if_allowed",
+        ),
+    )
+    assert outcome.status == "accepted", outcome
+    pair = outcome.changes[1].subject
+    claim = justification_claim(instance, pair)
+    exposure = justification_claim(instance, f"{assets.ASSET}/{ASSET}", "exposure")
+    scope = justification_claim(instance, f"{inventory.OCCURRENCE}/{occurrence}", "scope")
+    evidence = get(instance, claim, detail="why")
+    assert {exposure, scope} <= set(json.dumps(evidence.model_dump(mode="json")).split('"')), (
+        evidence
+    )
+    assert [r["cve_id"] for r in query_rows(instance, triage.APP_JUDGMENTS)] == [LOG4SHELL]
+    # Unchanged inputs: quiet, however often the Lines re-observe them.
+    run_osv(instance, minute=1)
+    assert _next_rows(instance, tmp_path, "claim_dependency_stale") == []
+
+    flipped = write(
+        instance,
+        {
+            "because": "The payments API now has a public ingress (infra change 2026-11).",
+            "accept": "if_allowed",
+            "changes": [
+                {
+                    "op": "set",
+                    "subject": f"{assets.ASSET}/{ASSET}",
+                    "field": "exposure",
+                    "value": "internet",
+                }
+            ],
+        },
+    )
+    assert flipped.status == "accepted", flipped
+    stale = _next_rows(instance, tmp_path, "claim_dependency_stale")
+    assert [row.subject_identity for row in stale] == [f"Claim:{claim}"], stale
+    assert exposure in json.dumps(stale[0].detail), stale[0].detail
+    # The judgment stands (no Line retires it): still current, now flagged by next.
+    assert [r["cve_id"] for r in query_rows(instance, triage.APP_JUDGMENTS)] == [LOG4SHELL]
 
 
 # -- triage worklists ---------------------------------------------------------------
@@ -2000,13 +2267,26 @@ def test_judgments_never_settle_under_a_mandate() -> None:
     for normative writes, a justification, a verdict, or a judgment pair."""
 
     automation = kit.automation([], now=NOW, sboms=(("demo", DEMO_PATH),))
+    mandates = [m for m in automation["members"] if m["kind"] == "procedure_mandate"]
     scoped = {
         entry["claim_type"]
-        for member in automation["members"]
-        if member["kind"] == "procedure_mandate"
-        for entry in member.get("scope", ())
+        for member in mandates
+        if isinstance(member.get("scope"), list)
+        for entry in member["scope"]
     }
     assert not {c for c in scoped if c.endswith((".justification", ".verdict"))}
+    # The observation grants (core refuses scope: observations for any Procedure that
+    # writes a ClaimType permitting normative) are KEV's, EPSS's and the SBOM import's,
+    # whose ClaimTypes are all observation-only; only OSV's names its scope by hand.
+    observing = {m["line_name"] for m in mandates if m.get("scope") == "observations"}
+    assert observing == {kit.KEV_LINE, kit.EPSS_LINE, inventory.sbom_line_name("demo")}
+    sbom_roles = {r["predicate"]: r.get("permitted_roles") for r in inventory.claim_type_records()}
+    assert sbom_roles[inventory.SCOPE] == sbom_roles[inventory.OSV_PACKAGE] == ["observation"]
+    roles = {r["predicate"]: r.get("permitted_roles") for r in kit.claim_type_records()}
+    assert {p for p, r in roles.items() if p.startswith(f"{kit.VULN}.kev_") or ".epss_" in p}
+    assert all(
+        r == ["observation"] for p, r in roles.items() if ".kev_" in p or ".epss_" in p
+    ), roles
     assert f"{inventory.APP_EXPOSURE}.verdict" in {
         r["predicate"] for r in inventory.claim_type_records()
     }

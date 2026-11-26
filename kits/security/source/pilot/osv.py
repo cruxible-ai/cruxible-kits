@@ -34,13 +34,17 @@ its inbox.
 OSV writes no pair Subjects (D-R43). The versions OSV lists as fixed are no
 Claim: they stay in the derived ``osv.match`` document every ``affected_by``
 cites (each record's ``fixed``; see ``security_osv_provider.osv``), where an
-agent reads them (D-R44: nothing reacts to their change).
+agent reads them (D-R44: nothing reacts to their change). Each record also
+carries them as one line, ``fixed_versions`` (row ``security.osv-affected@2``),
+which the claims template writes into the ``affected_by`` Claim's reason, so
+``cruxible get <claim>`` shows where to upgrade as OSV listed it when it first
+reported the pair (the newest match document holds the current list).
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from capabilities import OSV_MATCH, OSV_QUERY, capability
@@ -50,6 +54,9 @@ from inventory import COMPONENT, DEPENDENCY_PROVIDER, OCCURRENCE, OSV_MATCH_KIND
 OSV_PROCEDURE = "security.osv-query"
 OSV_LINE = "security.osv-query"
 OSV_COMPONENTS = "security.osv_components"
+#: The distro components some inventory holds with the OSV package its SBOM states.
+OSV_DISTRO_PACKAGES = "security.osv_distro_packages"
+OSV_DISTRO_ROW = "security.osv-distro-package"
 OSV_COMPONENT_ROW = "security.osv-component"
 OSV_ROW = "security.osv-affected"
 #: Each OSV response (one querybatch POST or one vulns GET), verbatim.
@@ -112,6 +119,23 @@ COMPONENTS_SPEC: dict[str, Any] = {
 }
 
 
+#: Each (distro component, OSV package) an inventory's SBOM states: one row per
+#: occurrence holding a scope and an osv_package (the provider asks one package per
+#: purl, and never asks a purl two inventories resolve differently).
+DISTRO_SPEC: dict[str, Any] = {
+    "query": OSV_DISTRO_PACKAGES,
+    "description": "Every distro component (deb, rpm, apk) some inventory holds whose SBOM "
+    "states the OSV package it is asked as (security.occurrence.osv_package): what OSV is "
+    "asked by source package.",
+    "from": {"c": COMPONENT},
+    "hops": [{"o": f"{OCCURRENCE}{{component: c}}! with scope"}],
+    "where": "exists o.osv_package",
+    "row": f"{OSV_DISTRO_ROW}@1",
+    "fields": ["c.purl", "o.osv_package"],
+    "order": ["c.purl"],
+}
+
+
 def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
     from definitions import subject_shaped
 
@@ -130,6 +154,21 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "description": "One (component, CVE) pair the OSV match found, with its OSV "
             "advisory id; the versions OSV lists as fixed stay in the cited document.",
             "fields": {"osv_id": "string{max_len: 128}"},
+        },
+        # Version 2 adds the fixed versions as one line, for the affected_by reason;
+        # version 1 stays as its predecessor.
+        {
+            "kind": "contract",
+            "name": OSV_ROW,
+            "version": 2,
+            "description": "One (component, CVE) pair the OSV match found: its OSV advisory id "
+            "and the versions OSV lists as fixed for the component's package, as one line "
+            "('none listed' when there are none). They are no Claim: the affected_by Claim's "
+            "reason carries them, and the cited document holds the full list.",
+            "fields": {
+                "osv_id": "string{max_len: 128}",
+                "fixed_versions": "string{min_len: 1, max_len: 240}",
+            },
         },
         {
             "kind": "contract",
@@ -187,6 +226,15 @@ def vocabulary_members(claim_types: Sequence[Any]) -> list[dict[str, Any]]:
             "kind": "query_definition",
             "query_definition": subject_shaped(COMPONENTS_SPEC, claim_types),
         },
+        {
+            "kind": "contract",
+            "name": OSV_DISTRO_ROW,
+            "version": 1,
+            "description": "One distro component an inventory holds and the OSV package its "
+            "SBOM states it is asked as (ECOSYSTEM|NAME|VERSION).",
+            "fields": {"purl": "string{max_len: 256}", "osv_package": "string{max_len: 256}"},
+        },
+        {"kind": "query_definition", "query_definition": DISTRO_SPEC},
         *params_contract_members(OSV_PROCEDURE, *OSV_PARAMS),
     ]
 
@@ -220,7 +268,7 @@ def osv_spec() -> dict[str, Any]:
             "output": {},
             "parameter_contract": params_contract(OSV_PROCEDURE),
             "slots": {
-                "query": {"capability": capability(OSV_QUERY)},
+                "query": {"capability": capability(OSV_QUERY, 2)},
                 "match": {"capability": capability(OSV_MATCH)},
             },
             "hard_caps": {
@@ -233,12 +281,15 @@ def osv_spec() -> dict[str, Any]:
             },
             "steps": [
                 {"read": "components", "query": OSV_COMPONENTS},
+                {"read": "distro", "query": OSV_DISTRO_PACKAGES},
                 {
                     "call": "osv",
                     "slot": "query",
                     "captures": {"responses": OSV_RESPONSE_KIND},
                     "input": {
                         "components": "$steps.components.rows.[*].purl",
+                        "distro_purls": "$steps.distro.rows.[*].purl",
+                        "distro_packages": "$steps.distro.rows.[*].osv_package",
                         "logical_source": "$params.logical_source",
                     },
                 },
@@ -278,7 +329,7 @@ def osv_spec() -> dict[str, Any]:
                             },
                             "when_absent": "mirror",
                             "rationale": "OSV {$item.fields.osv_id} lists {$item.key.cve_id} "
-                            "for {$item.key.purl}.",
+                            "for {$item.key.purl} (fixed in: {$item.fields.fixed_versions}).",
                         },
                     ],
                 },
@@ -378,15 +429,22 @@ OSV_SETTLE_SCOPE: dict[str, dict[str, Any]] = {
 
 
 def automation(
-    *, now: datetime, findings: Sequence[str], settle: bool = True
+    *, now: datetime | None = None, findings: Sequence[str], settle: bool = True
 ) -> list[dict[str, Any]]:
     """The OSV Line (the consumer's) and its Mandates; the template's maintenance
     Runbook runs it daily. Then the unkeyed Line and its Trigger: it runs on each
     landing of the OSV Line's derived match document, so it is no Runbook step (a
-    Line that binds its triggering Capture runs only on an event)."""
+    Line that binds its triggering Capture runs only on an event).
 
-    valid_from = (now - timedelta(days=1)).isoformat().replace("+00:00", "Z")
-    expires_at = (now + timedelta(days=90)).isoformat().replace("+00:00", "Z")
+    The settle grant names its one ClaimType by hand: ``affected_by`` also permits
+    ``normative`` (an agent's package-level "none of V" judgment lives on it), so
+    core refuses ``scope: observations`` for this Line, and the explicit scope keeps
+    that judgment out of the grant: it settles extracted values and complete-absence
+    retirements only.
+    """
+
+    from definitions import mandate_window
+
     members: list[dict[str, Any]] = [
         {
             "kind": "line",
@@ -407,8 +465,7 @@ def automation(
             "line_name": OSV_LINE,
             "grants": "propose",
             "namespace": ["claims", "subjects"],
-            "valid_from": valid_from,
-            "expires_at": expires_at,
+            **mandate_window(now),
         },
     ]
     if settle:
@@ -419,8 +476,7 @@ def automation(
                 "line_name": OSV_LINE,
                 "grants": "settle",
                 "namespace": ["claims"],
-                "valid_from": valid_from,
-                "expires_at": expires_at,
+                **mandate_window(now),
                 "subject_creation": [VULN],
                 "scope": [
                     {"claim_type": claim_type, "changes": changes}

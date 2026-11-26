@@ -1,0 +1,90 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Every distro component (deb, rpm, apk) some inventory holds whose SBOM states the OSV package it is asked as (security.occurrence.osv_package): what OSV is asked by source package.",
+  "entry": {
+    "binding": "c",
+    "subject_kinds": [
+      "security.component"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "security.osv_distro_packages"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "orderings": [
+    {
+      "key": {
+        "binding": "c",
+        "kind": "claim_value",
+        "predicate": "security.component.purl"
+      },
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "osv_package",
+        "value": {
+          "binding": "o",
+          "kind": "claim_value",
+          "predicate": "security.occurrence.osv_package"
+        }
+      },
+      {
+        "name": "purl",
+        "value": {
+          "binding": "c",
+          "kind": "claim_value",
+          "predicate": "security.component.purl"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:742b2ffdc44428ee61659463109229a495e3491412d2b2b84f269e5fb5bcc494",
+    "name": "security.osv-distro-package",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "o",
+      "fact": "security.occurrence.scope",
+      "parts": [
+        {
+          "binding": "c",
+          "part": "security.occurrence.component"
+        }
+      ],
+      "subject_kind": "security.occurrence"
+    }
+  ],
+  "where": {
+    "binding": "o",
+    "kind": "claim_presence",
+    "predicate": "security.occurrence.osv_package"
+  }
+}
