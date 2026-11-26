@@ -39,6 +39,26 @@
         "rule_id": "own-words-or-file",
         "subject_binding": "exact_claim_subject",
         "tag": "cruxible-claim-evidence-admission-rule-v4"
+      },
+      {
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "capture_contracts": [
+          {
+            "logical_sources": [],
+            "role": "capture-contract",
+            "target": {
+              "kind": "CaptureContract",
+              "name": "fleet.telemetry-analysis"
+            }
+          }
+        ],
+        "claim_roles": [
+          "observation"
+        ],
+        "rule_id": "telemetry-analysis",
+        "subject_binding": "exact_claim_subject",
+        "tag": "cruxible-claim-evidence-admission-rule-v4"
       }
     ],
     "tag": "cruxible-claim-evidence-admission-policy-v4"
@@ -61,11 +81,11 @@
   },
   "member_descriptions": [
     {
-      "description": "Reporting, with dropped or out-of-range samples.",
+      "description": "Reporting, with dropped, flatlined, or out-of-range samples.",
       "member": "degraded"
     },
     {
-      "description": "Reported itself offline.",
+      "description": "Reported itself offline or missed heartbeat deadline.",
       "member": "offline"
     },
     {

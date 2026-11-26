@@ -1,0 +1,30 @@
+{
+ "kind": "change_set",
+ "rationale": "kit adopt iot-fleet: observe-only fleet.attention Line (min_severity {{min_severity}}) and fleet.check Runbook fanning out over every adopted hub telemetry Line. Adopt iot-fleet:telemetry once per hub telemetry export.",
+ "members": [
+  {
+   "kind": "line",
+   "name": "fleet.attention",
+   "procedure_name": "fleet.attention",
+   "bindings": {},
+   "parameters": {
+    "min_severity": "{{min_severity}}"
+   },
+   "acquisition": {},
+   "max_authority": "observe"
+  },
+  {
+   "kind": "runbook",
+   "name": "fleet.check",
+   "description": "Run every adopted hub telemetry ingest Line (EWMA gain filter and approved-baseline classifier), then post unjudged anomalies to the Line inbox. Landing Triggers automatically settle fleet.sensor.status and fleet.anomaly observations from the derived analysis Capture.",
+   "steps": [
+    {
+     "procedure": "fleet.telemetry-ingest"
+    },
+    {
+     "line": "fleet.attention"
+    }
+   ]
+  }
+ ]
+}

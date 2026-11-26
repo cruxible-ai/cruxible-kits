@@ -1,0 +1,68 @@
+[
+ {
+  "name": "default",
+  "path": "recipes/default.json",
+  "description": "Shared fleet automation backbone: the observe-only fleet.attention Line (posts unjudged anomalies to cruxible next) and the fleet.check Runbook.",
+  "params": {
+   "min_severity": {
+    "type": "enum",
+    "default": "medium",
+    "values": [
+     "info",
+     "low",
+     "medium",
+     "high",
+     "critical"
+    ],
+    "description": "Minimum anomaly severity posted to the Line inbox."
+   }
+  }
+ },
+ {
+  "name": "telemetry",
+  "path": "recipes/telemetry.json",
+  "description": "One hub's telemetry ingest Line (EWMA gain filter + approved-baseline classifier), its capture-landing sensor-health and anomaly-ingest Lines, and their observations-only Mandates. Adopt once per hub export.",
+  "params": {
+   "name": {
+    "type": "string",
+    "default": "hub",
+    "pattern": "^[a-z][a-z0-9_-]{0,48}$",
+    "description": "Short identifier for this hub export (Line suffix and logical source suffix)."
+   },
+   "relative_path": {
+    "type": "string",
+    "required": true,
+    "example": "telemetry/hub.json",
+    "pattern": "^(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*)(?:/(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*))*$",
+    "description": "Workspace-relative path of the hub telemetry JSON batch."
+   },
+   "alpha": {
+    "type": "string",
+    "default": "0.3",
+    "pattern": "^(0\\.[0-9]{1,6}|1(\\.0{1,6})?)$",
+    "description": "EWMA smoothing gain in (0, 1]. Lower values absorb sharper transient spikes."
+   },
+   "min_breach_samples": {
+    "type": "integer",
+    "default": 3,
+    "description": "Consecutive filtered samples outside approved bounds required to classify a fault."
+   },
+   "flatline_samples": {
+    "type": "integer",
+    "default": 5,
+    "description": "Consecutive identical samples required to mark a sensor degraded (flatlined)."
+   },
+   "max_heartbeat_age_s": {
+    "type": "integer",
+    "default": 1800,
+    "description": "Maximum heartbeat age in seconds before marking a sensor offline (default 1800 = 30 min)."
+   },
+   "expires": {
+    "type": "string",
+    "default": "90d",
+    "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+    "description": "How long each observations-only Mandate stays valid (36h, 90d, 12w, 1y)."
+   }
+  }
+ }
+]

@@ -1,0 +1,65 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One hub telemetry JSON batch Capture, approved fleet.baseline rows, and EWMA gain filter / flatline parameters.",
+  "fields": {
+    "alpha": {
+      "type": {
+        "kind": "string",
+        "pattern": "^(0\\.[0-9]{1,6}|1(\\.0{1,6})?)$"
+      }
+    },
+    "baselines": {
+      "type": {
+        "item": {
+          "contract": {
+            "digest": "sha256:da937de3a8f01e554e41327b50ac72218a2f235b6484adabed2bc0bf368bcc89",
+            "name": "fleet.approved-baseline",
+            "version": 1
+          },
+          "kind": "contract"
+        },
+        "kind": "list",
+        "max_items": 20000
+      }
+    },
+    "batches": {
+      "type": {
+        "item": {
+          "capture_kind": "fleet.telemetry-batch",
+          "kind": "capture"
+        },
+        "kind": "list",
+        "max_items": 16
+      }
+    },
+    "flatline_samples": {
+      "type": {
+        "kind": "int",
+        "max": 1000,
+        "min": 2
+      }
+    },
+    "logical_source": {
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    },
+    "max_heartbeat_age_s": {
+      "type": {
+        "kind": "int",
+        "max": 86400,
+        "min": 60
+      }
+    },
+    "min_breach_samples": {
+      "type": {
+        "kind": "int",
+        "max": 1000,
+        "min": 1
+      }
+    }
+  },
+  "name": "fleet.telemetry.analyze.request",
+  "version": 1
+}

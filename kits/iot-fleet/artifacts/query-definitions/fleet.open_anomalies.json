@@ -61,18 +61,29 @@
   "where": {
     "filters": [
       {
-        "kind": "comparison",
-        "left": {
-          "binding": "anomaly",
-          "kind": "claim_value",
-          "predicate": "fleet.anomaly.disposition"
-        },
-        "operator": "eq",
-        "right": {
-          "kind": "literal",
-          "value": "open"
-        },
-        "value_type": "string"
+        "filters": [
+          {
+            "binding": "anomaly",
+            "kind": "claim_presence",
+            "negated": true,
+            "predicate": "fleet.anomaly.disposition"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "anomaly",
+              "kind": "claim_value",
+              "predicate": "fleet.anomaly.disposition"
+            },
+            "operator": "eq",
+            "right": {
+              "kind": "literal",
+              "value": "open"
+            },
+            "value_type": "string"
+          }
+        ],
+        "kind": "any_of"
       },
       {
         "kind": "comparison",

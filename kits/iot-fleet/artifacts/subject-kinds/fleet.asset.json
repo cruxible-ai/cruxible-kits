@@ -1,6 +1,6 @@
 {
   "artifact_format": "cruxible-subject-kind-v2",
-  "description": "An industrial or edge asset (pump, chiller, motor, gateway), named by its asset tag.",
+  "description": "An industrial or edge asset (pump, chiller, camera, edge hub), named by its asset tag.",
   "identity": {
     "kind": "SubjectKind",
     "name": "fleet.asset"

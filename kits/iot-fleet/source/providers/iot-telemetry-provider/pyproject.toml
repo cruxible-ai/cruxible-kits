@@ -1,0 +1,29 @@
+[project]
+name = "iot-telemetry-provider"
+version = "0.1.0"
+description = "IoT fleet kit provider: EWMA gain filter, flatline check, and approved-baseline classifier."
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "The Cruxible maintainers" }]
+dependencies = [
+  "cruxible-provider-runtime>=0.6.0",
+]
+
+[project.entry-points."cruxible.providers"]
+"telemetry.analyze" = "iot_telemetry_provider.telemetry:telemetry_analyze"
+
+[dependency-groups]
+dev = ["pytest>=8.2"]
+
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/iot_telemetry_provider"]
+
+[tool.hatch.build.targets.wheel.extra-metadata]
+"uv.lock" = "uv.lock"
+
+[tool.uv.sources]
+cruxible-provider-runtime = { path = "../cruxible-provider-runtime", editable = true }

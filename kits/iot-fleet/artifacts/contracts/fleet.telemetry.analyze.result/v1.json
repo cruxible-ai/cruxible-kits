@@ -1,0 +1,14 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One derived JSON analysis document in the layout of CaptureKind fleet.telemetry-analysis.",
+  "fields": {
+    "document": {
+      "type": {
+        "capture_kind": "fleet.telemetry-analysis",
+        "kind": "capture"
+      }
+    }
+  },
+  "name": "fleet.telemetry.analyze.result",
+  "version": 1
+}

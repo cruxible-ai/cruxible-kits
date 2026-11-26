@@ -2,7 +2,7 @@
   "authority": {
     "required_tier": "governed_write"
   },
-  "body_digest": "sha256:763f450ad4612451d93371e2f8604c1f7333c74d4e95163f4e068baa1910d87d",
+  "body_digest": "sha256:d6c9c28b845e15922a546d37ac0c9ddb6ab5390ddaadeb677fa429e8533e169b",
   "document_kind": "fleet.guidance",
   "format_version": 1,
   "governance_scope": [

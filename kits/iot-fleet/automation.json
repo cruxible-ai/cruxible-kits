@@ -1,0 +1,190 @@
+{
+ "kind": "change_set",
+ "rationale": "Adopt the iot-fleet telemetry loop for one hub (telemetry/hub.json): EWMA gain filter and approved-baseline classifier settling observation claims only (fleet.asset.operating_state, fleet.sensor.status, fleet.anomaly observations), plus the observe-only fleet.attention Line and fleet.check Runbook. Normative judgments (baselines, asset condition, anomaly disposition, firmware status) stay outside every Mandate.",
+ "members": [
+  {
+   "kind": "line",
+   "name": "fleet.attention",
+   "procedure_name": "fleet.attention",
+   "bindings": {},
+   "parameters": {
+    "min_severity": "medium"
+   },
+   "acquisition": {},
+   "max_authority": "observe"
+  },
+  {
+   "kind": "runbook",
+   "name": "fleet.check",
+   "description": "Run every adopted hub telemetry ingest Line (EWMA gain filter and approved-baseline classifier), then post unjudged anomalies to the Line inbox. Landing Triggers automatically settle fleet.sensor.status and fleet.anomaly observations from the derived analysis Capture.",
+   "steps": [
+    {
+     "procedure": "fleet.telemetry-ingest"
+    },
+    {
+     "line": "fleet.attention"
+    }
+   ]
+  },
+  {
+   "kind": "line",
+   "name": "fleet.telemetry-ingest.hub",
+   "procedure_name": "fleet.telemetry-ingest",
+   "bindings": {
+    "read": "cruxible-builtin#workspace.file",
+    "derive": "iot-telemetry-provider#telemetry.analyze"
+   },
+   "parameters": {
+    "relative_path": "telemetry/hub.json",
+    "logical_source": "fleet.telemetry.hub",
+    "alpha": "0.3",
+    "min_breach_samples": 3,
+    "flatline_samples": 5,
+    "max_heartbeat_age_s": 1800
+   },
+   "acquisition": {},
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.telemetry-ingest.hub-propose",
+   "line_name": "fleet.telemetry-ingest.hub",
+   "grants": "propose",
+   "namespace": [
+    "claims"
+   ],
+   "expires": "90d"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.telemetry-ingest.hub-settle",
+   "line_name": "fleet.telemetry-ingest.hub",
+   "grants": "settle",
+   "scope": "observations",
+   "expires": "90d"
+  },
+  {
+   "kind": "line",
+   "name": "fleet.sensor-health.hub",
+   "procedure_name": "fleet.sensor-health",
+   "bindings": {
+    "derive": "iot-telemetry-provider#telemetry.analyze"
+   },
+   "parameters": {
+    "logical_source": "fleet.telemetry.hub"
+   },
+   "trigger_input": "analysis.document",
+   "acquisition": {
+    "analysis.document": {}
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.sensor-health.hub-propose",
+   "line_name": "fleet.sensor-health.hub",
+   "grants": "propose",
+   "namespace": [
+    "claims"
+   ],
+   "expires": "90d"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.sensor-health.hub-settle",
+   "line_name": "fleet.sensor-health.hub",
+   "grants": "settle",
+   "scope": "observations",
+   "expires": "90d"
+  },
+  {
+   "kind": "trigger",
+   "name": "fleet.sensor-health-on-analysis.hub",
+   "line_name": "fleet.sensor-health.hub",
+   "schedule": {
+    "kind": "capture_landing",
+    "capture_contract": "fleet.telemetry-analysis",
+    "logical_sources": [
+     "fleet.telemetry.hub"
+    ]
+   }
+  },
+  {
+   "kind": "line",
+   "name": "fleet.anomaly-ingest.hub",
+   "procedure_name": "fleet.anomaly-ingest",
+   "bindings": {
+    "derive": "iot-telemetry-provider#telemetry.analyze"
+   },
+   "parameters": {
+    "logical_source": "fleet.telemetry.hub"
+   },
+   "trigger_input": "analysis.document",
+   "acquisition": {
+    "analysis.document": {}
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.anomaly-ingest.hub-propose",
+   "line_name": "fleet.anomaly-ingest.hub",
+   "grants": "propose",
+   "namespace": [
+    "claims",
+    "subjects"
+   ],
+   "expires": "90d"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.anomaly-ingest.hub-settle",
+   "line_name": "fleet.anomaly-ingest.hub",
+   "grants": "settle",
+   "scope": "observations",
+   "expires": "90d",
+   "subject_creation": [
+    "fleet.anomaly"
+   ]
+  },
+  {
+   "kind": "trigger",
+   "name": "fleet.anomaly-ingest-on-analysis.hub",
+   "line_name": "fleet.anomaly-ingest.hub",
+   "schedule": {
+    "kind": "capture_landing",
+    "capture_contract": "fleet.telemetry-analysis",
+    "logical_sources": [
+     "fleet.telemetry.hub"
+    ]
+   }
+  }
+ ]
+}

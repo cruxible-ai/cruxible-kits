@@ -1,0 +1,139 @@
+{
+  "artifact_format": "cruxible-query-definition-v3",
+  "dedupe": "path",
+  "default_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 100,
+    "max_results": 200,
+    "max_traversal_depth": 10
+  },
+  "description": "Anomalies with no reviewed disposition (unset or open) at or above min_severity, read by the observe-only fleet.attention Line.",
+  "entry": {
+    "binding": "a",
+    "subject_kinds": [
+      "fleet.anomaly"
+    ]
+  },
+  "evaluation_policy": {
+    "conflict_behavior": "surface_conflicts",
+    "visible_currency": [
+      "current"
+    ],
+    "visible_verdicts": [
+      "supported"
+    ]
+  },
+  "identity": {
+    "kind": "QueryDefinition",
+    "name": "fleet.anomalies_needing_triage"
+  },
+  "maximum_budgets": {
+    "max_paths": 20000,
+    "max_paths_per_result": 1000,
+    "max_results": 2000,
+    "max_traversal_depth": 10
+  },
+  "parameters": [
+    {
+      "name": "min_severity",
+      "value_type": "string"
+    }
+  ],
+  "projection": {
+    "fields": [
+      {
+        "name": "anomaly",
+        "value": {
+          "binding": "a",
+          "kind": "claim_value",
+          "predicate": "fleet.anomaly.name"
+        }
+      },
+      {
+        "name": "asset",
+        "value": {
+          "binding": "asset",
+          "kind": "claim_value",
+          "predicate": "fleet.asset.name"
+        }
+      },
+      {
+        "name": "metric",
+        "value": {
+          "binding": "a",
+          "kind": "claim_value",
+          "predicate": "fleet.anomaly.metric"
+        }
+      },
+      {
+        "name": "severity",
+        "value": {
+          "binding": "a",
+          "kind": "claim_value",
+          "predicate": "fleet.anomaly.severity"
+        }
+      }
+    ]
+  },
+  "result_shape": "path",
+  "row_contract": {
+    "digest": "sha256:f274981498ea7d65a0062ffeb4f8472ab2a87f1391fc66f8fa1dda937b796641",
+    "name": "fleet.anomaly-triage-row",
+    "version": 1
+  },
+  "traversal": [
+    {
+      "binding": "asset",
+      "direction": "forward",
+      "from_binding": "a",
+      "predicate": "fleet.anomaly.asset",
+      "target_subject_kinds": [
+        "fleet.asset"
+      ]
+    }
+  ],
+  "where": {
+    "filters": [
+      {
+        "filters": [
+          {
+            "binding": "a",
+            "kind": "claim_presence",
+            "negated": true,
+            "predicate": "fleet.anomaly.disposition"
+          },
+          {
+            "kind": "comparison",
+            "left": {
+              "binding": "a",
+              "kind": "claim_value",
+              "predicate": "fleet.anomaly.disposition"
+            },
+            "operator": "eq",
+            "right": {
+              "kind": "literal",
+              "value": "open"
+            },
+            "value_type": "string"
+          }
+        ],
+        "kind": "any_of"
+      },
+      {
+        "kind": "comparison",
+        "left": {
+          "binding": "a",
+          "kind": "claim_value",
+          "predicate": "fleet.anomaly.severity"
+        },
+        "operator": "gte",
+        "right": {
+          "kind": "parameter",
+          "parameter": "min_severity"
+        },
+        "value_type": "string"
+      }
+    ],
+    "kind": "all_of"
+  }
+}

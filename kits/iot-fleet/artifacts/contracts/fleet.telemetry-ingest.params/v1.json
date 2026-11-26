@@ -1,0 +1,49 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "Parameters for one hub's fleet.telemetry-ingest Line.",
+  "fields": {
+    "alpha": {
+      "type": {
+        "kind": "string",
+        "pattern": "^(0\\.[0-9]{1,6}|1(\\.0{1,6})?)$"
+      }
+    },
+    "flatline_samples": {
+      "type": {
+        "kind": "int",
+        "max": 1000,
+        "min": 2
+      }
+    },
+    "logical_source": {
+      "type": {
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,255}$"
+      }
+    },
+    "max_heartbeat_age_s": {
+      "type": {
+        "kind": "int",
+        "max": 86400,
+        "min": 60
+      }
+    },
+    "min_breach_samples": {
+      "type": {
+        "kind": "int",
+        "max": 1000,
+        "min": 1
+      }
+    },
+    "relative_path": {
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "min_len": 1,
+        "pattern": "^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,255}$"
+      }
+    }
+  },
+  "name": "fleet.telemetry-ingest.params",
+  "version": 1
+}

@@ -1,11 +1,23 @@
 {
   "artifacts": [
     {
+      "artifact_digest": "sha256:6a8a7002a68b15556b572332790a627299d58165696eb3efbbcb9c043a8a8490",
+      "path": "capabilities/fleet.telemetry.analyze/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:fe467651897e4f3b1370122cf85808997149417449030539639804ea2090e8e1",
+      "path": "capture-contracts/fleet.telemetry-analysis.json"
+    },
+    {
+      "artifact_digest": "sha256:de440aadef459d80758547583e852a5ab6e8d7c3efb9ebd487a16bc68956b176",
+      "path": "capture-contracts/fleet.telemetry-batch.json"
+    },
+    {
       "artifact_digest": "sha256:24934a988a47eb9f6bd485b637b436bafb903572f8e26ab5f36b3d8e80771e47",
       "path": "capture-contracts/playbill.coordinator-self-source-v1.json"
     },
     {
-      "artifact_digest": "sha256:a32a76f06ca846c5f374efea3314d0649b9979c99c743ea66f8eb9984aaa82f8",
+      "artifact_digest": "sha256:0de3e967d04fd283d91792d69d805a037aac3ff119085a74d169b4d579ae92fc",
       "path": "claim-types/fleet.anomaly/asset.json"
     },
     {
@@ -17,7 +29,7 @@
       "path": "claim-types/fleet.anomaly/justification.json"
     },
     {
-      "artifact_digest": "sha256:56894144f6874cdf0ff9b489e4476eeac361e00437da621369b946b1eda4edc1",
+      "artifact_digest": "sha256:2db038c2faca5fc7ea5b2bf065da8bd7d06f8ac355e24b0e173cc5e975d14c7a",
       "path": "claim-types/fleet.anomaly/metric.json"
     },
     {
@@ -25,11 +37,11 @@
       "path": "claim-types/fleet.anomaly/name.json"
     },
     {
-      "artifact_digest": "sha256:76a0ac377b20ee7d0f338a1c38cc5654f27082c336a7fbe7098aa9e6ae5fda22",
+      "artifact_digest": "sha256:cb9443f7a4036faeb93f578dbb8fe3f7f874a2aee78bb8e47e83105efe217f8f",
       "path": "claim-types/fleet.anomaly/severity.json"
     },
     {
-      "artifact_digest": "sha256:9370e7924a6ae16d858232bbbff6ffa64ed1bff1c13e2480af5a92ae7b8c28bb",
+      "artifact_digest": "sha256:2ad35bca4bb8e81c4b81a26b9fa9ad918f3dbfb8e88752475f89660bce65da42",
       "path": "claim-types/fleet.asset/asset_type.json"
     },
     {
@@ -53,11 +65,11 @@
       "path": "claim-types/fleet.asset/model.json"
     },
     {
-      "artifact_digest": "sha256:e0c499b254eb07fdc4d7af48f76c70d3b5503a3f88b8910e0167a682fd27fd1c",
+      "artifact_digest": "sha256:5806ec959a9a3a52e032ea0b860cd3e963ba5293291cc4cdecacb32a7c053c6f",
       "path": "claim-types/fleet.asset/name.json"
     },
     {
-      "artifact_digest": "sha256:c7d132fe6c26ff589a85b957cf9c934aa96fc787cc4b055cd927456284a00aaf",
+      "artifact_digest": "sha256:a5c2d4a9e32fc1c24112a4aa7994400875bff8e6e7de6ee81695197afd066204",
       "path": "claim-types/fleet.asset/operating_state.json"
     },
     {
@@ -85,7 +97,7 @@
       "path": "claim-types/fleet.baseline/status.json"
     },
     {
-      "artifact_digest": "sha256:ac9ff4edea414038b0871d281c496ffc4c6233fb990fb947a177bdc69cbdafde",
+      "artifact_digest": "sha256:02c7c6294e325c65fa38c06798ba3d08ca3bbd02acc988cf1e15a36e235b148d",
       "path": "claim-types/fleet.baseline/unit.json"
     },
     {
@@ -153,7 +165,7 @@
       "path": "claim-types/fleet.sensor/site.json"
     },
     {
-      "artifact_digest": "sha256:f0e6a090b578fda2d489e9cc5e9c36ea347337e4ca310dc36cd9c05f3d6550b7",
+      "artifact_digest": "sha256:ecf75ba42fba62fe4ced21216c7c45466a42dd99f9f3281c79ab01fc844b801f",
       "path": "claim-types/fleet.sensor/status.json"
     },
     {
@@ -169,8 +181,112 @@
       "path": "claim-types/fleet.site/title.json"
     },
     {
-      "artifact_digest": "sha256:b2cacd02415c36f29a16ef86b525b74cc8f1113f02860fbb44d5b1b40c49e2e4",
+      "artifact_digest": "sha256:a9e8fb06b8b8e8ff2e5f1317a5ed0d900b5ef5b6cf168228c067809109bba299",
+      "path": "contracts/fleet.anomaly-attention/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:99bbcfa304cf707acbcc0c9be682a1c9bda68204f5ba9ed241ae2a4ce09a8845",
+      "path": "contracts/fleet.anomaly-ingest.input/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:d32f1dcabb9d1d06165a3478550cb628a822fd5c1492ca94eb30ee952cec43ba",
+      "path": "contracts/fleet.anomaly-ingest.output/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:22b6e900381c28bcfa3fa1ee9e4d44a7d17c41ec78d21ace22a1f3f8c7007e4f",
+      "path": "contracts/fleet.anomaly-ingest.params/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:f274981498ea7d65a0062ffeb4f8472ab2a87f1391fc66f8fa1dda937b796641",
+      "path": "contracts/fleet.anomaly-triage-row/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:da937de3a8f01e554e41327b50ac72218a2f235b6484adabed2bc0bf368bcc89",
+      "path": "contracts/fleet.approved-baseline/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:ac37d901ae613341ba3320df16be20f9c56f15f8c398a41a2b6ce0dad5d0badd",
+      "path": "contracts/fleet.attention.input/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:46c45e1ac3f90eb253bec60dfb2838cf433ccd62c84dde6cbb51251a02eb2e3c",
+      "path": "contracts/fleet.attention.output/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:012036cef02617ef580143690ebfc6c9b6c4d80065f3c50c979753d84efa856d",
+      "path": "contracts/fleet.attention.params/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:19fec86d0a771de722f7414ae83aef696b4d4e7b7f2feb47f21aac8fd81bdefe",
+      "path": "contracts/fleet.sensor-health.input/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:19f9dbd1c9c20d173074dc43f5d8809065ae02e4785d04e770b477d4431b8f05",
+      "path": "contracts/fleet.sensor-health.output/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:3e2bc442259beaa9e9e702025dca3656d0ef643700de45e5045e5b4841c5e9cd",
+      "path": "contracts/fleet.sensor-health.params/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:2f5cb1bd4ebdc8d0e099252ea42707b37222e0a32dd959bac2f182d90efa205c",
+      "path": "contracts/fleet.telemetry-anomaly-row/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:f2471a3bb98f3ab9315695bc2e354150a7b1dad02e73534eed65c498f1c49b2d",
+      "path": "contracts/fleet.telemetry-asset-row/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:7a5e2855ea2e91e6cf03d34dfd2638a68426d9604c12e3b8015ca3b62befc35c",
+      "path": "contracts/fleet.telemetry-ingest.input/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:e8dcc4c27f0603c5071becda40d3936ec29d04227c857e0fd2c0c38090fd4e01",
+      "path": "contracts/fleet.telemetry-ingest.output/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:d3534c61e9c7056336adce5a4962f0260c2a38d194a8c9c88ef21aebdd7d9454",
+      "path": "contracts/fleet.telemetry-ingest.params/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:39e48b29e3150971bff3d6daa843367fb3997ed3dcd7178bdd3f49a52cea1e32",
+      "path": "contracts/fleet.telemetry-sensor-row/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:3a083e7aeea918f513e50c47560b5a18bdf4c1f236c24186b85401a8a41ad920",
+      "path": "contracts/fleet.telemetry.analyze.request/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:afb2abdf19d9dc0fda325695a16bd45e3645c6d724e6b729a990336a52ca83ac",
+      "path": "contracts/fleet.telemetry.analyze.result/v1.json"
+    },
+    {
+      "artifact_digest": "sha256:a9cc4657235f81c59cada2c22fb79222863681341748a3a7b75b0d2e6517814e",
       "path": "documents/fleet.guidance.review-guidance.json"
+    },
+    {
+      "artifact_digest": "sha256:d704ca0f4901a8e784f8fda6c00e600c85fac304b3782ade7acc348aa4cc8d0a",
+      "path": "procedures/fleet.anomaly-ingest.json"
+    },
+    {
+      "artifact_digest": "sha256:25843e8dbc6e0da4bd35f7447b58da5a8dd779c87af7665a9f4daecfb0ee6e35",
+      "path": "procedures/fleet.attention.json"
+    },
+    {
+      "artifact_digest": "sha256:21669708592360f27e42d6453d733dd9bad6289b46739548c07122cfa5071c58",
+      "path": "procedures/fleet.sensor-health.json"
+    },
+    {
+      "artifact_digest": "sha256:878e29fa23c92752678f819e3e8e7aa4f1497b7e026ba9216c5bdc89eada4a38",
+      "path": "procedures/fleet.telemetry-ingest.json"
+    },
+    {
+      "artifact_digest": "sha256:b98c06b61887b089d30c6787e388eb91b4b7d7ebc6e540c4d0d2ce408c92e880",
+      "path": "query-definitions/fleet.anomalies_needing_triage.json"
+    },
+    {
+      "artifact_digest": "sha256:691d8466df780c876aac7119ada239e0c18445b77a2243da9727010e474f86e6",
+      "path": "query-definitions/fleet.approved_baselines.json"
     },
     {
       "artifact_digest": "sha256:9375f2bd486539db0069d6561c03b91218bcdec21624885ca042ab004bbdfe3f",
@@ -185,7 +301,7 @@
       "path": "query-definitions/fleet.assets_on_recalled_firmware.json"
     },
     {
-      "artifact_digest": "sha256:82645d8b3896694b3d7c43493187bed8b100329a95170b02cbb9f1599b50b585",
+      "artifact_digest": "sha256:24b05d066c55368421e99e2bb18c12e9e2e4eb6b54b3b8be95041fe0b89be45a",
       "path": "query-definitions/fleet.open_anomalies.json"
     },
     {
@@ -193,7 +309,7 @@
       "path": "subject-kinds/fleet.anomaly.json"
     },
     {
-      "artifact_digest": "sha256:b8ab5ef2cbc1df4e7cf24d6614e02a87ba7cb5d0e23feadf41c99e9e00d2f9b9",
+      "artifact_digest": "sha256:4f927d7e4e4b3acd11bfbea08732277409ee75493879588bbf248b906e4d579b",
       "path": "subject-kinds/fleet.asset.json"
     },
     {
@@ -217,11 +333,52 @@
       "path": "subject-kinds/fleet.site.json"
     }
   ],
+  "automation_template": "automation.json",
   "files": [
     {
       "path": "README.md",
       "role": "readme",
-      "sha256": "sha256:65335b3912fc53dc4283d77649b63a2f72f08aeded42e981be0c8982e08e1391"
+      "sha256": "sha256:84712818a67502d8116f046f6c3d554d7e06a38955459d5e9fe2ae37f008c7c7"
+    },
+    {
+      "path": "automation.json",
+      "role": "reference",
+      "sha256": "sha256:418b51e8fde9d33a112fa7fa852f0b2fead40ccbaff9a96a483d14ee19c194a4"
+    },
+    {
+      "path": "examples/camera-hub/README.md",
+      "role": "example",
+      "sha256": "sha256:9962b9831c755152310827cd478b7f3938960931b46fdfe010ce20fd342c3548"
+    },
+    {
+      "path": "examples/camera-hub/hub-batch-01.json",
+      "role": "example",
+      "sha256": "sha256:7e1f6ab9d0ce9b1ce7c58864fac4e048bc4922b131d164652aeb8d93b4e19347"
+    },
+    {
+      "path": "examples/camera-hub/hub-batch-02.json",
+      "role": "example",
+      "sha256": "sha256:abdf08cc2b7d17c356dcdb4b44034ec42132f8f2d3b871ce1fe3843c689a3d71"
+    },
+    {
+      "path": "examples/camera-hub/seed_fleet.py",
+      "role": "example",
+      "sha256": "sha256:62e98e66ea5286d9cb4f399ea960a04ed3844ee86d152e8006b4408d18f0130a"
+    },
+    {
+      "path": "examples/camera-opencv/frame_health_provider.py",
+      "role": "example",
+      "sha256": "sha256:75d671f77a61e12a0669a32c120839a33a9f09c84d1e199e287435c0acb22905"
+    },
+    {
+      "path": "recipes/default.json",
+      "role": "recipe",
+      "sha256": "sha256:13a636f2b960850349f485ca5b4c5cab6f173408886f20e88e00062be9d8a173"
+    },
+    {
+      "path": "recipes/telemetry.json",
+      "role": "recipe",
+      "sha256": "sha256:2b2e74d1b642ad444a38e20a827c0ce6ef4c66305e20aa93d09ae9fa82cfc006"
     }
   ],
   "kit_id": "iot-fleet",
@@ -231,14 +388,138 @@
   "provenance": {
     "coordinate": {
       "compiler_digest": "sha256:5925eaa1f538489f6de2befc2bc44718d8d317eefa12a192d16af1f94c884dac",
-      "generation_root": "sha256:29aa910ca9e142aff2d4e4e98782c4ef445dd728db459d503454f6530d5f1954",
-      "git_oid": "dd4e363cb429afd804eb0744aae04a6a5b1bcdc6",
-      "semantic_root": "sha256:d7939bca2256940b9d4b7d47d31d87e08bc119f1a5a5e4e15b4a0746c45c4339",
+      "generation_root": "sha256:e480140c7fde4a1155946d103510acad496e08916a91c285a0e661d94e0ef03d",
+      "git_oid": "b4391eb4910cd1e75864bcb80194255d4a77bdb8",
+      "semantic_root": "sha256:a972fc86288f460524dd481ca44cea2670e862486ab86ad44ad1bd6f81e27cec",
       "tag": "playbill-accepted-coordinate-v1"
     },
-    "instance_id": "inst_fe1dbe2340af4115",
+    "instance_id": "inst_63b3aa6944a7435e",
     "principal_id": "owner"
   },
+  "providers": [
+    {
+      "dependencies": [
+        {
+          "filename": "cruxible_provider_runtime-0.6.0-py3-none-any.whl",
+          "sha256": "sha256:dcdb2646e6abd7353dc9766be1f58d442f5b81e41237a710af3e4bc3b1bd4d5e"
+        }
+      ],
+      "lock": {
+        "filename": "iot-telemetry-provider-0.1.0.uv.lock",
+        "sha256": "sha256:7937368cba2c5691dc7d3241847e80693732aca498f461c97a802356f78109eb"
+      },
+      "operations": [
+        "telemetry.analyze"
+      ],
+      "package": "iot-telemetry-provider",
+      "provider_id": "iot-telemetry-provider",
+      "version": "0.1.0",
+      "wheel": {
+        "filename": "iot_telemetry_provider-0.1.0-py3-none-any.whl",
+        "sha256": "sha256:81d759d4b617accea71fe77bd9308f1cda4aeba33e403e26e9f9572e699b0e19"
+      }
+    }
+  ],
+  "recipes": [
+    {
+      "description": "Shared fleet automation backbone: the observe-only fleet.attention Line (posts unjudged anomalies to cruxible next) and the fleet.check Runbook.",
+      "name": "default",
+      "params": {
+        "min_severity": {
+          "default": "medium",
+          "description": "Minimum anomaly severity posted to the Line inbox.",
+          "example": null,
+          "pattern": null,
+          "required": false,
+          "type": "enum",
+          "values": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        }
+      },
+      "path": "recipes/default.json"
+    },
+    {
+      "description": "One hub's telemetry ingest Line (EWMA gain filter + approved-baseline classifier), its capture-landing sensor-health and anomaly-ingest Lines, and their observations-only Mandates. Adopt once per hub export.",
+      "name": "telemetry",
+      "params": {
+        "alpha": {
+          "default": "0.3",
+          "description": "EWMA smoothing gain in (0, 1]. Lower values absorb sharper transient spikes.",
+          "example": null,
+          "pattern": "^(0\\.[0-9]{1,6}|1(\\.0{1,6})?)$",
+          "required": false,
+          "type": "string",
+          "values": []
+        },
+        "expires": {
+          "default": "90d",
+          "description": "How long each observations-only Mandate stays valid (36h, 90d, 12w, 1y).",
+          "example": null,
+          "pattern": "^[1-9][0-9]{0,4}[hdwy]$",
+          "required": false,
+          "type": "string",
+          "values": []
+        },
+        "flatline_samples": {
+          "default": 5,
+          "description": "Consecutive identical samples required to mark a sensor degraded (flatlined).",
+          "example": null,
+          "pattern": null,
+          "required": false,
+          "type": "integer",
+          "values": []
+        },
+        "max_heartbeat_age_s": {
+          "default": 1800,
+          "description": "Maximum heartbeat age in seconds before marking a sensor offline (default 1800 = 30 min).",
+          "example": null,
+          "pattern": null,
+          "required": false,
+          "type": "integer",
+          "values": []
+        },
+        "min_breach_samples": {
+          "default": 3,
+          "description": "Consecutive filtered samples outside approved bounds required to classify a fault.",
+          "example": null,
+          "pattern": null,
+          "required": false,
+          "type": "integer",
+          "values": []
+        },
+        "name": {
+          "default": "hub",
+          "description": "Short identifier for this hub export (Line suffix and logical source suffix).",
+          "example": null,
+          "pattern": "^[a-z][a-z0-9_-]{0,48}$",
+          "required": false,
+          "type": "string",
+          "values": []
+        },
+        "relative_path": {
+          "default": null,
+          "description": "Workspace-relative path of the hub telemetry JSON batch.",
+          "example": "telemetry/hub.json",
+          "pattern": "^(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*)(?:/(?:[A-Za-z0-9_][A-Za-z0-9._-]*|\\.[A-Za-z0-9_-][A-Za-z0-9._-]*))*$",
+          "required": true,
+          "type": "string",
+          "values": []
+        }
+      },
+      "path": "recipes/telemetry.json"
+    }
+  ],
+  "requires": [
+    {
+      "kit_id": "base",
+      "min_version": "1.0.0"
+    }
+  ],
   "tag": "playbill-kit-manifest-v1",
-  "version": "2.0.0"
+  "version": "2.1.0"
 }

@@ -1,0 +1,49 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One unjudged anomaly row returned by fleet.anomalies_needing_triage.",
+  "fields": {
+    "anomaly": {
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "min_len": 1
+      }
+    },
+    "asset": {
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "min_len": 1
+      }
+    },
+    "metric": {
+      "type": {
+        "kind": "enum",
+        "members": [
+          "vibration",
+          "temperature",
+          "pressure",
+          "flow",
+          "humidity",
+          "current",
+          "voltage",
+          "power"
+        ]
+      }
+    },
+    "severity": {
+      "type": {
+        "kind": "enum",
+        "members": [
+          "info",
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ]
+      }
+    }
+  },
+  "name": "fleet.anomaly-triage-row",
+  "version": 1
+}

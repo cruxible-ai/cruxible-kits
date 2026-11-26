@@ -14,7 +14,7 @@
   ],
   "cardinality": "one",
   "default_role": "normative",
-  "description": "The asset's tag or slug (line-2-pump-b); its key.",
+  "description": "The asset's tag or slug (line-2-pump-b, cam-gate-01); its key.",
   "evidence_admission_policy": {
     "rules": [],
     "tag": "cruxible-claim-evidence-admission-policy-v4"

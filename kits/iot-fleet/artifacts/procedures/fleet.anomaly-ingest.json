@@ -1,0 +1,135 @@
+{
+  "activation_policy": "snapshot",
+  "artifact_format": "cruxible-procedure-v4",
+  "definition": {
+    "contract_in": {
+      "target": {
+        "kind": "Contract",
+        "name": "fleet.anomaly-ingest.input/v1"
+      }
+    },
+    "contract_out": {
+      "target": {
+        "kind": "Contract",
+        "name": "fleet.anomaly-ingest.output/v1"
+      }
+    },
+    "description": "Create and populate flagged fleet.anomaly observations (asset, metric, severity) from one landed fleet.telemetry-analysis Capture without touching normative dispositions.",
+    "hard_caps": {
+      "max_capture_bytes": 16777216,
+      "max_items": 50000,
+      "max_provider_calls": 1,
+      "max_read_rows": 20000,
+      "max_repeat_attempts": 1,
+      "max_wall_clock": {
+        "microseconds": 120000000
+      }
+    },
+    "name": "fleet.anomaly-ingest",
+    "nodes": [
+      {
+        "captures": {
+          "document": {
+            "target": {
+              "kind": "CaptureContract",
+              "name": "fleet.telemetry-analysis"
+            }
+          }
+        },
+        "id": "analysis",
+        "input": {
+          "alpha": "0.3",
+          "baselines": [],
+          "batches": [],
+          "flatline_samples": 5,
+          "logical_source": "$params.logical_source",
+          "max_heartbeat_age_s": 1800,
+          "min_breach_samples": 3
+        },
+        "kind": "call",
+        "slot": "derive"
+      },
+      {
+        "capture": "$steps.analysis.document",
+        "id": "anomalies",
+        "kind": "extract",
+        "records": "anomalies",
+        "row": {
+          "digest": "sha256:2f5cb1bd4ebdc8d0e099252ea42707b37222e0a32dd959bac2f182d90efa205c",
+          "name": "fleet.telemetry-anomaly-row",
+          "version": 1
+        }
+      },
+      {
+        "claims": [
+          {
+            "rationale": "{$item.fields.reason}",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "fleet.anomaly.asset"
+              }
+            },
+            "value": {
+              "key": {
+                "name": "$item.fields.asset"
+              },
+              "kind": "fleet.asset"
+            }
+          },
+          {
+            "rationale": "{$item.fields.reason}",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "fleet.anomaly.metric"
+              }
+            },
+            "value": "$item.fields.metric"
+          },
+          {
+            "rationale": "{$item.fields.reason}",
+            "type": {
+              "target": {
+                "kind": "ClaimType",
+                "name": "fleet.anomaly.severity"
+              }
+            },
+            "value": "$item.fields.severity"
+          }
+        ],
+        "for_each": "$steps.anomalies.records",
+        "id": "write",
+        "kind": "claims",
+        "subject": {
+          "create": "if_absent",
+          "key": {
+            "name": "$item.key.name"
+          },
+          "kind": "fleet.anomaly"
+        }
+      }
+    ],
+    "parameter_contract": {
+      "target": {
+        "kind": "Contract",
+        "name": "fleet.anomaly-ingest.params/v1"
+      }
+    },
+    "slots": {
+      "derive": {
+        "capability": {
+          "digest": "sha256:6a8a7002a68b15556b572332790a627299d58165696eb3efbbcb9c043a8a8490",
+          "name": "fleet.telemetry.analyze",
+          "version": 1
+        }
+      }
+    },
+    "terminal_capability": 3
+  },
+  "definition_digest": "sha256:4d6eec65e74f6282b7d4b0c474182545e476bd5ef5102148cf7733a16ff2b90c",
+  "identity": {
+    "kind": "Procedure",
+    "name": "fleet.anomaly-ingest"
+  }
+}

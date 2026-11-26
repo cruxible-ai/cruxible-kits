@@ -1,13 +1,12 @@
 """The iot-fleet kit's definitions, as authored inputs.
 
-Rebuild the kit from here with ``python scripts/build_kit.py kits/iot-fleet SCRATCH``
-(see that script). Each ClaimType is a ``ClaimTypeInputRecord`` lowered with the
-client's ``lower_claim_type_input``; what a record leaves out takes the current
-default.
+Rebuild the full 2.1.0 release (vocabulary, provider, Procedures, recipes, guidance) with::
+
+    python kits/iot-fleet/source/build_release.py /short/new/scratch
 
 The vocabulary keeps what telemetry and models report (``observation``) apart from
 what a person or reviewing agent decides about it (``normative``). Raw time-series
-stays in your historian; Cruxible holds sites, industrial or edge assets, sensors,
+stays in your historian or hub; Cruxible holds sites, industrial or edge assets, sensors,
 firmware releases, approved operating baselines, anomalies, and maintenance records.
 Ranked levels (criticality, operating_state, condition, severity, firmware status)
 are ordered enums so queries can compare rank directly.
@@ -25,7 +24,7 @@ from cruxible_client.contracts.claim_type_inputs import (
 )
 
 KIT_ID = "iot-fleet"
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 OWNS = ("fleet.",)
 
 SITE = "fleet.site"
@@ -36,6 +35,12 @@ BASELINE = "fleet.baseline"
 ANOMALY = "fleet.anomaly"
 MAINTENANCE = "fleet.maintenance"
 SELF = "playbill.coordinator-self-source-v1"
+TELEMETRY_ANALYSIS_KIND = "fleet.telemetry-analysis"
+
+APPROVED_BASELINES_QUERY = "fleet.approved_baselines"
+ANOMALIES_NEEDING_TRIAGE_QUERY = "fleet.anomalies_needing_triage"
+APPROVED_BASELINE_ROW = "fleet.approved-baseline"
+ANOMALY_TRIAGE_ROW = "fleet.anomaly-triage-row"
 
 OBSERVED = "observation"
 DECIDED = "normative"
@@ -51,6 +56,19 @@ def _rule(role: str) -> dict[str, Any]:
         "claim_roles": [role],
         "capture_contracts": [SELF],
         "capture_contract_families": ["workspace_file"],
+        "admission": "direct",
+        "attestation_requirement": "none",
+        "subject_binding": "exact_claim_subject",
+    }
+
+
+def _telemetry_rule() -> dict[str, Any]:
+    """Derived telemetry analysis Capture from iot-telemetry-provider."""
+
+    return {
+        "rule_id": "telemetry-analysis",
+        "claim_roles": [OBSERVED],
+        "capture_contracts": [TELEMETRY_ANALYSIS_KIND],
         "admission": "direct",
         "attestation_requirement": "none",
         "subject_binding": "exact_claim_subject",
@@ -79,8 +97,13 @@ def _field(
     *,
     role: str = OBSERVED,
     cardinality: str = "one",
+    telemetry: bool = False,
     **more: Any,
 ) -> dict[str, Any]:
+    rules = [_rule(role)]
+    if telemetry:
+        rules.append(_telemetry_rule())
+    rules.sort(key=lambda item: item["rule_id"].encode("utf-8"))
     return {
         "predicate": predicate,
         "cardinality": cardinality,
@@ -88,7 +111,7 @@ def _field(
         "default_role": role,
         "permitted_roles": [role],
         "evidence_requirement": "self",
-        "evidence_admission_policy": {"rules": [_rule(role)]},
+        "evidence_admission_policy": {"rules": rules},
         "description": description,
         **more,
     }
@@ -155,13 +178,13 @@ def claim_type_records() -> list[dict[str, Any]]:
                 recalled="Known safety, reliability, or security defect; replace promptly.",
             ),
         ),
-        # Industrial or edge assets (pumps, chillers, motors, gateways, inverters, ...).
-        _key(f"{ASSET}.name", _text(), "The asset's tag or slug (line-2-pump-b); its key."),
+        # Industrial or edge assets (pumps, chillers, motors, cameras, edge hubs, ...).
+        _key(f"{ASSET}.name", _text(), "The asset's tag or slug (line-2-pump-b, cam-gate-01); its key."),
         _field(f"{ASSET}.site", _subjects(SITE), "The site the asset runs at.", role=DECIDED),
         _field(
             f"{ASSET}.asset_type",
             _text(64),
-            "The kind of equipment (pump, chiller, compressor, gateway, motor, inverter).",
+            "The kind of equipment (pump, chiller, compressor, camera, edge_hub, motor, inverter).",
             role=DECIDED,
         ),
         _field(f"{ASSET}.model", _text(120), "The manufacturer and model, as on the nameplate."),
@@ -186,11 +209,12 @@ def claim_type_records() -> list[dict[str, Any]]:
             f"{ASSET}.operating_state",
             _ranked("normal", "warning", "fault", "offline"),
             "Latest observed operating state from telemetry, PLC status, or a diagnostic model, "
-            "lowest first; cite the telemetry export or model run.",
+            "lowest first; cite the telemetry export or derived telemetry analysis.",
+            telemetry=True,
             member_descriptions=_meanings(
                 normal="All watched metrics within normal range.",
                 warning="One or more metrics trending toward or past a warning bound.",
-                fault="Active fault or alarm reported by the controller or model.",
+                fault="Active fault or alarm reported by the controller or telemetry Line.",
                 offline="Asset powered down or unreachable.",
             ),
         ),
@@ -228,11 +252,12 @@ def claim_type_records() -> list[dict[str, Any]]:
             _enum("online", "degraded", "offline"),
             "The device's last reported health. Its evidence goes stale 30 minutes after "
             "the last heartbeat, so a silent sensor reads as unknown, never as healthy.",
+            telemetry=True,
             evidence_freshness={"stale_after": "PT30M"},
             member_descriptions=_meanings(
                 online="Reporting on schedule.",
-                degraded="Reporting, with dropped or out-of-range samples.",
-                offline="Reported itself offline.",
+                degraded="Reporting, with dropped, flatlined, or out-of-range samples.",
+                offline="Reported itself offline or missed heartbeat deadline.",
             ),
         ),
         # Reviewed operating baselines: one per (asset, metric).
@@ -254,7 +279,7 @@ def claim_type_records() -> list[dict[str, Any]]:
             f"{BASELINE}.unit",
             _text(32),
             "The unit low and high count in, small enough to keep them whole (um/s, "
-            "centi-degC, mbar, mA).",
+            "centi-degC, mbar, mA, mW).",
             role=DECIDED,
         ),
         _field(
@@ -270,12 +295,19 @@ def claim_type_records() -> list[dict[str, Any]]:
             f"{ANOMALY}.asset",
             _subjects(ASSET, SENSOR),
             "The asset or sensor the anomaly was flagged on.",
+            telemetry=True,
         ),
-        _field(f"{ANOMALY}.metric", METRICS, "The metric that broke its bound."),
+        _field(
+            f"{ANOMALY}.metric",
+            METRICS,
+            "The metric that broke its bound or failed health checks.",
+            telemetry=True,
+        ),
         _field(
             f"{ANOMALY}.severity",
             _ranked("info", "low", "medium", "high", "critical"),
             "How serious the anomaly is, lowest first.",
+            telemetry=True,
         ),
         _field(
             f"{ANOMALY}.disposition",
@@ -353,7 +385,7 @@ SUBJECT_KINDS = (
     ),
     (
         ASSET,
-        "An industrial or edge asset (pump, chiller, motor, gateway), named by its asset tag.",
+        "An industrial or edge asset (pump, chiller, camera, edge hub), named by its asset tag.",
         [f"{ASSET}.name"],
     ),
     (SENSOR, "A telemetry sensor or edge device, named by its device id.", [f"{SENSOR}.name"]),
@@ -409,7 +441,7 @@ OPEN_ANOMALIES = {
     "query": "fleet.open_anomalies",
     "description": "Anomalies not yet reviewed, medium severity or worse.",
     "from": {"anomaly": ANOMALY},
-    "where": 'anomaly.disposition == "open" and anomaly.severity >= "medium"',
+    "where": '(not exists anomaly.disposition or anomaly.disposition == "open") and anomaly.severity >= "medium"',
     "fields": ["anomaly.asset", "anomaly.metric", "anomaly.severity"],
     "limit": 200,
     "max": {"results": 2000},
@@ -431,11 +463,51 @@ ASSETS_ON_RECALLED_FIRMWARE = {
     "max": {"results": 2000},
 }
 
+APPROVED_BASELINES = {
+    "query": APPROVED_BASELINES_QUERY,
+    "description": "Every approved operating baseline (asset slug, metric, low, high, unit) read "
+    "by the telemetry ingest Line.",
+    "from": {"b": BASELINE},
+    "hops": [{"a": f"b.{BASELINE}.asset!: {ASSET}"}],
+    "where": 'b.status == "approved"',
+    "row": f"{APPROVED_BASELINE_ROW}@1",
+    "fields": [
+        {"asset": "a.name"},
+        "b.metric",
+        "b.low",
+        "b.high",
+        "b.unit",
+    ],
+    "limit": 5000,
+    "max": {"results": 20000},
+}
+
+ANOMALIES_NEEDING_TRIAGE = {
+    "query": ANOMALIES_NEEDING_TRIAGE_QUERY,
+    "description": "Anomalies with no reviewed disposition (unset or open) at or above "
+    "min_severity, read by the observe-only fleet.attention Line.",
+    "params": {"min_severity": "string"},
+    "from": {"a": ANOMALY},
+    "hops": [{"asset": f"a.{ANOMALY}.asset!: {ASSET}"}],
+    "where": '(not exists a.disposition or a.disposition == "open") and a.severity >= $min_severity',
+    "row": f"{ANOMALY_TRIAGE_ROW}@1",
+    "fields": [
+        {"anomaly": "a.name"},
+        {"asset": "asset.name"},
+        "a.metric",
+        "a.severity",
+    ],
+    "limit": 200,
+    "max": {"results": 2000},
+}
+
 QUERIES = (
     ASSETS_NEEDING_ATTENTION,
     ASSETS_BY_SITE,
     OPEN_ANOMALIES,
     ASSETS_ON_RECALLED_FIRMWARE,
+    APPROVED_BASELINES,
+    ANOMALIES_NEEDING_TRIAGE,
 )
 
 
@@ -466,7 +538,9 @@ def guidance_documents(store_body: Callable[[Path], str]) -> list[dict[str, Any]
     ]
 
 
-def change_set() -> dict[str, Any]:
+def vocabulary_change_set(row_contracts: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """ClaimTypes, SubjectKinds, row Contracts, and saved Queries."""
+
     claim_types = [
         lower_claim_type_input(ClaimTypeInputRecord.model_validate(record), tree={})
         for record in claim_type_records()
@@ -474,8 +548,9 @@ def change_set() -> dict[str, Any]:
     return {
         "kind": "change_set",
         "rationale": f"iot-fleet {VERSION}: sites, assets, sensors, firmware, baselines, "
-        "anomalies and maintenance.",
+        "anomalies, maintenance, and telemetry automation queries.",
         "members": [
+            *(row_contracts or []),
             *(
                 {"kind": "claim_type", "claim_type": t.model_dump(mode="json", by_alias=True)}
                 for t in claim_types
@@ -487,3 +562,7 @@ def change_set() -> dict[str, Any]:
             *({"kind": "query_definition", "query_definition": q} for q in QUERIES),
         ],
     }
+
+
+def change_set() -> dict[str, Any]:
+    return vocabulary_change_set()

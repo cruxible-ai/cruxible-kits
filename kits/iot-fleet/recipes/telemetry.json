@@ -1,0 +1,166 @@
+{
+ "kind": "change_set",
+ "rationale": "kit adopt iot-fleet:telemetry: hub telemetry ingest Line fleet.telemetry-ingest.{{name}} reading {{relative_path}} with EWMA gain {{alpha}}, its capture-landing sensor-health and anomaly-ingest Lines, and scope: observations Mandates valid for {{expires}}.",
+ "members": [
+  {
+   "kind": "line",
+   "name": "fleet.telemetry-ingest.{{name}}",
+   "procedure_name": "fleet.telemetry-ingest",
+   "bindings": {
+    "read": "cruxible-builtin#workspace.file",
+    "derive": "iot-telemetry-provider#telemetry.analyze"
+   },
+   "parameters": {
+    "relative_path": "{{relative_path}}",
+    "logical_source": "fleet.telemetry.{{name}}",
+    "alpha": "{{alpha}}",
+    "min_breach_samples": "{{min_breach_samples}}",
+    "flatline_samples": "{{flatline_samples}}",
+    "max_heartbeat_age_s": "{{max_heartbeat_age_s}}"
+   },
+   "acquisition": {},
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.telemetry-ingest.{{name}}-propose",
+   "line_name": "fleet.telemetry-ingest.{{name}}",
+   "grants": "propose",
+   "namespace": [
+    "claims"
+   ],
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.telemetry-ingest.{{name}}-settle",
+   "line_name": "fleet.telemetry-ingest.{{name}}",
+   "grants": "settle",
+   "scope": "observations",
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "line",
+   "name": "fleet.sensor-health.{{name}}",
+   "procedure_name": "fleet.sensor-health",
+   "bindings": {
+    "derive": "iot-telemetry-provider#telemetry.analyze"
+   },
+   "parameters": {
+    "logical_source": "fleet.telemetry.{{name}}"
+   },
+   "trigger_input": "analysis.document",
+   "acquisition": {
+    "analysis.document": {}
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.sensor-health.{{name}}-propose",
+   "line_name": "fleet.sensor-health.{{name}}",
+   "grants": "propose",
+   "namespace": [
+    "claims"
+   ],
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.sensor-health.{{name}}-settle",
+   "line_name": "fleet.sensor-health.{{name}}",
+   "grants": "settle",
+   "scope": "observations",
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "trigger",
+   "name": "fleet.sensor-health-on-analysis.{{name}}",
+   "line_name": "fleet.sensor-health.{{name}}",
+   "schedule": {
+    "kind": "capture_landing",
+    "capture_contract": "fleet.telemetry-analysis",
+    "logical_sources": [
+     "fleet.telemetry.{{name}}"
+    ]
+   }
+  },
+  {
+   "kind": "line",
+   "name": "fleet.anomaly-ingest.{{name}}",
+   "procedure_name": "fleet.anomaly-ingest",
+   "bindings": {
+    "derive": "iot-telemetry-provider#telemetry.analyze"
+   },
+   "parameters": {
+    "logical_source": "fleet.telemetry.{{name}}"
+   },
+   "trigger_input": "analysis.document",
+   "acquisition": {
+    "analysis.document": {}
+   },
+   "findings": {
+    "inbox": [
+     "extract_refused",
+     "duplicate_key",
+     "incomplete_source",
+     "held_disagrees",
+     "slot_contested"
+    ]
+   },
+   "max_authority": "settle"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.anomaly-ingest.{{name}}-propose",
+   "line_name": "fleet.anomaly-ingest.{{name}}",
+   "grants": "propose",
+   "namespace": [
+    "claims",
+    "subjects"
+   ],
+   "expires": "{{expires}}"
+  },
+  {
+   "kind": "procedure_mandate",
+   "name": "fleet.anomaly-ingest.{{name}}-settle",
+   "line_name": "fleet.anomaly-ingest.{{name}}",
+   "grants": "settle",
+   "scope": "observations",
+   "expires": "{{expires}}",
+   "subject_creation": [
+    "fleet.anomaly"
+   ]
+  },
+  {
+   "kind": "trigger",
+   "name": "fleet.anomaly-ingest-on-analysis.{{name}}",
+   "line_name": "fleet.anomaly-ingest.{{name}}",
+   "schedule": {
+    "kind": "capture_landing",
+    "capture_contract": "fleet.telemetry-analysis",
+    "logical_sources": [
+     "fleet.telemetry.{{name}}"
+    ]
+   }
+  }
+ ]
+}

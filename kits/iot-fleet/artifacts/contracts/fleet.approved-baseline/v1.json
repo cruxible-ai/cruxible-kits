@@ -1,0 +1,48 @@
+{
+  "artifact_format": "cruxible-contract-v1",
+  "description": "One approved operating baseline row passed to telemetry.analyze.",
+  "fields": {
+    "asset": {
+      "type": {
+        "kind": "string",
+        "max_len": 256,
+        "min_len": 1
+      }
+    },
+    "high": {
+      "type": {
+        "kind": "int"
+      }
+    },
+    "low": {
+      "type": {
+        "kind": "int"
+      }
+    },
+    "metric": {
+      "type": {
+        "kind": "enum",
+        "members": [
+          "vibration",
+          "temperature",
+          "pressure",
+          "flow",
+          "humidity",
+          "current",
+          "voltage",
+          "power"
+        ]
+      }
+    },
+    "unit": {
+      "optional": true,
+      "type": {
+        "kind": "string",
+        "max_len": 32,
+        "min_len": 1
+      }
+    }
+  },
+  "name": "fleet.approved-baseline",
+  "version": 1
+}
