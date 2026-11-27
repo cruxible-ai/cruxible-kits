@@ -7,6 +7,7 @@ Inputs for the security kit (Cruxible 0.6):
 | `sboms/log4j-demo-app.cdx.json` | Demo application containing log4j-core 2.14.1; a useful live OSV/KEV example, not real deployed software |
 | `sboms/cruxible-env.cdx.json` | A recorded Python environment inventory, not a statement of your current environment |
 | `sboms/env_sbom.py` | Write an inventory from the Python environment running it |
+| `sboms/lockfile_sbom.py` | Pure-stdlib CycloneDX 1.6 starter that reads `uv.lock`, `requirements.txt`, `package-lock.json`, `Cargo.lock`, and `go.mod` |
 | `sarif/automation-sarif.json` | A ready-to-submit SARIF intake for one scanner: the import Line, its Mandates (`expires: 90d`) and the attention Line with its landing Trigger |
 | `sarif/semgrep-demo.sarif` | A Semgrep SARIF 2.1.0 log of a demo app (`github.com/example/demo-app`) with two findings: SQL injection in `app/db.py` and path traversal in `app/files.py` |
 
