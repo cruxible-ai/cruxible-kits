@@ -29,29 +29,29 @@ fleet: one central hub (`hub-north-01`) and three cameras (`cam-gate-01`, `cam-d
 ```bash
 mkdir camera-hub-demo && cd camera-hub-demo
 git init -q -b main
-cruxible init
-cruxible kit add iot-fleet
+cruxible init --principal-id owner
+cruxible kit add iot-fleet --commit
 
-# Copy the bundled example files into your workspace
-cruxible kit docs iot-fleet --out .cruxible-docs
+# Fetch the verified kit files (including this example) into .cruxible/kits/iot-fleet
+cruxible kit pull iot-fleet --out .cruxible/kits/iot-fleet
 
-# 1. Seed the site, hub, 3 cameras, approved baselines, and 1 pinned sign-off
-cruxible python .cruxible-docs/iot-fleet/examples/camera-hub/seed_fleet.py
+# 1. Seed the site, hub, 3 cameras, and approved operating baselines
+cruxible python .cruxible/kits/iot-fleet/examples/camera-hub/seed_fleet.py
 
 # 2. Adopt the telemetry Line and attention backbone
 mkdir -p telemetry
-cp .cruxible-docs/iot-fleet/examples/camera-hub/hub-batch-01.json telemetry/hub.json
-cruxible kit adopt iot-fleet
-cruxible kit adopt iot-fleet:telemetry --param name=hub --param relative_path=telemetry/hub.json
+cp .cruxible/kits/iot-fleet/examples/camera-hub/hub-batch-01.json telemetry/hub.json
+cruxible kit adopt iot-fleet --yes
+cruxible kit adopt iot-fleet:telemetry --param name=hub --param relative_path=telemetry/hub.json --yes
 cruxible line enable fleet.sensor-health.hub fleet.anomaly-ingest.hub --runbook fleet.check
 
 # 3. Run Batch 1: single-sample spike on cam-gate-01 is filtered out, then pin a reviewed sign-off
 cruxible runbook run fleet.check
-cruxible python .cruxible-docs/iot-fleet/examples/camera-hub/seed_fleet.py --sign-off
+cruxible python .cruxible/kits/iot-fleet/examples/camera-hub/seed_fleet.py --sign-off
 cruxible next
 
 # 4. Drop Batch 2 and run again: sustained thermal fault + flatlined sensor wake cruxible next
-cp .cruxible-docs/iot-fleet/examples/camera-hub/hub-batch-02.json telemetry/hub.json
+cp .cruxible/kits/iot-fleet/examples/camera-hub/hub-batch-02.json telemetry/hub.json
 cruxible runbook run fleet.check
 # Landing Triggers settle fleet.sensor.status and fleet.anomaly observations in the background;
 # run fleet.attention once they land to post the new unjudged anomalies to the Line inbox:

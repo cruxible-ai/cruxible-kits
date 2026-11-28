@@ -43,46 +43,55 @@ either. Text fields hold at most 256 characters.
 
 A ruling (`dev.decision.ruling`), a law's text (`dev.law.text`) and program
 prose (`dev.program.prose`) are short summaries; the prose itself lives in a
-Document section the Claim cites. A citation takes a registered file name or a
-path:
+Document section the Claim cites. Author through the typed Python SDK
+(`cruxible python`, typed against `.cruxible/world.pyi`):
 
-```sh
-cruxible set dev.decision/kit-versions ruling "Kits that changed meaning for 0.5 ship as 2.0.0." \
-  --because "The maintainer's ruling." \
-  --evidence-file "docs/decisions.md#Kits whose meaning changed for 0.5 ship as 2.0.0"
+```python
+from cruxible_client import Cruxible, SectionEvidence
+
+with Cruxible.connect() as cx:
+    w = cx.world()
+    w.dev.decision.define(slug="primary-database").set(
+        standing="ratified",
+        ruling="PostgreSQL 16 (concurrent multi-worker writes, JSONB)",
+        evidence=SectionEvidence(
+            file="ARCHITECTURE.md",
+            section=("Architecture", "Database"),
+        ),
+    ).write(because="Initial ADR import")
 ```
 
-`--evidence-file PATH#TEXT` quotes a passage found once in the file, and the
-write catalogues the file if it is not yet. `set` has no option that cites a
-whole section; a write file does (`cruxible write FILE`), naming the section
-by its heading path from the top of the page:
-
-```yaml
-because: "The maintainer's ruling."
-changes:
-  - op: set
-    subject: dev.decision/kit-versions
-    field: standing
-    value: ratified
-    evidence: {kind: section, file: docs/decisions.md, section: [Decisions, Kit versions]}
-```
+From the CLI, `cruxible set` takes `--evidence-file PATH#TEXT` (quoting a
+passage found once in the file), and `cruxible write FILE` can cite a whole
+Markdown section by its heading path.
 
 ## Install
 
-From a checkout of this repository:
-
 ```sh
-cruxible kit add /path/to/cruxible-kits/kits/project-state                  # preview; prints the coordinate
-cruxible kit add /path/to/cruxible-kits/kits/project-state --commit --at OID
+cruxible kit add project-state            # preview; writes nothing
+cruxible kit add project-state --commit   # pull project-state:2.0.0 from GHCR and install
 ```
 
-`cruxible kit add project-state:2.0.0` installs the same release from the
-registry once it is published; before then it refuses
-(`cruxible.kit.not_found`), so use the directory. The kit carries no providers, so the install is one proposal. With
-one owner and self-approval the commit installs it; under independent approval
-(`cruxible init ... --reviewer-key-dir DIR --require-independent-approval`) it
-waits for the reviewer: `CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal
-approve PROPOSAL_ID --yes`.
+`cruxible kit add project-state` resolves the highest published semver release
+in `ghcr.io/cruxible-ai/kits` (currently `project-state:2.0.0`) and pins it by
+digest. Because the kit carries no providers, the install is a single proposal.
+With one owner and self-approval (`cruxible init --principal-id owner`),
+`--commit` installs it immediately; under independent approval
+(`cruxible init --principal-id owner --require-independent-approval`), it waits
+for the reviewer: `CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve
+PROPOSAL_ID --yes`.
+
+## Try it in 60 seconds
+
+- **Session-handoff demo:**
+  [examples/session-handoff/](examples/session-handoff/README.md) seeds a
+  cited decision plus two roadmap items (one pinned `based_on` the decision),
+  edits the cited doc, and supersedes the decision so you see both
+  `citation_drifted` and selective `claim_dependency_stale` in `cruxible next`.
+- **Agent skill:**
+  [skills/project-state/SKILL.md](skills/project-state/SKILL.md) teaches coding
+  agents to plan from accepted state, pin dependencies with `based_on`, and
+  reconcile completed work in one coherent checkpoint.
 
 ## Upgrading
 

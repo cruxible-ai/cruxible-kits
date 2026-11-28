@@ -63,9 +63,9 @@ attached to `asset.condition`, `baseline.status`, `anomaly.disposition`, and
 ## Install and adopt
 
 ```sh
-cruxible kit add iot-fleet
-cruxible kit adopt iot-fleet
-cruxible kit adopt iot-fleet:telemetry --param name=hub --param relative_path=telemetry/hub.json
+cruxible kit add iot-fleet --commit
+cruxible kit adopt iot-fleet --yes
+cruxible kit adopt iot-fleet:telemetry --param name=hub --param relative_path=telemetry/hub.json --yes
 cruxible line enable fleet.sensor-health.hub fleet.anomaly-ingest.hub --runbook fleet.check
 cruxible runbook run fleet.check
 ```

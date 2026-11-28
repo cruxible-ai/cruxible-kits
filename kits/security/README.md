@@ -94,9 +94,8 @@ cruxible kit run security:export-vex -- --format openvex -o vex.openvex.json
 ```
 
 `PROPOSAL_ID` is the short id each command prints (12 hex characters; `cruxible
-proposal list --status open` lists them). Until `security:1.4.0` is published
-to the registry, install from a checkout: `cruxible kit add
-/path/to/cruxible-kits/kits/security --commit`.
+proposal list --status open` lists them). A bare `cruxible kit add security
+--commit` resolves `security:1.4.0` directly from `ghcr.io/cruxible-ai/kits`.
 
 `cruxible kit run security:init-plan` reads the workspace (SBOMs, SARIF files,
 lockfiles, Dockerfiles, the origin remote) and prints these commands with your
@@ -125,8 +124,7 @@ like any other. The rest of this README is the hand-authored path
 
 ## Install and first answers
 
-Use Cruxible 0.6 with its daemon running and a Git workspace selected. From a
-checkout of this repository (replace paths for your workspace):
+Use Cruxible 0.6 with its daemon running and a Git workspace selected:
 
 ```sh
 cruxible init --principal-id owner --require-independent-approval
@@ -135,9 +133,9 @@ cruxible init --principal-id owner --require-independent-approval
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
 # Preview the install without writing or prompting:
-cruxible kit add /path/to/cruxible-kits/kits/security --dry-run
+cruxible kit add security
 # The commit prints ONE proposal: the three providers and the kit's definitions.
-cruxible kit add /path/to/cruxible-kits/kits/security --commit
+cruxible kit add security --commit
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal review PROPOSAL_ID
 CRUXIBLE_PRINCIPAL_ID=reviewer cruxible proposal approve PROPOSAL_ID --yes
 cruxible kit status --offline
@@ -152,13 +150,9 @@ serves) and the kit's definitions, checked together; `proposal review` lists
 every provider's operations and network endpoints beside the definitions, and
 one approval activates them all. With one owner and self-approval (below) the
 same commit installs everything at once.
-`cruxible kit add security:1.4.0` installs the same release from the registry
-(`ghcr.io/cruxible-ai/kits/security:1.4.0`) once it is published; before
-then it refuses (`cruxible.kit.not_found`), so use the local directory. The
-same holds for a refusal whose repair is `cruxible kit add security`
-(`requires_missing`, from something that requires this kit): that command
-fetches the registry release, so until it is published run `cruxible kit add
-/path/to/cruxible-kits/kits/security` instead.
+`cruxible kit add security` resolves to the highest published release in
+`ghcr.io/cruxible-ai/kits` (currently `security:1.4.0`); pass `security:1.4.0`
+to pin an exact tag, or a local directory path when developing from a checkout.
 
 `cruxible kit add PATH --dry-run` previews the plan without writing or
 prompting (`--json` prints the full plan non-interactively). In an interactive
